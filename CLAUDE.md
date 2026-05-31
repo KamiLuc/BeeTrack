@@ -6,7 +6,7 @@ Beekeeping management app for hobbyist and professional beekeepers.
 
 ## Project Tracking
 
-- Requirements and backlog: `REQUIREMENTS.md` — treat each item like a Jira ticket, update status as work progresses
+- Backlog: `BACKLOG.md` — treat each item like a Jira ticket, update status as work progresses
 - Version control: Git — commit changes as work is completed
 
 ## Code Conventions
