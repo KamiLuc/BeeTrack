@@ -142,7 +142,7 @@
 
 | ID     | Status | Title | Notes |
 |--------|--------|-------|-------|
-| INF-01 | `[ ]`  | Docker Compose setup (Go API + PostgreSQL) | |
+| INF-01 | `[x]`  | Docker Compose setup (Go API + PostgreSQL) | |
 | INF-02 | `[ ]`  | Database schema & migrations (golang-migrate or goose) | |
 | INF-03 | `[x]`  | Environment config via `.env` | |
 | INF-04 | `[x]`  | Go project structure (cmd/, internal/, pkg/) | |
