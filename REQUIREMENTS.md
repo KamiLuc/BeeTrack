@@ -36,8 +36,8 @@
 |-------|--------|-------|-------|
 | AU-01 | `[x]`  | User registration (email + password) | Hash passwords with bcrypt |
 | AU-02 | `[x]`  | User login — JWT-based auth | Access token + refresh token |
-| AU-03 | `[ ]`  | Refresh token rotation | Store refresh tokens in DB, invalidate on use |
-| AU-04 | `[ ]`  | Logout / token revocation | |
+| AU-03 | `[x]`  | Refresh token rotation | Store refresh tokens in DB, invalidate on use |
+| AU-04 | `[x]`  | Logout / token revocation | |
 | AU-05 | `[ ]`  | Update display name | PATCH /api/v1/users/me/name |
 
 ---

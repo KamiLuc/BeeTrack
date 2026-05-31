@@ -31,3 +31,7 @@ func (r *TokenRepository) GetByToken(ctx context.Context, token string) (*model.
 	}
 	return &t, nil
 }
+
+func (r *TokenRepository) DeleteByToken(ctx context.Context, token string) error {
+	return r.db.WithContext(ctx).Where("token = ?", token).Delete(&model.RefreshToken{}).Error
+}

@@ -41,8 +41,10 @@ func main() {
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
+	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
+	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 
 	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {

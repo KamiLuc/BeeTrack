@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	ErrEmailTaken      = errors.New("email already registered")
-	ErrInvalidEmail    = errors.New("invalid email address")
-	ErrInvalidPassword = errors.New("invalid email or password")
-	ErrWeakPassword    = errors.New("password must be at least 8 characters")
+	ErrEmailTaken         = errors.New("email already registered")
+	ErrInvalidEmail       = errors.New("invalid email address")
+	ErrInvalidPassword    = errors.New("invalid email or password")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+	ErrTokenExpired       = errors.New("refresh token expired")
+	ErrWeakPassword       = errors.New("password must be at least 8 characters")
 )
 
 type AuthService struct {
@@ -109,4 +111,46 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (access
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
+	rt, err := s.tokens.GetByToken(ctx, refreshToken)
+	if err != nil {
+		return "", "", fmt.Errorf("refresh: %w", err)
+	}
+	if rt == nil {
+		return "", "", ErrInvalidRefreshToken
+	}
+	if time.Now().After(rt.ExpiresAt) {
+		return "", "", ErrTokenExpired
+	}
+
+	if err := s.tokens.DeleteByToken(ctx, refreshToken); err != nil {
+		return "", "", fmt.Errorf("delete old refresh token: %w", err)
+	}
+
+	accessToken, err = token.NewAccessToken(rt.UserID, s.jwtSecret, s.accessTTLMin)
+	if err != nil {
+		return "", "", fmt.Errorf("generate access token: %w", err)
+	}
+
+	newRefreshToken, err = token.NewRefreshToken()
+	if err != nil {
+		return "", "", fmt.Errorf("generate refresh token: %w", err)
+	}
+
+	newRT := &model.RefreshToken{
+		UserID:    rt.UserID,
+		Token:     newRefreshToken,
+		ExpiresAt: time.Now().AddDate(0, 0, s.refreshTTLDays),
+	}
+	if err := s.tokens.Create(ctx, newRT); err != nil {
+		return "", "", fmt.Errorf("store refresh token: %w", err)
+	}
+
+	return accessToken, newRefreshToken, nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	return s.tokens.DeleteByToken(ctx, refreshToken)
 }
