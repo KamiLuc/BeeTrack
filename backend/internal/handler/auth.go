@@ -24,7 +24,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "invalid request body")
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
 		return
 	}
 
@@ -32,11 +32,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrEmailTaken):
-			respond.Error(w, http.StatusConflict, err.Error())
-		case errors.Is(err, service.ErrInvalidEmail), errors.Is(err, service.ErrWeakPassword):
-			respond.Error(w, http.StatusBadRequest, err.Error())
+			respond.Error(w, http.StatusConflict, "EMAIL_TAKEN", err.Error())
+		case errors.Is(err, service.ErrInvalidEmail):
+			respond.Error(w, http.StatusBadRequest, "INVALID_EMAIL", err.Error())
+		case errors.Is(err, service.ErrWeakPassword):
+			respond.Error(w, http.StatusBadRequest, "WEAK_PASSWORD", err.Error())
 		default:
-			respond.Error(w, http.StatusInternalServerError, "internal server error")
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}
 		return
 	}
@@ -46,5 +48,32 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		"email":      user.Email,
 		"name":       user.Name,
 		"created_at": user.CreatedAt,
+	})
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+		return
+	}
+
+	accessToken, refreshToken, err := h.auth.Login(r.Context(), req.Email, req.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidPassword):
+			respond.Error(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", err.Error())
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
 }

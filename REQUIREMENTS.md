@@ -35,7 +35,7 @@
 | ID    | Status | Title | Notes |
 |-------|--------|-------|-------|
 | AU-01 | `[x]`  | User registration (email + password) | Hash passwords with bcrypt |
-| AU-02 | `[ ]`  | User login — JWT-based auth | Access token + refresh token |
+| AU-02 | `[x]`  | User login — JWT-based auth | Access token + refresh token |
 | AU-03 | `[ ]`  | Refresh token rotation | Store refresh tokens in DB, invalidate on use |
 | AU-04 | `[ ]`  | Logout / token revocation | |
 | AU-05 | `[ ]`  | Update display name | PATCH /api/v1/users/me/name |
@@ -151,6 +151,15 @@
 | INF-06 | `[ ]`  | Input validation & structured error responses | |
 | INF-07 | `[ ]`  | Structured JSON logging | |
 | INF-08 | `[ ]`  | CORS configuration for web client | |
+
+---
+
+## 10. Localization
+
+| ID     | Status | Title | Notes |
+|--------|--------|-------|-------|
+| LO-01  | `[x]`  | Structured error codes in API responses | `{ code, message }` — frontend uses code for translation |
+| LO-02  | `[ ]`  | Flutter i18n — English + Polish | ARB files, flutter_localizations |
 
 ---
 

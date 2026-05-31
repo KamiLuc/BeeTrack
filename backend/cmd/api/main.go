@@ -36,11 +36,13 @@ func main() {
 	}
 
 	userRepo := repository.NewUserRepository(db)
-	authSvc := service.NewAuthService(userRepo)
+	tokenRepo := repository.NewTokenRepository(db)
+	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 
 	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
