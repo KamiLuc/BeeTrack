@@ -28,3 +28,14 @@ docker/        # Docker Compose + related config
 - Backend: `docker compose up` (Go API + PostgreSQL)
 - Flutter (Android): `flutter run`
 - Flutter (Web): `flutter run -d chrome`
+
+## Migrations
+
+Migrations live in `backend/migrations/` and run automatically on API startup via goose.
+Naming: `NNN_description.sql` (e.g. `002_create_users.sql`).
+
+Each file must have:
+```sql
+-- +goose Up
+-- +goose Down
+```
