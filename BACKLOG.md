@@ -51,7 +51,7 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| HV-01-BE | `BE` | `[ ]` | Create apiary endpoint | POST /api/v1/apiaries; creator becomes owner |
+| HV-01-BE | `BE` | `[x]` | Create apiary endpoint | POST /api/v1/apiaries; creator becomes owner |
 | HV-01-FE | `FE` | `[ ]` | Create apiary screen | Form: name, location, GPS coords, grid size |
 | HV-02-BE | `BE` | `[ ]` | Edit / delete apiary endpoints | |
 | HV-02-FE | `FE` | `[ ]` | Edit / delete apiary UI | |
@@ -204,7 +204,7 @@ User
   id, email, password_hash, name, created_at
 
 Apiary
-  id, owner_user_id, name, location_name, lat, lng, grid_rows, grid_cols, created_at
+  id, owner_user_id, name, lat, lng, grid_rows, grid_cols, created_at, updated_at
 
 ApiaryMember
   apiary_id, user_id, role (owner|member), joined_at

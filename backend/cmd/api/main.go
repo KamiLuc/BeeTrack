@@ -8,6 +8,7 @@ import (
 	"github.com/beetrack/backend/internal/config"
 	"github.com/beetrack/backend/internal/database"
 	"github.com/beetrack/backend/internal/handler"
+	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/joho/godotenv"
@@ -37,14 +38,24 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
+	apiaryRepo := repository.NewApiaryRepository(db)
+
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
+	apiarySvc := service.NewApiaryService(apiaryRepo)
+
 	authHandler := handler.NewAuthHandler(authSvc)
+	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
+
+	auth := middleware.Auth(cfg.JWTSecret)
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+
+	mux.Handle("POST /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.Create)))
 
 	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {

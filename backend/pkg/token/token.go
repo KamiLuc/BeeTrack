@@ -30,3 +30,27 @@ func NewRefreshToken() (string, error) {
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
 }
+
+func ParseAccessToken(tokenStr, secret string) (int64, error) {
+	t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("parse token: %w", err)
+	}
+
+	claims, ok := t.Claims.(jwt.MapClaims)
+	if !ok || !t.Valid {
+		return 0, fmt.Errorf("invalid token")
+	}
+
+	sub, ok := claims["sub"].(float64)
+	if !ok {
+		return 0, fmt.Errorf("invalid subject claim")
+	}
+
+	return int64(sub), nil
+}

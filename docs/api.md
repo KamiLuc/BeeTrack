@@ -9,6 +9,21 @@ All responses are JSON. Errors follow the format:
 
 ---
 
+## Protected Routes
+
+Protected routes require a valid JWT access token in the `Authorization` header:
+```
+Authorization: Bearer <access_token>
+```
+
+If the token is missing or invalid:
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+
+---
+
 ## Authentication
 
 ### POST /auth/register
@@ -123,4 +138,50 @@ Revokes the refresh token. The user must log in again to get a new token pair.
 | Code | Status | Description |
 |------|--------|-------------|
 | `INVALID_BODY` | 400 | Malformed JSON |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Apiaries
+
+### POST /apiaries 🔒
+
+Creates a new apiary. The authenticated user becomes the owner.
+
+**Request**
+```json
+{
+  "name": "My Apiary",
+  "lat": 52.23,
+  "lng": 21.01,
+  "grid_rows": 3,
+  "grid_cols": 4
+}
+```
+
+- `lat` and `lng` are optional
+- `grid_rows` and `grid_cols` must be ≥ 1
+
+**Response** `201 Created`
+```json
+{
+  "id": 1,
+  "name": "My Apiary",
+  "lat": 52.23,
+  "lng": 21.01,
+  "grid_rows": 3,
+  "grid_cols": 4,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T12:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `NAME_REQUIRED` | 400 | Name field is empty |
+| `INVALID_GRID_SIZE` | 400 | grid_rows or grid_cols < 1 |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
