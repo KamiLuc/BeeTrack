@@ -27,81 +27,113 @@
 7. [Queen Recognition (AI Feature)](#7-queen-recognition-ai-feature)
 8. [MCP Server](#8-mcp-server)
 9. [Infrastructure & DevOps](#9-infrastructure--devops)
+10. [Localization](#10-localization)
 
 ---
 
 ## 1. Auth & User Management
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| AU-01 | `[x]`  | User registration (email + password) | Hash passwords with bcrypt |
-| AU-02 | `[x]`  | User login — JWT-based auth | Access token + refresh token |
-| AU-03 | `[x]`  | Refresh token rotation | Store refresh tokens in DB, invalidate on use |
-| AU-04 | `[x]`  | Logout / token revocation | |
-| AU-05 | `[ ]`  | Update display name | PATCH /api/v1/users/me/name |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| AU-01-BE | `BE` | `[x]` | User registration endpoint | Hash passwords with bcrypt |
+| AU-01-FE | `FE` | `[ ]` | Registration screen | Email, name, password fields |
+| AU-02-BE | `BE` | `[x]` | Login endpoint — JWT-based auth | Access token + refresh token |
+| AU-02-FE | `FE` | `[ ]` | Login screen + token interceptor | Store tokens; auto-refresh on 401 |
+| AU-03-BE | `BE` | `[x]` | Refresh token rotation | Invalidate on use |
+| AU-04-BE | `BE` | `[x]` | Logout endpoint | Delete refresh token from DB |
+| AU-04-FE | `FE` | `[ ]` | Logout action | Clear stored tokens, redirect to login |
+| AU-05-BE | `BE` | `[ ]` | Update display name endpoint | PATCH /api/v1/users/me/name |
+| AU-05-FE | `FE` | `[ ]` | Edit display name screen | |
 
 ---
 
 ## 2. Apiary & Hive Management
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| HV-01 | `[ ]`  | Create apiary (name, location, GPS coords, grid size rows×cols) | Creator becomes apiary owner |
-| HV-02 | `[ ]`  | Edit / delete apiary | |
-| HV-03 | `[ ]`  | List all apiaries | |
-| HV-04 | `[ ]`  | Apiary grid view — display hives on their grid positions | Empty cells shown as placeholders |
-| HV-05 | `[ ]`  | Add hive to apiary (name, type, install date, grid position) | Position = (row, col); must be within grid bounds and unoccupied |
-| HV-06 | `[ ]`  | Move hive to a different grid position | Drag-and-drop or manual coordinate input |
-| HV-07 | `[ ]`  | Rename hive | |
-| HV-08 | `[ ]`  | Edit other hive fields / delete hive | |
-| HV-09 | `[ ]`  | Hive detail screen | Shows hive info + linked inspections |
-| HV-10 | `[ ]`  | Hive status field (active, inactive, dead-out, sold) | |
-| HV-11 | `[ ]`  | Invite another user to an apiary (by email) | Invited user gets member role |
-| HV-12 | `[ ]`  | Apiary roles: owner vs member | Owner can invite/remove members and delete apiary; members can manage hives and inspections |
-| HV-13 | `[ ]`  | List members of an apiary | |
-| HV-14 | `[ ]`  | Remove a member from apiary / leave apiary | Owner cannot leave without transferring ownership |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HV-01-BE | `BE` | `[ ]` | Create apiary endpoint | POST /api/v1/apiaries; creator becomes owner |
+| HV-01-FE | `FE` | `[ ]` | Create apiary screen | Form: name, location, GPS coords, grid size |
+| HV-02-BE | `BE` | `[ ]` | Edit / delete apiary endpoints | |
+| HV-02-FE | `FE` | `[ ]` | Edit / delete apiary UI | |
+| HV-03-BE | `BE` | `[ ]` | List apiaries endpoint | GET /api/v1/apiaries |
+| HV-03-FE | `FE` | `[ ]` | Apiaries list screen | |
+| HV-04-BE | `BE` | `[ ]` | Apiary hive positions endpoint | Returns hives with grid coords |
+| HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
+| HV-05-BE | `BE` | `[ ]` | Add hive to apiary endpoint | Validate grid position within bounds and unoccupied |
+| HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, install date, grid position picker |
+| HV-06-BE | `BE` | `[ ]` | Move hive endpoint | Update grid position |
+| HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
+| HV-07-BE | `BE` | `[ ]` | Rename hive endpoint | |
+| HV-07-FE | `FE` | `[ ]` | Rename hive UI | |
+| HV-08-BE | `BE` | `[ ]` | Edit / delete hive endpoints | |
+| HV-08-FE | `FE` | `[ ]` | Edit / delete hive UI | |
+| HV-09-BE | `BE` | `[ ]` | Hive detail endpoint | Returns hive info + latest inspection |
+| HV-09-FE | `FE` | `[ ]` | Hive detail screen | |
+| HV-10-BE | `BE` | `[ ]` | Hive status field | active, inactive, dead-out, sold |
+| HV-10-FE | `FE` | `[ ]` | Hive status UI | Dropdown / selector |
+| HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
+| HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |
+| HV-12-BE | `BE` | `[ ]` | Apiary roles enforcement | Owner can invite/remove/delete; member can manage hives and inspections |
+| HV-13-BE | `BE` | `[ ]` | List apiary members endpoint | |
+| HV-13-FE | `FE` | `[ ]` | Members list screen | |
+| HV-14-BE | `BE` | `[ ]` | Remove member / leave apiary endpoint | Owner cannot leave without transferring ownership |
+| HV-14-FE | `FE` | `[ ]` | Remove member / leave apiary UI | |
 
 ---
 
 ## 3. Inspection Logging
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| IN-01 | `[ ]`  | Create inspection record for a hive | Date, duration, weather |
-| IN-02 | `[ ]`  | Record queen status (seen, not seen, capped cells, eggs) | Enum + free-text |
-| IN-03 | `[ ]`  | Record brood pattern (excellent / good / poor / none) | |
-| IN-04 | `[ ]`  | Record frames of bees, honey, pollen (counts) | |
-| IN-05 | `[ ]`  | Record Varroa mite count result | Numeric field + method |
-| IN-06 | `[ ]`  | Free-text notes per inspection | |
-| IN-07 | `[ ]`  | Edit / delete inspection | |
-| IN-08 | `[ ]`  | Inspection history list per hive (paginated) | |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| IN-01-BE | `BE` | `[ ]` | Create inspection endpoint | Date, duration, weather |
+| IN-01-FE | `FE` | `[ ]` | Create inspection screen | |
+| IN-02-BE | `BE` | `[ ]` | Queen status field | Enum: seen, not seen, capped cells, eggs |
+| IN-02-FE | `FE` | `[ ]` | Queen status UI | Selector + free-text |
+| IN-03-BE | `BE` | `[ ]` | Brood pattern field | Enum: excellent, good, poor, none |
+| IN-03-FE | `FE` | `[ ]` | Brood pattern UI | |
+| IN-04-BE | `BE` | `[ ]` | Frames count fields | Bees, honey, pollen |
+| IN-04-FE | `FE` | `[ ]` | Frames count UI | Numeric inputs |
+| IN-05-BE | `BE` | `[ ]` | Varroa mite count field | Numeric + method |
+| IN-05-FE | `FE` | `[ ]` | Varroa count UI | |
+| IN-06-BE | `BE` | `[ ]` | Free-text notes field | |
+| IN-06-FE | `FE` | `[ ]` | Notes UI | Text area |
+| IN-07-BE | `BE` | `[ ]` | Edit / delete inspection endpoints | |
+| IN-07-FE | `FE` | `[ ]` | Edit / delete inspection UI | |
+| IN-08-BE | `BE` | `[ ]` | Inspection history endpoint | Paginated |
+| IN-08-FE | `FE` | `[ ]` | Inspection history list screen | |
 
 ---
 
 ## 4. Health & Treatment Tracking
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| TR-01 | `[ ]`  | Log treatment (type, product, dosage, date applied, date ended) | e.g., Apivar, oxalic acid, Apiguard |
-| TR-02 | `[ ]`  | Mark treatment complete | |
-| TR-03 | `[ ]`  | Treatment history per hive | |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| TR-01-BE | `BE` | `[ ]` | Log treatment endpoint | Type, product, dosage, date applied, date ended |
+| TR-01-FE | `FE` | `[ ]` | Log treatment screen | e.g., Apivar, oxalic acid, Apiguard |
+| TR-02-BE | `BE` | `[ ]` | Mark treatment complete endpoint | |
+| TR-02-FE | `FE` | `[ ]` | Mark treatment complete UI | |
+| TR-03-BE | `BE` | `[ ]` | Treatment history endpoint | |
+| TR-03-FE | `FE` | `[ ]` | Treatment history screen | |
 
 ---
 
 ## 5. Honey Harvest Tracking
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| HH-01 | `[ ]`  | Log harvest (date, hive, frames extracted, kg/litres yield) | |
-| HH-02 | `[ ]`  | Edit / delete harvest entry | |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HH-01-BE | `BE` | `[ ]` | Log harvest endpoint | Date, hive, frames extracted, kg/litres yield |
+| HH-01-FE | `FE` | `[ ]` | Log harvest screen | |
+| HH-02-BE | `BE` | `[ ]` | Edit / delete harvest endpoint | |
+| HH-02-FE | `FE` | `[ ]` | Edit / delete harvest UI | |
 
 ---
 
 ## 6. Reports & Analytics
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| RP-01 | `[ ]`  | Dashboard — overview of all hives at a glance | Hive count, last inspection dates, active treatments |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| RP-01-BE | `BE` | `[ ]` | Dashboard data endpoint | Hive count, last inspection dates, active treatments |
+| RP-01-FE | `FE` | `[ ]` | Dashboard screen | Overview of all hives at a glance |
 
 ---
 
@@ -109,16 +141,18 @@
 
 > **Deferred — implement after core app is stable.**
 
-| ID    | Status | Title | Notes |
-|-------|--------|-------|-------|
-| QR-01 | `[ ]`  | Camera capture screen in Flutter | Live preview + capture button |
-| QR-02 | `[ ]`  | Upload frame photo to backend for analysis | Multipart form POST |
-| QR-03 | `[ ]`  | Backend: CV model inference endpoint | Go service calls Python/ONNX/TFLite model or external microservice |
-| QR-04 | `[ ]`  | Return bounding box + confidence score to app | |
-| QR-05 | `[ ]`  | Overlay bounding box on captured image in Flutter | |
-| QR-06 | `[ ]`  | Collect user feedback (correct / incorrect) for model retraining | |
-| QR-07 | `[ ]`  | Model training pipeline (dataset, annotations, training script) | Thesis core — YOLO / EfficientDet / custom CNN |
-| QR-08 | `[ ]`  | Model evaluation metrics (mAP, precision, recall) | Document for thesis |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| QR-01-FE | `FE` | `[ ]` | Camera capture screen | Live preview + capture button |
+| QR-02-BE | `BE` | `[ ]` | Upload photo endpoint | Multipart form POST |
+| QR-02-FE | `FE` | `[ ]` | Upload photo from app | |
+| QR-03-BE | `BE` | `[ ]` | CV model inference endpoint | Go service calls Python/ONNX/TFLite model |
+| QR-04-BE | `BE` | `[ ]` | Return bounding box + confidence score | |
+| QR-05-FE | `FE` | `[ ]` | Overlay bounding box on image | |
+| QR-06-BE | `BE` | `[ ]` | Collect user feedback endpoint | correct / incorrect for retraining |
+| QR-06-FE | `FE` | `[ ]` | User feedback UI | |
+| QR-07-BE | `BE` | `[ ]` | Model training pipeline | Dataset, annotations, training script — thesis core |
+| QR-08-BE | `BE` | `[ ]` | Model evaluation metrics | mAP, precision, recall — document for thesis |
 
 ---
 
@@ -126,40 +160,40 @@
 
 > **Deferred — enables AI voice assistant integration.**
 
-| ID     | Status | Title | Notes |
-|--------|--------|-------|-------|
-| MCP-01 | `[ ]`  | MCP server endpoint in Go backend (HTTP+SSE transport) | Runs alongside REST API |
-| MCP-02 | `[ ]`  | Tool: `create_inspection` | |
-| MCP-03 | `[ ]`  | Tool: `log_treatment` | |
-| MCP-04 | `[ ]`  | Tool: `log_harvest` | |
-| MCP-05 | `[ ]`  | Tool: `get_hive_summary` | Returns latest inspection + active treatments |
-| MCP-06 | `[ ]`  | Tool: `list_hives` | |
-| MCP-07 | `[ ]`  | Auth for MCP clients (API key or OAuth) | |
-| MCP-08 | `[ ]`  | Voice pipeline integration (STT → LLM + MCP → backend) | e.g., Whisper → Claude/GPT with MCP tools |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| MCP-01-BE | `BE` | `[ ]` | MCP server endpoint | HTTP+SSE transport, runs alongside REST API |
+| MCP-02-BE | `BE` | `[ ]` | Tool: `create_inspection` | |
+| MCP-03-BE | `BE` | `[ ]` | Tool: `log_treatment` | |
+| MCP-04-BE | `BE` | `[ ]` | Tool: `log_harvest` | |
+| MCP-05-BE | `BE` | `[ ]` | Tool: `get_hive_summary` | Latest inspection + active treatments |
+| MCP-06-BE | `BE` | `[ ]` | Tool: `list_hives` | |
+| MCP-07-BE | `BE` | `[ ]` | Auth for MCP clients | API key or OAuth |
+| MCP-08-BE | `BE` | `[ ]` | Voice pipeline integration | Whisper → Claude/GPT with MCP tools |
 
 ---
 
 ## 9. Infrastructure & DevOps
 
-| ID     | Status | Title | Notes |
-|--------|--------|-------|-------|
-| INF-01 | `[x]`  | Docker Compose setup (Go API + PostgreSQL) | |
-| INF-02 | `[x]`  | Database schema & migrations (golang-migrate or goose) | Using goose |
-| INF-03 | `[x]`  | Environment config via `.env` | |
-| INF-04 | `[x]`  | Go project structure (cmd/, internal/, pkg/) | |
-| INF-05 | `[ ]`  | REST API — OpenAPI / Swagger spec | |
-| INF-06 | `[ ]`  | Input validation & structured error responses | |
-| INF-07 | `[ ]`  | Structured JSON logging | |
-| INF-08 | `[ ]`  | CORS configuration for web client | |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| INF-01-BE | `BE` | `[x]` | Docker Compose setup | Go API + PostgreSQL |
+| INF-02-BE | `BE` | `[x]` | Database schema & migrations | Using goose |
+| INF-03-BE | `BE` | `[x]` | Environment config via `.env` | |
+| INF-04-BE | `BE` | `[x]` | Go project structure | cmd/, internal/, pkg/ |
+| INF-05-BE | `BE` | `[ ]` | REST API — OpenAPI / Swagger spec | |
+| INF-06-BE | `BE` | `[ ]` | Input validation & structured error responses | |
+| INF-07-BE | `BE` | `[ ]` | Structured JSON logging | |
+| INF-08-BE | `BE` | `[ ]` | CORS configuration for web client | |
 
 ---
 
 ## 10. Localization
 
-| ID     | Status | Title | Notes |
-|--------|--------|-------|-------|
-| LO-01  | `[x]`  | Structured error codes in API responses | `{ code, message }` — frontend uses code for translation |
-| LO-02  | `[ ]`  | Flutter i18n — English + Polish | ARB files, flutter_localizations |
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| LO-01-BE | `BE` | `[x]` | Structured error codes in API responses | `{ code, message }` — frontend uses code for translation |
+| LO-02-FE | `FE` | `[ ]` | Flutter i18n — English + Polish | ARB files, flutter_localizations |
 
 ---
 
