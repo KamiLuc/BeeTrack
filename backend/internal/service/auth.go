@@ -8,31 +8,41 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
-	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/pkg/token"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrEmailTaken         = errors.New("email already registered")
-	ErrInvalidEmail       = errors.New("invalid email address")
-	ErrInvalidPassword    = errors.New("invalid email or password")
+	ErrEmailTaken          = errors.New("email already registered")
+	ErrInvalidEmail        = errors.New("invalid email address")
+	ErrInvalidPassword     = errors.New("invalid email or password")
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	ErrTokenExpired       = errors.New("refresh token expired")
-	ErrWeakPassword       = errors.New("password must be at least 8 characters")
+	ErrTokenExpired        = errors.New("refresh token expired")
+	ErrWeakPassword        = errors.New("password must be at least 8 characters")
 )
+
+type TokenRepository interface {
+	Create(ctx context.Context, t *model.RefreshToken) error
+	DeleteByToken(ctx context.Context, token string) error
+	GetByToken(ctx context.Context, token string) (*model.RefreshToken, error)
+}
+
+type UserRepository interface {
+	Create(ctx context.Context, u *model.User) error
+	GetByEmail(ctx context.Context, email string) (*model.User, error)
+}
 
 type AuthService struct {
 	accessTTLMin   int
 	jwtSecret      string
 	refreshTTLDays int
-	tokens         *repository.TokenRepository
-	users          *repository.UserRepository
+	tokens         TokenRepository
+	users          UserRepository
 }
 
 func NewAuthService(
-	users *repository.UserRepository,
-	tokens *repository.TokenRepository,
+	users UserRepository,
+	tokens TokenRepository,
 	jwtSecret string,
 	accessTTLMin int,
 	refreshTTLDays int,
@@ -44,38 +54,6 @@ func NewAuthService(
 		tokens:         tokens,
 		users:          users,
 	}
-}
-
-func (s *AuthService) Register(ctx context.Context, email, name, password string) (*model.User, error) {
-	if _, err := mail.ParseAddress(email); err != nil {
-		return nil, ErrInvalidEmail
-	}
-	if len(password) < 8 {
-		return nil, ErrWeakPassword
-	}
-
-	existing, err := s.users.GetByEmail(ctx, email)
-	if err != nil {
-		return nil, fmt.Errorf("register: %w", err)
-	}
-	if existing != nil {
-		return nil, ErrEmailTaken
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	u := &model.User{
-		Email:        email,
-		Name:         name,
-		PasswordHash: string(hash),
-	}
-	if err := s.users.Create(ctx, u); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
-	}
-	return u, nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error) {
@@ -111,6 +89,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (access
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	return s.tokens.DeleteByToken(ctx, refreshToken)
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
@@ -151,6 +133,34 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (accessT
 	return accessToken, newRefreshToken, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	return s.tokens.DeleteByToken(ctx, refreshToken)
+func (s *AuthService) Register(ctx context.Context, email, name, password string) (*model.User, error) {
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, ErrInvalidEmail
+	}
+	if len(password) < 8 {
+		return nil, ErrWeakPassword
+	}
+
+	existing, err := s.users.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("register: %w", err)
+	}
+	if existing != nil {
+		return nil, ErrEmailTaken
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	u := &model.User{
+		Email:        email,
+		Name:         name,
+		PasswordHash: string(hash),
+	}
+	if err := s.users.Create(ctx, u); err != nil {
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+	return u, nil
 }
