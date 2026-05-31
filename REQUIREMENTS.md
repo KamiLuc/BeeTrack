@@ -145,7 +145,7 @@
 | INF-01 | `[ ]`  | Docker Compose setup (Go API + PostgreSQL) | |
 | INF-02 | `[ ]`  | Database schema & migrations (golang-migrate or goose) | |
 | INF-03 | `[ ]`  | Environment config via `.env` | |
-| INF-04 | `[ ]`  | Go project structure (cmd/, internal/, pkg/) | |
+| INF-04 | `[x]`  | Go project structure (cmd/, internal/, pkg/) | |
 | INF-05 | `[ ]`  | REST API — OpenAPI / Swagger spec | |
 | INF-06 | `[ ]`  | Input validation & structured error responses | |
 | INF-07 | `[ ]`  | Structured JSON logging | |
