@@ -13,7 +13,7 @@ Beekeeping management app for hobbyist and professional beekeepers.
 
 - **Function order:** Declaration order in header/interface files must match definition order in implementation files
 - **Includes/imports:** Sorted alphabetically
-- **Comments:** Only when something is genuinely hard to understand — default to no comments
+- **Comments:** Only when something is genuinely hard to understand - default to no comments
 
 ## Project Structure (planned)
 

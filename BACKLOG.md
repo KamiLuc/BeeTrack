@@ -1,4 +1,4 @@
-# BeeTrack — Product Requirements & Backlog
+# BeeTrack — Backlog
 
 > Living document. Treat each item like a Jira ticket — update status as work progresses.
 > **Stack:** Flutter (Android + Web) · Go (backend API) · PostgreSQL · Docker
