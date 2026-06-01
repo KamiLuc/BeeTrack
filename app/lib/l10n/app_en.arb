@@ -37,6 +37,9 @@
   "apiaryGridRows": "Grid rows",
   "apiaryGridCols": "Grid columns",
   "apiaryEmpty": "You have no apiaries yet",
+  "apiaryEdit": "Edit apiary",
+  "apiaryDeleteConfirm": "Delete apiary?",
+  "apiaryDeleteWarning": "This will permanently delete the apiary and all its data.",
 
   "hiveTitle": "Hives",
   "hiveAdd": "Add hive",

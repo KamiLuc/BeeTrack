@@ -42,4 +42,40 @@ class ApiariesCubit extends Cubit<ApiariesState> {
       emit(ApiariesError());
     }
   }
+
+  Future<void> update({
+    required int id,
+    required String name,
+    double? lat,
+    double? lng,
+    required int gridRows,
+    required int gridCols,
+  }) async {
+    emit(ApiariesLoading());
+    try {
+      await _repo.updateApiary(
+        id: id,
+        name: name,
+        lat: lat,
+        lng: lng,
+        gridRows: gridRows,
+        gridCols: gridCols,
+      );
+      final apiaries = await _repo.listApiaries();
+      emit(ApiariesLoaded(apiaries));
+    } catch (_) {
+      emit(ApiariesError());
+    }
+  }
+
+  Future<void> delete(int id) async {
+    emit(ApiariesLoading());
+    try {
+      await _repo.deleteApiary(id);
+      final apiaries = await _repo.listApiaries();
+      emit(ApiariesLoaded(apiaries));
+    } catch (_) {
+      emit(ApiariesError());
+    }
+  }
 }

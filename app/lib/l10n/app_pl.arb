@@ -37,6 +37,9 @@
   "apiaryGridRows": "Wiersze siatki",
   "apiaryGridCols": "Kolumny siatki",
   "apiaryEmpty": "Nie masz jeszcze żadnych pasiek",
+  "apiaryEdit": "Edytuj pasiekę",
+  "apiaryDeleteConfirm": "Usunąć pasiekę?",
+  "apiaryDeleteWarning": "Ta operacja trwale usunie pasiekę i wszystkie jej dane.",
 
   "hiveTitle": "Ule",
   "hiveAdd": "Dodaj ul",

@@ -40,4 +40,33 @@ class ApiaryRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<void> updateApiary({
+    required int id,
+    required String name,
+    double? lat,
+    double? lng,
+    required int gridRows,
+    required int gridCols,
+  }) async {
+    try {
+      await _api.dio.patch('/api/v1/apiaries/$id', data: {
+        'name': name,
+        'lat': lat,
+        'lng': lng,
+        'grid_rows': gridRows,
+        'grid_cols': gridCols,
+      });
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> deleteApiary(int id) async {
+    try {
+      await _api.dio.delete('/api/v1/apiaries/$id');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

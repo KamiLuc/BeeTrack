@@ -149,4 +149,64 @@ void main() {
       expect: () => [isA<ApiariesLoading>(), isA<ApiariesError>()],
     );
   });
+
+  group('update', () {
+    blocTest<ApiariesCubit, ApiariesState>(
+      'emits [ApiariesLoading, ApiariesLoaded] on success',
+      build: () {
+        when(() => repo.updateApiary(
+          id: any(named: 'id'),
+          name: any(named: 'name'),
+          lat: any(named: 'lat'),
+          lng: any(named: 'lng'),
+          gridRows: any(named: 'gridRows'),
+          gridCols: any(named: 'gridCols'),
+        )).thenAnswer((_) async {});
+        when(() => repo.listApiaries()).thenAnswer((_) async => []);
+        return cubit;
+      },
+      act: (c) => c.update(id: 1, name: 'Updated', gridRows: 3, gridCols: 3),
+      expect: () => [isA<ApiariesLoading>(), isA<ApiariesLoaded>()],
+    );
+
+    blocTest<ApiariesCubit, ApiariesState>(
+      'emits [ApiariesLoading, ApiariesError] when update fails',
+      build: () {
+        when(() => repo.updateApiary(
+          id: any(named: 'id'),
+          name: any(named: 'name'),
+          lat: any(named: 'lat'),
+          lng: any(named: 'lng'),
+          gridRows: any(named: 'gridRows'),
+          gridCols: any(named: 'gridCols'),
+        )).thenThrow(Exception('error'));
+        return cubit;
+      },
+      act: (c) => c.update(id: 1, name: 'Updated', gridRows: 3, gridCols: 3),
+      expect: () => [isA<ApiariesLoading>(), isA<ApiariesError>()],
+    );
+  });
+
+  group('delete', () {
+    blocTest<ApiariesCubit, ApiariesState>(
+      'emits [ApiariesLoading, ApiariesLoaded] on success',
+      build: () {
+        when(() => repo.deleteApiary(any())).thenAnswer((_) async {});
+        when(() => repo.listApiaries()).thenAnswer((_) async => []);
+        return cubit;
+      },
+      act: (c) => c.delete(1),
+      expect: () => [isA<ApiariesLoading>(), isA<ApiariesLoaded>()],
+    );
+
+    blocTest<ApiariesCubit, ApiariesState>(
+      'emits [ApiariesLoading, ApiariesError] when delete fails',
+      build: () {
+        when(() => repo.deleteApiary(any())).thenThrow(Exception('error'));
+        return cubit;
+      },
+      act: (c) => c.delete(1),
+      expect: () => [isA<ApiariesLoading>(), isA<ApiariesError>()],
+    );
+  });
 }
