@@ -233,8 +233,26 @@ abstract class AppLocalizations {
   /// No description provided for @apiaryName.
   ///
   /// In pl, this message translates to:
-  /// **'Nazwa pasieki'**
+  /// **'Pasieka'**
   String get apiaryName;
+
+  /// No description provided for @apiaryLatitude.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szerokość geograficzna'**
+  String get apiaryLatitude;
+
+  /// No description provided for @apiaryLongitude.
+  ///
+  /// In pl, this message translates to:
+  /// **'Długość geograficzna'**
+  String get apiaryLongitude;
+
+  /// No description provided for @apiaryGpsUnavailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'GPS niedostępny na tym urządzeniu'**
+  String get apiaryGpsUnavailable;
 
   /// No description provided for @apiaryLocation.
   ///

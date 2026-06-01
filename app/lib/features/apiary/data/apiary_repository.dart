@@ -20,4 +20,24 @@ class ApiaryRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<void> createApiary({
+    required String name,
+    double? lat,
+    double? lng,
+    required int gridRows,
+    required int gridCols,
+  }) async {
+    try {
+      await _api.dio.post('/api/v1/apiaries', data: {
+        'name': name,
+        'lat': lat,
+        'lng': lng,
+        'grid_rows': gridRows,
+        'grid_cols': gridCols,
+      });
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

@@ -75,7 +75,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryAdd => 'Add apiary';
 
   @override
-  String get apiaryName => 'Apiary name';
+  String get apiaryName => 'Apiary';
+
+  @override
+  String get apiaryLatitude => 'Latitude';
+
+  @override
+  String get apiaryLongitude => 'Longitude';
+
+  @override
+  String get apiaryGpsUnavailable => 'GPS not available on this device';
 
   @override
   String get apiaryLocation => 'Location (optional)';

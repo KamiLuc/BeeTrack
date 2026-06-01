@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 import 'register_screen.dart';
@@ -67,11 +68,7 @@ class _LoginViewState extends State<_LoginView> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth:
-                      MediaQuery.of(context).size.width *
-                      (MediaQuery.of(context).size.width > 600 ? 0.4 : 0.85),
-                ),
+                constraints: AppLayout.formConstraints(context),
                 child: Form(
                   key: _formKey,
                   child: Column(

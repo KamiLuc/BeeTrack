@@ -26,7 +26,10 @@
 
   "apiaryTitle": "Pasieki",
   "apiaryAdd": "Dodaj pasiekę",
-  "apiaryName": "Nazwa pasieki",
+  "apiaryName": "Pasieka",
+  "apiaryLatitude": "Szerokość geograficzna",
+  "apiaryLongitude": "Długość geograficzna",
+  "apiaryGpsUnavailable": "GPS niedostępny na tym urządzeniu",
   "apiaryLocation": "Lokalizacja (opcjonalnie)",
   "apiaryGridRows": "Wiersze siatki",
   "apiaryGridCols": "Kolumny siatki",

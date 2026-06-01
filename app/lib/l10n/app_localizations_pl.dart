@@ -75,7 +75,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryAdd => 'Dodaj pasiekę';
 
   @override
-  String get apiaryName => 'Nazwa pasieki';
+  String get apiaryName => 'Pasieka';
+
+  @override
+  String get apiaryLatitude => 'Szerokość geograficzna';
+
+  @override
+  String get apiaryLongitude => 'Długość geograficzna';
+
+  @override
+  String get apiaryGpsUnavailable => 'GPS niedostępny na tym urządzeniu';
 
   @override
   String get apiaryLocation => 'Lokalizacja (opcjonalnie)';

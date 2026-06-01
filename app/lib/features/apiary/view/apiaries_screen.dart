@@ -6,6 +6,7 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
+import 'create_apiary_screen.dart';
 
 class ApiariesScreen extends StatelessWidget {
   const ApiariesScreen({super.key});
@@ -80,7 +81,12 @@ class _ApiariesView extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CreateApiaryScreen()),
+          );
+          if (context.mounted) context.read<ApiariesCubit>().load();
+        },
         child: const Icon(Icons.add),
       ),
     );

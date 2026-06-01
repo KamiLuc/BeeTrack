@@ -52,7 +52,7 @@
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
 | HV-01-BE | `BE` | `[x]` | Create apiary endpoint | POST /api/v1/apiaries; creator becomes owner |
-| HV-01-FE | `FE` | `[ ]` | Create apiary screen | Form: name, location, GPS coords, grid size |
+| HV-01-FE | `FE` | `[x]` | Create apiary screen | Form: name, location, GPS coords, grid size |
 | HV-02-BE | `BE` | `[x]` | Edit / delete apiary endpoints | |
 | HV-02-FE | `FE` | `[ ]` | Edit / delete apiary UI | |
 | HV-03-BE | `BE` | `[x]` | List apiaries endpoint | GET /api/v1/apiaries |

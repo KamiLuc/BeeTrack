@@ -26,7 +26,10 @@
 
   "apiaryTitle": "Apiaries",
   "apiaryAdd": "Add apiary",
-  "apiaryName": "Apiary name",
+  "apiaryName": "Apiary",
+  "apiaryLatitude": "Latitude",
+  "apiaryLongitude": "Longitude",
+  "apiaryGpsUnavailable": "GPS not available on this device",
   "apiaryLocation": "Location (optional)",
   "apiaryGridRows": "Grid rows",
   "apiaryGridCols": "Grid columns",
