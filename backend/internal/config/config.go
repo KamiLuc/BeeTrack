@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	AllowedOrigins    string
 	DatabaseURL       string
 	JWTAccessTTLMin   int
 	JWTRefreshTTLDays int
@@ -26,6 +27,7 @@ func Load() (Config, error) {
 	}
 
 	return Config{
+		AllowedOrigins:    getEnv("CORS_ALLOWED_ORIGINS", "*"),
 		DatabaseURL:       getEnv("DATABASE_URL", ""),
 		JWTAccessTTLMin:   accessTTL,
 		JWTRefreshTTLDays: refreshTTL,

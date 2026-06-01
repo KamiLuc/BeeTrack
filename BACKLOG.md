@@ -184,7 +184,7 @@
 | INF-05-BE | `BE` | `[ ]` | REST API — OpenAPI / Swagger spec | |
 | INF-06-BE | `BE` | `[ ]` | Input validation & structured error responses | |
 | INF-07-BE | `BE` | `[ ]` | Structured JSON logging | |
-| INF-08-BE | `BE` | `[ ]` | CORS configuration for web client | |
+| INF-08-BE | `BE` | `[x]` | CORS configuration for web client | CORS_ALLOWED_ORIGINS env var, defaults to * |
 
 ---
 

@@ -70,8 +70,10 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
 
+	cors := middleware.CORS(cfg.AllowedOrigins)
+
 	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, cors(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
