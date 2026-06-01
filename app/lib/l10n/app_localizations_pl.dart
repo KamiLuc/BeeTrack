@@ -105,6 +105,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryEmpty => 'Nie masz jeszcze żadnych pasiek';
 
   @override
+  String get apiaryEdit => 'Edytuj pasiekę';
+
+  @override
+  String get apiaryDeleteConfirm => 'Usunąć pasiekę?';
+
+  @override
+  String get apiaryDeleteWarning =>
+      'Ta operacja trwale usunie pasiekę i wszystkie jej dane.';
+
+  @override
   String get hiveTitle => 'Ule';
 
   @override

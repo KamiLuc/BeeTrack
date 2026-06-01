@@ -105,6 +105,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryEmpty => 'You have no apiaries yet';
 
   @override
+  String get apiaryEdit => 'Edit apiary';
+
+  @override
+  String get apiaryDeleteConfirm => 'Delete apiary?';
+
+  @override
+  String get apiaryDeleteWarning =>
+      'This will permanently delete the apiary and all its data.';
+
+  @override
   String get hiveTitle => 'Hives';
 
   @override

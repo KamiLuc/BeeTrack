@@ -7,7 +7,7 @@ Beekeeping management app for hobbyist and professional beekeepers.
 ## Project Tracking
 
 - Backlog: `BACKLOG.md` — treat each item like a Jira ticket, update status as work progresses
-- Version control: Git — commit changes as work is completed
+- Version control: Git — always ask the user before committing
 
 ## Code Conventions
 
@@ -31,6 +31,8 @@ docker/        # Docker Compose + related config
 - Backend: `docker compose up` (Go API + PostgreSQL)
 - Flutter (Android): `flutter run`
 - Flutter (Web): `flutter run -d chrome`
+
+> Flutter SDK: `C:\Users\Kamil\Prog\Flutter\flutter\bin\flutter`
 
 ## Migrations
 

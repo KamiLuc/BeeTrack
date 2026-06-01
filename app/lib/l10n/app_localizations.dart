@@ -290,6 +290,24 @@ abstract class AppLocalizations {
   /// **'Nie masz jeszcze żadnych pasiek'**
   String get apiaryEmpty;
 
+  /// No description provided for @apiaryEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj pasiekę'**
+  String get apiaryEdit;
+
+  /// No description provided for @apiaryDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć pasiekę?'**
+  String get apiaryDeleteConfirm;
+
+  /// No description provided for @apiaryDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie pasiekę i wszystkie jej dane.'**
+  String get apiaryDeleteWarning;
+
   /// No description provided for @hiveTitle.
   ///
   /// In pl, this message translates to:
