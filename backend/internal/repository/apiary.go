@@ -30,6 +30,30 @@ func (r *ApiaryRepository) Create(ctx context.Context, a *model.Apiary, ownerRol
 	})
 }
 
+func (r *ApiaryRepository) ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error) {
+	type row struct {
+		model.Apiary
+		UserRole string
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Table("apiaries a").
+		Select("a.*, am.role AS user_role").
+		Joins("JOIN apiary_members am ON am.apiary_id = a.id").
+		Where("am.user_id = ?", userID).
+		Order("a.created_at DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	memberships := make([]model.ApiaryMembership, len(rows))
+	for i, row := range rows {
+		a := row.Apiary
+		memberships[i] = model.ApiaryMembership{Apiary: &a, UserRole: row.UserRole}
+	}
+	return memberships, nil
+}
+
 func (r *ApiaryRepository) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
 	type row struct {
 		model.Apiary

@@ -20,6 +20,7 @@ type ApiaryRepository interface {
 	Create(ctx context.Context, a *model.Apiary, ownerRole string) error
 	Delete(ctx context.Context, apiaryID int64) error
 	GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error)
+	ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error)
 	Update(ctx context.Context, a *model.Apiary) error
 }
 
@@ -53,6 +54,14 @@ func (s *ApiaryService) Create(ctx context.Context, ownerID int64, name string, 
 	}
 
 	return a, nil
+}
+
+func (s *ApiaryService) List(ctx context.Context, userID int64) ([]model.ApiaryMembership, error) {
+	memberships, err := s.apiaries.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list apiaries: %w", err)
+	}
+	return memberships, nil
 }
 
 func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name string, lat, lng *float64, gridRows, gridCols int) (*model.Apiary, error) {

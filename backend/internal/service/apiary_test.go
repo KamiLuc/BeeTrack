@@ -10,17 +10,22 @@ import (
 )
 
 type mockApiaryRepo struct {
-	created   *model.Apiary
-	apiary    *model.Apiary
-	role      string
-	updated   *model.Apiary
-	deletedID int64
+	created      *model.Apiary
+	apiary       *model.Apiary
+	memberships  []model.ApiaryMembership
+	role         string
+	updated      *model.Apiary
+	deletedID    int64
 }
 
 func (m *mockApiaryRepo) Create(ctx context.Context, a *model.Apiary, ownerRole string) error {
 	a.ID = 1
 	m.created = a
 	return nil
+}
+
+func (m *mockApiaryRepo) ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error) {
+	return m.memberships, nil
 }
 
 func (m *mockApiaryRepo) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
@@ -181,5 +186,36 @@ func TestDeleteApiary_Forbidden(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 10)
 	if !errors.Is(err, ErrForbidden) {
 		t.Errorf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestListApiaries_ReturnsMemberships(t *testing.T) {
+	svc, repo := newTestApiaryService()
+	repo.memberships = []model.ApiaryMembership{
+		{Apiary: &model.Apiary{ID: 1, Name: "Alpha"}, UserRole: "owner"},
+		{Apiary: &model.Apiary{ID: 2, Name: "Beta"}, UserRole: "member"},
+	}
+
+	list, err := svc.List(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("expected 2 apiaries, got %d", len(list))
+	}
+	if list[0].UserRole != "owner" || list[1].UserRole != "member" {
+		t.Errorf("unexpected roles: %s, %s", list[0].UserRole, list[1].UserRole)
+	}
+}
+
+func TestListApiaries_Empty(t *testing.T) {
+	svc, _ := newTestApiaryService()
+
+	list, err := svc.List(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(list) != 0 {
+		t.Errorf("expected empty list, got %d items", len(list))
 	}
 }

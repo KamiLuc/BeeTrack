@@ -20,3 +20,8 @@ type ApiaryMember struct {
 	Role     string
 	JoinedAt time.Time
 }
+
+type ApiaryMembership struct {
+	Apiary   *Apiary
+	UserRole string
+}
