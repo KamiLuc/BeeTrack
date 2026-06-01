@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -23,8 +24,12 @@ class _LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<_LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(
+    text: kDebugMode ? 'kamil@op.pl' : null,
+  );
+  final _passwordController = TextEditingController(
+    text: kDebugMode ? 'lion12345' : null,
+  );
   String? _errorMessage;
 
   @override

@@ -9,8 +9,8 @@ import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'features/apiary/view/apiaries_screen.dart';
 import 'features/auth/view/login_screen.dart';
-import 'features/home/view/home_screen.dart';
 import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
@@ -66,7 +66,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        if (state is AuthAuthenticated) return const HomeScreen();
+        if (state is AuthAuthenticated) return const ApiariesScreen();
         return const LoginScreen();
       },
     );

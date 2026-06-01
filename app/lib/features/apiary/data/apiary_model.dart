@@ -1,0 +1,31 @@
+class Apiary {
+  final int id;
+  final String name;
+  final double? lat;
+  final double? lng;
+  final int gridRows;
+  final int gridCols;
+  final String userRole;
+
+  const Apiary({
+    required this.id,
+    required this.name,
+    required this.lat,
+    required this.lng,
+    required this.gridRows,
+    required this.gridCols,
+    required this.userRole,
+  });
+
+  factory Apiary.fromJson(Map<String, dynamic> json) {
+    return Apiary(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      lat: (json['lat'] as num?)?.toDouble(),
+      lng: (json['lng'] as num?)?.toDouble(),
+      gridRows: json['grid_rows'] as int,
+      gridCols: json['grid_cols'] as int,
+      userRole: json['user_role'] as String,
+    );
+  }
+}
