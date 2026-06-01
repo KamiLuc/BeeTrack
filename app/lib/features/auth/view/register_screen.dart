@@ -30,6 +30,7 @@ class _RegisterViewState extends State<_RegisterView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -57,13 +58,11 @@ class _RegisterViewState extends State<_RegisterView> {
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
-          // router will handle navigation once we wire go_router
+        if (state is AuthLoading) {
+          setState(() => _errorMessage = null);
         }
         if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_errorMessage(l10n, state.code))),
-          );
+          setState(() => _errorMessage = _mapError(l10n, state.code));
         }
       },
       child: Scaffold(
@@ -112,6 +111,16 @@ class _RegisterViewState extends State<_RegisterView> {
                             ? l10n.authWeakPassword
                             : null,
                       ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       BlocBuilder<AuthBloc, AuthState>(
                         builder: (context, state) {
@@ -160,7 +169,7 @@ class _RegisterViewState extends State<_RegisterView> {
     return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim());
   }
 
-  String _errorMessage(AppLocalizations l10n, String code) {
+  String _mapError(AppLocalizations l10n, String code) {
     return switch (code) {
       'EMAIL_TAKEN' => l10n.authEmailTaken,
       _ => l10n.generalError,
