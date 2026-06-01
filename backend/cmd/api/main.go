@@ -39,13 +39,16 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
 	apiaryRepo := repository.NewApiaryRepository(db)
+	hiveRepo := repository.NewHiveRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	apiarySvc := service.NewApiaryService(apiaryRepo)
+	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
+	hiveHandler := handler.NewHiveHandler(hiveSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
@@ -61,6 +64,7 @@ func main() {
 
 	mux.Handle("POST /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.Create)))
 	mux.Handle("GET /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.List)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives", auth(http.HandlerFunc(hiveHandler.Create)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
 

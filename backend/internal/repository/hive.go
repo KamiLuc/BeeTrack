@@ -1,0 +1,29 @@
+package repository
+
+import (
+	"context"
+
+	"github.com/beetrack/backend/internal/model"
+	"gorm.io/gorm"
+)
+
+type HiveRepository struct {
+	db *gorm.DB
+}
+
+func NewHiveRepository(db *gorm.DB) *HiveRepository {
+	return &HiveRepository{db: db}
+}
+
+func (r *HiveRepository) Create(ctx context.Context, h *model.Hive) error {
+	return r.db.WithContext(ctx).Create(h).Error
+}
+
+func (r *HiveRepository) IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Hive{}).
+		Where("apiary_id = ? AND grid_row = ? AND grid_col = ?", apiaryID, row, col).
+		Count(&count).Error
+	return count > 0, err
+}

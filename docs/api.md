@@ -185,3 +185,177 @@ Creates a new apiary. The authenticated user becomes the owner.
 | `NAME_REQUIRED` | 400 | Name field is empty |
 | `INVALID_GRID_SIZE` | 400 | grid_rows or grid_cols < 1 |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries 🔒
+
+Returns all apiaries the authenticated user belongs to (as owner or member), ordered by creation date descending.
+
+**Response** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "name": "My Apiary",
+    "lat": 52.23,
+    "lng": 21.01,
+    "grid_rows": 3,
+    "grid_cols": 4,
+    "user_role": "owner",
+    "created_at": "2026-06-01T12:00:00Z",
+    "updated_at": "2026-06-01T12:00:00Z"
+  }
+]
+```
+
+- `user_role` — `"owner"` or `"member"`
+- Returns an empty array if the user has no apiaries
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /apiaries/{id} 🔒
+
+Updates an apiary. Only the owner can edit.
+
+**Request**
+```json
+{
+  "name": "Updated Name",
+  "lat": 52.23,
+  "lng": 21.01,
+  "grid_rows": 4,
+  "grid_cols": 5
+}
+```
+
+- `lat` and `lng` are optional (omit or pass `null` to clear)
+- `grid_rows` and `grid_cols` must be ≥ 1
+
+**Response** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Updated Name",
+  "lat": 52.23,
+  "lng": 21.01,
+  "grid_rows": 4,
+  "grid_cols": 5,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T13:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `NAME_REQUIRED` | 400 | Name field is empty |
+| `INVALID_GRID_SIZE` | 400 | grid_rows or grid_cols < 1 |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `FORBIDDEN` | 403 | Caller is a member, not the owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id} 🔒
+
+Deletes an apiary and all its members. Only the owner can delete.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `FORBIDDEN` | 403 | Caller is a member, not the owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Hives
+
+### POST /apiaries/{id}/hives 🔒
+
+Adds a hive to an apiary. Both owners and members can add hives.
+
+**Request**
+```json
+{
+  "name": "Hive A",
+  "type": "langstroth",
+  "grid_row": 0,
+  "grid_col": 0
+}
+```
+
+- `type` is optional — defaults to `"langstroth"`
+- `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
+- Each position within an apiary must be unique
+
+**Response** `201 Created`
+```json
+{
+  "id": 1,
+  "apiary_id": 1,
+  "name": "Hive A",
+  "type": "langstroth",
+  "active": true,
+  "grid_row": 0,
+  "grid_col": 0,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T12:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `NAME_REQUIRED` | 400 | Name field is empty |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `INVALID_GRID_POSITION` | 400 | Position is outside apiary grid bounds |
+| `POSITION_OCCUPIED` | 409 | Another hive already occupies that position |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Users
+
+### PATCH /users/me/name 🔒
+
+Updates the authenticated user's display name.
+
+**Request**
+```json
+{
+  "name": "New Name"
+}
+```
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `NAME_REQUIRED` | 400 | Name field is empty |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
