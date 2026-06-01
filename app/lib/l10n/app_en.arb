@@ -1,0 +1,42 @@
+{
+  "@@locale": "en",
+
+  "appName": "BeeTrack",
+
+  "generalSave": "Save",
+  "generalCancel": "Cancel",
+  "generalDelete": "Delete",
+  "generalEdit": "Edit",
+  "generalConfirm": "Confirm",
+  "generalError": "Something went wrong. Please try again.",
+  "generalLoading": "Loading...",
+
+  "authEmail": "Email",
+  "authPassword": "Password",
+  "authName": "Full name",
+  "authLogin": "Log in",
+  "authRegister": "Register",
+  "authLogout": "Log out",
+  "authNoAccount": "Don't have an account? Register",
+  "authHaveAccount": "Already have an account? Log in",
+  "authInvalidEmail": "Invalid email address",
+  "authWeakPassword": "Password must be at least 8 characters",
+  "authInvalidCredentials": "Invalid email or password",
+  "authEmailTaken": "This email is already taken",
+
+  "apiaryTitle": "Apiaries",
+  "apiaryAdd": "Add apiary",
+  "apiaryName": "Apiary name",
+  "apiaryLocation": "Location (optional)",
+  "apiaryGridRows": "Grid rows",
+  "apiaryGridCols": "Grid columns",
+  "apiaryEmpty": "You have no apiaries yet",
+
+  "hiveTitle": "Hives",
+  "hiveAdd": "Add hive",
+  "hiveName": "Hive name",
+  "hiveType": "Hive type",
+  "hiveActive": "Active",
+  "hiveInactive": "Inactive",
+  "hiveEmpty": "No hives in this apiary"
+}

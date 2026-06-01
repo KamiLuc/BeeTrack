@@ -1,0 +1,42 @@
+{
+  "@@locale": "pl",
+
+  "appName": "BeeTrack",
+
+  "generalSave": "Zapisz",
+  "generalCancel": "Anuluj",
+  "generalDelete": "Usuń",
+  "generalEdit": "Edytuj",
+  "generalConfirm": "Potwierdź",
+  "generalError": "Wystąpił błąd. Spróbuj ponownie.",
+  "generalLoading": "Ładowanie...",
+
+  "authEmail": "E-mail",
+  "authPassword": "Hasło",
+  "authName": "Imię i nazwisko",
+  "authLogin": "Zaloguj się",
+  "authRegister": "Zarejestruj się",
+  "authLogout": "Wyloguj się",
+  "authNoAccount": "Nie masz konta? Zarejestruj się",
+  "authHaveAccount": "Masz już konto? Zaloguj się",
+  "authInvalidEmail": "Nieprawidłowy adres e-mail",
+  "authWeakPassword": "Hasło musi mieć co najmniej 8 znaków",
+  "authInvalidCredentials": "Nieprawidłowy e-mail lub hasło",
+  "authEmailTaken": "Ten adres e-mail jest już zajęty",
+
+  "apiaryTitle": "Pasieki",
+  "apiaryAdd": "Dodaj pasiekę",
+  "apiaryName": "Nazwa pasieki",
+  "apiaryLocation": "Lokalizacja (opcjonalnie)",
+  "apiaryGridRows": "Wiersze siatki",
+  "apiaryGridCols": "Kolumny siatki",
+  "apiaryEmpty": "Nie masz jeszcze żadnych pasiek",
+
+  "hiveTitle": "Ule",
+  "hiveAdd": "Dodaj ul",
+  "hiveName": "Nazwa ula",
+  "hiveType": "Typ ula",
+  "hiveActive": "Aktywny",
+  "hiveInactive": "Nieaktywny",
+  "hiveEmpty": "Brak uli w tej pasiece"
+}

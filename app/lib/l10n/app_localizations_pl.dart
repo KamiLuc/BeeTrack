@@ -1,0 +1,112 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Polish (`pl`).
+class AppLocalizationsPl extends AppLocalizations {
+  AppLocalizationsPl([String locale = 'pl']) : super(locale);
+
+  @override
+  String get appName => 'BeeTrack';
+
+  @override
+  String get generalSave => 'Zapisz';
+
+  @override
+  String get generalCancel => 'Anuluj';
+
+  @override
+  String get generalDelete => 'Usuń';
+
+  @override
+  String get generalEdit => 'Edytuj';
+
+  @override
+  String get generalConfirm => 'Potwierdź';
+
+  @override
+  String get generalError => 'Wystąpił błąd. Spróbuj ponownie.';
+
+  @override
+  String get generalLoading => 'Ładowanie...';
+
+  @override
+  String get authEmail => 'E-mail';
+
+  @override
+  String get authPassword => 'Hasło';
+
+  @override
+  String get authName => 'Imię i nazwisko';
+
+  @override
+  String get authLogin => 'Zaloguj się';
+
+  @override
+  String get authRegister => 'Zarejestruj się';
+
+  @override
+  String get authLogout => 'Wyloguj się';
+
+  @override
+  String get authNoAccount => 'Nie masz konta? Zarejestruj się';
+
+  @override
+  String get authHaveAccount => 'Masz już konto? Zaloguj się';
+
+  @override
+  String get authInvalidEmail => 'Nieprawidłowy adres e-mail';
+
+  @override
+  String get authWeakPassword => 'Hasło musi mieć co najmniej 8 znaków';
+
+  @override
+  String get authInvalidCredentials => 'Nieprawidłowy e-mail lub hasło';
+
+  @override
+  String get authEmailTaken => 'Ten adres e-mail jest już zajęty';
+
+  @override
+  String get apiaryTitle => 'Pasieki';
+
+  @override
+  String get apiaryAdd => 'Dodaj pasiekę';
+
+  @override
+  String get apiaryName => 'Nazwa pasieki';
+
+  @override
+  String get apiaryLocation => 'Lokalizacja (opcjonalnie)';
+
+  @override
+  String get apiaryGridRows => 'Wiersze siatki';
+
+  @override
+  String get apiaryGridCols => 'Kolumny siatki';
+
+  @override
+  String get apiaryEmpty => 'Nie masz jeszcze żadnych pasiek';
+
+  @override
+  String get hiveTitle => 'Ule';
+
+  @override
+  String get hiveAdd => 'Dodaj ul';
+
+  @override
+  String get hiveName => 'Nazwa ula';
+
+  @override
+  String get hiveType => 'Typ ula';
+
+  @override
+  String get hiveActive => 'Aktywny';
+
+  @override
+  String get hiveInactive => 'Nieaktywny';
+
+  @override
+  String get hiveEmpty => 'Brak uli w tej pasiece';
+}
