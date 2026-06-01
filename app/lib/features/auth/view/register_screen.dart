@@ -4,10 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 import '../data/auth_repository.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatelessWidget {
+  const RegisterScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,19 +14,19 @@ class LoginScreen extends StatelessWidget {
       create: (_) => AuthBloc(
         auth: AuthRepository(api: context.read(), storage: context.read()),
       ),
-      child: const _LoginView(),
+      child: const _RegisterView(),
     );
   }
 }
 
-class _LoginView extends StatefulWidget {
-  const _LoginView();
+class _RegisterView extends StatefulWidget {
+  const _RegisterView();
 
   @override
-  State<_LoginView> createState() => _LoginViewState();
+  State<_RegisterView> createState() => _RegisterViewState();
 }
 
-class _LoginViewState extends State<_LoginView> {
+class _RegisterViewState extends State<_RegisterView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -41,9 +40,11 @@ class _LoginViewState extends State<_LoginView> {
 
   void _submit(BuildContext context) {
     if (_formKey.currentState?.validate() ?? false) {
+      final email = _emailController.text.trim();
       context.read<AuthBloc>().add(
-        LoginSubmitted(
-          email: _emailController.text.trim(),
+        RegisterSubmitted(
+          email: email,
+          name: email,
           password: _passwordController.text,
         ),
       );
@@ -84,7 +85,7 @@ class _LoginViewState extends State<_LoginView> {
                       const SizedBox(height: 48),
                       Center(
                         child: Text(
-                          l10n.authLogin,
+                          l10n.authRegister,
                           style: Theme.of(context).textTheme.headlineMedium,
                         ),
                       ),
@@ -130,7 +131,7 @@ class _LoginViewState extends State<_LoginView> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : Text(l10n.authLogin),
+                                    : Text(l10n.authRegister),
                               ),
                             ),
                           );
@@ -139,12 +140,8 @@ class _LoginViewState extends State<_LoginView> {
                       const SizedBox(height: 16),
                       Center(
                         child: TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterScreen(),
-                            ),
-                          ),
-                          child: Text(l10n.authNoAccount),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(l10n.authHaveAccount),
                         ),
                       ),
                     ],
@@ -165,7 +162,7 @@ class _LoginViewState extends State<_LoginView> {
 
   String _errorMessage(AppLocalizations l10n, String code) {
     return switch (code) {
-      'INVALID_CREDENTIALS' => l10n.authInvalidCredentials,
+      'EMAIL_TAKEN' => l10n.authEmailTaken,
       _ => l10n.generalError,
     };
   }

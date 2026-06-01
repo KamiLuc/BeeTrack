@@ -14,6 +14,9 @@ Beekeeping management app for hobbyist and professional beekeepers.
 - **Function order:** Declaration order in header/interface files must match definition order in implementation files
 - **Includes/imports:** Sorted alphabetically
 - **Comments:** Only when something is genuinely hard to understand - default to no comments
+- **Backend API:** All handler, service, and repository functions must have doc comments explaining what they do
+- **Tests:** Write unit tests for each feature before moving to the next ticket
+- **Review:** When the user says "let me review", list changed files with a short note on what changed in each
 
 ## Project Structure (planned)
 
