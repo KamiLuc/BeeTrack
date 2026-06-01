@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_layout.dart';
@@ -7,7 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
-import 'create_apiary_screen.dart';
+import 'apiary_form_widgets.dart';
 import 'map_picker_screen.dart';
 
 class EditApiaryScreen extends StatelessWidget {
@@ -43,6 +44,7 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
 
   late int _gridRows;
   late int _gridCols;
+  bool _locating = false;
 
   @override
   void initState() {
@@ -76,6 +78,32 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
   void _setLocation(LatLng loc) {
     _latController.text = loc.latitude.toStringAsFixed(6);
     _lngController.text = loc.longitude.toStringAsFixed(6);
+  }
+
+  Future<void> _useGps(AppLocalizations l10n) async {
+    setState(() => _locating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showError(l10n.apiaryGpsUnavailable);
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showError(l10n.apiaryGpsUnavailable);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      setState(() => _setLocation(LatLng(pos.latitude, pos.longitude)));
+    } catch (_) {
+      _showError(l10n.apiaryGpsUnavailable);
+    } finally {
+      setState(() => _locating = false);
+    }
   }
 
   Future<void> _pickOnMap() async {
@@ -139,7 +167,7 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                               : null,
                         ),
                         const SizedBox(height: 24),
-                        _GridSection(
+                        ApiaryGridSection(
                           rows: _gridRows,
                           cols: _gridCols,
                           onRowsChanged: (v) => setState(() => _gridRows = v),
@@ -147,9 +175,11 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                           l10n: l10n,
                         ),
                         const SizedBox(height: 24),
-                        _LocationSection(
+                        ApiaryLocationSection(
                           latController: _latController,
                           lngController: _lngController,
+                          locating: _locating,
+                          onGps: () => _useGps(l10n),
                           onMap: _pickOnMap,
                           l10n: l10n,
                         ),
@@ -185,131 +215,3 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
   }
 }
 
-class _GridSection extends StatelessWidget {
-  final int rows;
-  final int cols;
-  final ValueChanged<int> onRowsChanged;
-  final ValueChanged<int> onColsChanged;
-  final AppLocalizations l10n;
-
-  const _GridSection({
-    required this.rows,
-    required this.cols,
-    required this.onRowsChanged,
-    required this.onColsChanged,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final items = List.generate(25, (i) => i + 1)
-        .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
-        .toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: rows,
-                menuMaxHeight: 48 * 10,
-                decoration: InputDecoration(labelText: l10n.apiaryGridRows),
-                items: items,
-                onChanged: (v) { if (v != null) onRowsChanged(v); },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: cols,
-                menuMaxHeight: 48 * 10,
-                decoration: InputDecoration(labelText: l10n.apiaryGridCols),
-                items: items,
-                onChanged: (v) { if (v != null) onColsChanged(v); },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _GridPreview(rows: rows, cols: cols),
-      ],
-    );
-  }
-}
-
-class _GridPreview extends StatelessWidget {
-  final int rows;
-  final int cols;
-
-  const _GridPreview({required this.rows, required this.cols});
-
-  @override
-  Widget build(BuildContext context) {
-    const maxWidth = 240.0;
-    final cellSize = (maxWidth / cols).clamp(4.0, 24.0);
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(rows, (r) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(cols, (c) {
-              return Container(
-                width: cellSize,
-                height: cellSize,
-                margin: const EdgeInsets.all(1),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              );
-            }),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _LocationSection extends StatelessWidget {
-  final TextEditingController latController;
-  final TextEditingController lngController;
-  final VoidCallback onMap;
-  final AppLocalizations l10n;
-
-  const _LocationSection({
-    required this.latController,
-    required this.lngController,
-    required this.onMap,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextFormField(
-          controller: latController,
-          enabled: false,
-          decoration: InputDecoration(labelText: l10n.apiaryLatitude),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: lngController,
-          enabled: false,
-          decoration: InputDecoration(labelText: l10n.apiaryLongitude),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: onMap,
-          icon: const Icon(Icons.map, size: 18),
-          label: const Text('Mapa'),
-        ),
-      ],
-    );
-  }
-}

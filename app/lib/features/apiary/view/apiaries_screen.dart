@@ -169,46 +169,63 @@ class _ApiaryCard extends StatelessWidget {
       height: 48,
       child: Card(
         margin: EdgeInsets.zero,
-        child: ListTile(
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          title: Text(apiary.name, style: Theme.of(context).textTheme.bodyMedium),
-          subtitle: apiary.hiveCount > 0
-              ? Text(
-                  '${apiary.hiveCount} ${l10n.hiveTitle.toLowerCase()}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                )
-              : null,
-          trailing: isOwner
-              ? PopupMenuButton<_ApiaryAction>(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  onSelected: (action) {
-                    if (action == _ApiaryAction.edit) _openEdit(context);
-                    if (action == _ApiaryAction.delete) _confirmDelete(context, l10n);
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: _ApiaryAction.edit,
-                      child: Text(l10n.generalEdit),
-                    ),
-                    PopupMenuItem(
-                      value: _ApiaryAction.delete,
-                      child: Text(
-                        l10n.generalDelete,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
-                      ),
-                    ),
-                  ],
-                )
-              : Chip(
-                  label: Text(l10n.roleMember),
-                  labelStyle: Theme.of(context).textTheme.labelSmall,
-                  padding: EdgeInsets.zero,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+        child: InkWell(
           onTap: () {},
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(apiary.name, style: Theme.of(context).textTheme.bodyMedium),
+                      if (apiary.hiveCount > 0)
+                        Text(
+                          '${apiary.hiveCount} ${l10n.hiveTitle.toLowerCase()}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                if (isOwner)
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: PopupMenuButton<_ApiaryAction>(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert, size: 18),
+                      onSelected: (action) {
+                        if (action == _ApiaryAction.edit) _openEdit(context);
+                        if (action == _ApiaryAction.delete) _confirmDelete(context, l10n);
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: _ApiaryAction.edit,
+                          child: Text(l10n.generalEdit),
+                        ),
+                        PopupMenuItem(
+                          value: _ApiaryAction.delete,
+                          child: Text(
+                            l10n.generalDelete,
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Chip(
+                    label: Text(l10n.roleMember),
+                    labelStyle: Theme.of(context).textTheme.labelSmall,
+                    padding: EdgeInsets.zero,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

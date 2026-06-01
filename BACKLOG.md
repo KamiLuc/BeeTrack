@@ -35,14 +35,6 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| AU-01-BE | `BE` | `[x]` | User registration endpoint | Hash passwords with bcrypt |
-| AU-01-FE | `FE` | `[x]` | Registration screen | Email, name, password fields |
-| AU-02-BE | `BE` | `[x]` | Login endpoint — JWT-based auth | Access token + refresh token |
-| AU-02-FE | `FE` | `[x]` | Login screen + token interceptor | Store tokens; auto-refresh on 401 |
-| AU-03-BE | `BE` | `[x]` | Refresh token rotation | Invalidate on use |
-| AU-04-BE | `BE` | `[x]` | Logout endpoint | Delete refresh token from DB |
-| AU-04-FE | `FE` | `[x]` | Logout action | Clear stored tokens, redirect to login |
-| AU-05-BE | `BE` | `[x]` | Update display name endpoint | PATCH /api/v1/users/me/name |
 | AU-05-FE | `FE` | `[ ]` | Edit display name screen | Name defaults to email on registration; user changes it here |
 
 ---
@@ -51,23 +43,12 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| HV-01-BE | `BE` | `[x]` | Create apiary endpoint | POST /api/v1/apiaries; creator becomes owner |
-| HV-01-FE | `FE` | `[x]` | Create apiary screen | Form: name, location, GPS coords, grid size |
-| HV-02-BE | `BE` | `[x]` | Edit / delete apiary endpoints | |
-| HV-02-FE | `FE` | `[x]` | Edit / delete apiary UI | |
-| HV-03-BE | `BE` | `[x]` | List apiaries endpoint | GET /api/v1/apiaries |
-| HV-03-FE | `FE` | `[x]` | Apiaries list screen | |
-| HV-04-BE | `BE` | `[x]` | Apiary hive positions endpoint | Returns hives with grid coords |
 | HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
-| HV-05-BE | `BE` | `[x]` | Add hive to apiary endpoint | Validate grid position within bounds and unoccupied |
 | HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, install date, grid position picker |
-| HV-06-BE | `BE` | `[x]` | Move hive endpoint | Update grid position |
 | HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
 | HV-07-BE | `BE` | `[ ]` | Rename hive endpoint | |
 | HV-07-FE | `FE` | `[ ]` | Rename hive UI | |
-| HV-08-BE | `BE` | `[x]` | Edit / delete hive endpoints | |
 | HV-08-FE | `FE` | `[ ]` | Edit / delete hive UI | |
-| HV-09-BE | `BE` | `[x]` | Hive detail endpoint | Returns hive info + latest inspection |
 | HV-09-FE | `FE` | `[ ]` | Hive detail screen | |
 | HV-10-BE | `BE` | `[ ]` | Hive status field | active, inactive, dead-out, sold |
 | HV-10-FE | `FE` | `[ ]` | Hive status UI | Dropdown / selector |
@@ -177,23 +158,9 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| INF-01-BE | `BE` | `[x]` | Docker Compose setup | Go API + PostgreSQL |
-| INF-02-BE | `BE` | `[x]` | Database schema & migrations | Using goose |
-| INF-03-BE | `BE` | `[x]` | Environment config via `.env` | |
-| INF-04-BE | `BE` | `[x]` | Go project structure | cmd/, internal/, pkg/ |
 | INF-05-BE | `BE` | `[ ]` | REST API — OpenAPI / Swagger spec | |
 | INF-06-BE | `BE` | `[ ]` | Input validation & structured error responses | |
 | INF-07-BE | `BE` | `[ ]` | Structured JSON logging | |
-| INF-08-BE | `BE` | `[x]` | CORS configuration for web client | CORS_ALLOWED_ORIGINS env var, defaults to * |
-
----
-
-## 10. Localization
-
-| ID | Layer | Status | Title | Notes |
-|----|-------|--------|-------|-------|
-| LO-01-BE | `BE` | `[x]` | Structured error codes in API responses | `{ code, message }` — frontend uses code for translation |
-| LO-02-FE | `FE` | `[ ]` | Flutter i18n — English + Polish | ARB files, flutter_localizations |
 
 ---
 
@@ -228,5 +195,4 @@ Harvest
 
 ## Open Questions
 
-- [x] Multi-user / shared apiary support — covered by HV-11 to HV-14
 - [ ] Offline-first mode on mobile (local SQLite sync)?
