@@ -1,0 +1,12 @@
+<svg width="100%" viewBox="0 0 680 200" role="img" xmlns="http://www.w3.org/2000/svg" style="">
+  <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">BeeTrack wordmark</title>
+  <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">BeeTrack two-tone wordmark in amber and dark</desc>
+
+  
+
+  <text x="100" y="130" font-family="var(--font-sans)" font-size="96" font-weight="700" fill="#FBBF24" letter-spacing="-3" style="fill:rgb(251, 191, 36);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:96px;font-weight:700;text-anchor:start;dominant-baseline:auto">Bee</text>
+  <text x="280" y="130" font-family="var(--font-sans)" font-size="96" font-weight="700" fill="#1C1917" letter-spacing="-3" style="fill:rgb(28, 25, 23);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:96px;font-weight:700;text-anchor:start;dominant-baseline:auto">Track</text>
+
+  <rect x="100" y="148" width="490" height="4" rx="2" fill="#FBBF24" style="fill:rgb(251, 191, 36);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+</svg>

@@ -3,9 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/foundation.dart';
+
 import 'core/api/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/view/login_screen.dart';
 import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
@@ -14,7 +17,7 @@ Future<void> main() async {
   final storage = TokenStorage(prefs);
   final apiClient = ApiClient(
     storage: storage,
-    baseUrl: 'http://10.0.2.2:8080',
+    baseUrl: kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080',
   );
 
   runApp(
@@ -44,9 +47,7 @@ class BeeTrackApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const Scaffold(
-        body: Center(child: Text('BeeTrack')),
-      ),
+      home: const LoginScreen(),
     );
   }
 }
