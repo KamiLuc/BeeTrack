@@ -56,6 +56,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 
 	mux.Handle("POST /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.Create)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
 
 	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -27,4 +28,45 @@ func (r *ApiaryRepository) Create(ctx context.Context, a *model.Apiary, ownerRol
 		}
 		return tx.Create(member).Error
 	})
+}
+
+func (r *ApiaryRepository) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
+	type row struct {
+		model.Apiary
+		UserRole string
+	}
+	var result row
+	err := r.db.WithContext(ctx).
+		Table("apiaries a").
+		Select("a.*, am.role AS user_role").
+		Joins("JOIN apiary_members am ON am.apiary_id = a.id").
+		Where("a.id = ? AND am.user_id = ?", apiaryID, userID).
+		First(&result).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, "", err
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	a := result.Apiary
+	return &a, result.UserRole, nil
+}
+
+func (r *ApiaryRepository) Update(ctx context.Context, a *model.Apiary) error {
+	return r.db.WithContext(ctx).
+		Model(a).
+		Updates(map[string]any{
+			"name":       a.Name,
+			"lat":        a.Lat,
+			"lng":        a.Lng,
+			"grid_rows":  a.GridRows,
+			"grid_cols":  a.GridCols,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
+func (r *ApiaryRepository) Delete(ctx context.Context, apiaryID int64) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", apiaryID).
+		Delete(&model.Apiary{}).Error
 }
