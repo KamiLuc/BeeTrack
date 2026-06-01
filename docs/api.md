@@ -288,6 +288,40 @@ Deletes an apiary and all its members. Only the owner can delete.
 
 ## Hives
 
+### GET /apiaries/{id}/hives 🔒
+
+Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col ASC`). Caller must be a member.
+
+**Response** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "apiary_id": 1,
+    "name": "Hive A",
+    "type": "langstroth",
+    "active": true,
+    "grid_row": 0,
+    "grid_col": 0,
+    "created_at": "2026-06-01T12:00:00Z",
+    "updated_at": "2026-06-01T12:00:00Z"
+  }
+]
+```
+
+- Returns an empty array if the apiary has no hives
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### POST /apiaries/{id}/hives 🔒
 
 Adds a hive to an apiary. Both owners and members can add hives.
@@ -332,6 +366,66 @@ Adds a hive to an apiary. Both owners and members can add hives.
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `INVALID_GRID_POSITION` | 400 | Position is outside apiary grid bounds |
 | `POSITION_OCCUPIED` | 409 | Another hive already occupies that position |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId} 🔒
+
+Updates a hive's name, type, and active status. Both owners and members can edit hives.
+
+**Request**
+```json
+{
+  "name": "Renamed Hive",
+  "type": "top_bar",
+  "active": false
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "id": 1,
+  "apiary_id": 1,
+  "name": "Renamed Hive",
+  "type": "top_bar",
+  "active": false,
+  "grid_row": 0,
+  "grid_col": 0,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T13:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `NAME_REQUIRED` | 400 | Name field is empty |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId} 🔒
+
+Deletes a hive. Both owners and members can delete hives.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

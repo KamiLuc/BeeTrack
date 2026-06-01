@@ -65,7 +65,7 @@
 | HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
 | HV-07-BE | `BE` | `[ ]` | Rename hive endpoint | |
 | HV-07-FE | `FE` | `[ ]` | Rename hive UI | |
-| HV-08-BE | `BE` | `[ ]` | Edit / delete hive endpoints | |
+| HV-08-BE | `BE` | `[x]` | Edit / delete hive endpoints | |
 | HV-08-FE | `FE` | `[ ]` | Edit / delete hive UI | |
 | HV-09-BE | `BE` | `[ ]` | Hive detail endpoint | Returns hive info + latest inspection |
 | HV-09-FE | `FE` | `[ ]` | Hive detail screen | |

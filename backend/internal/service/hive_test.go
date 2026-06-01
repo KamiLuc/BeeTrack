@@ -22,9 +22,12 @@ func (m *mockApiaryMembershipReader) GetMembership(ctx context.Context, apiaryID
 }
 
 type mockHiveRepo struct {
-	occupied bool
-	created  *model.Hive
-	hives    []*model.Hive
+	occupied  bool
+	created   *model.Hive
+	hive      *model.Hive
+	hives     []*model.Hive
+	updated   *model.Hive
+	deletedID int64
 }
 
 func (m *mockHiveRepo) Create(ctx context.Context, h *model.Hive) error {
@@ -33,12 +36,29 @@ func (m *mockHiveRepo) Create(ctx context.Context, h *model.Hive) error {
 	return nil
 }
 
+func (m *mockHiveRepo) GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID int64) (*model.Hive, error) {
+	if m.hive == nil || m.hive.ID != hiveID || m.hive.ApiaryID != apiaryID {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return m.hive, nil
+}
+
 func (m *mockHiveRepo) IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error) {
 	return m.occupied, nil
 }
 
 func (m *mockHiveRepo) ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error) {
 	return m.hives, nil
+}
+
+func (m *mockHiveRepo) Update(ctx context.Context, h *model.Hive) error {
+	m.updated = h
+	return nil
+}
+
+func (m *mockHiveRepo) Delete(ctx context.Context, hiveID int64) error {
+	m.deletedID = hiveID
+	return nil
 }
 
 func newTestHiveService() (*HiveService, *mockApiaryMembershipReader, *mockHiveRepo) {
@@ -143,6 +163,81 @@ func TestAddHive_OutOfBounds(t *testing.T) {
 		if !errors.Is(err, ErrInvalidGridPosition) {
 			t.Errorf("row=%d col=%d: expected ErrInvalidGridPosition, got %v", c[0], c[1], err)
 		}
+	}
+}
+
+func TestUpdateHive_Success(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Old", Type: "langstroth", Active: true}
+
+	hive, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hive.Name != "New Name" || hive.Type != "top_bar" || hive.Active {
+		t.Errorf("unexpected hive state: %+v", hive)
+	}
+}
+
+func TestUpdateHive_NoName(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	_, err := svc.Update(context.Background(), 1, 1, 10, "", "langstroth", true)
+	if !errors.Is(err, ErrNameRequired) {
+		t.Errorf("expected ErrNameRequired, got %v", err)
+	}
+}
+
+func TestUpdateHive_ApiaryNotFound(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	_, err := svc.Update(context.Background(), 1, 99, 10, "Name", "langstroth", true)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestUpdateHive_HiveNotFound(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	_, err := svc.Update(context.Background(), 1, 1, 99, "Name", "langstroth", true)
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+}
+
+func TestDeleteHive_Success(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	if err := svc.Delete(context.Background(), 1, 1, 10); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hiveMock.deletedID != 10 {
+		t.Errorf("expected deleted ID 10, got %d", hiveMock.deletedID)
+	}
+}
+
+func TestDeleteHive_ApiaryNotFound(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	err := svc.Delete(context.Background(), 1, 99, 10)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestDeleteHive_HiveNotFound(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	err := svc.Delete(context.Background(), 1, 1, 99)
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
 	}
 }
 

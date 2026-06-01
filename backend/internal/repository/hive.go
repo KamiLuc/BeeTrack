@@ -36,3 +36,28 @@ func (r *HiveRepository) ListByApiaryID(ctx context.Context, apiaryID int64) ([]
 		Find(&hives).Error
 	return hives, err
 }
+
+func (r *HiveRepository) GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID int64) (*model.Hive, error) {
+	var h model.Hive
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND apiary_id = ?", hiveID, apiaryID).
+		First(&h).Error
+	return &h, err
+}
+
+func (r *HiveRepository) Update(ctx context.Context, h *model.Hive) error {
+	return r.db.WithContext(ctx).
+		Model(h).
+		Updates(map[string]any{
+			"name":       h.Name,
+			"type":       h.Type,
+			"active":     h.Active,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
+func (r *HiveRepository) Delete(ctx context.Context, hiveID int64) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", hiveID).
+		Delete(&model.Hive{}).Error
+}

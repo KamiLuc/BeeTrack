@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	ErrHiveNotFound        = errors.New("hive not found")
 	ErrInvalidGridPosition = errors.New("grid position out of apiary bounds")
 	ErrPositionOccupied    = errors.New("grid position already occupied")
 )
@@ -20,8 +21,11 @@ type ApiaryMembershipReader interface {
 
 type HiveRepository interface {
 	Create(ctx context.Context, h *model.Hive) error
+	Delete(ctx context.Context, hiveID int64) error
+	GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID int64) (*model.Hive, error)
 	IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error)
 	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
+	Update(ctx context.Context, h *model.Hive) error
 }
 
 type HiveService struct {
@@ -48,6 +52,59 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 	}
 
 	return hives, nil
+}
+
+func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active bool) (*model.Hive, error) {
+	if name == "" {
+		return nil, ErrNameRequired
+	}
+
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+
+	hive, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHiveNotFound
+		}
+		return nil, fmt.Errorf("get hive: %w", err)
+	}
+
+	hive.Name = name
+	hive.Type = hiveType
+	hive.Active = active
+
+	if err := s.hives.Update(ctx, hive); err != nil {
+		return nil, fmt.Errorf("update hive: %w", err)
+	}
+
+	return hive, nil
+}
+
+func (s *HiveService) Delete(ctx context.Context, userID, apiaryID, hiveID int64) error {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrApiaryNotFound
+		}
+		return fmt.Errorf("get apiary: %w", err)
+	}
+
+	if _, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrHiveNotFound
+		}
+		return fmt.Errorf("get hive: %w", err)
+	}
+
+	if err := s.hives.Delete(ctx, hiveID); err != nil {
+		return fmt.Errorf("delete hive: %w", err)
+	}
+
+	return nil
 }
 
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, gridRow, gridCol int) (*model.Hive, error) {
