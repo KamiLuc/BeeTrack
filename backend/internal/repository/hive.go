@@ -61,3 +61,14 @@ func (r *HiveRepository) Delete(ctx context.Context, hiveID int64) error {
 		Where("id = ?", hiveID).
 		Delete(&model.Hive{}).Error
 }
+
+func (r *HiveRepository) Move(ctx context.Context, hiveID int64, row, col int) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Hive{}).
+		Where("id = ?", hiveID).
+		Updates(map[string]any{
+			"grid_row":   row,
+			"grid_col":   col,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}

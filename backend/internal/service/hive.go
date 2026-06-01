@@ -25,6 +25,7 @@ type HiveRepository interface {
 	GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID int64) (*model.Hive, error)
 	IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error)
 	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
+	Move(ctx context.Context, hiveID int64, row, col int) error
 	Update(ctx context.Context, h *model.Hive) error
 }
 
@@ -105,6 +106,46 @@ func (s *HiveService) Delete(ctx context.Context, userID, apiaryID, hiveID int64
 	}
 
 	return nil
+}
+
+func (s *HiveService) Move(ctx context.Context, userID, apiaryID, hiveID int64, gridRow, gridCol int) (*model.Hive, error) {
+	apiary, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+
+	hive, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHiveNotFound
+		}
+		return nil, fmt.Errorf("get hive: %w", err)
+	}
+
+	if gridRow < 0 || gridRow >= apiary.GridRows || gridCol < 0 || gridCol >= apiary.GridCols {
+		return nil, ErrInvalidGridPosition
+	}
+
+	if hive.GridRow != gridRow || hive.GridCol != gridCol {
+		occupied, err := s.hives.IsPositionOccupied(ctx, apiaryID, gridRow, gridCol)
+		if err != nil {
+			return nil, fmt.Errorf("check position: %w", err)
+		}
+		if occupied {
+			return nil, ErrPositionOccupied
+		}
+
+		if err := s.hives.Move(ctx, hiveID, gridRow, gridCol); err != nil {
+			return nil, fmt.Errorf("move hive: %w", err)
+		}
+		hive.GridRow = gridRow
+		hive.GridCol = gridCol
+	}
+
+	return hive, nil
 }
 
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, gridRow, gridCol int) (*model.Hive, error) {

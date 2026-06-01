@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"log"
 	"net/http"
 
@@ -11,11 +10,9 @@ import (
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/service"
+	"github.com/beetrack/backend/migrations"
 	"github.com/joho/godotenv"
 )
-
-//go:embed ../../migrations
-var migrations embed.FS
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -32,7 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := database.Migrate(db, migrations); err != nil {
+	if err := database.Migrate(db, migrations.FS); err != nil {
 		log.Fatal(err)
 	}
 
@@ -68,6 +65,7 @@ func main() {
 	mux.Handle("POST /api/v1/apiaries/{id}/hives", auth(http.HandlerFunc(hiveHandler.Create)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}", auth(http.HandlerFunc(hiveHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}", auth(http.HandlerFunc(hiveHandler.Update)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/position", auth(http.HandlerFunc(hiveHandler.Move)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
 

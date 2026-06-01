@@ -27,7 +27,7 @@ func Migrate(db *gorm.DB, migrations fs.FS) error {
 	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("set dialect: %w", err)
 	}
-	if err := goose.Up(sqlDB, "migrations"); err != nil {
+	if err := goose.Up(sqlDB, "."); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 	return nil

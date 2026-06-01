@@ -51,6 +51,14 @@ func (m *mockHiveRepo) ListByApiaryID(ctx context.Context, apiaryID int64) ([]*m
 	return m.hives, nil
 }
 
+func (m *mockHiveRepo) Move(ctx context.Context, hiveID int64, row, col int) error {
+	if m.hive != nil && m.hive.ID == hiveID {
+		m.hive.GridRow = row
+		m.hive.GridCol = col
+	}
+	return nil
+}
+
 func (m *mockHiveRepo) Update(ctx context.Context, h *model.Hive) error {
 	m.updated = h
 	return nil
@@ -236,6 +244,74 @@ func TestDeleteHive_HiveNotFound(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
 	err := svc.Delete(context.Background(), 1, 1, 99)
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+}
+
+func TestMoveHive_Success(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, GridRow: 0, GridCol: 0}
+
+	hive, err := svc.Move(context.Background(), 1, 1, 10, 2, 3)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hive.GridRow != 2 || hive.GridCol != 3 {
+		t.Errorf("expected position (2,3), got (%d,%d)", hive.GridRow, hive.GridCol)
+	}
+}
+
+func TestMoveHive_SamePosition_NoOp(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, GridRow: 1, GridCol: 1}
+	hiveMock.occupied = true
+
+	_, err := svc.Move(context.Background(), 1, 1, 10, 1, 1)
+	if err != nil {
+		t.Fatalf("moving to same position should not error, got %v", err)
+	}
+}
+
+func TestMoveHive_OutOfBounds(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, GridRow: 0, GridCol: 0}
+
+	_, err := svc.Move(context.Background(), 1, 1, 10, 3, 0)
+	if !errors.Is(err, ErrInvalidGridPosition) {
+		t.Errorf("expected ErrInvalidGridPosition, got %v", err)
+	}
+}
+
+func TestMoveHive_PositionOccupied(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, GridRow: 0, GridCol: 0}
+	hiveMock.occupied = true
+
+	_, err := svc.Move(context.Background(), 1, 1, 10, 1, 1)
+	if !errors.Is(err, ErrPositionOccupied) {
+		t.Errorf("expected ErrPositionOccupied, got %v", err)
+	}
+}
+
+func TestMoveHive_ApiaryNotFound(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	_, err := svc.Move(context.Background(), 1, 99, 10, 0, 0)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestMoveHive_HiveNotFound(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	_, err := svc.Move(context.Background(), 1, 1, 99, 0, 0)
 	if !errors.Is(err, ErrHiveNotFound) {
 		t.Errorf("expected ErrHiveNotFound, got %v", err)
 	}

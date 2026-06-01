@@ -61,7 +61,7 @@
 | HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
 | HV-05-BE | `BE` | `[x]` | Add hive to apiary endpoint | Validate grid position within bounds and unoccupied |
 | HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, install date, grid position picker |
-| HV-06-BE | `BE` | `[ ]` | Move hive endpoint | Update grid position |
+| HV-06-BE | `BE` | `[x]` | Move hive endpoint | Update grid position |
 | HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
 | HV-07-BE | `BE` | `[ ]` | Rename hive endpoint | |
 | HV-07-FE | `FE` | `[ ]` | Rename hive UI | |

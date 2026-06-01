@@ -412,6 +412,51 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 
 ---
 
+### PATCH /apiaries/{id}/hives/{hiveId}/position 🔒
+
+Moves a hive to a new grid position. Both owners and members can move hives. Moving to the current position is a no-op.
+
+**Request**
+```json
+{
+  "grid_row": 2,
+  "grid_col": 3
+}
+```
+
+- Position must be within the apiary's `grid_rows` × `grid_cols` bounds (0-indexed)
+- Target position must be unoccupied by another hive
+
+**Response** `200 OK`
+```json
+{
+  "id": 1,
+  "apiary_id": 1,
+  "name": "Hive A",
+  "type": "langstroth",
+  "active": true,
+  "grid_row": 2,
+  "grid_col": 3,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T13:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INVALID_GRID_POSITION` | 400 | Position is outside apiary grid bounds |
+| `POSITION_OCCUPIED` | 409 | Another hive already occupies that position |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### DELETE /apiaries/{id}/hives/{hiveId} 🔒
 
 Deletes a hive. Both owners and members can delete hives.
