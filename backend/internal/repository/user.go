@@ -31,3 +31,13 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.U
 	}
 	return &u, nil
 }
+
+func (r *UserRepository) UpdateName(ctx context.Context, userID int64, name string) error {
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"name":       name,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}

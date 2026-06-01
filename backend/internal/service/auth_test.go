@@ -27,6 +27,10 @@ func (m *mockUserRepo) Create(ctx context.Context, u *model.User) error {
 	return nil
 }
 
+func (m *mockUserRepo) UpdateName(ctx context.Context, userID int64, name string) error {
+	return nil
+}
+
 func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	u, ok := m.users[email]
 	if !ok {

@@ -42,9 +42,11 @@ func main() {
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	apiarySvc := service.NewApiaryService(apiaryRepo)
+	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
+	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
 
@@ -54,6 +56,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+
+	mux.Handle("PATCH /api/v1/users/me/name", auth(http.HandlerFunc(userHandler.UpdateName)))
 
 	mux.Handle("POST /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.Create)))
 	mux.Handle("GET /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.List)))

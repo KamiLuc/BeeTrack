@@ -42,7 +42,7 @@
 | AU-03-BE | `BE` | `[x]` | Refresh token rotation | Invalidate on use |
 | AU-04-BE | `BE` | `[x]` | Logout endpoint | Delete refresh token from DB |
 | AU-04-FE | `FE` | `[ ]` | Logout action | Clear stored tokens, redirect to login |
-| AU-05-BE | `BE` | `[ ]` | Update display name endpoint | PATCH /api/v1/users/me/name |
+| AU-05-BE | `BE` | `[x]` | Update display name endpoint | PATCH /api/v1/users/me/name |
 | AU-05-FE | `FE` | `[ ]` | Edit display name screen | |
 
 ---
