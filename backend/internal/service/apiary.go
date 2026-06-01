@@ -32,6 +32,7 @@ func NewApiaryService(apiaries ApiaryRepository) *ApiaryService {
 	return &ApiaryService{apiaries: apiaries}
 }
 
+// Create creates a new apiary and assigns the given user as its owner.
 func (s *ApiaryService) Create(ctx context.Context, ownerID int64, name string, lat, lng *float64, gridRows, gridCols int) (*model.Apiary, error) {
 	if name == "" {
 		return nil, ErrNameRequired
@@ -56,6 +57,7 @@ func (s *ApiaryService) Create(ctx context.Context, ownerID int64, name string, 
 	return a, nil
 }
 
+// List returns all apiaries the given user is a member of, along with their role in each.
 func (s *ApiaryService) List(ctx context.Context, userID int64) ([]model.ApiaryMembership, error) {
 	memberships, err := s.apiaries.ListByUserID(ctx, userID)
 	if err != nil {
@@ -64,6 +66,7 @@ func (s *ApiaryService) List(ctx context.Context, userID int64) ([]model.ApiaryM
 	return memberships, nil
 }
 
+// Update updates an apiary's fields; returns ErrForbidden if the user is not the owner.
 func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name string, lat, lng *float64, gridRows, gridCols int) (*model.Apiary, error) {
 	if name == "" {
 		return nil, ErrNameRequired
@@ -96,6 +99,7 @@ func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name
 	return apiary, nil
 }
 
+// Delete deletes an apiary; returns ErrForbidden if the user is not the owner.
 func (s *ApiaryService) Delete(ctx context.Context, userID, apiaryID int64) error {
 	_, role, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
 	if err != nil {

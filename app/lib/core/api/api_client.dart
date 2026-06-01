@@ -39,6 +39,12 @@ class _AuthInterceptor extends Interceptor {
       return;
     }
 
+    final path = err.requestOptions.path;
+    if (path.contains('/auth/')) {
+      handler.next(err);
+      return;
+    }
+
     final refreshToken = _storage.refreshToken;
     if (refreshToken == null) {
       await _storage.clear();

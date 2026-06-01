@@ -16,6 +16,7 @@ func NewApiaryRepository(db *gorm.DB) *ApiaryRepository {
 	return &ApiaryRepository{db: db}
 }
 
+// Create inserts a new apiary and adds the owner as a member in a single transaction.
 func (r *ApiaryRepository) Create(ctx context.Context, a *model.Apiary, ownerRole string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(a).Error; err != nil {
@@ -30,6 +31,7 @@ func (r *ApiaryRepository) Create(ctx context.Context, a *model.Apiary, ownerRol
 	})
 }
 
+// ListByUserID returns all apiaries the user belongs to, ordered by creation date descending.
 func (r *ApiaryRepository) ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error) {
 	type row struct {
 		model.Apiary
@@ -54,6 +56,7 @@ func (r *ApiaryRepository) ListByUserID(ctx context.Context, userID int64) ([]mo
 	return memberships, nil
 }
 
+// GetMembership returns the apiary and the user's role in it; returns gorm.ErrRecordNotFound if not a member.
 func (r *ApiaryRepository) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
 	type row struct {
 		model.Apiary
@@ -76,6 +79,7 @@ func (r *ApiaryRepository) GetMembership(ctx context.Context, apiaryID, userID i
 	return &a, result.UserRole, nil
 }
 
+// Update saves changes to an apiary's editable fields.
 func (r *ApiaryRepository) Update(ctx context.Context, a *model.Apiary) error {
 	return r.db.WithContext(ctx).
 		Model(a).
@@ -89,6 +93,7 @@ func (r *ApiaryRepository) Update(ctx context.Context, a *model.Apiary) error {
 		}).Error
 }
 
+// Delete soft-deletes an apiary by ID.
 func (r *ApiaryRepository) Delete(ctx context.Context, apiaryID int64) error {
 	return r.db.WithContext(ctx).
 		Where("id = ?", apiaryID).

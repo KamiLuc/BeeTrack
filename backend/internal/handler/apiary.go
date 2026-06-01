@@ -19,6 +19,7 @@ func NewApiaryHandler(apiary *service.ApiaryService) *ApiaryHandler {
 	return &ApiaryHandler{apiary: apiary}
 }
 
+// Create handles POST /api/v1/apiaries — creates a new apiary owned by the authenticated user.
 func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -63,6 +64,7 @@ func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// List handles GET /api/v1/apiaries — returns all apiaries the authenticated user is a member of.
 func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -105,6 +107,7 @@ func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 	respond.JSON(w, http.StatusOK, items)
 }
 
+// Update handles PATCH /api/v1/apiaries/{id} — updates an apiary; only the owner may do this.
 func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -159,6 +162,7 @@ func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Delete handles DELETE /api/v1/apiaries/{id} — deletes an apiary; only the owner may do this.
 func (h *ApiaryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {

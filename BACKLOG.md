@@ -55,7 +55,7 @@
 | HV-01-FE | `FE` | `[ ]` | Create apiary screen | Form: name, location, GPS coords, grid size |
 | HV-02-BE | `BE` | `[x]` | Edit / delete apiary endpoints | |
 | HV-02-FE | `FE` | `[ ]` | Edit / delete apiary UI | |
-| HV-03-BE | `BE` | `[ ]` | List apiaries endpoint | GET /api/v1/apiaries |
+| HV-03-BE | `BE` | `[x]` | List apiaries endpoint | GET /api/v1/apiaries |
 | HV-03-FE | `FE` | `[ ]` | Apiaries list screen | |
 | HV-04-BE | `BE` | `[x]` | Apiary hive positions endpoint | Returns hives with grid coords |
 | HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
