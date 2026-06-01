@@ -249,6 +249,39 @@ func TestDeleteHive_HiveNotFound(t *testing.T) {
 	}
 }
 
+func TestGetHive_Success(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A"}
+
+	hive, err := svc.Get(context.Background(), 1, 1, 10)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hive.Name != "Hive A" {
+		t.Errorf("expected 'Hive A', got %s", hive.Name)
+	}
+}
+
+func TestGetHive_ApiaryNotFound(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	_, err := svc.Get(context.Background(), 1, 99, 10)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestGetHive_HiveNotFound(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	_, err := svc.Get(context.Background(), 1, 1, 99)
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+}
+
 func TestMoveHive_Success(t *testing.T) {
 	svc, apiaryMock, hiveMock := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}

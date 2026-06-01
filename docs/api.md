@@ -370,6 +370,37 @@ Adds a hive to an apiary. Both owners and members can add hives.
 
 ---
 
+### GET /apiaries/{id}/hives/{hiveId} 🔒
+
+Returns a single hive. Caller must be a member of the apiary.
+
+**Response** `200 OK`
+```json
+{
+  "id": 1,
+  "apiary_id": 1,
+  "name": "Hive A",
+  "type": "langstroth",
+  "active": true,
+  "grid_row": 0,
+  "grid_col": 0,
+  "created_at": "2026-06-01T12:00:00Z",
+  "updated_at": "2026-06-01T12:00:00Z"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### PATCH /apiaries/{id}/hives/{hiveId} 🔒
 
 Updates a hive's name, type, and active status. Both owners and members can edit hives.

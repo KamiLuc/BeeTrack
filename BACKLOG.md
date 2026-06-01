@@ -67,7 +67,7 @@
 | HV-07-FE | `FE` | `[ ]` | Rename hive UI | |
 | HV-08-BE | `BE` | `[x]` | Edit / delete hive endpoints | |
 | HV-08-FE | `FE` | `[ ]` | Edit / delete hive UI | |
-| HV-09-BE | `BE` | `[ ]` | Hive detail endpoint | Returns hive info + latest inspection |
+| HV-09-BE | `BE` | `[x]` | Hive detail endpoint | Returns hive info + latest inspection |
 | HV-09-FE | `FE` | `[ ]` | Hive detail screen | |
 | HV-10-BE | `BE` | `[ ]` | Hive status field | active, inactive, dead-out, sold |
 | HV-10-FE | `FE` | `[ ]` | Hive status UI | Dropdown / selector |

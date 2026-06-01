@@ -19,6 +19,51 @@ func NewHiveHandler(hives *service.HiveService) *HiveHandler {
 	return &HiveHandler{hives: hives}
 }
 
+func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+		return
+	}
+
+	hive, err := h.hives.Get(r.Context(), userID, apiaryID, hiveID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrApiaryNotFound):
+			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+		case errors.Is(err, service.ErrHiveNotFound):
+			respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, map[string]any{
+		"id":         hive.ID,
+		"apiary_id":  hive.ApiaryID,
+		"name":       hive.Name,
+		"type":       hive.Type,
+		"active":     hive.Active,
+		"grid_row":   hive.GridRow,
+		"grid_col":   hive.GridCol,
+		"created_at": hive.CreatedAt,
+		"updated_at": hive.UpdatedAt,
+	})
+}
+
 func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {

@@ -108,6 +108,25 @@ func (s *HiveService) Delete(ctx context.Context, userID, apiaryID, hiveID int64
 	return nil
 }
 
+func (s *HiveService) Get(ctx context.Context, userID, apiaryID, hiveID int64) (*model.Hive, error) {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+
+	hive, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHiveNotFound
+		}
+		return nil, fmt.Errorf("get hive: %w", err)
+	}
+
+	return hive, nil
+}
+
 func (s *HiveService) Move(ctx context.Context, userID, apiaryID, hiveID int64, gridRow, gridCol int) (*model.Hive, error) {
 	apiary, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
 	if err != nil {
