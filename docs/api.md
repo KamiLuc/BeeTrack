@@ -202,6 +202,7 @@ Returns all apiaries the authenticated user belongs to (as owner or member), ord
     "lng": 21.01,
     "grid_rows": 3,
     "grid_cols": 4,
+    "hive_count": 2,
     "user_role": "owner",
     "created_at": "2026-06-01T12:00:00Z",
     "updated_at": "2026-06-01T12:00:00Z"
