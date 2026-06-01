@@ -24,6 +24,9 @@
   "authInvalidCredentials": "Nieprawidłowy e-mail lub hasło",
   "authEmailTaken": "Ten adres e-mail jest już zajęty",
 
+  "roleOwner": "Właściciel",
+  "roleMember": "Członek",
+
   "apiaryTitle": "Pasieki",
   "apiaryAdd": "Dodaj pasiekę",
   "apiaryName": "Pasieka",

@@ -218,6 +218,18 @@ abstract class AppLocalizations {
   /// **'Ten adres e-mail jest już zajęty'**
   String get authEmailTaken;
 
+  /// No description provided for @roleOwner.
+  ///
+  /// In pl, this message translates to:
+  /// **'Właściciel'**
+  String get roleOwner;
+
+  /// No description provided for @roleMember.
+  ///
+  /// In pl, this message translates to:
+  /// **'Członek'**
+  String get roleMember;
+
   /// No description provided for @apiaryTitle.
   ///
   /// In pl, this message translates to:

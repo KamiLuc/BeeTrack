@@ -192,8 +192,8 @@ func TestDeleteApiary_Forbidden(t *testing.T) {
 func TestListApiaries_ReturnsMemberships(t *testing.T) {
 	svc, repo := newTestApiaryService()
 	repo.memberships = []model.ApiaryMembership{
-		{Apiary: &model.Apiary{ID: 1, Name: "Alpha"}, UserRole: "owner"},
-		{Apiary: &model.Apiary{ID: 2, Name: "Beta"}, UserRole: "member"},
+		{Apiary: &model.Apiary{ID: 1, Name: "Alpha"}, UserRole: "owner", HiveCount: 3},
+		{Apiary: &model.Apiary{ID: 2, Name: "Beta"}, UserRole: "member", HiveCount: 0},
 	}
 
 	list, err := svc.List(context.Background(), 1)
@@ -205,6 +205,9 @@ func TestListApiaries_ReturnsMemberships(t *testing.T) {
 	}
 	if list[0].UserRole != "owner" || list[1].UserRole != "member" {
 		t.Errorf("unexpected roles: %s, %s", list[0].UserRole, list[1].UserRole)
+	}
+	if list[0].HiveCount != 3 {
+		t.Errorf("expected HiveCount 3, got %d", list[0].HiveCount)
 	}
 }
 

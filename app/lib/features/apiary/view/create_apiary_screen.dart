@@ -163,18 +163,23 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
                           l10n: l10n,
                         ),
                         const SizedBox(height: 32),
-                        ElevatedButton(
-                          onPressed: loading ? null : () => _submit(l10n),
-                          child: loading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(l10n.generalSave),
+                        Center(
+                          child: SizedBox(
+                            width: 200,
+                            child: ElevatedButton(
+                              onPressed: loading ? null : () => _submit(l10n),
+                              child: loading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(l10n.generalSave),
+                            ),
+                          ),
                         ),
                       ],
                     ),

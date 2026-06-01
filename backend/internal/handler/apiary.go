@@ -82,6 +82,7 @@ func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 		CreatedAt any      `json:"created_at"`
 		GridCols  int      `json:"grid_cols"`
 		GridRows  int      `json:"grid_rows"`
+		HiveCount int      `json:"hive_count"`
 		ID        int64    `json:"id"`
 		Lat       *float64 `json:"lat"`
 		Lng       *float64 `json:"lng"`
@@ -95,6 +96,7 @@ func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: m.Apiary.CreatedAt,
 			GridCols:  m.Apiary.GridCols,
 			GridRows:  m.Apiary.GridRows,
+			HiveCount: m.HiveCount,
 			ID:        m.Apiary.ID,
 			Lat:       m.Apiary.Lat,
 			Lng:       m.Apiary.Lng,

@@ -69,6 +69,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get authEmailTaken => 'Ten adres e-mail jest już zajęty';
 
   @override
+  String get roleOwner => 'Właściciel';
+
+  @override
+  String get roleMember => 'Członek';
+
+  @override
   String get apiaryTitle => 'Pasieki';
 
   @override

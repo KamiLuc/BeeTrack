@@ -69,6 +69,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authEmailTaken => 'This email is already taken';
 
   @override
+  String get roleOwner => 'Owner';
+
+  @override
+  String get roleMember => 'Member';
+
+  @override
   String get apiaryTitle => 'Apiaries';
 
   @override

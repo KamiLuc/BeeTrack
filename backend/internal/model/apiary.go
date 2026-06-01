@@ -22,6 +22,7 @@ type ApiaryMember struct {
 }
 
 type ApiaryMembership struct {
-	Apiary   *Apiary
-	UserRole string
+	Apiary    *Apiary
+	HiveCount int
+	UserRole  string
 }

@@ -24,6 +24,9 @@
   "authInvalidCredentials": "Invalid email or password",
   "authEmailTaken": "This email is already taken",
 
+  "roleOwner": "Owner",
+  "roleMember": "Member",
+
   "apiaryTitle": "Apiaries",
   "apiaryAdd": "Add apiary",
   "apiaryName": "Apiary",

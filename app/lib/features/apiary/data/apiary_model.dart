@@ -5,6 +5,7 @@ class Apiary {
   final double? lng;
   final int gridRows;
   final int gridCols;
+  final int hiveCount;
   final String userRole;
 
   const Apiary({
@@ -14,6 +15,7 @@ class Apiary {
     required this.lng,
     required this.gridRows,
     required this.gridCols,
+    required this.hiveCount,
     required this.userRole,
   });
 
@@ -25,6 +27,7 @@ class Apiary {
       lng: (json['lng'] as num?)?.toDouble(),
       gridRows: json['grid_rows'] as int,
       gridCols: json['grid_cols'] as int,
+      hiveCount: json['hive_count'] as int? ?? 0,
       userRole: json['user_role'] as String,
     );
   }
