@@ -19,6 +19,59 @@ func NewHiveHandler(hives *service.HiveService) *HiveHandler {
 	return &HiveHandler{hives: hives}
 }
 
+func (h *HiveHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hives, err := h.hives.List(r.Context(), userID, apiaryID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrApiaryNotFound):
+			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	type item struct {
+		ID        int64  `json:"id"`
+		ApiaryID  int64  `json:"apiary_id"`
+		Name      string `json:"name"`
+		Type      string `json:"type"`
+		Active    bool   `json:"active"`
+		GridRow   int    `json:"grid_row"`
+		GridCol   int    `json:"grid_col"`
+		CreatedAt any    `json:"created_at"`
+		UpdatedAt any    `json:"updated_at"`
+	}
+	items := make([]item, len(hives))
+	for i, hive := range hives {
+		items[i] = item{
+			ID:        hive.ID,
+			ApiaryID:  hive.ApiaryID,
+			Name:      hive.Name,
+			Type:      hive.Type,
+			Active:    hive.Active,
+			GridRow:   hive.GridRow,
+			GridCol:   hive.GridCol,
+			CreatedAt: hive.CreatedAt,
+			UpdatedAt: hive.UpdatedAt,
+		}
+	}
+
+	respond.JSON(w, http.StatusOK, items)
+}
+
 func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {

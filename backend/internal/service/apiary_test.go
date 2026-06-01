@@ -29,7 +29,7 @@ func (m *mockApiaryRepo) ListByUserID(ctx context.Context, userID int64) ([]mode
 }
 
 func (m *mockApiaryRepo) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
-	if m.apiary == nil {
+	if m.apiary == nil || m.apiary.ID != apiaryID {
 		return nil, "", gorm.ErrRecordNotFound
 	}
 	return m.apiary, m.role, nil

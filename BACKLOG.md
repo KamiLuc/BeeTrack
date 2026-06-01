@@ -57,7 +57,7 @@
 | HV-02-FE | `FE` | `[ ]` | Edit / delete apiary UI | |
 | HV-03-BE | `BE` | `[ ]` | List apiaries endpoint | GET /api/v1/apiaries |
 | HV-03-FE | `FE` | `[ ]` | Apiaries list screen | |
-| HV-04-BE | `BE` | `[ ]` | Apiary hive positions endpoint | Returns hives with grid coords |
+| HV-04-BE | `BE` | `[x]` | Apiary hive positions endpoint | Returns hives with grid coords |
 | HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
 | HV-05-BE | `BE` | `[x]` | Add hive to apiary endpoint | Validate grid position within bounds and unoccupied |
 | HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, install date, grid position picker |

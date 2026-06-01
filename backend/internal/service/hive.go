@@ -21,6 +21,7 @@ type ApiaryMembershipReader interface {
 type HiveRepository interface {
 	Create(ctx context.Context, h *model.Hive) error
 	IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error)
+	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
 }
 
 type HiveService struct {
@@ -30,6 +31,23 @@ type HiveService struct {
 
 func NewHiveService(apiaries ApiaryMembershipReader, hives HiveRepository) *HiveService {
 	return &HiveService{apiaries: apiaries, hives: hives}
+}
+
+func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*model.Hive, error) {
+	_, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+
+	hives, err := s.hives.ListByApiaryID(ctx, apiaryID)
+	if err != nil {
+		return nil, fmt.Errorf("list hives: %w", err)
+	}
+
+	return hives, nil
 }
 
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, gridRow, gridCol int) (*model.Hive, error) {

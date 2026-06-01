@@ -27,3 +27,12 @@ func (r *HiveRepository) IsPositionOccupied(ctx context.Context, apiaryID int64,
 		Count(&count).Error
 	return count > 0, err
 }
+
+func (r *HiveRepository) ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error) {
+	var hives []*model.Hive
+	err := r.db.WithContext(ctx).
+		Where("apiary_id = ?", apiaryID).
+		Order("grid_row ASC, grid_col ASC").
+		Find(&hives).Error
+	return hives, err
+}
