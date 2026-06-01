@@ -10,9 +10,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _auth;
 
   AuthBloc({required this._auth}) : super(AuthInitial()) {
+    on<AppStarted>(_onAppStarted);
     on<LoginSubmitted>(_onLoginSubmitted);
-    on<RegisterSubmitted>(_onRegisterSubmitted);
     on<LogoutRequested>(_onLogoutRequested);
+    on<RegisterSubmitted>(_onRegisterSubmitted);
+  }
+
+  Future<void> _onAppStarted(
+    AppStarted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(_auth.isLoggedIn ? AuthAuthenticated() : AuthUnauthenticated());
   }
 
   Future<void> _onLoginSubmitted(

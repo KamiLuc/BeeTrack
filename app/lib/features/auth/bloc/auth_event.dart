@@ -2,6 +2,8 @@ part of 'auth_bloc.dart';
 
 sealed class AuthEvent {}
 
+final class AppStarted extends AuthEvent {}
+
 final class LoginSubmitted extends AuthEvent {
   final String email;
   final String password;

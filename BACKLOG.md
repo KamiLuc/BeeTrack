@@ -38,10 +38,10 @@
 | AU-01-BE | `BE` | `[x]` | User registration endpoint | Hash passwords with bcrypt |
 | AU-01-FE | `FE` | `[x]` | Registration screen | Email, name, password fields |
 | AU-02-BE | `BE` | `[x]` | Login endpoint — JWT-based auth | Access token + refresh token |
-| AU-02-FE | `FE` | `[ ]` | Login screen + token interceptor | Store tokens; auto-refresh on 401 |
+| AU-02-FE | `FE` | `[x]` | Login screen + token interceptor | Store tokens; auto-refresh on 401 |
 | AU-03-BE | `BE` | `[x]` | Refresh token rotation | Invalidate on use |
 | AU-04-BE | `BE` | `[x]` | Logout endpoint | Delete refresh token from DB |
-| AU-04-FE | `FE` | `[ ]` | Logout action | Clear stored tokens, redirect to login |
+| AU-04-FE | `FE` | `[x]` | Logout action | Clear stored tokens, redirect to login |
 | AU-05-BE | `BE` | `[x]` | Update display name endpoint | PATCH /api/v1/users/me/name |
 | AU-05-FE | `FE` | `[ ]` | Edit display name screen | Name defaults to email on registration; user changes it here |
 

@@ -3,19 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
-import '../data/auth_repository.dart';
 
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => AuthBloc(
-        auth: AuthRepository(api: context.read(), storage: context.read()),
-      ),
-      child: const _RegisterView(),
-    );
+    return const _RegisterView();
   }
 }
 
@@ -58,9 +52,7 @@ class _RegisterViewState extends State<_RegisterView> {
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthLoading) {
-          setState(() => _errorMessage = null);
-        }
+        if (state is AuthLoading) setState(() => _errorMessage = null);
         if (state is AuthFailure) {
           setState(() => _errorMessage = _mapError(l10n, state.code));
         }

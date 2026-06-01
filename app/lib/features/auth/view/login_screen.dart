@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
-import '../data/auth_repository.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -11,12 +10,7 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => AuthBloc(
-        auth: AuthRepository(api: context.read(), storage: context.read()),
-      ),
-      child: const _LoginView(),
-    );
+    return const _LoginView();
   }
 }
 
@@ -57,9 +51,7 @@ class _LoginViewState extends State<_LoginView> {
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthLoading) {
-          setState(() => _errorMessage = null);
-        }
+        if (state is AuthLoading) setState(() => _errorMessage = null);
         if (state is AuthFailure) {
           setState(() => _errorMessage = _mapError(l10n, state.code));
         }

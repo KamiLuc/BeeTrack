@@ -19,6 +19,28 @@ void main() {
 
   tearDown(() => bloc.close());
 
+  group('AppStarted', () {
+    blocTest<AuthBloc, AuthState>(
+      'emits [AuthAuthenticated] when already logged in',
+      build: () {
+        when(() => repo.isLoggedIn).thenReturn(true);
+        return bloc;
+      },
+      act: (b) => b.add(AppStarted()),
+      expect: () => [isA<AuthAuthenticated>()],
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'emits [AuthUnauthenticated] when not logged in',
+      build: () {
+        when(() => repo.isLoggedIn).thenReturn(false);
+        return bloc;
+      },
+      act: (b) => b.add(AppStarted()),
+      expect: () => [isA<AuthUnauthenticated>()],
+    );
+  });
+
   group('LoginSubmitted', () {
     blocTest<AuthBloc, AuthState>(
       'emits [AuthLoading, AuthAuthenticated] on success',

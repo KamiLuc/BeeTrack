@@ -1,14 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flutter/foundation.dart';
-
 import 'core/api/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/bloc/auth_bloc.dart';
+import 'features/auth/data/auth_repository.dart';
 import 'features/auth/view/login_screen.dart';
+import 'features/home/view/home_screen.dart';
 import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
@@ -36,18 +38,37 @@ class BeeTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'BeeTrack',
-      theme: AppTheme.light(),
-      locale: const Locale('pl'),
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: const LoginScreen(),
+    return BlocProvider(
+      create: (_) => AuthBloc(
+        auth: AuthRepository(api: context.read(), storage: context.read()),
+      )..add(AppStarted()),
+      child: MaterialApp(
+        title: 'BeeTrack',
+        theme: AppTheme.light(),
+        locale: const Locale('pl'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: const AuthWrapper(),
+      ),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is AuthAuthenticated) return const HomeScreen();
+        return const LoginScreen();
+      },
     );
   }
 }
