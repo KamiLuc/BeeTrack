@@ -43,15 +43,15 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| HV-04-FE | `FE` | `[ ]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
-| HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, install date, grid position picker |
+| HV-01-BE | `BE` | `[x]` | Hive CRUD endpoints | Create, list, get, update, delete, move; grid position validation |
+| HV-04-FE | `FE` | `[x]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
+| HV-05-FE | `FE` | `[ ]` | Add hive screen | Name, type, grid position picker |
 | HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
-| HV-07-BE | `BE` | `[ ]` | Rename hive endpoint | |
-| HV-07-FE | `FE` | `[ ]` | Rename hive UI | |
-| HV-08-FE | `FE` | `[ ]` | Edit / delete hive UI | |
+| HV-07-BE | `BE` | `[x]` | Update hive endpoint | Name, type, active flag via PATCH |
+| HV-07-FE | `FE` | `[ ]` | Edit hive UI | Edit name, type, active toggle |
+| HV-08-FE | `FE` | `[ ]` | Delete hive UI | |
 | HV-09-FE | `FE` | `[ ]` | Hive detail screen | |
-| HV-10-BE | `BE` | `[ ]` | Hive status field | active, inactive, dead-out, sold |
-| HV-10-FE | `FE` | `[ ]` | Hive status UI | Dropdown / selector |
+| HV-10-FE | `FE` | `[ ]` | Active toggle UI | Simple on/off toggle (active bool) |
 | HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
 | HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |
 | HV-12-BE | `BE` | `[ ]` | Apiary roles enforcement | Owner can invite/remove/delete; member can manage hives and inspections |

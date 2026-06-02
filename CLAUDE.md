@@ -31,6 +31,7 @@ docker/        # Docker Compose + related config
 - Backend: `docker compose up` (Go API + PostgreSQL)
 - Flutter (Android): `flutter run`
 - Flutter (Web): `flutter run -d chrome`
+- Flutter (Analyze): `flutter analyze --no-fatal-infos` — **ask the user before running**
 
 > Flutter SDK: `C:\Users\Kamil\Prog\Flutter\flutter\bin\flutter`
 

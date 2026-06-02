@@ -7,6 +7,7 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
+import '../../hive/view/apiary_grid_screen.dart';
 import 'create_apiary_screen.dart';
 import 'edit_apiary_screen.dart';
 
@@ -85,31 +86,28 @@ class _ApiariesView extends StatelessWidget {
             }
             return RefreshIndicator(
               onRefresh: () => context.read<ApiariesCubit>().load(),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: AppLayout.formConstraints(context),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: state.apiaries.length + 1,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      if (i == state.apiaries.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Center(
-                            child: SizedBox(
-                              width: 200,
-                              child: ElevatedButton(
-                                onPressed: () => _openCreate(context),
-                                child: Text(l10n.apiaryAdd),
-                              ),
-                            ),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: ConstrainedBox(
+                    constraints: AppLayout.formConstraints(context),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final apiary in state.apiaries) ...[
+                          _ApiaryCard(apiary: apiary),
+                          const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: 200,
+                          child: ElevatedButton(
+                            onPressed: () => _openCreate(context),
+                            child: Text(l10n.apiaryAdd),
                           ),
-                        );
-                      }
-                      return _ApiaryCard(apiary: state.apiaries[i]);
-                    },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -170,7 +168,11 @@ class _ApiaryCard extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.zero,
         child: InkWell(
-          onTap: () {},
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ApiaryGridScreen(apiary: apiary),
+            ),
+          ),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
