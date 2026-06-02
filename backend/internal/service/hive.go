@@ -167,7 +167,7 @@ func (s *HiveService) Move(ctx context.Context, userID, apiaryID, hiveID int64, 
 	return hive, nil
 }
 
-func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, gridRow, gridCol int) (*model.Hive, error) {
+func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active bool, gridRow, gridCol int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -196,7 +196,7 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 		ApiaryID: apiaryID,
 		Name:     name,
 		Type:     hiveType,
-		Active:   true,
+		Active:   active,
 		GridRow:  gridRow,
 		GridCol:  gridCol,
 	}

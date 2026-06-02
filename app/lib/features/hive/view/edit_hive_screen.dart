@@ -3,40 +3,37 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
+import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'hive_form_widgets.dart';
 
-String _lastHiveType = 'langstroth';
-
-class AddHiveScreen extends StatefulWidget {
+class EditHiveScreen extends StatefulWidget {
   final int apiaryId;
-  final int gridRow;
-  final int gridCol;
-  final String defaultName;
+  final Hive hive;
 
-  const AddHiveScreen({
+  const EditHiveScreen({
     super.key,
     required this.apiaryId,
-    required this.gridRow,
-    required this.gridCol,
-    required this.defaultName,
+    required this.hive,
   });
 
   @override
-  State<AddHiveScreen> createState() => _AddHiveScreenState();
+  State<EditHiveScreen> createState() => _EditHiveScreenState();
 }
 
-class _AddHiveScreenState extends State<AddHiveScreen> {
+class _EditHiveScreenState extends State<EditHiveScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  String _type = _lastHiveType;
-  bool _active = true;
+  late String _type;
+  late bool _active;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.defaultName);
+    _nameController = TextEditingController(text: widget.hive.name);
+    _type = widget.hive.type;
+    _active = widget.hive.active;
   }
 
   @override
@@ -49,13 +46,12 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
     try {
-      await HiveRepository(api: context.read()).createHive(
+      await HiveRepository(api: context.read()).updateHive(
         apiaryId: widget.apiaryId,
+        hiveId: widget.hive.id,
         name: _nameController.text.trim(),
         type: _type,
         active: _active,
-        gridRow: widget.gridRow,
-        gridCol: widget.gridCol,
       );
       if (context.mounted) Navigator.of(context).pop();
     } catch (_) {
@@ -72,7 +68,7 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.hiveAdd)),
+      appBar: AppBar(title: Text(l10n.hiveEdit)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -88,10 +84,7 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
                     const SizedBox(height: 16),
                     HiveTypeDropdown(
                       value: _type,
-                      onChanged: (v) => setState(() {
-                        _type = v ?? _type;
-                        _lastHiveType = _type;
-                      }),
+                      onChanged: (v) => setState(() => _type = v ?? _type),
                     ),
                     const SizedBox(height: 16),
                     HiveActiveToggle(

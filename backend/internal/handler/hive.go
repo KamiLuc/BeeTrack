@@ -280,6 +280,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
+		Active  *bool  `json:"active"`
 		GridCol int    `json:"grid_col"`
 		GridRow int    `json:"grid_row"`
 		Name    string `json:"name"`
@@ -295,7 +296,12 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		hiveType = "langstroth"
 	}
 
-	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, req.GridRow, req.GridCol)
+	active := true
+	if req.Active != nil {
+		active = *req.Active
+	}
+
+	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.GridRow, req.GridCol)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):

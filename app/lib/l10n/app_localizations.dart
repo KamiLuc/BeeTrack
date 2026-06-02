@@ -356,6 +356,24 @@ abstract class AppLocalizations {
   /// **'Brak uli w tej pasiece'**
   String get hiveEmpty;
 
+  /// No description provided for @hiveEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj ul'**
+  String get hiveEdit;
+
+  /// No description provided for @hiveDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć ul?'**
+  String get hiveDeleteConfirm;
+
+  /// No description provided for @hiveDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie ul.'**
+  String get hiveDeleteWarning;
+
   /// No description provided for @hiveDefaultName.
   ///
   /// In pl, this message translates to:

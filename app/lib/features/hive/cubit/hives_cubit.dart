@@ -21,4 +21,15 @@ class HivesCubit extends Cubit<HivesState> {
       emit(HivesError());
     }
   }
+
+  Future<void> delete(int hiveId) async {
+    emit(HivesLoading());
+    try {
+      await _repo.deleteHive(apiaryId: apiaryId, hiveId: hiveId);
+      final hives = await _repo.listHives(apiaryId);
+      emit(HivesLoaded(hives));
+    } catch (_) {
+      emit(HivesError());
+    }
+  }
 }

@@ -54,6 +54,9 @@
   "hiveActive": "Active",
   "hiveInactive": "Inactive",
   "hiveEmpty": "No hives in this apiary",
+  "hiveEdit": "Edit hive",
+  "hiveDeleteConfirm": "Delete hive?",
+  "hiveDeleteWarning": "This will permanently delete the hive.",
   "hiveDefaultName": "Bee house {index}",
   "@hiveDefaultName": {
     "placeholders": {

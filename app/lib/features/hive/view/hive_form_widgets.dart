@@ -11,6 +11,33 @@ const _hiveTypeLabels = {
   'wielkopolski': 'Wielkopolski',
 };
 
+class HiveActiveToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const HiveActiveToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value ? l10n.hiveActive : l10n.hiveInactive,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(width: 12),
+        Switch(value: value, onChanged: onChanged),
+      ],
+    );
+  }
+}
+
 class HiveNameField extends StatelessWidget {
   final TextEditingController controller;
 

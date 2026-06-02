@@ -54,6 +54,9 @@
   "hiveActive": "Aktywny",
   "hiveInactive": "Nieaktywny",
   "hiveEmpty": "Brak uli w tej pasiece",
+  "hiveEdit": "Edytuj ul",
+  "hiveDeleteConfirm": "Usunąć ul?",
+  "hiveDeleteWarning": "Ta operacja trwale usunie ul.",
   "hiveDefaultName": "Ul {index}",
   "@hiveDefaultName": {
     "placeholders": {

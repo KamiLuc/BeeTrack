@@ -149,6 +149,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveEmpty => 'Brak uli w tej pasiece';
 
   @override
+  String get hiveEdit => 'Edytuj ul';
+
+  @override
+  String get hiveDeleteConfirm => 'Usunąć ul?';
+
+  @override
+  String get hiveDeleteWarning => 'Ta operacja trwale usunie ul.';
+
+  @override
   String hiveDefaultName(int index) {
     return 'Ul $index';
   }

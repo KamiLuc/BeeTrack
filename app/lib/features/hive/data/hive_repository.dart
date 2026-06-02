@@ -25,6 +25,7 @@ class HiveRepository {
     required int apiaryId,
     required String name,
     required String type,
+    required bool active,
     required int gridRow,
     required int gridCol,
   }) async {
@@ -32,9 +33,39 @@ class HiveRepository {
       await _api.dio.post('/api/v1/apiaries/$apiaryId/hives', data: {
         'name': name,
         'type': type,
+        'active': active,
         'grid_row': gridRow,
         'grid_col': gridCol,
       });
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> updateHive({
+    required int apiaryId,
+    required int hiveId,
+    required String name,
+    required String type,
+    required bool active,
+  }) async {
+    try {
+      await _api.dio.patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
+        'name': name,
+        'type': type,
+        'active': active,
+      });
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> deleteHive({
+    required int apiaryId,
+    required int hiveId,
+  }) async {
+    try {
+      await _api.dio.delete('/api/v1/apiaries/$apiaryId/hives/$hiveId');
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

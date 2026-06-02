@@ -103,4 +103,32 @@ void main() {
       expect: () => [isA<HivesLoading>(), isA<HivesError>()],
     );
   });
+
+  group('delete', () {
+    blocTest<HivesCubit, HivesState>(
+      'emits [HivesLoading, HivesLoaded] on success',
+      build: () {
+        when(() => repo.deleteHive(apiaryId: 1, hiveId: 1))
+            .thenAnswer((_) async {});
+        when(() => repo.listHives(1)).thenAnswer((_) async => []);
+        return cubit;
+      },
+      act: (c) => c.delete(1),
+      expect: () => [
+        isA<HivesLoading>(),
+        isA<HivesLoaded>().having((s) => s.hives, 'hives', isEmpty),
+      ],
+    );
+
+    blocTest<HivesCubit, HivesState>(
+      'emits [HivesLoading, HivesError] on failure',
+      build: () {
+        when(() => repo.deleteHive(apiaryId: 1, hiveId: 1))
+            .thenThrow(Exception('error'));
+        return cubit;
+      },
+      act: (c) => c.delete(1),
+      expect: () => [isA<HivesLoading>(), isA<HivesError>()],
+    );
+  });
 }

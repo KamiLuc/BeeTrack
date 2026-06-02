@@ -147,6 +147,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveEmpty => 'No hives in this apiary';
 
   @override
+  String get hiveEdit => 'Edit hive';
+
+  @override
+  String get hiveDeleteConfirm => 'Delete hive?';
+
+  @override
+  String get hiveDeleteWarning => 'This will permanently delete the hive.';
+
+  @override
   String hiveDefaultName(int index) {
     return 'Bee house $index';
   }
