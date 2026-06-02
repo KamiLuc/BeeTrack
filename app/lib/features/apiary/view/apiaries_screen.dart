@@ -168,11 +168,14 @@ class _ApiaryCard extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.zero,
         child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ApiaryGridScreen(apiary: apiary),
-            ),
-          ),
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ApiaryGridScreen(apiary: apiary),
+              ),
+            );
+            if (context.mounted) context.read<ApiariesCubit>().load();
+          },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -186,7 +189,7 @@ class _ApiaryCard extends StatelessWidget {
                       Text(apiary.name, style: Theme.of(context).textTheme.bodyMedium),
                       if (apiary.hiveCount > 0)
                         Text(
-                          '${apiary.hiveCount} ${l10n.hiveTitle.toLowerCase()}',
+                          l10n.hiveCount(apiary.hiveCount),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                     ],

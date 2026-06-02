@@ -42,10 +42,23 @@
   "apiaryDeleteWarning": "This will permanently delete the apiary and all its data.",
 
   "hiveTitle": "Hives",
+  "hiveCount": "{count, plural, =1{1 hive} other{{count} hives}}",
+  "@hiveCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "hiveAdd": "Add hive",
   "hiveName": "Hive name",
   "hiveType": "Hive type",
   "hiveActive": "Active",
   "hiveInactive": "Inactive",
-  "hiveEmpty": "No hives in this apiary"
+  "hiveEmpty": "No hives in this apiary",
+  "hiveDefaultName": "Bee house {index}",
+  "@hiveDefaultName": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "generalRequired": "Required"
 }

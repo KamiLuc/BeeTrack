@@ -314,6 +314,12 @@ abstract class AppLocalizations {
   /// **'Ule'**
   String get hiveTitle;
 
+  /// No description provided for @hiveCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 ul} few{{count} ule} many{{count} uli} other{{count} uli}}'**
+  String hiveCount(int count);
+
   /// No description provided for @hiveAdd.
   ///
   /// In pl, this message translates to:
@@ -349,6 +355,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Brak uli w tej pasiece'**
   String get hiveEmpty;
+
+  /// No description provided for @hiveDefaultName.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ul {index}'**
+  String hiveDefaultName(int index);
+
+  /// No description provided for @generalRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wymagane'**
+  String get generalRequired;
 }
 
 class _AppLocalizationsDelegate

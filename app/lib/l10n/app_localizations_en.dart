@@ -118,6 +118,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveTitle => 'Hives';
 
   @override
+  String hiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hives',
+      one: '1 hive',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get hiveAdd => 'Add hive';
 
   @override
@@ -134,4 +145,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hiveEmpty => 'No hives in this apiary';
+
+  @override
+  String hiveDefaultName(int index) {
+    return 'Bee house $index';
+  }
+
+  @override
+  String get generalRequired => 'Required';
 }

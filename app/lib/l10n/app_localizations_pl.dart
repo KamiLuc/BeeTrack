@@ -118,6 +118,19 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveTitle => 'Ule';
 
   @override
+  String hiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count uli',
+      many: '$count uli',
+      few: '$count ule',
+      one: '1 ul',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get hiveAdd => 'Dodaj ul';
 
   @override
@@ -134,4 +147,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get hiveEmpty => 'Brak uli w tej pasiece';
+
+  @override
+  String hiveDefaultName(int index) {
+    return 'Ul $index';
+  }
+
+  @override
+  String get generalRequired => 'Wymagane';
 }

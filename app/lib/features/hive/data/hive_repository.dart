@@ -20,4 +20,23 @@ class HiveRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<void> createHive({
+    required int apiaryId,
+    required String name,
+    required String type,
+    required int gridRow,
+    required int gridCol,
+  }) async {
+    try {
+      await _api.dio.post('/api/v1/apiaries/$apiaryId/hives', data: {
+        'name': name,
+        'type': type,
+        'grid_row': gridRow,
+        'grid_col': gridCol,
+      });
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

@@ -42,10 +42,23 @@
   "apiaryDeleteWarning": "Ta operacja trwale usunie pasiekę i wszystkie jej dane.",
 
   "hiveTitle": "Ule",
+  "hiveCount": "{count, plural, =1{1 ul} few{{count} ule} many{{count} uli} other{{count} uli}}",
+  "@hiveCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "hiveAdd": "Dodaj ul",
   "hiveName": "Nazwa ula",
   "hiveType": "Typ ula",
   "hiveActive": "Aktywny",
   "hiveInactive": "Nieaktywny",
-  "hiveEmpty": "Brak uli w tej pasiece"
+  "hiveEmpty": "Brak uli w tej pasiece",
+  "hiveDefaultName": "Ul {index}",
+  "@hiveDefaultName": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "generalRequired": "Wymagane"
 }

@@ -6,6 +6,7 @@ import '../../apiary/data/apiary_model.dart';
 import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
+import 'add_hive_screen.dart';
 
 class ApiaryGridScreen extends StatelessWidget {
   final Apiary apiary;
@@ -28,6 +29,27 @@ class _ApiaryGridView extends StatelessWidget {
   final Apiary apiary;
 
   const _ApiaryGridView({required this.apiary});
+
+  Future<void> _openAddHive(
+    BuildContext context,
+    HivesLoaded state,
+    int row,
+    int col,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final defaultName = l10n.hiveDefaultName(state.hives.length + 1);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddHiveScreen(
+          apiaryId: apiary.id,
+          gridRow: row,
+          gridCol: col,
+          defaultName: defaultName,
+        ),
+      ),
+    );
+    if (context.mounted) context.read<HivesCubit>().load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +107,11 @@ class _ApiaryGridView extends StatelessWidget {
                         final row = index ~/ apiary.gridCols;
                         final col = index % apiary.gridCols;
                         final hive = hiveMap[(row, col)];
-                        return hive != null ? _HiveCell(hive: hive) : const _EmptyCell();
+                        return hive != null
+                            ? _HiveCell(hive: hive)
+                            : _EmptyCell(
+                                onTap: () => _openAddHive(context, state, row, col),
+                              );
                       },
                     ),
                   ),
@@ -110,8 +136,14 @@ class _HiveCell extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
+    final primary = colorScheme.primary;
     return Card(
       margin: EdgeInsets.zero,
+      color: primary.withAlpha(40),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Colors.black),
+      ),
       child: InkWell(
         onTap: () {},
         borderRadius: BorderRadius.circular(12),
@@ -123,15 +155,19 @@ class _HiveCell extends StatelessWidget {
               Icon(
                 Icons.hive,
                 size: 28,
-                color: hive.active ? colorScheme.primary : colorScheme.outline,
+                color: hive.active ? primary : colorScheme.outline,
               ),
               const SizedBox(height: 4),
-              Text(
-                hive.name,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Flexible(
+                child: Text(
+                  hive.name,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (!hive.active)
                 Text(
@@ -149,15 +185,21 @@ class _HiveCell extends StatelessWidget {
 }
 
 class _EmptyCell extends StatelessWidget {
-  const _EmptyCell();
+  final VoidCallback? onTap;
+
+  const _EmptyCell({this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
       ),
     );
