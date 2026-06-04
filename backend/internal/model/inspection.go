@@ -1,0 +1,23 @@
+package model
+
+import "time"
+
+type Inspection struct {
+	ID                    int64
+	HiveID                int64
+	InspectedBy           int64
+	InspectedAt           time.Time
+	QueenStatus           string
+	BroodPattern          string
+	FramesHoney           *int
+	FramesPollen          *int
+	VarroaCount           *int
+	QueenCellsCount       *int
+	Aggressiveness        string
+	FramesAddedFoundation *int
+	FramesAddedDrawn      *int
+	QueenAdded            bool
+	Notes                 string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}

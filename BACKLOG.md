@@ -66,22 +66,24 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| IN-01-BE | `BE` | `[ ]` | Create inspection endpoint | Date, duration, weather |
+| IN-01-BE | `BE` | `[x]` | Create inspection endpoint | Date, aggressiveness, queen/brood/frames/varroa/cells/queen_added fields |
 | IN-01-FE | `FE` | `[ ]` | Create inspection screen | |
-| IN-02-BE | `BE` | `[ ]` | Queen status field | Enum: seen, not seen, capped cells, eggs |
+| IN-02-BE | `BE` | `[x]` | Queen status field | Enum: seen, not_seen, capped_cells, eggs |
 | IN-02-FE | `FE` | `[ ]` | Queen status UI | Selector + free-text |
-| IN-03-BE | `BE` | `[ ]` | Brood pattern field | Enum: excellent, good, poor, none |
+| IN-03-BE | `BE` | `[x]` | Brood pattern field | Enum: excellent, good, poor, none |
 | IN-03-FE | `FE` | `[ ]` | Brood pattern UI | |
-| IN-04-BE | `BE` | `[ ]` | Frames count fields | Bees, honey, pollen |
+| IN-04-BE | `BE` | `[x]` | Frames count fields | Honey, pollen (bees dropped) |
 | IN-04-FE | `FE` | `[ ]` | Frames count UI | Numeric inputs |
-| IN-05-BE | `BE` | `[ ]` | Varroa mite count field | Numeric + method |
+| IN-05-BE | `BE` | `[x]` | Varroa mite count field | Numeric; method field dropped |
 | IN-05-FE | `FE` | `[ ]` | Varroa count UI | |
-| IN-06-BE | `BE` | `[ ]` | Free-text notes field | |
+| IN-06-BE | `BE` | `[x]` | Free-text notes field | |
 | IN-06-FE | `FE` | `[ ]` | Notes UI | Text area |
-| IN-07-BE | `BE` | `[ ]` | Edit / delete inspection endpoints | |
+| IN-07-BE | `BE` | `[x]` | Edit / delete inspection endpoints | |
 | IN-07-FE | `FE` | `[ ]` | Edit / delete inspection UI | |
-| IN-08-BE | `BE` | `[ ]` | Inspection history endpoint | Paginated |
+| IN-08-BE | `BE` | `[x]` | Inspection history endpoint | Paginated (limit/offset) |
 | IN-08-FE | `FE` | `[ ]` | Inspection history list screen | |
+| IN-09-BE | `BE` | `[x]` | Disease tracking | inspection_diseases table; POST/DELETE endpoints; diseases array in inspection response |
+| IN-09-FE | `FE` | `[ ]` | Disease UI | Add/remove diseases on inspection; notes stored but not shown in UI yet |
 
 ---
 

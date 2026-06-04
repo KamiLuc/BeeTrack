@@ -302,6 +302,8 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
     "name": "Hive A",
     "type": "langstroth",
     "active": true,
+    "queenless": false,
+    "ready_for_harvest": false,
     "grid_row": 0,
     "grid_col": 0,
     "created_at": "2026-06-01T12:00:00Z",
@@ -338,6 +340,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
 ```
 
 - `type` is optional — defaults to `"langstroth"`
+- `active`, `queenless`, `ready_for_harvest` default to `false` if omitted
 - `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
 - Each position within an apiary must be unique
 
@@ -349,6 +352,8 @@ Adds a hive to an apiary. Both owners and members can add hives.
   "name": "Hive A",
   "type": "langstroth",
   "active": true,
+  "queenless": false,
+  "ready_for_harvest": false,
   "grid_row": 0,
   "grid_col": 0,
   "created_at": "2026-06-01T12:00:00Z",
@@ -383,6 +388,8 @@ Returns a single hive. Caller must be a member of the apiary.
   "name": "Hive A",
   "type": "langstroth",
   "active": true,
+  "queenless": false,
+  "ready_for_harvest": false,
   "grid_row": 0,
   "grid_col": 0,
   "created_at": "2026-06-01T12:00:00Z",
@@ -411,7 +418,9 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 {
   "name": "Renamed Hive",
   "type": "top_bar",
-  "active": false
+  "active": false,
+  "queenless": true,
+  "ready_for_harvest": false
 }
 ```
 
@@ -529,4 +538,239 @@ Updates the authenticated user's display name.
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Inspections
+
+All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}/inspections`.
+
+### Inspection object
+
+```json
+{
+  "id": 1,
+  "hive_id": 10,
+  "inspected_by": 1,
+  "inspected_at": "2026-06-04T10:00:00Z",
+  "queen_status": "seen",
+  "brood_pattern": "good",
+  "frames_honey": 4,
+  "frames_pollen": 2,
+  "varroa_count": 3,
+  "queen_cells_count": 0,
+  "aggressiveness": "calm",
+  "frames_added_foundation": 1,
+  "frames_added_drawn": null,
+  "queen_added": false,
+  "notes": "Colony looks healthy.",
+  "created_at": "2026-06-04T10:05:00Z",
+  "updated_at": "2026-06-04T10:05:00Z"
+}
+```
+
+- All observation fields are optional — omit or send `null` to leave unrecorded
+- `queen_status` valid values: `seen`, `not_seen`, `capped_cells`, `eggs`
+- `brood_pattern` valid values: `excellent`, `good`, `poor`, `none`
+- `aggressiveness` valid values: `calm`, `mild`, `aggressive`, `very_aggressive`
+- `diseases` — array of disease objects (see below); always included in responses
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/inspections 🔒
+
+Creates a new inspection for the hive. Caller must be a member of the apiary.
+
+**Request**
+```json
+{
+  "inspected_at": "2026-06-04T10:00:00Z",
+  "queen_status": "seen",
+  "brood_pattern": "good",
+  "frames_honey": 4,
+  "frames_pollen": 2,
+  "varroa_count": 3,
+  "queen_cells_count": 0,
+  "aggressiveness": "calm",
+  "frames_added_foundation": 1,
+  "frames_added_drawn": null,
+  "queen_added": false,
+  "notes": "Colony looks healthy."
+}
+```
+
+**Response** `201 Created` — inspection object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INSPECTED_AT_REQUIRED` | 400 | `inspected_at` missing or zero |
+| `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
+| `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
+| `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/inspections 🔒
+
+Returns inspections for the hive ordered by `inspected_at` descending.
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+
+**Response** `200 OK` — array of inspection objects
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} 🔒
+
+Returns a single inspection.
+
+**Response** `200 OK` — inspection object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} 🔒
+
+Overwrites all mutable fields of an inspection. Send the complete desired state.
+
+**Request** — same shape as POST
+
+**Response** `200 OK` — updated inspection object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INSPECTED_AT_REQUIRED` | 400 | `inspected_at` missing or zero |
+| `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
+| `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
+| `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} 🔒
+
+Deletes an inspection and all its diseases (cascade).
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Inspection Diseases
+
+Diseases are nested under inspections. Valid `disease` values: `nosema`, `american_foulbrood`, `european_foulbrood`, `chalkbrood`, `sacbrood`, `small_hive_beetle`.
+
+The `diseases` array is always included in inspection responses — no separate list endpoint needed.
+
+### Disease object
+
+```json
+{
+  "id": 1,
+  "disease": "nosema",
+  "notes": "confirmed by microscopy",
+  "created_at": "2026-06-04T10:05:00Z"
+}
+```
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases 🔒
+
+Adds a disease to an inspection.
+
+**Request**
+```json
+{
+  "disease": "nosema",
+  "notes": "confirmed by microscopy"
+}
+```
+
+- `notes` is optional
+
+**Response** `201 Created` — disease object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INVALID_DISEASE` | 400 | Value not in allowed set |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId} 🔒
+
+Removes a disease from an inspection.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `DISEASE_NOT_FOUND` | 404 | Disease does not exist for this inspection |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |

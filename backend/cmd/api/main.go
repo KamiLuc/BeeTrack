@@ -37,15 +37,18 @@ func main() {
 	tokenRepo := repository.NewTokenRepository(db)
 	apiaryRepo := repository.NewApiaryRepository(db)
 	hiveRepo := repository.NewHiveRepository(db)
+	inspectionRepo := repository.NewInspectionRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	apiarySvc := service.NewApiaryService(apiaryRepo, hiveRepo)
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
+	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
 	hiveHandler := handler.NewHiveHandler(hiveSvc)
+	inspectionHandler := handler.NewInspectionHandler(inspectionSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
@@ -69,6 +72,14 @@ func main() {
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/position", auth(http.HandlerFunc(hiveHandler.Move)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
+
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections", auth(http.HandlerFunc(inspectionHandler.List)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections", auth(http.HandlerFunc(inspectionHandler.Create)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}", auth(http.HandlerFunc(inspectionHandler.Delete)))
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}", auth(http.HandlerFunc(inspectionHandler.Get)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}", auth(http.HandlerFunc(inspectionHandler.Update)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases", auth(http.HandlerFunc(inspectionHandler.AddDisease)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId}", auth(http.HandlerFunc(inspectionHandler.RemoveDisease)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 
