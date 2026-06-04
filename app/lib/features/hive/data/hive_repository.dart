@@ -70,4 +70,20 @@ class HiveRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<void> moveHive({
+    required int apiaryId,
+    required int hiveId,
+    required int row,
+    required int col,
+  }) async {
+    try {
+      await _api.dio.patch(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/position',
+        data: {'grid_row': row, 'grid_col': col},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

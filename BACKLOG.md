@@ -46,7 +46,7 @@
 | HV-01-BE | `BE` | `[x]` | Hive CRUD endpoints | Create, list, get, update, delete, move; grid position validation |
 | HV-04-FE | `FE` | `[x]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
 | HV-05-FE | `FE` | `[x]` | Add hive screen | Tap empty grid cell to open form; name/type fields shared with edit |
-| HV-06-FE | `FE` | `[ ]` | Move hive UI | Drag-and-drop or coordinate input |
+| HV-06-FE | `FE` | `[x]` | Move hive UI | Long-press drag-and-drop; optimistic update with API revert on failure |
 | HV-07-BE | `BE` | `[x]` | Update hive endpoint | Name, type, active flag via PATCH |
 | HV-07-FE | `FE` | `[x]` | Edit hive UI | Edit name, type, active toggle |
 | HV-08-FE | `FE` | `[x]` | Delete hive UI | Confirmation dialog via ... popup on hive cell |

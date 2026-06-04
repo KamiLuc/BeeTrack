@@ -119,6 +119,21 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nowa siatka jest za mała, aby pomieścić wszystkie ule.';
 
   @override
+  String apiaryGridHivesWillMove(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count uli zostanie przeniesionych, aby zmieścić się w nowej siatce.',
+      many:
+          '$count uli zostanie przeniesionych, aby zmieścić się w nowej siatce.',
+      few: '$count ule zostaną przeniesione, aby zmieścić się w nowej siatce.',
+      one: '1 ul zostanie przeniesiony, aby zmieścić się w nowej siatce.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get hiveTitle => 'Ule';
 
   @override

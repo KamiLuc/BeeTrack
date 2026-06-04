@@ -314,6 +314,12 @@ abstract class AppLocalizations {
   /// **'Nowa siatka jest za mała, aby pomieścić wszystkie ule.'**
   String get apiaryGridTooSmall;
 
+  /// No description provided for @apiaryGridHivesWillMove.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 ul zostanie przeniesiony, aby zmieścić się w nowej siatce.} few{{count} ule zostaną przeniesione, aby zmieścić się w nowej siatce.} many{{count} uli zostanie przeniesionych, aby zmieścić się w nowej siatce.} other{{count} uli zostanie przeniesionych, aby zmieścić się w nowej siatce.}}'**
+  String apiaryGridHivesWillMove(int count);
+
   /// No description provided for @hiveTitle.
   ///
   /// In pl, this message translates to:

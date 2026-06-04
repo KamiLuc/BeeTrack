@@ -119,6 +119,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'The new grid is too small to fit all existing hives.';
 
   @override
+  String apiaryGridHivesWillMove(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hives will be relocated to fit the new grid.',
+      one: '1 hive will be relocated to fit the new grid.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get hiveTitle => 'Hives';
 
   @override

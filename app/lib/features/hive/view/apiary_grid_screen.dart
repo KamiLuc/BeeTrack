@@ -131,6 +131,7 @@ class _ApiaryGridView extends StatelessWidget {
                               )
                             : _EmptyCell(
                                 onTap: () => _openAddHive(context, state, row, col),
+                                onDrop: (h) => context.read<HivesCubit>().move(h.id, row, col),
                               );
                       },
                     ),
@@ -152,22 +153,21 @@ class _HiveCell extends StatelessWidget {
 
   const _HiveCell({required this.hive, required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildContent(BuildContext context, {double opacity = 1.0}) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final primary = colorScheme.primary;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      color: primary.withAlpha(40),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.black),
-      ),
-      child: InkWell(
-        onTap: onTap,
+    return Opacity(
+      opacity: opacity,
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: primary.withAlpha(40),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Colors.black),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
@@ -203,26 +203,65 @@ class _HiveCell extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return LongPressDraggable<Hive>(
+      data: hive,
+      delay: const Duration(milliseconds: 300),
+      feedback: SizedBox(
+        width: 80,
+        height: 80,
+        child: Material(
+          color: Colors.transparent,
+          elevation: 8,
+          borderRadius: BorderRadius.circular(12),
+          child: _buildContent(context),
+        ),
+      ),
+      childWhenDragging: _buildContent(context, opacity: 0.35),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: _buildContent(context),
+      ),
+    );
+  }
 }
 
 class _EmptyCell extends StatelessWidget {
   final VoidCallback? onTap;
+  final void Function(Hive)? onDrop;
 
-  const _EmptyCell({this.onTap});
+  const _EmptyCell({this.onTap, this.onDrop});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
+    return DragTarget<Hive>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (details) => onDrop?.call(details.data),
+      builder: (context, candidateData, _) {
+        final hovering = candidateData.isNotEmpty;
+        return InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hovering
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outlineVariant,
+                width: hovering ? 2 : 1,
+              ),
+              color: hovering
+                  ? Theme.of(context).colorScheme.primary.withAlpha(20)
+                  : null,
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

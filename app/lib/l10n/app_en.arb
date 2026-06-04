@@ -41,6 +41,12 @@
   "apiaryDeleteConfirm": "Delete apiary?",
   "apiaryDeleteWarning": "This will permanently delete the apiary and all its data.",
   "apiaryGridTooSmall": "The new grid is too small to fit all existing hives.",
+  "apiaryGridHivesWillMove": "{count, plural, =1{1 hive will be relocated to fit the new grid.} other{{count} hives will be relocated to fit the new grid.}}",
+  "@apiaryGridHivesWillMove": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "hiveTitle": "Hives",
   "hiveCount": "{count, plural, =1{1 hive} other{{count} hives}}",

@@ -131,4 +131,66 @@ void main() {
       expect: () => [isA<HivesLoading>(), isA<HivesError>()],
     );
   });
+
+  group('move', () {
+    const hive = Hive(
+      id: 1,
+      apiaryId: 1,
+      name: 'Ul 1',
+      type: 'langstroth',
+      active: true,
+      gridRow: 0,
+      gridCol: 0,
+    );
+
+    blocTest<HivesCubit, HivesState>(
+      'optimistically updates position then confirms via API',
+      build: () {
+        when(() => repo.moveHive(apiaryId: 1, hiveId: 1, row: 1, col: 2))
+            .thenAnswer((_) async {});
+        return cubit;
+      },
+      seed: () => HivesLoaded([hive]),
+      act: (c) => c.move(1, 1, 2),
+      expect: () => [
+        isA<HivesLoaded>().having(
+          (s) => (s.hives.first.gridRow, s.hives.first.gridCol),
+          'position',
+          (1, 2),
+        ),
+      ],
+    );
+
+    blocTest<HivesCubit, HivesState>(
+      'reverts to server state on API failure',
+      build: () {
+        when(() => repo.moveHive(apiaryId: 1, hiveId: 1, row: 1, col: 2))
+            .thenThrow(Exception('error'));
+        when(() => repo.listHives(1)).thenAnswer((_) async => [hive]);
+        return cubit;
+      },
+      seed: () => HivesLoaded([hive]),
+      act: (c) => c.move(1, 1, 2),
+      expect: () => [
+        isA<HivesLoaded>().having(
+          (s) => (s.hives.first.gridRow, s.hives.first.gridCol),
+          'optimistic position',
+          (1, 2),
+        ),
+        isA<HivesLoading>(),
+        isA<HivesLoaded>().having(
+          (s) => (s.hives.first.gridRow, s.hives.first.gridCol),
+          'reverted position',
+          (0, 0),
+        ),
+      ],
+    );
+
+    blocTest<HivesCubit, HivesState>(
+      'does nothing when not in loaded state',
+      build: () => cubit,
+      act: (c) => c.move(1, 1, 2),
+      expect: () => [],
+    );
+  });
 }

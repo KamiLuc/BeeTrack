@@ -41,6 +41,12 @@
   "apiaryDeleteConfirm": "Usunąć pasiekę?",
   "apiaryDeleteWarning": "Ta operacja trwale usunie pasiekę i wszystkie jej dane.",
   "apiaryGridTooSmall": "Nowa siatka jest za mała, aby pomieścić wszystkie ule.",
+  "apiaryGridHivesWillMove": "{count, plural, =1{1 ul zostanie przeniesiony, aby zmieścić się w nowej siatce.} few{{count} ule zostaną przeniesione, aby zmieścić się w nowej siatce.} many{{count} uli zostanie przeniesionych, aby zmieścić się w nowej siatce.} other{{count} uli zostanie przeniesionych, aby zmieścić się w nowej siatce.}}",
+  "@apiaryGridHivesWillMove": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "hiveTitle": "Ule",
   "hiveCount": "{count, plural, =1{1 ul} few{{count} ule} many{{count} uli} other{{count} uli}}",

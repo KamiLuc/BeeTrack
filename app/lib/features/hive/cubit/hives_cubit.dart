@@ -32,4 +32,27 @@ class HivesCubit extends Cubit<HivesState> {
       emit(HivesError());
     }
   }
+
+  Future<void> move(int hiveId, int row, int col) async {
+    final current = state;
+    if (current is! HivesLoaded) return;
+
+    emit(HivesLoaded(current.hives.map((h) => h.id == hiveId
+        ? Hive(
+            id: h.id,
+            apiaryId: h.apiaryId,
+            name: h.name,
+            type: h.type,
+            active: h.active,
+            gridRow: row,
+            gridCol: col,
+          )
+        : h).toList()));
+
+    try {
+      await _repo.moveHive(apiaryId: apiaryId, hiveId: hiveId, row: row, col: col);
+    } catch (_) {
+      load();
+    }
+  }
 }

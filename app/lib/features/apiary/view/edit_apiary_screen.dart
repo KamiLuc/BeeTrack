@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../hive/data/hive_model.dart';
+import '../../hive/data/hive_repository.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
@@ -45,6 +47,7 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
   late int _gridRows;
   late int _gridCols;
   bool _locating = false;
+  List<Hive>? _hives;
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
     );
     _gridRows = widget.apiary.gridRows;
     _gridCols = widget.apiary.gridCols;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHives());
   }
 
   @override
@@ -122,7 +126,26 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
     );
   }
 
+  Future<void> _loadHives() async {
+    try {
+      final hives = await HiveRepository(api: context.read())
+          .listHives(widget.apiary.id);
+      if (mounted) setState(() => _hives = hives);
+    } catch (_) {}
+  }
+
+  bool get _gridTooSmall =>
+      _gridRows * _gridCols < widget.apiary.hiveCount;
+
+  int get _outOfBoundsCount {
+    if (_hives == null) return 0;
+    return _hives!
+        .where((h) => h.gridRow >= _gridRows || h.gridCol >= _gridCols)
+        .length;
+  }
+
   Future<void> _submit(AppLocalizations l10n) async {
+    if (_gridTooSmall) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await context.read<ApiariesCubit>().update(
       id: widget.apiary.id,
@@ -179,6 +202,21 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                           onColsChanged: (v) => setState(() => _gridCols = v),
                           l10n: l10n,
                         ),
+                        if (_gridTooSmall) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.apiaryGridTooSmall,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Theme.of(context).colorScheme.error),
+                          ),
+                        ] else if (_outOfBoundsCount > 0) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.apiaryGridHivesWillMove(_outOfBoundsCount),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         ApiaryLocationSection(
                           latController: _latController,
@@ -193,7 +231,7 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                           child: SizedBox(
                             width: 200,
                             child: ElevatedButton(
-                              onPressed: loading ? null : () => _submit(l10n),
+                              onPressed: (loading || _gridTooSmall) ? null : () => _submit(l10n),
                               child: loading
                                   ? const SizedBox(
                                       height: 20,
