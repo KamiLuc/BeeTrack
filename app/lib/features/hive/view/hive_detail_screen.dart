@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
@@ -80,16 +81,15 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
       appBar: AppBar(
         title: Text(_hive.name),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _openEdit,
+          ),
           PopupMenuButton<_DetailAction>(
             onSelected: (action) {
-              if (action == _DetailAction.edit) _openEdit();
               if (action == _DetailAction.delete) _confirmDelete();
             },
             itemBuilder: (_) => [
-              PopupMenuItem(
-                value: _DetailAction.edit,
-                child: Text(l10n.generalEdit),
-              ),
               PopupMenuItem(
                 value: _DetailAction.delete,
                 child: Text(
@@ -101,41 +101,49 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _InfoCard(hive: _hive),
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: l10n.hiveDetailInspections,
-            icon: Icons.search,
-            emptyText: l10n.hiveDetailNoInspections,
-            actionLabel: l10n.hiveDetailAddInspection,
-            onAction: null,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: AppLayout.formConstraints(context),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _InfoCard(hive: _hive),
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: l10n.hiveDetailInspections,
+                  icon: Icons.search,
+                  emptyText: l10n.hiveDetailNoInspections,
+                  actionLabel: l10n.hiveDetailAddInspection,
+                  onAction: null,
+                ),
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: l10n.hiveDetailTreatments,
+                  icon: Icons.medical_services_outlined,
+                  emptyText: l10n.hiveDetailNoTreatments,
+                  actionLabel: l10n.hiveDetailLogTreatment,
+                  onAction: null,
+                ),
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: l10n.hiveDetailHarvests,
+                  icon: Icons.water_drop_outlined,
+                  emptyText: l10n.hiveDetailNoHarvests,
+                  actionLabel: l10n.hiveDetailLogHarvest,
+                  onAction: null,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: l10n.hiveDetailTreatments,
-            icon: Icons.medical_services_outlined,
-            emptyText: l10n.hiveDetailNoTreatments,
-            actionLabel: l10n.hiveDetailLogTreatment,
-            onAction: null,
-          ),
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: l10n.hiveDetailHarvests,
-            icon: Icons.water_drop_outlined,
-            emptyText: l10n.hiveDetailNoHarvests,
-            actionLabel: l10n.hiveDetailLogHarvest,
-            onAction: null,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-enum _DetailAction { edit, delete }
+enum _DetailAction { delete }
 
 class _InfoCard extends StatelessWidget {
   final Hive hive;
