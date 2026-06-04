@@ -62,6 +62,8 @@ void main() {
         name: 'Ul 1',
         type: 'langstroth',
         active: true,
+        queenless: false,
+        readyForHarvest: false,
         gridRow: 0,
         gridCol: 0,
       ),
@@ -139,6 +141,8 @@ void main() {
       name: 'Ul 1',
       type: 'langstroth',
       active: true,
+      queenless: false,
+      readyForHarvest: false,
       gridRow: 0,
       gridCol: 0,
     );

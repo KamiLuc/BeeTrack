@@ -70,6 +70,8 @@
       "index": { "type": "int" }
     }
   },
+  "hiveQueenless": "Bezmateczny",
+  "hiveReadyForHarvest": "Gotowy do zbioru",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspekcje",
   "hiveDetailNoInspections": "Brak inspekcji",

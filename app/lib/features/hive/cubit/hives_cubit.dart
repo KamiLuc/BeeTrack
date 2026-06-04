@@ -44,6 +44,8 @@ class HivesCubit extends Cubit<HivesState> {
             name: h.name,
             type: h.type,
             active: h.active,
+            queenless: h.queenless,
+            readyForHarvest: h.readyForHarvest,
             gridRow: row,
             gridCol: col,
           )

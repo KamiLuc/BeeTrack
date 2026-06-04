@@ -70,6 +70,8 @@
       "index": { "type": "int" }
     }
   },
+  "hiveQueenless": "Queenless",
+  "hiveReadyForHarvest": "Ready for harvest",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspections",
   "hiveDetailNoInspections": "No inspections yet",

@@ -182,6 +182,12 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get hiveQueenless => 'Bezmateczny';
+
+  @override
+  String get hiveReadyForHarvest => 'Gotowy do zbioru';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override

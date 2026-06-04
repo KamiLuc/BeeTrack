@@ -52,15 +52,17 @@ func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":         hive.ID,
-		"apiary_id":  hive.ApiaryID,
-		"name":       hive.Name,
-		"type":       hive.Type,
-		"active":     hive.Active,
-		"grid_row":   hive.GridRow,
-		"grid_col":   hive.GridCol,
-		"created_at": hive.CreatedAt,
-		"updated_at": hive.UpdatedAt,
+		"id":                hive.ID,
+		"apiary_id":         hive.ApiaryID,
+		"name":              hive.Name,
+		"type":              hive.Type,
+		"active":            hive.Active,
+		"queenless":         hive.Queenless,
+		"ready_for_harvest": hive.ReadyForHarvest,
+		"grid_row":          hive.GridRow,
+		"grid_col":          hive.GridCol,
+		"created_at":        hive.CreatedAt,
+		"updated_at":        hive.UpdatedAt,
 	})
 }
 
@@ -110,15 +112,17 @@ func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":         hive.ID,
-		"apiary_id":  hive.ApiaryID,
-		"name":       hive.Name,
-		"type":       hive.Type,
-		"active":     hive.Active,
-		"grid_row":   hive.GridRow,
-		"grid_col":   hive.GridCol,
-		"created_at": hive.CreatedAt,
-		"updated_at": hive.UpdatedAt,
+		"id":                hive.ID,
+		"apiary_id":         hive.ApiaryID,
+		"name":              hive.Name,
+		"type":              hive.Type,
+		"active":            hive.Active,
+		"queenless":         hive.Queenless,
+		"ready_for_harvest": hive.ReadyForHarvest,
+		"grid_row":          hive.GridRow,
+		"grid_col":          hive.GridCol,
+		"created_at":        hive.CreatedAt,
+		"updated_at":        hive.UpdatedAt,
 	})
 }
 
@@ -142,16 +146,18 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Active bool   `json:"active"`
-		Name   string `json:"name"`
-		Type   string `json:"type"`
+		Active          bool   `json:"active"`
+		Name            string `json:"name"`
+		Queenless       bool   `json:"queenless"`
+		ReadyForHarvest bool   `json:"ready_for_harvest"`
+		Type            string `json:"type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
 		return
 	}
 
-	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active)
+	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -167,15 +173,17 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":         hive.ID,
-		"apiary_id":  hive.ApiaryID,
-		"name":       hive.Name,
-		"type":       hive.Type,
-		"active":     hive.Active,
-		"grid_row":   hive.GridRow,
-		"grid_col":   hive.GridCol,
-		"created_at": hive.CreatedAt,
-		"updated_at": hive.UpdatedAt,
+		"id":                hive.ID,
+		"apiary_id":         hive.ApiaryID,
+		"name":              hive.Name,
+		"type":              hive.Type,
+		"active":            hive.Active,
+		"queenless":         hive.Queenless,
+		"ready_for_harvest": hive.ReadyForHarvest,
+		"grid_row":          hive.GridRow,
+		"grid_col":          hive.GridCol,
+		"created_at":        hive.CreatedAt,
+		"updated_at":        hive.UpdatedAt,
 	})
 }
 
@@ -238,28 +246,32 @@ func (h *HiveHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type item struct {
-		ID        int64  `json:"id"`
-		ApiaryID  int64  `json:"apiary_id"`
-		Name      string `json:"name"`
-		Type      string `json:"type"`
-		Active    bool   `json:"active"`
-		GridRow   int    `json:"grid_row"`
-		GridCol   int    `json:"grid_col"`
-		CreatedAt any    `json:"created_at"`
-		UpdatedAt any    `json:"updated_at"`
+		ID              int64  `json:"id"`
+		ApiaryID        int64  `json:"apiary_id"`
+		Name            string `json:"name"`
+		Type            string `json:"type"`
+		Active          bool   `json:"active"`
+		Queenless       bool   `json:"queenless"`
+		ReadyForHarvest bool   `json:"ready_for_harvest"`
+		GridRow         int    `json:"grid_row"`
+		GridCol         int    `json:"grid_col"`
+		CreatedAt       any    `json:"created_at"`
+		UpdatedAt       any    `json:"updated_at"`
 	}
 	items := make([]item, len(hives))
 	for i, hive := range hives {
 		items[i] = item{
-			ID:        hive.ID,
-			ApiaryID:  hive.ApiaryID,
-			Name:      hive.Name,
-			Type:      hive.Type,
-			Active:    hive.Active,
-			GridRow:   hive.GridRow,
-			GridCol:   hive.GridCol,
-			CreatedAt: hive.CreatedAt,
-			UpdatedAt: hive.UpdatedAt,
+			ID:              hive.ID,
+			ApiaryID:        hive.ApiaryID,
+			Name:            hive.Name,
+			Type:            hive.Type,
+			Active:          hive.Active,
+			Queenless:       hive.Queenless,
+			ReadyForHarvest: hive.ReadyForHarvest,
+			GridRow:         hive.GridRow,
+			GridCol:         hive.GridCol,
+			CreatedAt:       hive.CreatedAt,
+			UpdatedAt:       hive.UpdatedAt,
 		}
 	}
 
@@ -280,11 +292,13 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Active  *bool  `json:"active"`
-		GridCol int    `json:"grid_col"`
-		GridRow int    `json:"grid_row"`
-		Name    string `json:"name"`
-		Type    string `json:"type"`
+		Active          *bool  `json:"active"`
+		GridCol         int    `json:"grid_col"`
+		GridRow         int    `json:"grid_row"`
+		Name            string `json:"name"`
+		Queenless       bool   `json:"queenless"`
+		ReadyForHarvest bool   `json:"ready_for_harvest"`
+		Type            string `json:"type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
@@ -301,7 +315,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.GridRow, req.GridCol)
+	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.GridRow, req.GridCol)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -319,14 +333,16 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusCreated, map[string]any{
-		"id":         hive.ID,
-		"apiary_id":  hive.ApiaryID,
-		"name":       hive.Name,
-		"type":       hive.Type,
-		"active":     hive.Active,
-		"grid_row":   hive.GridRow,
-		"grid_col":   hive.GridCol,
-		"created_at": hive.CreatedAt,
-		"updated_at": hive.UpdatedAt,
+		"id":                hive.ID,
+		"apiary_id":         hive.ApiaryID,
+		"name":              hive.Name,
+		"type":              hive.Type,
+		"active":            hive.Active,
+		"queenless":         hive.Queenless,
+		"ready_for_harvest": hive.ReadyForHarvest,
+		"grid_row":          hive.GridRow,
+		"grid_col":          hive.GridCol,
+		"created_at":        hive.CreatedAt,
+		"updated_at":        hive.UpdatedAt,
 	})
 }

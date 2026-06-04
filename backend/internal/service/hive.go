@@ -55,7 +55,7 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 	return hives, nil
 }
 
-func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active bool) (*model.Hive, error) {
+func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -78,6 +78,8 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 	hive.Name = name
 	hive.Type = hiveType
 	hive.Active = active
+	hive.ReadyForHarvest = readyForHarvest
+	hive.Queenless = queenless
 
 	if err := s.hives.Update(ctx, hive); err != nil {
 		return nil, fmt.Errorf("update hive: %w", err)
@@ -167,7 +169,7 @@ func (s *HiveService) Move(ctx context.Context, userID, apiaryID, hiveID int64, 
 	return hive, nil
 }
 
-func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active bool, gridRow, gridCol int) (*model.Hive, error) {
+func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -193,12 +195,14 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 	}
 
 	h := &model.Hive{
-		ApiaryID: apiaryID,
-		Name:     name,
-		Type:     hiveType,
-		Active:   active,
-		GridRow:  gridRow,
-		GridCol:  gridCol,
+		ApiaryID:        apiaryID,
+		Name:            name,
+		Type:            hiveType,
+		Active:          active,
+		Queenless:       queenless,
+		ReadyForHarvest: readyForHarvest,
+		GridRow:         gridRow,
+		GridCol:         gridCol,
 	}
 
 	if err := s.hives.Create(ctx, h); err != nil {

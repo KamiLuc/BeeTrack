@@ -49,10 +49,12 @@ func (r *HiveRepository) Update(ctx context.Context, h *model.Hive) error {
 	return r.db.WithContext(ctx).
 		Model(h).
 		Updates(map[string]any{
-			"name":       h.Name,
-			"type":       h.Type,
-			"active":     h.Active,
-			"updated_at": gorm.Expr("NOW()"),
+			"name":              h.Name,
+			"type":              h.Type,
+			"active":            h.Active,
+			"queenless":         h.Queenless,
+			"ready_for_harvest": h.ReadyForHarvest,
+			"updated_at":        gorm.Expr("NOW()"),
 		}).Error
 }
 

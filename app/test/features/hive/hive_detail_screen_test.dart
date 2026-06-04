@@ -11,6 +11,8 @@ const _active = Hive(
   name: 'Alpha',
   type: 'langstroth',
   active: true,
+  queenless: false,
+  readyForHarvest: false,
   gridRow: 0,
   gridCol: 0,
 );
@@ -21,6 +23,8 @@ const _inactive = Hive(
   name: 'Beta',
   type: 'dadant',
   active: false,
+  queenless: false,
+  readyForHarvest: false,
   gridRow: 0,
   gridCol: 1,
 );

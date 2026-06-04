@@ -26,16 +26,20 @@ class HiveRepository {
     required String name,
     required String type,
     required bool active,
+    required bool queenless,
+    required bool readyForHarvest,
     required int gridRow,
     required int gridCol,
   }) async {
     try {
       await _api.dio.post('/api/v1/apiaries/$apiaryId/hives', data: {
-        'name': name,
-        'type': type,
         'active': active,
-        'grid_row': gridRow,
         'grid_col': gridCol,
+        'grid_row': gridRow,
+        'name': name,
+        'queenless': queenless,
+        'ready_for_harvest': readyForHarvest,
+        'type': type,
       });
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -48,12 +52,16 @@ class HiveRepository {
     required String name,
     required String type,
     required bool active,
+    required bool queenless,
+    required bool readyForHarvest,
   }) async {
     try {
       await _api.dio.patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
-        'name': name,
-        'type': type,
         'active': active,
+        'name': name,
+        'queenless': queenless,
+        'ready_for_harvest': readyForHarvest,
+        'type': type,
       });
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);

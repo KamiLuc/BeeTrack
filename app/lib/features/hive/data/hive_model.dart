@@ -4,6 +4,8 @@ class Hive {
   final String name;
   final String type;
   final bool active;
+  final bool queenless;
+  final bool readyForHarvest;
   final int gridRow;
   final int gridCol;
 
@@ -13,6 +15,8 @@ class Hive {
     required this.name,
     required this.type,
     required this.active,
+    required this.queenless,
+    required this.readyForHarvest,
     required this.gridRow,
     required this.gridCol,
   });
@@ -24,6 +28,8 @@ class Hive {
       name: json['name'] as String,
       type: json['type'] as String,
       active: json['active'] as bool,
+      queenless: json['queenless'] as bool? ?? false,
+      readyForHarvest: json['ready_for_harvest'] as bool? ?? false,
       gridRow: json['grid_row'] as int,
       gridCol: json['grid_col'] as int,
     );

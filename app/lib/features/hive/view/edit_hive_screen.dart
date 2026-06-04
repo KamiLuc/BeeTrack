@@ -26,6 +26,8 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   late final TextEditingController _nameController;
   late String _type;
   late bool _active;
+  late bool _queenless;
+  late bool _readyForHarvest;
   bool _loading = false;
 
   @override
@@ -34,6 +36,8 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     _nameController = TextEditingController(text: widget.hive.name);
     _type = widget.hive.type;
     _active = widget.hive.active;
+    _queenless = widget.hive.queenless;
+    _readyForHarvest = widget.hive.readyForHarvest;
   }
 
   @override
@@ -52,6 +56,8 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
         name: _nameController.text.trim(),
         type: _type,
         active: _active,
+        queenless: _queenless,
+        readyForHarvest: _readyForHarvest,
       );
       if (context.mounted) {
         Navigator.of(context).pop(Hive(
@@ -60,6 +66,8 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
           name: _nameController.text.trim(),
           type: _type,
           active: _active,
+          queenless: _queenless,
+          readyForHarvest: _readyForHarvest,
           gridRow: widget.hive.gridRow,
           gridCol: widget.hive.gridCol,
         ));
@@ -100,6 +108,16 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                     HiveActiveToggle(
                       value: _active,
                       onChanged: (v) => setState(() => _active = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveQueenlessToggle(
+                      value: _queenless,
+                      onChanged: (v) => setState(() => _queenless = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveReadyForHarvestToggle(
+                      value: _readyForHarvest,
+                      onChanged: (v) => setState(() => _readyForHarvest = v),
                     ),
                     const SizedBox(height: 24),
                     Center(

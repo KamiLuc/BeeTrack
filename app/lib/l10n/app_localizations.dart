@@ -392,6 +392,18 @@ abstract class AppLocalizations {
   /// **'Ul {index}'**
   String hiveDefaultName(int index);
 
+  /// No description provided for @hiveQueenless.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bezmateczny'**
+  String get hiveQueenless;
+
+  /// No description provided for @hiveReadyForHarvest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Gotowy do zbioru'**
+  String get hiveReadyForHarvest;
+
   /// No description provided for @hiveStatus.
   ///
   /// In pl, this message translates to:

@@ -176,6 +176,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get hiveQueenless => 'Queenless';
+
+  @override
+  String get hiveReadyForHarvest => 'Ready for harvest';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override

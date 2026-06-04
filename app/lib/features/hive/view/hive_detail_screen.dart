@@ -166,6 +166,24 @@ class _InfoCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             _InfoRow(
+              label: l10n.hiveQueenless,
+              trailing: Icon(
+                hive.queenless ? Icons.check_circle : Icons.circle_outlined,
+                size: 20,
+                color: hive.queenless ? colorScheme.error : colorScheme.outline,
+              ),
+            ),
+            const Divider(height: 24),
+            _InfoRow(
+              label: l10n.hiveReadyForHarvest,
+              trailing: Icon(
+                hive.readyForHarvest ? Icons.check_circle : Icons.circle_outlined,
+                size: 20,
+                color: hive.readyForHarvest ? Colors.amber : colorScheme.outline,
+              ),
+            ),
+            const Divider(height: 24),
+            _InfoRow(
               label: l10n.hiveStatus,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

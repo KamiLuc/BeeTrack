@@ -31,6 +31,8 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
   late final TextEditingController _nameController;
   String _type = _lastHiveType;
   bool _active = true;
+  bool _queenless = false;
+  bool _readyForHarvest = false;
   bool _loading = false;
 
   @override
@@ -54,6 +56,8 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
         name: _nameController.text.trim(),
         type: _type,
         active: _active,
+        queenless: _queenless,
+        readyForHarvest: _readyForHarvest,
         gridRow: widget.gridRow,
         gridCol: widget.gridCol,
       );
@@ -97,6 +101,16 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
                     HiveActiveToggle(
                       value: _active,
                       onChanged: (v) => setState(() => _active = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveQueenlessToggle(
+                      value: _queenless,
+                      onChanged: (v) => setState(() => _queenless = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveReadyForHarvestToggle(
+                      value: _readyForHarvest,
+                      onChanged: (v) => setState(() => _readyForHarvest = v),
                     ),
                     const SizedBox(height: 24),
                     Center(

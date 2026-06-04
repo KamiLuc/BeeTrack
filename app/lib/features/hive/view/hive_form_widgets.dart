@@ -11,6 +11,29 @@ const hiveTypeLabels = {
   'wielkopolski': 'Wielkopolski',
 };
 
+class _LabeledSwitch extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _LabeledSwitch({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Switch(value: value, onChanged: onChanged),
+      ],
+    );
+  }
+}
+
 class HiveActiveToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -24,16 +47,10 @@ class HiveActiveToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value ? l10n.hiveActive : l10n.hiveInactive,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(width: 12),
-        Switch(value: value, onChanged: onChanged),
-      ],
+    return _LabeledSwitch(
+      label: value ? l10n.hiveActive : l10n.hiveInactive,
+      value: value,
+      onChanged: onChanged,
     );
   }
 }
@@ -52,6 +69,48 @@ class HiveNameField extends StatelessWidget {
       textInputAction: TextInputAction.next,
       validator: (v) =>
           (v == null || v.trim().isEmpty) ? l10n.generalRequired : null,
+    );
+  }
+}
+
+class HiveQueenlessToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const HiveQueenlessToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _LabeledSwitch(
+      label: l10n.hiveQueenless,
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class HiveReadyForHarvestToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const HiveReadyForHarvestToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _LabeledSwitch(
+      label: l10n.hiveReadyForHarvest,
+      value: value,
+      onChanged: onChanged,
     );
   }
 }
