@@ -11,4 +11,7 @@ final class ApiariesLoaded extends ApiariesState {
   ApiariesLoaded(this.apiaries);
 }
 
-final class ApiariesError extends ApiariesState {}
+final class ApiariesError extends ApiariesState {
+  final String? code;
+  ApiariesError({this.code});
+}

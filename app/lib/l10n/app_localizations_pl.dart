@@ -115,6 +115,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Ta operacja trwale usunie pasiekę i wszystkie jej dane.';
 
   @override
+  String get apiaryGridTooSmall =>
+      'Nowa siatka jest za mała, aby pomieścić wszystkie ule.';
+
+  @override
   String get hiveTitle => 'Ule';
 
   @override

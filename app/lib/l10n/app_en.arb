@@ -40,6 +40,7 @@
   "apiaryEdit": "Edit apiary",
   "apiaryDeleteConfirm": "Delete apiary?",
   "apiaryDeleteWarning": "This will permanently delete the apiary and all its data.",
+  "apiaryGridTooSmall": "The new grid is too small to fit all existing hives.",
 
   "hiveTitle": "Hives",
   "hiveCount": "{count, plural, =1{1 hive} other{{count} hives}}",

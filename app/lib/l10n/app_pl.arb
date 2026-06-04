@@ -40,6 +40,7 @@
   "apiaryEdit": "Edytuj pasiekę",
   "apiaryDeleteConfirm": "Usunąć pasiekę?",
   "apiaryDeleteWarning": "Ta operacja trwale usunie pasiekę i wszystkie jej dane.",
+  "apiaryGridTooSmall": "Nowa siatka jest za mała, aby pomieścić wszystkie ule.",
 
   "hiveTitle": "Ule",
   "hiveCount": "{count, plural, =1{1 ul} few{{count} ule} many{{count} uli} other{{count} uli}}",

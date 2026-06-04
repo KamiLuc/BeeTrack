@@ -142,6 +142,8 @@ func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusBadRequest, "NAME_REQUIRED", err.Error())
 		case errors.Is(err, service.ErrInvalidGridSize):
 			respond.Error(w, http.StatusBadRequest, "INVALID_GRID_SIZE", err.Error())
+		case errors.Is(err, service.ErrGridTooSmall):
+			respond.Error(w, http.StatusUnprocessableEntity, "GRID_TOO_SMALL", err.Error())
 		case errors.Is(err, service.ErrApiaryNotFound):
 			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 		case errors.Is(err, service.ErrForbidden):

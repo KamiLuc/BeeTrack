@@ -39,7 +39,7 @@ func main() {
 	hiveRepo := repository.NewHiveRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
-	apiarySvc := service.NewApiaryService(apiaryRepo)
+	apiarySvc := service.NewApiaryService(apiaryRepo, hiveRepo)
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	userSvc := service.NewUserService(userRepo)
 

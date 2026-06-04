@@ -61,11 +61,16 @@ class _ApiariesView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(l10n.generalError),
+                  Text(
+                    l10n.generalError,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: () =>
-                        context.read<ApiariesCubit>().load(),
+                    onPressed: () => context.read<ApiariesCubit>().load(),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(120, 40),
+                    ),
                     child: const Text('Retry'),
                   ),
                 ],

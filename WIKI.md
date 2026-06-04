@@ -41,6 +41,167 @@ docker/            # Docker Compose config
 
 ---
 
+## Backend Architecture
+
+### Request flow
+
+```
+HTTP request → middleware (Auth JWT) → Handler → Service → Repository → DB
+```
+
+- **Handler** (`internal/handler/`) — decodes JSON, extracts path params and user ID from context, calls service, maps errors to HTTP codes, writes JSON response via `respond.JSON` / `respond.Error`.
+- **Service** (`internal/service/`) — owns all business logic and validation. Never touches HTTP. Returns sentinel errors; callers `errors.Is()` to distinguish them.
+- **Repository** (`internal/repository/`) — raw DB queries via GORM. No business logic. Returns GORM errors directly (e.g. `gorm.ErrRecordNotFound`).
+
+### Error handling pattern
+
+Sentinel errors are declared as package-level `var` in the service file:
+
+```go
+var (
+    ErrApiaryNotFound  = errors.New("apiary not found")
+    ErrForbidden       = errors.New("forbidden")
+    ErrGridTooSmall    = errors.New("grid is too small to fit all existing hives")
+    ErrInvalidGridSize = errors.New("grid rows and cols must be at least 1")
+    ErrNameRequired    = errors.New("name is required")
+)
+```
+
+Handler maps them:
+```go
+switch {
+case errors.Is(err, service.ErrGridTooSmall):
+    respond.Error(w, http.StatusUnprocessableEntity, "GRID_TOO_SMALL", err.Error())
+case errors.Is(err, service.ErrForbidden):
+    respond.Error(w, http.StatusForbidden, "FORBIDDEN", "...")
+default:
+    respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "...")
+}
+```
+
+Wrapped errors propagate with `fmt.Errorf("context: %w", err)`.
+
+### Service interface pattern (dependency inversion)
+
+Each service defines its own repository interface — only the methods it actually needs:
+
+```go
+// In service/apiary.go
+type ApiaryRepository interface { ... }
+type HiveRelocator interface {          // subset of HiveRepository, only what ApiaryService needs
+    ListByApiaryID(...) ([]*model.Hive, error)
+    Move(...) error
+}
+
+type ApiaryService struct {
+    apiaries ApiaryRepository
+    hives    HiveRelocator
+}
+```
+
+This makes services independently testable with small mock structs.
+
+### Testing pattern (Go)
+
+Tests live in the same package (`package service`). Mocks are plain structs, not generated:
+
+```go
+type mockApiaryRepo struct {
+    apiary   *model.Apiary
+    role     string
+    updated  *model.Apiary
+}
+func (m *mockApiaryRepo) GetMembership(...) (*model.Apiary, string, error) { ... }
+// implement only the methods the test exercises
+```
+
+Helper creates service + repos together:
+```go
+func newTestApiaryService() (*ApiaryService, *mockApiaryRepo, *mockHiveRelocator) { ... }
+```
+
+### Wiring (`cmd/api/main.go`)
+
+Repositories are concrete structs; services accept interfaces:
+```go
+apiaryRepo := repository.NewApiaryRepository(db)
+hiveRepo   := repository.NewHiveRepository(db)
+
+apiarySvc := service.NewApiaryService(apiaryRepo, hiveRepo)
+hiveSvc   := service.NewHiveService(apiaryRepo, hiveRepo)
+```
+
+### Middleware
+
+- `middleware.Auth(jwtSecret)` — validates Bearer token, injects `userID` into context.
+- `middleware.CORS(allowedOrigins)` — wraps the whole mux.
+- `middleware.UserIDFromContext(ctx)` — extracts userID; returns `(int64, bool)`.
+
+### Doc comment convention
+
+Every exported function in handler, service, and repository must have a doc comment:
+```go
+// Create handles POST /api/v1/apiaries — creates a new apiary owned by the authenticated user.
+func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) { ... }
+```
+
+### Migrations
+
+Files live in `backend/migrations/`, run automatically on startup via goose:
+```sql
+-- +goose Up
+CREATE TABLE ...;
+
+-- +goose Down
+DROP TABLE ...;
+```
+Naming: `NNN_description.sql` (e.g. `003_create_hives.sql`).
+
+### Models (`internal/model/`)
+
+```go
+// apiary.go
+type Apiary struct {
+    ID          int64
+    OwnerUserID int64
+    Name        string
+    Lat, Lng    *float64
+    GridRows    int
+    GridCols    int
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
+}
+type ApiaryMembership struct {
+    Apiary    *Apiary
+    UserRole  string
+    HiveCount int
+}
+
+// hive.go
+type Hive struct {
+    ID        int64
+    ApiaryID  int64
+    Name      string
+    Type      string   // dadant | langstroth | top_bar | wielkopolski
+    Active    bool
+    GridRow   int
+    GridCol   int
+    UpdatedAt time.Time
+}
+```
+
+### Adding a new backend feature (checklist)
+
+1. `internal/model/x.go` — struct(s)
+2. `internal/repository/x.go` — DB queries, no logic
+3. `internal/service/x.go` — interface + service struct + sentinel errors + business logic
+4. `internal/service/x_test.go` — mock structs + unit tests
+5. `internal/handler/x.go` — HTTP handler, error mapping
+6. `cmd/api/main.go` — wire repo → service → handler, register routes
+7. `backend/migrations/NNN_x.sql` — schema changes if needed
+
+---
+
 ## Flutter Architecture
 
 ### State management

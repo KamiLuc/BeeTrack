@@ -12,6 +12,7 @@ import (
 var (
 	ErrApiaryNotFound  = errors.New("apiary not found")
 	ErrForbidden       = errors.New("forbidden")
+	ErrGridTooSmall    = errors.New("grid is too small to fit all existing hives")
 	ErrInvalidGridSize = errors.New("grid rows and cols must be at least 1")
 	ErrNameRequired    = errors.New("name is required")
 )
@@ -24,12 +25,18 @@ type ApiaryRepository interface {
 	Update(ctx context.Context, a *model.Apiary) error
 }
 
-type ApiaryService struct {
-	apiaries ApiaryRepository
+type HiveRelocator interface {
+	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
+	Move(ctx context.Context, hiveID int64, row, col int) error
 }
 
-func NewApiaryService(apiaries ApiaryRepository) *ApiaryService {
-	return &ApiaryService{apiaries: apiaries}
+type ApiaryService struct {
+	apiaries ApiaryRepository
+	hives    HiveRelocator
+}
+
+func NewApiaryService(apiaries ApiaryRepository, hives HiveRelocator) *ApiaryService {
+	return &ApiaryService{apiaries: apiaries, hives: hives}
 }
 
 // Create creates a new apiary and assigns the given user as its owner.
@@ -67,6 +74,8 @@ func (s *ApiaryService) List(ctx context.Context, userID int64) ([]model.ApiaryM
 }
 
 // Update updates an apiary's fields; returns ErrForbidden if the user is not the owner.
+// If the new grid is smaller than the number of existing hives, ErrGridTooSmall is returned.
+// Hives outside the new bounds are automatically relocated to free cells within the new grid.
 func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name string, lat, lng *float64, gridRows, gridCols int) (*model.Apiary, error) {
 	if name == "" {
 		return nil, ErrNameRequired
@@ -86,6 +95,32 @@ func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name
 		return nil, ErrForbidden
 	}
 
+	hives, err := s.hives.ListByApiaryID(ctx, apiaryID)
+	if err != nil {
+		return nil, fmt.Errorf("list hives: %w", err)
+	}
+
+	if gridRows*gridCols < len(hives) {
+		return nil, ErrGridTooSmall
+	}
+
+	occupied := make(map[[2]int]bool, len(hives))
+	for _, h := range hives {
+		if h.GridRow < gridRows && h.GridCol < gridCols {
+			occupied[[2]int{h.GridRow, h.GridCol}] = true
+		}
+	}
+
+	for _, h := range hives {
+		if h.GridRow >= gridRows || h.GridCol >= gridCols {
+			row, col := firstFreeCell(gridRows, gridCols, occupied)
+			if err := s.hives.Move(ctx, h.ID, row, col); err != nil {
+				return nil, fmt.Errorf("move hive: %w", err)
+			}
+			occupied[[2]int{row, col}] = true
+		}
+	}
+
 	apiary.Name = name
 	apiary.Lat = lat
 	apiary.Lng = lng
@@ -97,6 +132,17 @@ func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name
 	}
 
 	return apiary, nil
+}
+
+func firstFreeCell(rows, cols int, occupied map[[2]int]bool) (row, col int) {
+	for r := 0; r < rows; r++ {
+		for c := 0; c < cols; c++ {
+			if !occupied[[2]int{r, c}] {
+				return r, c
+			}
+		}
+	}
+	return 0, 0
 }
 
 // Delete deletes an apiary; returns ErrForbidden if the user is not the owner.

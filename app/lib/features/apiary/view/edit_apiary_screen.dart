@@ -141,7 +141,12 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
     return BlocListener<ApiariesCubit, ApiariesState>(
       listener: (context, state) {
         if (state is ApiariesLoaded) Navigator.of(context).pop();
-        if (state is ApiariesError) _showError(l10n.generalError);
+        if (state is ApiariesError) {
+          final msg = state.code == 'GRID_TOO_SMALL'
+              ? l10n.apiaryGridTooSmall
+              : l10n.generalError;
+          _showError(msg);
+        }
       },
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.apiaryEdit)),

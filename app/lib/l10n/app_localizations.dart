@@ -308,6 +308,12 @@ abstract class AppLocalizations {
   /// **'Ta operacja trwale usunie pasiekę i wszystkie jej dane.'**
   String get apiaryDeleteWarning;
 
+  /// No description provided for @apiaryGridTooSmall.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowa siatka jest za mała, aby pomieścić wszystkie ule.'**
+  String get apiaryGridTooSmall;
+
   /// No description provided for @hiveTitle.
   ///
   /// In pl, this message translates to:

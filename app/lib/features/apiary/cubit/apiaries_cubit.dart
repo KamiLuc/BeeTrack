@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
 
@@ -63,6 +64,8 @@ class ApiariesCubit extends Cubit<ApiariesState> {
       );
       final apiaries = await _repo.listApiaries();
       emit(ApiariesLoaded(apiaries));
+    } on ApiException catch (e) {
+      emit(ApiariesError(code: e.code));
     } catch (_) {
       emit(ApiariesError());
     }

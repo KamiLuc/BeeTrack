@@ -45,14 +45,29 @@ func (m *mockApiaryRepo) Delete(ctx context.Context, apiaryID int64) error {
 	return nil
 }
 
-func newTestApiaryService() (*ApiaryService, *mockApiaryRepo) {
-	repo := &mockApiaryRepo{}
-	svc := NewApiaryService(repo)
-	return svc, repo
+type mockHiveRelocator struct {
+	hives  []*model.Hive
+	moved  [][3]int // [hiveID, row, col]
+}
+
+func (m *mockHiveRelocator) ListByApiaryID(_ context.Context, _ int64) ([]*model.Hive, error) {
+	return m.hives, nil
+}
+
+func (m *mockHiveRelocator) Move(_ context.Context, hiveID int64, row, col int) error {
+	m.moved = append(m.moved, [3]int{int(hiveID), row, col})
+	return nil
+}
+
+func newTestApiaryService() (*ApiaryService, *mockApiaryRepo, *mockHiveRelocator) {
+	apiaryRepo := &mockApiaryRepo{}
+	hiveRepo := &mockHiveRelocator{}
+	svc := NewApiaryService(apiaryRepo, hiveRepo)
+	return svc, apiaryRepo, hiveRepo
 }
 
 func TestCreateApiary_Success(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 
 	lat, lng := 52.23, 21.01
 	apiary, err := svc.Create(context.Background(), 1, "My Apiary", &lat, &lng, 3, 4)
@@ -68,7 +83,7 @@ func TestCreateApiary_Success(t *testing.T) {
 }
 
 func TestCreateApiary_NoName(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	_, err := svc.Create(context.Background(), 1, "", nil, nil, 3, 4)
 	if !errors.Is(err, ErrNameRequired) {
@@ -77,7 +92,7 @@ func TestCreateApiary_NoName(t *testing.T) {
 }
 
 func TestCreateApiary_InvalidGridSize(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	_, err := svc.Create(context.Background(), 1, "My Apiary", nil, nil, 0, 4)
 	if !errors.Is(err, ErrInvalidGridSize) {
@@ -91,7 +106,7 @@ func TestCreateApiary_InvalidGridSize(t *testing.T) {
 }
 
 func TestCreateApiary_WithoutGPS(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	apiary, err := svc.Create(context.Background(), 1, "My Apiary", nil, nil, 3, 4)
 	if err != nil {
@@ -103,7 +118,7 @@ func TestCreateApiary_WithoutGPS(t *testing.T) {
 }
 
 func TestUpdateApiary_Success(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.apiary = &model.Apiary{ID: 10, Name: "Old Name", GridRows: 2, GridCols: 2}
 	repo.role = "owner"
 
@@ -120,7 +135,7 @@ func TestUpdateApiary_Success(t *testing.T) {
 }
 
 func TestUpdateApiary_NotFound(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	_, err := svc.Update(context.Background(), 1, 99, "Name", nil, nil, 2, 2)
 	if !errors.Is(err, ErrApiaryNotFound) {
@@ -129,7 +144,7 @@ func TestUpdateApiary_NotFound(t *testing.T) {
 }
 
 func TestUpdateApiary_Forbidden(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.apiary = &model.Apiary{ID: 10}
 	repo.role = "member"
 
@@ -140,7 +155,7 @@ func TestUpdateApiary_Forbidden(t *testing.T) {
 }
 
 func TestUpdateApiary_ValidationErrors(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.apiary = &model.Apiary{ID: 10}
 	repo.role = "owner"
 
@@ -155,8 +170,63 @@ func TestUpdateApiary_ValidationErrors(t *testing.T) {
 	}
 }
 
+func TestUpdateApiary_GridTooSmall(t *testing.T) {
+	svc, repo, hives := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, GridRows: 3, GridCols: 3}
+	repo.role = "owner"
+	hives.hives = []*model.Hive{
+		{ID: 1, GridRow: 0, GridCol: 0},
+		{ID: 2, GridRow: 0, GridCol: 1},
+		{ID: 3, GridRow: 1, GridCol: 0},
+	}
+
+	_, err := svc.Update(context.Background(), 1, 10, "Name", nil, nil, 1, 1)
+	if !errors.Is(err, ErrGridTooSmall) {
+		t.Errorf("expected ErrGridTooSmall, got %v", err)
+	}
+}
+
+func TestUpdateApiary_MovesOutOfBoundsHives(t *testing.T) {
+	svc, repo, hives := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, GridRows: 3, GridCols: 3}
+	repo.role = "owner"
+	hives.hives = []*model.Hive{
+		{ID: 1, GridRow: 0, GridCol: 0},
+		{ID: 2, GridRow: 2, GridCol: 2},
+	}
+
+	_, err := svc.Update(context.Background(), 1, 10, "Name", nil, nil, 2, 2)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(hives.moved) != 1 {
+		t.Fatalf("expected 1 hive moved, got %d", len(hives.moved))
+	}
+	movedID, movedRow, movedCol := hives.moved[0][0], hives.moved[0][1], hives.moved[0][2]
+	if movedID != 2 {
+		t.Errorf("expected hive 2 to be moved, got hive %d", movedID)
+	}
+	if movedRow >= 2 || movedCol >= 2 {
+		t.Errorf("moved hive out of new bounds: row=%d col=%d", movedRow, movedCol)
+	}
+}
+
+func TestUpdateApiary_NoHivesNoMove(t *testing.T) {
+	svc, repo, hives := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, GridRows: 5, GridCols: 5}
+	repo.role = "owner"
+
+	_, err := svc.Update(context.Background(), 1, 10, "Name", nil, nil, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(hives.moved) != 0 {
+		t.Errorf("expected no moves, got %d", len(hives.moved))
+	}
+}
+
 func TestDeleteApiary_Success(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.apiary = &model.Apiary{ID: 10}
 	repo.role = "owner"
 
@@ -170,7 +240,7 @@ func TestDeleteApiary_Success(t *testing.T) {
 }
 
 func TestDeleteApiary_NotFound(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	err := svc.Delete(context.Background(), 1, 99)
 	if !errors.Is(err, ErrApiaryNotFound) {
@@ -179,7 +249,7 @@ func TestDeleteApiary_NotFound(t *testing.T) {
 }
 
 func TestDeleteApiary_Forbidden(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.apiary = &model.Apiary{ID: 10}
 	repo.role = "member"
 
@@ -190,7 +260,7 @@ func TestDeleteApiary_Forbidden(t *testing.T) {
 }
 
 func TestListApiaries_ReturnsMemberships(t *testing.T) {
-	svc, repo := newTestApiaryService()
+	svc, repo, _ := newTestApiaryService()
 	repo.memberships = []model.ApiaryMembership{
 		{Apiary: &model.Apiary{ID: 1, Name: "Alpha"}, UserRole: "owner", HiveCount: 3},
 		{Apiary: &model.Apiary{ID: 2, Name: "Beta"}, UserRole: "member", HiveCount: 0},
@@ -212,7 +282,7 @@ func TestListApiaries_ReturnsMemberships(t *testing.T) {
 }
 
 func TestListApiaries_Empty(t *testing.T) {
-	svc, _ := newTestApiaryService()
+	svc, _, _ := newTestApiaryService()
 
 	list, err := svc.List(context.Background(), 1)
 	if err != nil {

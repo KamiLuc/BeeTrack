@@ -15,7 +15,7 @@ Beekeeping management app for hobbyist and professional beekeepers.
 - **Includes/imports:** Sorted alphabetically
 - **Comments:** Only when something is genuinely hard to understand - default to no comments
 - **Backend API:** All handler, service, and repository functions must have doc comments explaining what they do
-- **Tests:** Write unit tests for each feature before moving to the next ticket
+- **Tests:** Write unit tests for each feature and run them yourself — do not wait to be asked (`go test ./...` / `flutter test`)
 - **Review:** When the user says "let me review", list changed files with a short note on what changed in each
 
 ## Project Structure (planned)

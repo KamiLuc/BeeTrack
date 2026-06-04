@@ -115,6 +115,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This will permanently delete the apiary and all its data.';
 
   @override
+  String get apiaryGridTooSmall =>
+      'The new grid is too small to fit all existing hives.';
+
+  @override
   String get hiveTitle => 'Hives';
 
   @override
