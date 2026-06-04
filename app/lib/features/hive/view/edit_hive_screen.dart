@@ -53,7 +53,17 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
         type: _type,
         active: _active,
       );
-      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        Navigator.of(context).pop(Hive(
+          id: widget.hive.id,
+          apiaryId: widget.hive.apiaryId,
+          name: _nameController.text.trim(),
+          type: _type,
+          active: _active,
+          gridRow: widget.hive.gridRow,
+          gridCol: widget.hive.gridCol,
+        ));
+      }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

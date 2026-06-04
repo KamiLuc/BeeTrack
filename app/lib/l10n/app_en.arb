@@ -63,5 +63,15 @@
       "index": { "type": "int" }
     }
   },
+  "hiveStatus": "Status",
+  "hiveDetailInspections": "Inspections",
+  "hiveDetailNoInspections": "No inspections yet",
+  "hiveDetailAddInspection": "Add inspection",
+  "hiveDetailTreatments": "Treatments",
+  "hiveDetailNoTreatments": "No active treatments",
+  "hiveDetailLogTreatment": "Log treatment",
+  "hiveDetailHarvests": "Harvests",
+  "hiveDetailNoHarvests": "No harvests yet",
+  "hiveDetailLogHarvest": "Log harvest",
   "generalRequired": "Required"
 }

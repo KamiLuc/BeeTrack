@@ -380,6 +380,66 @@ abstract class AppLocalizations {
   /// **'Ul {index}'**
   String hiveDefaultName(int index);
 
+  /// No description provided for @hiveStatus.
+  ///
+  /// In pl, this message translates to:
+  /// **'Status'**
+  String get hiveStatus;
+
+  /// No description provided for @hiveDetailInspections.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inspekcje'**
+  String get hiveDetailInspections;
+
+  /// No description provided for @hiveDetailNoInspections.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak inspekcji'**
+  String get hiveDetailNoInspections;
+
+  /// No description provided for @hiveDetailAddInspection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj inspekcję'**
+  String get hiveDetailAddInspection;
+
+  /// No description provided for @hiveDetailTreatments.
+  ///
+  /// In pl, this message translates to:
+  /// **'Leczenia'**
+  String get hiveDetailTreatments;
+
+  /// No description provided for @hiveDetailNoTreatments.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak aktywnych leczeń'**
+  String get hiveDetailNoTreatments;
+
+  /// No description provided for @hiveDetailLogTreatment.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj leczenie'**
+  String get hiveDetailLogTreatment;
+
+  /// No description provided for @hiveDetailHarvests.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zbiory'**
+  String get hiveDetailHarvests;
+
+  /// No description provided for @hiveDetailNoHarvests.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak zbiorów'**
+  String get hiveDetailNoHarvests;
+
+  /// No description provided for @hiveDetailLogHarvest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zbiór'**
+  String get hiveDetailLogHarvest;
+
   /// No description provided for @generalRequired.
   ///
   /// In pl, this message translates to:

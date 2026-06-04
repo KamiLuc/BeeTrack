@@ -50,7 +50,7 @@
 | HV-07-BE | `BE` | `[x]` | Update hive endpoint | Name, type, active flag via PATCH |
 | HV-07-FE | `FE` | `[x]` | Edit hive UI | Edit name, type, active toggle |
 | HV-08-FE | `FE` | `[x]` | Delete hive UI | Confirmation dialog via ... popup on hive cell |
-| HV-09-FE | `FE` | `[ ]` | Hive detail screen | |
+| HV-09-FE | `FE` | `[x]` | Hive detail screen | Info card (type, status) + placeholder sections for inspections, treatments, harvests |
 | HV-10-FE | `FE` | `[x]` | Active toggle UI | Simple on/off toggle (active bool) |
 | HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
 | HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |

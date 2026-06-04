@@ -4,7 +4,7 @@ import '../../../l10n/app_localizations.dart';
 
 const _hiveTypes = ['dadant', 'langstroth', 'top_bar', 'wielkopolski'];
 
-const _hiveTypeLabels = {
+const hiveTypeLabels = {
   'dadant': 'Dadant',
   'langstroth': 'Langstroth',
   'top_bar': 'Top bar',
@@ -75,7 +75,7 @@ class HiveTypeDropdown extends StatelessWidget {
       items: _hiveTypes
           .map((t) => DropdownMenuItem(
                 value: t,
-                child: Text(_hiveTypeLabels[t]!),
+                child: Text(hiveTypeLabels[t]!),
               ))
           .toList(),
       onChanged: onChanged,

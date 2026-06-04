@@ -7,7 +7,7 @@ import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'add_hive_screen.dart';
-import 'edit_hive_screen.dart';
+import 'hive_detail_screen.dart';
 
 class ApiaryGridScreen extends StatelessWidget {
   final Apiary apiary;
@@ -31,40 +31,14 @@ class _ApiaryGridView extends StatelessWidget {
 
   const _ApiaryGridView({required this.apiary});
 
-  Future<void> _openEdit(BuildContext context, Hive hive) async {
+  Future<void> _openDetail(BuildContext context, Hive hive) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => EditHiveScreen(apiaryId: apiary.id, hive: hive),
+        builder: (_) =>
+            HiveDetailScreen(hive: hive, apiaryId: apiary.id),
       ),
     );
     if (context.mounted) context.read<HivesCubit>().load();
-  }
-
-  Future<void> _confirmDelete(BuildContext context, Hive hive) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.hiveDeleteConfirm),
-        content: Text(l10n.hiveDeleteWarning),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.generalCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              l10n.generalDelete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if ((confirmed ?? false) && context.mounted) {
-      context.read<HivesCubit>().delete(hive.id);
-    }
   }
 
   Future<void> _openAddHive(
@@ -147,8 +121,7 @@ class _ApiaryGridView extends StatelessWidget {
                         return hive != null
                             ? _HiveCell(
                                 hive: hive,
-                                onEdit: () => _openEdit(context, hive),
-                                onDelete: () => _confirmDelete(context, hive),
+                                onTap: () => _openDetail(context, hive),
                               )
                             : _EmptyCell(
                                 onTap: () => _openAddHive(context, state, row, col),
@@ -169,14 +142,9 @@ class _ApiaryGridView extends StatelessWidget {
 
 class _HiveCell extends StatelessWidget {
   final Hive hive;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onTap;
 
-  const _HiveCell({
-    required this.hive,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _HiveCell({required this.hive, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -192,25 +160,8 @@ class _HiveCell extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: Colors.black),
       ),
-      child: PopupMenuButton<_HiveCellAction>(
-        padding: EdgeInsets.zero,
-        onSelected: (action) {
-          if (action == _HiveCellAction.edit) onEdit();
-          if (action == _HiveCellAction.delete) onDelete();
-        },
-        itemBuilder: (_) => [
-          PopupMenuItem(
-            value: _HiveCellAction.edit,
-            child: Text(l10n.generalEdit),
-          ),
-          PopupMenuItem(
-            value: _HiveCellAction.delete,
-            child: Text(
-              l10n.generalDelete,
-              style: TextStyle(color: colorScheme.error),
-            ),
-          ),
-        ],
+      child: InkWell(
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
@@ -247,8 +198,6 @@ class _HiveCell extends StatelessWidget {
     );
   }
 }
-
-enum _HiveCellAction { edit, delete }
 
 class _EmptyCell extends StatelessWidget {
   final VoidCallback? onTap;

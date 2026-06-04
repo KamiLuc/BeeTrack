@@ -161,5 +161,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get hiveStatus => 'Status';
+
+  @override
+  String get hiveDetailInspections => 'Inspections';
+
+  @override
+  String get hiveDetailNoInspections => 'No inspections yet';
+
+  @override
+  String get hiveDetailAddInspection => 'Add inspection';
+
+  @override
+  String get hiveDetailTreatments => 'Treatments';
+
+  @override
+  String get hiveDetailNoTreatments => 'No active treatments';
+
+  @override
+  String get hiveDetailLogTreatment => 'Log treatment';
+
+  @override
+  String get hiveDetailHarvests => 'Harvests';
+
+  @override
+  String get hiveDetailNoHarvests => 'No harvests yet';
+
+  @override
+  String get hiveDetailLogHarvest => 'Log harvest';
+
+  @override
   String get generalRequired => 'Required';
 }

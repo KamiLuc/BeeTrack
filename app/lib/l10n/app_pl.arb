@@ -63,5 +63,15 @@
       "index": { "type": "int" }
     }
   },
+  "hiveStatus": "Status",
+  "hiveDetailInspections": "Inspekcje",
+  "hiveDetailNoInspections": "Brak inspekcji",
+  "hiveDetailAddInspection": "Dodaj inspekcję",
+  "hiveDetailTreatments": "Leczenia",
+  "hiveDetailNoTreatments": "Brak aktywnych leczeń",
+  "hiveDetailLogTreatment": "Dodaj leczenie",
+  "hiveDetailHarvests": "Zbiory",
+  "hiveDetailNoHarvests": "Brak zbiorów",
+  "hiveDetailLogHarvest": "Dodaj zbiór",
   "generalRequired": "Wymagane"
 }

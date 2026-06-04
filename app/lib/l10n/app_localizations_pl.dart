@@ -163,5 +163,35 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get hiveStatus => 'Status';
+
+  @override
+  String get hiveDetailInspections => 'Inspekcje';
+
+  @override
+  String get hiveDetailNoInspections => 'Brak inspekcji';
+
+  @override
+  String get hiveDetailAddInspection => 'Dodaj inspekcję';
+
+  @override
+  String get hiveDetailTreatments => 'Leczenia';
+
+  @override
+  String get hiveDetailNoTreatments => 'Brak aktywnych leczeń';
+
+  @override
+  String get hiveDetailLogTreatment => 'Dodaj leczenie';
+
+  @override
+  String get hiveDetailHarvests => 'Zbiory';
+
+  @override
+  String get hiveDetailNoHarvests => 'Brak zbiorów';
+
+  @override
+  String get hiveDetailLogHarvest => 'Dodaj zbiór';
+
+  @override
   String get generalRequired => 'Wymagane';
 }
