@@ -56,15 +56,15 @@ class InspectionSummary extends StatelessWidget {
       frames.add('${l10n.inspectionFramesPollen}: ${inspection.framesPollen}');
     }
 
-    // Added frames
+    // Added frames — only show non-zero values
     final added = <String>[];
-    if (inspection.framesAddedDrawn != null) {
+    if ((inspection.framesAddedDrawn ?? 0) > 0) {
       added.add('${l10n.inspectionFramesAddedDrawn}: ${inspection.framesAddedDrawn}');
     }
-    if (inspection.framesAddedFoundation != null) {
+    if ((inspection.framesAddedFoundation ?? 0) > 0) {
       added.add('${l10n.inspectionFramesAddedFoundation}: ${inspection.framesAddedFoundation}');
     }
-    if (inspection.framesAddedHoney != null) {
+    if ((inspection.framesAddedHoney ?? 0) > 0) {
       added.add('${l10n.inspectionFramesAddedHoney}: ${inspection.framesAddedHoney}');
     }
 
