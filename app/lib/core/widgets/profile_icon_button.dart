@@ -143,26 +143,38 @@ class _ProfileDialogState extends State<_ProfileDialog> {
             const SizedBox(height: 12),
 
             // Language
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.language,
-                    size: 20, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 12),
-                Text(l10n.profileLanguage, style: textTheme.bodyMedium),
-                const Spacer(),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                        value: 'en', label: Text(l10n.profileLanguageEn)),
-                    ButtonSegment(
-                        value: 'pl', label: Text(l10n.profileLanguagePl)),
+                Row(
+                  children: [
+                    Icon(Icons.language,
+                        size: 20, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    Text(l10n.profileLanguage, style: textTheme.bodyMedium),
                   ],
-                  selected: {currentLocale.languageCode},
-                  onSelectionChanged: (s) =>
-                      widget.localeController.setLocale(Locale(s.first)),
-                  style: const ButtonStyle(
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                          value: 'en',
+                          label: Text('English',
+                              style: TextStyle(fontSize: 12))),
+                      ButtonSegment(
+                          value: 'pl',
+                          label: Text('Polish',
+                              style: TextStyle(fontSize: 12))),
+                    ],
+                    selected: {currentLocale.languageCode},
+                    onSelectionChanged: (s) =>
+                        widget.localeController.setLocale(Locale(s.first)),
+                    style: const ButtonStyle(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
               ],
