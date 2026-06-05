@@ -817,6 +817,42 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Nie ustawiono'**
   String get inspectionNotSet;
+
+  /// No description provided for @inspectionPhotos.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zdjęcia'**
+  String get inspectionPhotos;
+
+  /// No description provided for @inspectionAddPhoto.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zdjęcie'**
+  String get inspectionAddPhoto;
+
+  /// No description provided for @inspectionNoPhotos.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak zdjęć'**
+  String get inspectionNoPhotos;
+
+  /// No description provided for @inspectionDeletePhoto.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć zdjęcie?'**
+  String get inspectionDeletePhoto;
+
+  /// No description provided for @inspectionDeletePhotoWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie zdjęcie.'**
+  String get inspectionDeletePhotoWarning;
+
+  /// No description provided for @inspectionPhotoCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 zdjęcie} few{{count} zdjęcia} other{{count} zdjęć}}'**
+  String inspectionPhotoCount(int count);
 }
 
 class _AppLocalizationsDelegate

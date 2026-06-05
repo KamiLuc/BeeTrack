@@ -219,6 +219,13 @@ type Inspection struct {
     CreatedAt             time.Time
     UpdatedAt             time.Time
 }
+type InspectionImage struct {
+    ID           int64
+    InspectionID int64
+    Filename     string   // UUID-based, stored under IMAGE_STORAGE_PATH
+    MimeType     string   // image/jpeg | image/png | image/webp
+    CreatedAt    time.Time
+}
 ```
 
 ### Adding a new backend feature (checklist)
@@ -276,8 +283,10 @@ type Inspection struct {
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
 | `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
-| `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle generates random `a + b = ?`, blocks deletion until correct answer is typed |
+| `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle is a proper `StatefulWidget` (`_PuzzleDialog`) — clears error on typing, disposes controller in `dispose()` |
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
+| `app/lib/features/inspection/data/inspection_image_model.dart` | `InspectionImage` — id, inspectionId, mimeType, createdAt; `fromJson` factory |
+| `app/lib/features/inspection/data/inspection_image_repository.dart` | `listImages`, `uploadImage` (multipart via Dio), `deleteImage`, `imageUrl()` (builds full URL from `apiClient.baseUrl`), `authHeaders()` |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -285,14 +294,16 @@ type Inspection struct {
 ## Data Models (current fields)
 
 ```
-Hive          id, apiaryId, name, type, active, queenless, readyForHarvest,
-              gridRow, gridCol, diseases (List<HiveDisease>), lastInspectedAt?
-Apiary        id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?
-HiveDisease   id, disease (string)
-Inspection    id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
-              framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
-              framesAddedFoundation?, framesAddedHoney?, queenCellsCount?,
-              queenAdded, notes
+Hive             id, apiaryId, name, type, active, queenless, readyForHarvest,
+                 gridRow, gridCol, diseases (List<HiveDisease>), lastInspectedAt?
+Apiary           id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?
+HiveDisease      id, disease (string)
+Inspection       id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
+                 framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
+                 framesAddedFoundation?, framesAddedHoney?, queenCellsCount?,
+                 queenAdded, notes
+InspectionImage  id, inspectionId, mimeType, createdAt
+                 (URL built from apiClient.baseUrl + REST path)
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
@@ -328,6 +339,10 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}` | Delete inspection |
 | POST | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases` | Add inspection disease |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId}` | Remove inspection disease |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images` | List inspection images |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images` | Upload image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 6 per inspection) |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file` | Serve image bytes (auth-gated, `Cache-Control: private, max-age=86400`) |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}` | Delete image |
 
 ---
 
@@ -411,9 +426,39 @@ LoginScreen / RegisterScreen
                   │   On delete: pops both EditHiveScreen and HiveDetailScreen (ApiaryGridScreen reloads).
                   ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
                   └── InspectionHistoryScreen (View all — only shown when inspections exist)
-                      └── InspectionFormScreen (add button)
+                          └── InspectionFormScreen (add button)
 ```
+
+#### InspectionFormScreen — bottom amber banner
+The form has a fixed amber banner at the bottom (same style as apiary/grid banners):
+- **+** icon button — picks a photo from gallery (web) or gallery/camera (mobile); badge shows pending-upload count; disabled at the 6-photo limit.
+- **✓** icon button — saves the form and uploads any pending photos in sequence; shows a spinner while running.
+
+Photo gallery (below the Diseases section, only rendered when photos exist):
+- Horizontal scrollable strip of `120×120` thumbnails (`180×180` on web), centred via `LayoutBuilder + ConstrainedBox(minWidth)`.
+- Tap thumbnail → full-screen swipeable `PageView` viewer (`InteractiveViewer` per page, tap anywhere to close).
+- × button on each thumbnail → delete from server (existing) or discard (pending).
 
 ### Delete confirmation pattern
 - Simple `AlertDialog` for entities with no data (apiary with 0 hives, hive with 0 inspections).
 - Math-puzzle dialog (`showDeleteDialog(..., withPuzzle: true)` from `delete_dialog.dart`) for entities with data — user must solve a random `a + b = ?` before the delete button becomes effective.
+
+### Async context safety in StatelessWidget
+Always capture a cubit/provider reference **before** an `await` in a `StatelessWidget` method — the element may be reassigned between the await completing and the next frame:
+```dart
+// ✓ correct
+final cubit = context.read<SomeCubit>();
+final confirmed = await showDialog(...);
+if (confirmed) cubit.doSomething();
+
+// ✗ wrong — context.read after await in StatelessWidget
+final confirmed = await showDialog(...);
+if (confirmed && context.mounted) context.read<SomeCubit>().doSomething();
+```
+
+### Docker — image storage
+Images uploaded to inspections are stored on disk in a Docker volume:
+- Volume `images_data` mounted at `/data/images` inside the `api` container.
+- Path configurable via `IMAGE_STORAGE_PATH` env var (default `/data/images`).
+- Files are UUID-named (e.g. `550e8400-e29b-41d4-a716-446655440000.jpg`).
+- Cascade DB delete (via FK) cleans DB records; the service also removes files from disk before the parent inspection row is deleted.

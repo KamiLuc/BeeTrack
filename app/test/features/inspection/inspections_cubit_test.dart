@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:app/features/inspection/cubit/inspections_cubit.dart';
+import 'package:app/features/inspection/data/inspection_image_model.dart';
 import 'package:app/features/inspection/data/inspection_model.dart';
 import 'package:app/features/inspection/data/inspection_repository.dart';
 
@@ -29,6 +30,22 @@ void main() {
   });
 
   tearDown(() => cubit.close());
+
+  group('InspectionImage.fromJson', () {
+    test('parses all fields correctly', () {
+      final json = {
+        'id': 7,
+        'inspection_id': 42,
+        'mime_type': 'image/jpeg',
+        'created_at': '2025-06-01T10:00:00Z',
+      };
+      final img = InspectionImage.fromJson(json);
+      expect(img.id, 7);
+      expect(img.inspectionId, 42);
+      expect(img.mimeType, 'image/jpeg');
+      expect(img.createdAt, DateTime.utc(2025, 6, 1, 10));
+    });
+  });
 
   group('Inspection.fromJson', () {
     test('parses all fields correctly', () {

@@ -58,80 +58,111 @@ Future<bool> _showPuzzleConfirm(
   required String warning,
   required AppLocalizations l10n,
 }) async {
-  final rng = Random();
-  final a = rng.nextInt(9) + 1;
-  final b = rng.nextInt(9) + 1;
-  final expected = a + b;
-  final controller = TextEditingController();
-  String? inputError;
-
   final result = await showDialog<bool>(
     context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(warning),
-            const SizedBox(height: 16),
-            Text(l10n.deletePuzzlePrompt),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '$a + $b = ',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: const OutlineInputBorder(),
-                      errorText: inputError,
-                    ),
-                    autofocus: true,
-                    onSubmitted: (_) {
-                      if (int.tryParse(controller.text.trim()) == expected) {
-                        Navigator.of(ctx).pop(true);
-                      } else {
-                        setState(() => inputError = l10n.deletePuzzleWrong);
-                      }
-                    },
+    builder: (ctx) => _PuzzleDialog(title: title, warning: warning, l10n: l10n),
+  );
+  return result ?? false;
+}
+
+class _PuzzleDialog extends StatefulWidget {
+  final String title;
+  final String warning;
+  final AppLocalizations l10n;
+
+  const _PuzzleDialog({
+    required this.title,
+    required this.warning,
+    required this.l10n,
+  });
+
+  @override
+  State<_PuzzleDialog> createState() => _PuzzleDialogState();
+}
+
+class _PuzzleDialogState extends State<_PuzzleDialog> {
+  late final int _a;
+  late final int _b;
+  late final int _expected;
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final rng = Random();
+    _a = rng.nextInt(9) + 1;
+    _b = rng.nextInt(9) + 1;
+    _expected = _a + _b;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _tryConfirm() {
+    if (int.tryParse(_controller.text.trim()) == _expected) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() => _error = widget.l10n.deletePuzzleWrong);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.warning),
+          const SizedBox(height: 16),
+          Text(l10n.deletePuzzlePrompt),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                '$_a + $_b = ',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    errorText: _error,
                   ),
+                  autofocus: true,
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  onSubmitted: (_) => _tryConfirm(),
                 ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.generalCancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (int.tryParse(controller.text.trim()) == expected) {
-                Navigator.of(ctx).pop(true);
-              } else {
-                setState(() => inputError = l10n.deletePuzzleWrong);
-              }
-            },
-            child: Text(
-              l10n.generalDelete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
+              ),
+            ],
           ),
         ],
       ),
-    ),
-  );
-  controller.dispose();
-  return result ?? false;
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.generalCancel),
+        ),
+        TextButton(
+          onPressed: _tryConfirm,
+          child: Text(
+            l10n.generalDelete,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+      ],
+    );
+  }
 }

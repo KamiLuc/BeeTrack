@@ -35,8 +35,12 @@ services:
       - .env
     environment:
       DATABASE_URL: postgres://postgres:password@db:5432/beetrack?sslmode=disable
+      IMAGE_STORAGE_PATH: /data/images
     ports:
       - "8080:8080"
+    volumes:
+      - images_data:/data/images
 
 volumes:
   postgres_data:
+  images_data:

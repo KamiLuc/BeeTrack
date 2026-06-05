@@ -130,6 +130,7 @@
   "inspectionQueenAdded": "Queen added",
   "inspectionSectionObservations": "Observations",
   "inspectionSectionFrames": "Frames",
+  "inspectionSectionHealth": "Health",
   "inspectionSectionHiveState": "Hive state",
   "inspectionNotes": "Notes",
   "inspectionNote": "Note",
@@ -141,5 +142,16 @@
   "inspectionDiseaseChalkbrood": "Chalkbrood",
   "inspectionDiseaseEuropeanFoulbrood": "European foulbrood",
   "inspectionDiseaseLayingWorkers": "Laying workers",
-  "inspectionNotSet": "Not set"
+  "inspectionNotSet": "Not set",
+  "inspectionPhotos": "Photos",
+  "inspectionAddPhoto": "Add photo",
+  "inspectionNoPhotos": "No photos yet",
+  "inspectionDeletePhoto": "Delete photo?",
+  "inspectionDeletePhotoWarning": "This will permanently delete the photo.",
+  "inspectionPhotoCount": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@inspectionPhotoCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

@@ -1,14 +1,21 @@
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
 import '../../hive/view/hive_form_widgets.dart';
+import '../data/inspection_image_model.dart';
+import '../data/inspection_image_repository.dart';
 import '../data/inspection_model.dart';
 import '../data/inspection_repository.dart';
 
@@ -58,6 +65,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   // the user modifies them.
   final Set<String> _defaultFields = {};
 
+  List<InspectionImage> _existingImages = [];
+  final List<XFile> _pendingImages = [];
+
   bool _loading = false;
 
   @override
@@ -91,6 +101,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _notesController = TextEditingController(text: insp?.notes ?? '');
 
     _hiveActive = widget.hive.active;
+    if (widget.isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadImages());
+    }
     _hiveQueenless = widget.hive.queenless;
     _hiveReadyForHarvest = widget.hive.readyForHarvest;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
@@ -125,6 +138,38 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     super.dispose();
   }
 
+  Future<void> _deleteExistingImage(InspectionImage img) async {
+    final api = context.read<ApiClient>();
+    try {
+      await InspectionImageRepository(api: api).deleteImage(
+        widget.apiaryId,
+        widget.hive.id,
+        widget.inspection!.id,
+        img.id,
+      );
+      if (mounted) setState(() => _existingImages.remove(img));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.generalError)),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadImages() async {
+    final api = context.read<ApiClient>();
+    final repo = InspectionImageRepository(api: api);
+    try {
+      final imgs = await repo.listImages(
+        widget.apiaryId,
+        widget.hive.id,
+        widget.inspection!.id,
+      );
+      if (mounted) setState(() => _existingImages = imgs);
+    } catch (_) {}
+  }
+
   int? _parseOptionalInt(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
@@ -154,14 +199,18 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
-    final inspRepo = InspectionRepository(api: ctx.read());
-    final hiveRepo = HiveRepository(api: ctx.read());
+    final api = ctx.read<ApiClient>();
+    final inspRepo = InspectionRepository(api: api);
+    final imageRepo = InspectionImageRepository(api: api);
+    final hiveRepo = HiveRepository(api: api);
     try {
+      int inspectionId;
       if (widget.isEditing) {
+        inspectionId = widget.inspection!.id;
         await inspRepo.updateInspection(
           apiaryId: widget.apiaryId,
           hiveId: widget.hive.id,
-          inspectionId: widget.inspection!.id,
+          inspectionId: inspectionId,
           inspectedAt: _inspectedAt,
           queenSeen: _queenSeen ? 'seen' : 'not_seen',
           broodPattern: _broodPattern,
@@ -179,7 +228,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           queenCellsCount: _parseOptionalInt(_queenCellsCountController.text),
         );
       } else {
-        await inspRepo.createInspection(
+        final created = await inspRepo.createInspection(
           apiaryId: widget.apiaryId,
           hiveId: widget.hive.id,
           inspectedAt: _inspectedAt,
@@ -198,7 +247,17 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           framesAddedHoney: _parseOptionalInt(_framesAddedHoneyController.text),
           queenCellsCount: _parseOptionalInt(_queenCellsCountController.text),
         );
+        inspectionId = created.id;
       }
+      for (final file in _pendingImages) {
+        await imageRepo.uploadImage(
+          widget.apiaryId,
+          widget.hive.id,
+          inspectionId,
+          file,
+        );
+      }
+      if (!ctx.mounted) return;
       await _syncHiveState(ctx, hiveRepo);
       if (ctx.mounted) Navigator.of(ctx).pop(true);
     } catch (_) {
@@ -250,7 +309,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final textTheme = Theme.of(context).textTheme;
+    final hasPhotos = _existingImages.isNotEmpty || _pendingImages.isNotEmpty;
+    final imageRepo = InspectionImageRepository(api: context.read<ApiClient>());
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -258,168 +319,584 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         ),
         actions: const [ProfileIconButton()],
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: AppLayout.formConstraints(context),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _DateField(
-                      date: _inspectedAt,
-                      label: l10n.inspectionDate,
-                      onTap: _pickDate,
-                    ),
-                    const SizedBox(height: 20),
-                    _SectionTitle(l10n.inspectionSectionObservations),
-                    const SizedBox(height: 12),
-                    _BoolRow(
-                      label: l10n.inspectionQueenSeen,
-                      value: _queenSeen,
-                      onChanged: (v) => setState(() => _queenSeen = v),
-                    ),
-                    const SizedBox(height: 16),
-                    _EnumDropdown(
-                      label: l10n.inspectionBroodPattern,
-                      value: _broodPattern.isEmpty ? null : _broodPattern,
-                      items: broodPatternValues,
-                      labelFor: (v) => _broodPatternLabel(l10n, v),
-                      onChanged: (v) => setState(() => _broodPattern = v ?? ''),
-                    ),
-                    const SizedBox(height: 16),
-                    _EnumDropdown(
-                      label: l10n.inspectionAggressiveness,
-                      value: _aggressiveness.isEmpty ? null : _aggressiveness,
-                      items: aggressivenessValues,
-                      labelFor: (v) => _aggressivenessLabel(l10n, v),
-                      onChanged: (v) =>
-                          setState(() => _aggressiveness = v ?? ''),
-                    ),
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _queenCellsCountController,
-                      label: l10n.inspectionQueenCellsCount,
-                    ),
-                    const SizedBox(height: 20),
-                    _SectionTitle(l10n.inspectionSectionFrames),
-                    const SizedBox(height: 12),
-                    _NumericField(
-                      controller: _framesBroodController,
-                      label: l10n.inspectionFramesBrood,
-                      isDefault: _defaultFields.contains('framesBrood'),
-                      onModified: () => _clearDefault('framesBrood'),
-                    ),
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _framesHoneyController,
-                      label: l10n.inspectionFramesHoney,
-                      isDefault: _defaultFields.contains('framesHoney'),
-                      onModified: () => _clearDefault('framesHoney'),
-                    ),
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _framesPollenController,
-                      label: l10n.inspectionFramesPollen,
-                      isDefault: _defaultFields.contains('framesPollen'),
-                      onModified: () => _clearDefault('framesPollen'),
-                    ),
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _framesAddedDrawnController,
-                      label: l10n.inspectionFramesAddedDrawn,
-                    ),
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _framesAddedFoundationController,
-                      label: l10n.inspectionFramesAddedFoundation,
-                    ),
-
-                    const SizedBox(height: 16),
-                    _NumericField(
-                      controller: _framesAddedHoneyController,
-                      label: l10n.inspectionFramesAddedHoney,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: InputDecoration(
-                        labelText: l10n.inspectionNotes,
-                        border: const OutlineInputBorder(),
-                        alignLabelWithHint: true,
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: AppLayout.formConstraints(context),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _DateField(
+                            date: _inspectedAt,
+                            label: l10n.inspectionDate,
+                            onTap: _pickDate,
+                          ),
+                          const SizedBox(height: 20),
+                          _SectionTitle(l10n.inspectionSectionObservations),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.inspectionQueenSeen,
+                            value: _queenSeen,
+                            onChanged: (v) => setState(() => _queenSeen = v),
+                          ),
+                          const SizedBox(height: 16),
+                          _EnumDropdown(
+                            label: l10n.inspectionBroodPattern,
+                            value: _broodPattern.isEmpty ? null : _broodPattern,
+                            items: broodPatternValues,
+                            labelFor: (v) => _broodPatternLabel(l10n, v),
+                            onChanged: (v) =>
+                                setState(() => _broodPattern = v ?? ''),
+                          ),
+                          const SizedBox(height: 16),
+                          _EnumDropdown(
+                            label: l10n.inspectionAggressiveness,
+                            value: _aggressiveness.isEmpty
+                                ? null
+                                : _aggressiveness,
+                            items: aggressivenessValues,
+                            labelFor: (v) => _aggressivenessLabel(l10n, v),
+                            onChanged: (v) =>
+                                setState(() => _aggressiveness = v ?? ''),
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _queenCellsCountController,
+                            label: l10n.inspectionQueenCellsCount,
+                          ),
+                          const SizedBox(height: 20),
+                          _SectionTitle(l10n.inspectionSectionFrames),
+                          const SizedBox(height: 12),
+                          _NumericField(
+                            controller: _framesBroodController,
+                            label: l10n.inspectionFramesBrood,
+                            isDefault: _defaultFields.contains('framesBrood'),
+                            onModified: () => _clearDefault('framesBrood'),
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _framesHoneyController,
+                            label: l10n.inspectionFramesHoney,
+                            isDefault: _defaultFields.contains('framesHoney'),
+                            onModified: () => _clearDefault('framesHoney'),
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _framesPollenController,
+                            label: l10n.inspectionFramesPollen,
+                            isDefault: _defaultFields.contains('framesPollen'),
+                            onModified: () => _clearDefault('framesPollen'),
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _framesAddedDrawnController,
+                            label: l10n.inspectionFramesAddedDrawn,
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _framesAddedFoundationController,
+                            label: l10n.inspectionFramesAddedFoundation,
+                          ),
+                          const SizedBox(height: 16),
+                          _NumericField(
+                            controller: _framesAddedHoneyController,
+                            label: l10n.inspectionFramesAddedHoney,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _notesController,
+                            decoration: InputDecoration(
+                              labelText: l10n.inspectionNotes,
+                              border: const OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                            maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                          ),
+                          const SizedBox(height: 20),
+                          _SectionTitle(l10n.inspectionSectionHiveState),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveActive,
+                            value: _hiveActive,
+                            onChanged: (v) => setState(() => _hiveActive = v),
+                          ),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveQueenless,
+                            value: _hiveQueenless,
+                            onChanged: (v) =>
+                                setState(() => _hiveQueenless = v),
+                          ),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveReadyForHarvest,
+                            value: _hiveReadyForHarvest,
+                            onChanged: (v) =>
+                                setState(() => _hiveReadyForHarvest = v),
+                          ),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.inspectionQueenAdded,
+                            value: _queenAdded,
+                            onChanged: (v) =>
+                                setState(() => _queenAdded = v),
+                          ),
+                          const SizedBox(height: 12),
+                          HiveDiseasesSection(
+                            label: l10n.inspectionDiseases,
+                            selected: _hiveDiseases,
+                            onToggle: (disease, selected) {
+                              setState(() {
+                                if (selected) {
+                                  _hiveDiseases = {
+                                    ..._hiveDiseases,
+                                    disease,
+                                  };
+                                } else {
+                                  _hiveDiseases = _hiveDiseases
+                                      .where((d) => d != disease)
+                                      .toSet();
+                                }
+                              });
+                            },
+                          ),
+                          // Photo gallery — only visible when photos exist
+                          if (hasPhotos) ...[
+                            const SizedBox(height: 16),
+                            _FormPhotoGallery(
+                              existingImages: _existingImages,
+                              pendingFiles: _pendingImages,
+                              imageRepo: imageRepo,
+                              apiaryId: widget.apiaryId,
+                              hiveId: widget.hive.id,
+                              inspectionId: widget.inspection?.id ?? 0,
+                              onDeleteExisting: _deleteExistingImage,
+                              onRemovePending: (f) =>
+                                  setState(() => _pendingImages.remove(f)),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                      maxLines: 4,
-                      textInputAction: TextInputAction.newline,
                     ),
-                    const SizedBox(height: 20),
-                    _SectionTitle(l10n.inspectionSectionHiveState),
-                    const SizedBox(height: 12),
-                    _BoolRow(
-                      label: l10n.hiveActive,
-                      value: _hiveActive,
-                      onChanged: (v) => setState(() => _hiveActive = v),
-                    ),
-                    const SizedBox(height: 12),
-                    _BoolRow(
-                      label: l10n.hiveQueenless,
-                      value: _hiveQueenless,
-                      onChanged: (v) => setState(() => _hiveQueenless = v),
-                    ),
-                    const SizedBox(height: 12),
-                    _BoolRow(
-                      label: l10n.hiveReadyForHarvest,
-                      value: _hiveReadyForHarvest,
-                      onChanged: (v) => setState(() => _hiveReadyForHarvest = v),
-                    ),
-                    const SizedBox(height: 12),
-                    _BoolRow(
-                      label: l10n.inspectionQueenAdded,
-                      value: _queenAdded,
-                      onChanged: (v) => setState(() => _queenAdded = v),
-                    ),
-                    const SizedBox(height: 12),
-                    HiveDiseasesSection(
-                      label: l10n.inspectionDiseases,
-                      selected: _hiveDiseases,
-                      onToggle: (disease, selected) {
-                        setState(() {
-                          if (selected) {
-                            _hiveDiseases = {..._hiveDiseases, disease};
-                          } else {
-                            _hiveDiseases = _hiveDiseases
-                                .where((d) => d != disease)
-                                .toSet();
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: SizedBox(
-                        width: 200,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : () => _submit(context),
-                          child: _loading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(l10n.generalSave),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
+          _InspectionFormBanner(
+            loading: _loading,
+            pendingCount: _pendingImages.length,
+            atPhotoLimit:
+                (_existingImages.length + _pendingImages.length) >= 6,
+            onSave: () => _submit(context),
+            onAddPhoto: _pickImageForBanner,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImageForBanner() async {
+    final total = _existingImages.length + _pendingImages.length;
+    if (total >= 6) return;
+    final picker = ImagePicker();
+    final ImageSource source;
+    if (kIsWeb) {
+      source = ImageSource.gallery;
+    } else {
+      final chosen = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (_) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(AppLocalizations.of(context)!.inspectionAddPhoto),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Camera'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (chosen == null) return;
+      source = chosen;
+    }
+    final file = await picker.pickImage(source: source, imageQuality: 85);
+    if (file != null && mounted) setState(() => _pendingImages.add(file));
+  }
+}
+
+// ── Amber banner: save + add-photo buttons ────────────────────────────────────
+
+class _InspectionFormBanner extends StatelessWidget {
+  final bool loading;
+  final int pendingCount;
+  final bool atPhotoLimit;
+  final VoidCallback onSave;
+  final VoidCallback onAddPhoto;
+
+  const _InspectionFormBanner({
+    required this.loading,
+    required this.pendingCount,
+    required this.atPhotoLimit,
+    required this.onSave,
+    required this.onAddPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final bannerWidth = screenWidth < 600
+        ? screenWidth * 0.85
+        : min(440.0, screenWidth * 0.40);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Center(
+          child: SizedBox(
+            width: bannerWidth,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Add photo
+                  Badge(
+                    isLabelVisible: pendingCount > 0,
+                    label: Text('$pendingCount'),
+                    child: IconButton(
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      iconSize: 28,
+                      tooltip: l10n.inspectionAddPhoto,
+                      onPressed: atPhotoLimit ? null : onAddPhoto,
+                    ),
+                  ),
+                  // Save
+                  loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.check),
+                          iconSize: 28,
+                          tooltip: l10n.generalSave,
+                          onPressed: onSave,
+                        ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Inline photo gallery shown below diseases ─────────────────────────────────
+
+class _FormPhotoGallery extends StatelessWidget {
+  final List<InspectionImage> existingImages;
+  final List<XFile> pendingFiles;
+  final InspectionImageRepository imageRepo;
+  final int apiaryId;
+  final int hiveId;
+  final int inspectionId;
+  final ValueChanged<InspectionImage> onDeleteExisting;
+  final ValueChanged<XFile> onRemovePending;
+
+  const _FormPhotoGallery({
+    required this.existingImages,
+    required this.pendingFiles,
+    required this.imageRepo,
+    required this.apiaryId,
+    required this.hiveId,
+    required this.inspectionId,
+    required this.onDeleteExisting,
+    required this.onRemovePending,
+  });
+
+  void _openViewer(BuildContext context, int index) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (ctx, anim, secondaryAnim) => _PhotoViewerRoute(
+          existingImages: existingImages,
+          pendingFiles: pendingFiles,
+          initialIndex: index,
+          urlBuilder: (img) =>
+              imageRepo.imageUrl(apiaryId, hiveId, inspectionId, img.id),
+          headers: imageRepo.authHeaders(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final headers = imageRepo.authHeaders();
+    final total = existingImages.length + pendingFiles.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${l10n.inspectionPhotos}  $total / 6',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final size = kIsWeb ? 180.0 : 120.0;
+            return SizedBox(
+              height: size + 15,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int i = 0; i < existingImages.length; i++)
+                          _GalleryThumb(
+                            size: size,
+                            child: Image.network(
+                              imageRepo.imageUrl(apiaryId, hiveId, inspectionId,
+                                  existingImages[i].id),
+                              headers: headers,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, err, stack) =>
+                                  const Icon(Icons.broken_image_outlined),
+                            ),
+                            onTap: () => _openViewer(context, i),
+                            onDelete: () => onDeleteExisting(existingImages[i]),
+                          ),
+                        for (int i = 0; i < pendingFiles.length; i++)
+                          _GalleryThumb(
+                            size: size,
+                            pending: true,
+                            child: FutureBuilder<Uint8List>(
+                              future: pendingFiles[i].readAsBytes(),
+                              builder: (_, snap) => snap.hasData
+                                  ? Image.memory(snap.data!, fit: BoxFit.cover)
+                                  : const Center(
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2)),
+                            ),
+                            onTap: () =>
+                                _openViewer(context, existingImages.length + i),
+                            onDelete: () => onRemovePending(pendingFiles[i]),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _GalleryThumb extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final double size;
+  final bool pending;
+
+  const _GalleryThumb({
+    required this.child,
+    required this.onTap,
+    required this.onDelete,
+    required this.size,
+    this.pending = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(width: size, height: size, child: child),
+            ),
+            if (pending)
+              Positioned(
+                top: 2,
+                left: 2,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'NEW',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 2,
+              right: 2,
+              child: GestureDetector(
+                onTap: onDelete,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Full-screen photo viewer ──────────────────────────────────────────────────
+
+class _PhotoViewerRoute extends StatefulWidget {
+  final List<InspectionImage> existingImages;
+  final List<XFile> pendingFiles;
+  final int initialIndex;
+  final String Function(InspectionImage) urlBuilder;
+  final Map<String, String> headers;
+
+  const _PhotoViewerRoute({
+    required this.existingImages,
+    required this.pendingFiles,
+    required this.initialIndex,
+    required this.urlBuilder,
+    required this.headers,
+  });
+
+  @override
+  State<_PhotoViewerRoute> createState() => _PhotoViewerRouteState();
+}
+
+class _PhotoViewerRouteState extends State<_PhotoViewerRoute> {
+  late final PageController _ctrl;
+  late int _current;
+
+  int get _total => widget.existingImages.length + widget.pendingFiles.length;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _ctrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.black54,
+        foregroundColor: Colors.white,
+        title: Text('${_current + 1} / $_total',
+            style: const TextStyle(color: Colors.white)),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: PageView.builder(
+          controller: _ctrl,
+          itemCount: _total,
+          onPageChanged: (i) => setState(() => _current = i),
+          itemBuilder: (_, i) {
+            if (i < widget.existingImages.length) {
+              return InteractiveViewer(
+                child: Center(
+                  child: Image.network(
+                    widget.urlBuilder(widget.existingImages[i]),
+                    headers: widget.headers,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, err, stack) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white,
+                        size: 64),
+                  ),
+                ),
+              );
+            }
+            final file = widget.pendingFiles[i - widget.existingImages.length];
+            return FutureBuilder<Uint8List>(
+              future: file.readAsBytes(),
+              builder: (_, snap) => snap.hasData
+                  ? InteractiveViewer(
+                      child: Center(
+                          child: Image.memory(snap.data!, fit: BoxFit.contain)))
+                  : const Center(
+                      child: CircularProgressIndicator(color: Colors.white)),
+            );
+          },
         ),
       ),
     );

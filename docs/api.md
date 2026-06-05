@@ -847,3 +847,77 @@ Removes a disease from an inspection.
 | `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
 | `DISEASE_NOT_FOUND` | 404 | Disease does not exist for this inspection |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Inspection Images
+
+Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **10 MB**.
+
+Images are cascade-deleted when the parent inspection is deleted. File cleanup on disk is performed before the DB row is removed.
+
+**Image object**
+```json
+{
+  "id": 1,
+  "inspection_id": 5,
+  "mime_type": "image/jpeg",
+  "created_at": "2025-06-06T10:00:00Z"
+}
+```
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images 🔒
+
+Uploads an image. Send as `multipart/form-data` with field name `image`.
+
+**Response** `201 Created` — image object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `MISSING_FILE` | 400 | `image` field missing from form |
+| `INVALID_IMAGE_TYPE` | 400 | MIME type not allowed |
+| `IMAGE_TOO_LARGE` | 413 | File exceeds 10 MB |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images 🔒
+
+Returns all image metadata for an inspection ordered by id ascending.
+
+**Response** `200 OK` — array of image objects
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file 🔒
+
+Serves the raw image bytes with the correct `Content-Type` header. Cached for 24 hours (`Cache-Control: private, max-age=86400`).
+
+**Response** `200 OK` — image binary
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId} 🔒
+
+Deletes an image from the DB and from disk.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
+| `IMAGE_NOT_FOUND` | 404 | Image does not exist for this inspection |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

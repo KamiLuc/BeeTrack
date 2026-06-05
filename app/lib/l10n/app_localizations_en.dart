@@ -351,7 +351,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionSectionFrames => 'Frames';
 
   @override
-  String get inspectionSectionHealth => 'Zdrowie';
+  String get inspectionSectionHealth => 'Health';
 
   @override
   String get inspectionSectionHiveState => 'Hive state';
@@ -388,4 +388,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inspectionNotSet => 'Not set';
+
+  @override
+  String get inspectionPhotos => 'Photos';
+
+  @override
+  String get inspectionAddPhoto => 'Add photo';
+
+  @override
+  String get inspectionNoPhotos => 'No photos yet';
+
+  @override
+  String get inspectionDeletePhoto => 'Delete photo?';
+
+  @override
+  String get inspectionDeletePhotoWarning =>
+      'This will permanently delete the photo.';
+
+  @override
+  String inspectionPhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
 }

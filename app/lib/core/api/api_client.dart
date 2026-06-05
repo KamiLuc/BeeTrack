@@ -12,6 +12,10 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
+
+  String get baseUrl => _dio.options.baseUrl;
+
+  String? get accessToken => _storage.accessToken;
 }
 
 class _AuthInterceptor extends Interceptor {

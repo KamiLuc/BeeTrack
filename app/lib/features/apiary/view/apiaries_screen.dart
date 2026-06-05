@@ -219,6 +219,7 @@ class _ApiaryCard extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, AppLocalizations l10n) async {
+    final cubit = context.read<ApiariesCubit>();
     final confirmed = await showDeleteDialog(
       context,
       title: l10n.apiaryDeleteConfirm,
@@ -226,8 +227,8 @@ class _ApiaryCard extends StatelessWidget {
       l10n: l10n,
       withPuzzle: apiary.hiveCount > 0,
     );
-    if (confirmed && context.mounted) {
-      context.read<ApiariesCubit>().delete(apiary.id);
+    if (confirmed) {
+      cubit.delete(apiary.id);
     }
   }
 

@@ -282,5 +282,4 @@ class _InspectionCard extends StatelessWidget {
   }
 }
 
-
 enum _CardAction { edit, delete }

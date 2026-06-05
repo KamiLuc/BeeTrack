@@ -142,5 +142,16 @@
   "inspectionDiseaseChalkbrood": "Grzybica wapienna",
   "inspectionDiseaseEuropeanFoulbrood": "Zgnilec europejski",
   "inspectionDiseaseLayingWorkers": "Strutowienie rodziny",
-  "inspectionNotSet": "Nie ustawiono"
+  "inspectionNotSet": "Nie ustawiono",
+  "inspectionPhotos": "Zdjęcia",
+  "inspectionAddPhoto": "Dodaj zdjęcie",
+  "inspectionNoPhotos": "Brak zdjęć",
+  "inspectionDeletePhoto": "Usunąć zdjęcie?",
+  "inspectionDeletePhotoWarning": "Ta operacja trwale usunie zdjęcie.",
+  "inspectionPhotoCount": "{count, plural, =1{1 zdjęcie} few{{count} zdjęcia} other{{count} zdjęć}}",
+  "@inspectionPhotoCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

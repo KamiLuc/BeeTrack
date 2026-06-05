@@ -393,4 +393,32 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get inspectionNotSet => 'Nie ustawiono';
+
+  @override
+  String get inspectionPhotos => 'Zdjęcia';
+
+  @override
+  String get inspectionAddPhoto => 'Dodaj zdjęcie';
+
+  @override
+  String get inspectionNoPhotos => 'Brak zdjęć';
+
+  @override
+  String get inspectionDeletePhoto => 'Usunąć zdjęcie?';
+
+  @override
+  String get inspectionDeletePhotoWarning =>
+      'Ta operacja trwale usunie zdjęcie.';
+
+  @override
+  String inspectionPhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count zdjęć',
+      few: '$count zdjęcia',
+      one: '1 zdjęcie',
+    );
+    return '$_temp0';
+  }
 }

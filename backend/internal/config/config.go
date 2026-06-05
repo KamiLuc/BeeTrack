@@ -9,6 +9,7 @@ import (
 type Config struct {
 	AllowedOrigins    string
 	DatabaseURL       string
+	ImageStoragePath  string
 	JWTAccessTTLMin   int
 	JWTRefreshTTLDays int
 	JWTSecret         string
@@ -29,6 +30,7 @@ func Load() (Config, error) {
 	return Config{
 		AllowedOrigins:    getEnv("CORS_ALLOWED_ORIGINS", "*"),
 		DatabaseURL:       getEnv("DATABASE_URL", ""),
+		ImageStoragePath:  getEnv("IMAGE_STORAGE_PATH", "/data/images"),
 		JWTAccessTTLMin:   accessTTL,
 		JWTRefreshTTLDays: refreshTTL,
 		JWTSecret:         getEnv("JWT_SECRET", ""),

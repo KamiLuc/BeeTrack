@@ -17,11 +17,13 @@ import (
 // InspectionHandler handles HTTP requests for inspection resources.
 type InspectionHandler struct {
 	inspections *service.InspectionService
+	images      *service.InspectionImageService
 }
 
 // NewInspectionHandler creates an InspectionHandler backed by svc.
-func NewInspectionHandler(inspections *service.InspectionService) *InspectionHandler {
-	return &InspectionHandler{inspections: inspections}
+// images is used to clean up stored files when an inspection is deleted.
+func NewInspectionHandler(inspections *service.InspectionService, images *service.InspectionImageService) *InspectionHandler {
+	return &InspectionHandler{inspections: inspections, images: images}
 }
 
 type inspectionRequest struct {
@@ -392,6 +394,7 @@ func (h *InspectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.images.DeleteFilesForInspection(r.Context(), inspectionID)
 	if err := h.inspections.Delete(r.Context(), userID, apiaryID, hiveID, inspectionID); err != nil {
 		inspectionError(w, err)
 		return
