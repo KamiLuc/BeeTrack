@@ -84,13 +84,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _hasPicked
-                          ? () => Navigator.of(context).pop(_picked)
-                          : null,
-                      child: const Text('Potwierdź'),
+                  Center(
+                    child: SizedBox(
+                      width: 200,
+                      child: ElevatedButton(
+                        onPressed: _hasPicked
+                            ? () => Navigator.of(context).pop(_picked)
+                            : null,
+                        child: const Text('Potwierdź'),
+                      ),
                     ),
                   ),
                 ],

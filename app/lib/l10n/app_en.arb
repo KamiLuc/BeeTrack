@@ -17,6 +17,8 @@
   "generalConfirm": "Confirm",
   "generalError": "Something went wrong. Please try again.",
   "generalLoading": "Loading...",
+  "deletePuzzlePrompt": "To confirm, solve:",
+  "deletePuzzleWrong": "Wrong answer",
 
   "authEmail": "Email",
   "authPassword": "Password",
@@ -35,6 +37,8 @@
   "roleMember": "Member",
 
   "apiaryTitle": "Apiaries",
+  "apiaryMapTitle": "Apiaries map",
+  "apiaryMapTooltip": "Show on map",
   "apiaryAdd": "Add apiary",
   "apiaryName": "Apiary",
   "apiaryLatitude": "Latitude",

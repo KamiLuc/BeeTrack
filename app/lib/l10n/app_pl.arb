@@ -17,6 +17,8 @@
   "generalConfirm": "Potwierdź",
   "generalError": "Wystąpił błąd. Spróbuj ponownie.",
   "generalLoading": "Ładowanie...",
+  "deletePuzzlePrompt": "Aby potwierdzić, rozwiąż:",
+  "deletePuzzleWrong": "Zła odpowiedź",
 
   "authEmail": "E-mail",
   "authPassword": "Hasło",
@@ -35,6 +37,8 @@
   "roleMember": "Członek",
 
   "apiaryTitle": "Pasieki",
+  "apiaryMapTitle": "Mapa pasiek",
+  "apiaryMapTooltip": "Pokaż na mapie",
   "apiaryAdd": "Dodaj pasiekę",
   "apiaryName": "Pasieka",
   "apiaryLatitude": "Szerokość geograficzna",

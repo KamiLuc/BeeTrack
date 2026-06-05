@@ -7,6 +7,7 @@ class Apiary {
   final int gridCols;
   final int hiveCount;
   final String userRole;
+  final DateTime? lastInspectedAt;
 
   const Apiary({
     required this.id,
@@ -17,6 +18,7 @@ class Apiary {
     required this.gridCols,
     required this.hiveCount,
     required this.userRole,
+    this.lastInspectedAt,
   });
 
   factory Apiary.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,9 @@ class Apiary {
       gridCols: json['grid_cols'] as int,
       hiveCount: json['hive_count'] as int? ?? 0,
       userRole: json['user_role'] as String,
+      lastInspectedAt: json['last_inspected_at'] != null
+          ? DateTime.parse(json['last_inspected_at'] as String)
+          : null,
     );
   }
 }

@@ -144,11 +144,15 @@ class HiveDiseasesSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        ),
         const SizedBox(height: 8),
         Wrap(
+          alignment: WrapAlignment.center,
           spacing: 8,
           runSpacing: 4,
           children: diseaseValues.map((disease) {

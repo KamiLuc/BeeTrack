@@ -182,6 +182,18 @@ abstract class AppLocalizations {
   /// **'Ładowanie...'**
   String get generalLoading;
 
+  /// No description provided for @deletePuzzlePrompt.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aby potwierdzić, rozwiąż:'**
+  String get deletePuzzlePrompt;
+
+  /// No description provided for @deletePuzzleWrong.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zła odpowiedź'**
+  String get deletePuzzleWrong;
+
   /// No description provided for @authEmail.
   ///
   /// In pl, this message translates to:
@@ -271,6 +283,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Pasieki'**
   String get apiaryTitle;
+
+  /// No description provided for @apiaryMapTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Mapa pasiek'**
+  String get apiaryMapTitle;
+
+  /// No description provided for @apiaryMapTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż na mapie'**
+  String get apiaryMapTooltip;
 
   /// No description provided for @apiaryAdd.
   ///

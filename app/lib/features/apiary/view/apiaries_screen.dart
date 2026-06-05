@@ -1,13 +1,18 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
 import '../../hive/view/apiary_grid_screen.dart';
+import 'apiaries_map_screen.dart';
 import 'create_apiary_screen.dart';
 import 'edit_apiary_screen.dart';
 
@@ -33,6 +38,14 @@ class _ApiariesView extends StatelessWidget {
       MaterialPageRoute(builder: (_) => const CreateApiaryScreen()),
     );
     if (context.mounted) context.read<ApiariesCubit>().load();
+  }
+
+  void _openMap(BuildContext context, List<Apiary> apiaries) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApiariesMapScreen(apiaries: apiaries),
+      ),
+    );
   }
 
   @override
@@ -82,37 +95,112 @@ class _ApiariesView extends StatelessWidget {
                 ),
               );
             }
-            return RefreshIndicator(
-              onRefresh: () => context.read<ApiariesCubit>().load(),
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: ConstrainedBox(
-                    constraints: AppLayout.formConstraints(context),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final apiary in state.apiaries) ...[
-                          _ApiaryCard(apiary: apiary),
-                          const SizedBox(height: 8),
-                        ],
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: 200,
-                          child: ElevatedButton(
-                            onPressed: () => _openCreate(context),
-                            child: Text(l10n.apiaryAdd),
+            final hasGps =
+                state.apiaries.any((a) => a.lat != null && a.lng != null);
+            return Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => context.read<ApiariesCubit>().load(),
+                    child: Center(
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: ConstrainedBox(
+                          constraints: AppLayout.formConstraints(context),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final apiary in state.apiaries) ...[
+                                _ApiaryCard(apiary: apiary),
+                                const SizedBox(height: 8),
+                              ],
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+                _ApiariesBanner(
+                  l10n: l10n,
+                  hasGps: hasGps,
+                  onAdd: () => _openCreate(context),
+                  onMap: () => _openMap(context, state.apiaries),
+                ),
+              ],
             );
           }
           return const SizedBox.shrink();
         },
+      ),
+    );
+  }
+}
+
+class _ApiariesBanner extends StatelessWidget {
+  final AppLocalizations l10n;
+  final bool hasGps;
+  final VoidCallback onAdd;
+  final VoidCallback onMap;
+
+  const _ApiariesBanner({
+    required this.l10n,
+    required this.hasGps,
+    required this.onAdd,
+    required this.onMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isSmallScreen = screenWidth < 600;
+    final bannerWidth = isSmallScreen
+        ? screenWidth * 0.85
+        : min(440.0, screenWidth * 0.40);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Center(
+          child: SizedBox(
+            width: bannerWidth,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    iconSize: 28,
+                    tooltip: l10n.apiaryAdd,
+                    onPressed: onAdd,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.map_outlined),
+                    iconSize: 28,
+                    tooltip: l10n.apiaryMapTooltip,
+                    onPressed: hasGps ? onMap : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -131,27 +219,14 @@ class _ApiaryCard extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, AppLocalizations l10n) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.apiaryDeleteConfirm),
-        content: Text(l10n.apiaryDeleteWarning),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.generalCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              l10n.generalDelete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.apiaryDeleteConfirm,
+      warning: l10n.apiaryDeleteWarning,
+      l10n: l10n,
+      withPuzzle: apiary.hiveCount > 0,
     );
-    if ((confirmed ?? false) && context.mounted) {
+    if (confirmed && context.mounted) {
       context.read<ApiariesCubit>().delete(apiary.id);
     }
   }
@@ -193,6 +268,16 @@ class _ApiaryCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (apiary.lastInspectedAt != null)
+                  Text(
+                    DateFormat('d MMM yyyy',
+                            Localizations.localeOf(context).toString())
+                        .format(apiary.lastInspectedAt!),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                const SizedBox(width: 4),
                 if (isOwner)
                   SizedBox(
                     width: 32,

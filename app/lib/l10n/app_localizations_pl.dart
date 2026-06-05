@@ -51,6 +51,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get generalLoading => 'Ładowanie...';
 
   @override
+  String get deletePuzzlePrompt => 'Aby potwierdzić, rozwiąż:';
+
+  @override
+  String get deletePuzzleWrong => 'Zła odpowiedź';
+
+  @override
   String get authEmail => 'E-mail';
 
   @override
@@ -94,6 +100,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get apiaryTitle => 'Pasieki';
+
+  @override
+  String get apiaryMapTitle => 'Mapa pasiek';
+
+  @override
+  String get apiaryMapTooltip => 'Pokaż na mapie';
 
   @override
   String get apiaryAdd => 'Dodaj pasiekę';

@@ -30,6 +30,7 @@ void main() {
         'grid_cols': 4,
         'hive_count': 5,
         'user_role': 'owner',
+        'last_inspected_at': '2025-06-01T10:00:00Z',
       });
       expect(apiary.id, 1);
       expect(apiary.name, 'Alpha');
@@ -39,6 +40,7 @@ void main() {
       expect(apiary.gridCols, 4);
       expect(apiary.hiveCount, 5);
       expect(apiary.userRole, 'owner');
+      expect(apiary.lastInspectedAt, DateTime.utc(2025, 6, 1, 10));
     });
 
     test('defaults hive_count to 0 when missing', () {
@@ -53,6 +55,20 @@ void main() {
       });
       expect(apiary.hiveCount, 0);
       expect(apiary.lat, isNull);
+    });
+
+    test('parses null last_inspected_at as null', () {
+      final apiary = Apiary.fromJson({
+        'id': 1,
+        'name': 'Alpha',
+        'lat': null,
+        'lng': null,
+        'grid_rows': 2,
+        'grid_cols': 2,
+        'user_role': 'owner',
+        'last_inspected_at': null,
+      });
+      expect(apiary.lastInspectedAt, isNull);
     });
   });
 

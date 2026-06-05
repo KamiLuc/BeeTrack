@@ -11,7 +11,6 @@ import '../../inspection/view/inspection_form_screen.dart';
 import '../../inspection/view/inspection_history_screen.dart';
 import '../../inspection/view/inspection_summary.dart';
 import '../data/hive_model.dart';
-import '../data/hive_repository.dart';
 import 'edit_hive_screen.dart';
 import 'hive_form_widgets.dart';
 
@@ -93,40 +92,9 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     if (result == true && mounted) _loadLastInspection();
   }
 
-  Future<void> _confirmDelete() async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.hiveDeleteConfirm),
-        content: Text(l10n.hiveDeleteWarning),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.generalCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              l10n.generalDelete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (!(confirmed ?? false) || !mounted) return;
-    await HiveRepository(api: context.read()).deleteHive(
-      apiaryId: widget.apiaryId,
-      hiveId: _hive.id,
-    );
-    if (mounted) Navigator.of(context).pop(true);
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -136,20 +104,6 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: _openEdit,
-          ),
-          PopupMenuButton<_DetailAction>(
-            onSelected: (action) {
-              if (action == _DetailAction.delete) _confirmDelete();
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: _DetailAction.delete,
-                child: Text(
-                  l10n.generalDelete,
-                  style: TextStyle(color: colorScheme.error),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -193,8 +147,6 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     );
   }
 }
-
-enum _DetailAction { delete }
 
 class _InfoCard extends StatelessWidget {
   final Hive hive;

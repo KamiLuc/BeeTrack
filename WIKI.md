@@ -275,6 +275,8 @@ type Inspection struct {
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
+| `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
+| `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle generates random `a + b = ?`, blocks deletion until correct answer is typed |
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
@@ -285,7 +287,7 @@ type Inspection struct {
 ```
 Hive          id, apiaryId, name, type, active, queenless, readyForHarvest,
               gridRow, gridCol, diseases (List<HiveDisease>), lastInspectedAt?
-Apiary        id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole
+Apiary        id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?
 HiveDisease   id, disease (string)
 Inspection    id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
               framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
@@ -307,7 +309,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | POST | `/api/v1/auth/refresh` | Refresh tokens |
 | POST | `/api/v1/auth/logout` | Logout |
 | PATCH | `/api/v1/users/me/name` | Update display name |
-| GET | `/api/v1/apiaries` | List apiaries |
+| GET | `/api/v1/apiaries` | List apiaries (includes hive_count + last_inspected_at per apiary) |
 | POST | `/api/v1/apiaries` | Create apiary |
 | PATCH | `/api/v1/apiaries/{id}` | Update apiary |
 | DELETE | `/api/v1/apiaries/{id}` | Delete apiary |
@@ -386,6 +388,14 @@ BlocProvider(
 ```
 LoginScreen / RegisterScreen
   └── ApiariesScreen (after login)
+      │   Shows apiary cards (name, hive count, last inspection date).
+      │   Empty state: centered Add button only.
+      │   Non-empty: bottom amber banner with two buttons:
+      │     • + (add) — always enabled → CreateApiaryScreen
+      │     • map — enabled if any apiary has GPS → ApiariesMapScreen
+      ├── ApiariesMapScreen (map banner → map button)
+      │     FlutterMap showing pins + 3 concentric circles per apiary
+      │     (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first)
       └── ApiaryGridScreen (tap apiary card)
           │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
           │   Bottom amber banner has three icon buttons:
@@ -396,8 +406,14 @@ LoginScreen / RegisterScreen
           │       to Matrix4.identity(), snapping pan/zoom back to initial position
           ├── AddHiveScreen (tap empty cell)
           ├── HiveDetailScreen (tap hive cell  OR  bottom-bar hive list → tap hive)
-              ├── EditHiveScreen (AppBar edit icon)
-              ├── InspectionFormScreen (Add inspection button — direct, copies frames from last inspection)
-              └── InspectionHistoryScreen (View all button — only shown when inspections exist)
-                  └── InspectionFormScreen (empty state button / add button — copies frames from last inspection)
+              └── EditHiveScreen (AppBar edit icon)
+                  │   Delete button at the bottom; shows math puzzle if hive has inspections.
+                  │   On delete: pops both EditHiveScreen and HiveDetailScreen (ApiaryGridScreen reloads).
+                  ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
+                  └── InspectionHistoryScreen (View all — only shown when inspections exist)
+                      └── InspectionFormScreen (add button)
 ```
+
+### Delete confirmation pattern
+- Simple `AlertDialog` for entities with no data (apiary with 0 hives, hive with 0 inspections).
+- Math-puzzle dialog (`showDeleteDialog(..., withPuzzle: true)` from `delete_dialog.dart`) for entities with data — user must solve a random `a + b = ?` before the delete button becomes effective.

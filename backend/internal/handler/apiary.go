@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/service"
@@ -79,30 +80,32 @@ func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type item struct {
-		CreatedAt any      `json:"created_at"`
-		GridCols  int      `json:"grid_cols"`
-		GridRows  int      `json:"grid_rows"`
-		HiveCount int      `json:"hive_count"`
-		ID        int64    `json:"id"`
-		Lat       *float64 `json:"lat"`
-		Lng       *float64 `json:"lng"`
-		Name      string   `json:"name"`
-		UpdatedAt any      `json:"updated_at"`
-		UserRole  string   `json:"user_role"`
+		CreatedAt       any        `json:"created_at"`
+		GridCols        int        `json:"grid_cols"`
+		GridRows        int        `json:"grid_rows"`
+		HiveCount       int        `json:"hive_count"`
+		ID              int64      `json:"id"`
+		LastInspectedAt *time.Time `json:"last_inspected_at"`
+		Lat             *float64   `json:"lat"`
+		Lng             *float64   `json:"lng"`
+		Name            string     `json:"name"`
+		UpdatedAt       any        `json:"updated_at"`
+		UserRole        string     `json:"user_role"`
 	}
 	items := make([]item, len(memberships))
 	for i, m := range memberships {
 		items[i] = item{
-			CreatedAt: m.Apiary.CreatedAt,
-			GridCols:  m.Apiary.GridCols,
-			GridRows:  m.Apiary.GridRows,
-			HiveCount: m.HiveCount,
-			ID:        m.Apiary.ID,
-			Lat:       m.Apiary.Lat,
-			Lng:       m.Apiary.Lng,
-			Name:      m.Apiary.Name,
-			UpdatedAt: m.Apiary.UpdatedAt,
-			UserRole:  m.UserRole,
+			CreatedAt:       m.Apiary.CreatedAt,
+			GridCols:        m.Apiary.GridCols,
+			GridRows:        m.Apiary.GridRows,
+			HiveCount:       m.HiveCount,
+			ID:              m.Apiary.ID,
+			LastInspectedAt: m.LastInspectedAt,
+			Lat:             m.Apiary.Lat,
+			Lng:             m.Apiary.Lng,
+			Name:            m.Apiary.Name,
+			UpdatedAt:       m.Apiary.UpdatedAt,
+			UserRole:        m.UserRole,
 		}
 	}
 

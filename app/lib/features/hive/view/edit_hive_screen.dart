@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
@@ -48,6 +49,37 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.hiveDeleteConfirm,
+      warning: l10n.hiveDeleteWarning,
+      l10n: l10n,
+      withPuzzle: widget.hive.lastInspectedAt != null,
+    );
+    if (!confirmed || !context.mounted) return;
+    setState(() => _loading = true);
+    try {
+      await HiveRepository(api: context.read<ApiClient>()).deleteHive(
+        apiaryId: widget.apiaryId,
+        hiveId: widget.hive.id,
+      );
+      if (context.mounted) {
+        final nav = Navigator.of(context);
+        nav.pop(); // close edit screen
+        nav.pop(); // close detail screen
+      }
+    } catch (_) {
+      if (context.mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
   }
 
   Future<void> _submit(BuildContext context) async {
@@ -184,6 +216,21 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                                   ),
                                 )
                               : Text(l10n.generalSave),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: SizedBox(
+                        width: 200,
+                        child: TextButton(
+                          onPressed:
+                              _loading ? null : () => _delete(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.error,
+                          ),
+                          child: Text(l10n.generalDelete),
                         ),
                       ),
                     ),
