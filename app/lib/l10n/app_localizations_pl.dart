@@ -203,6 +203,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveDetailAddInspection => 'Dodaj inspekcję';
 
   @override
+  String get hiveDetailViewInspections => 'Pokaż wszystkie';
+
+  @override
   String get hiveDetailTreatments => 'Leczenia';
 
   @override
@@ -321,6 +324,9 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get inspectionNotes => 'Notatki';
+
+  @override
+  String get inspectionNote => 'Notatka';
 
   @override
   String get inspectionDiseases => 'Choroby';

@@ -11,6 +11,7 @@ import '../cubit/inspections_cubit.dart';
 import '../data/inspection_model.dart';
 import '../data/inspection_repository.dart';
 import 'inspection_form_screen.dart';
+import 'inspection_summary.dart';
 
 class InspectionHistoryScreen extends StatefulWidget {
   final int apiaryId;
@@ -65,9 +66,21 @@ class _InspectionHistoryView extends StatelessWidget {
   });
 
   Future<void> _openCreate(BuildContext context) async {
+    final state = context.read<InspectionsCubit>().state;
+    final inspections =
+        state is InspectionsLoaded ? state.inspections : <Inspection>[];
+    final previous = inspections.isNotEmpty
+        ? inspections.reduce(
+            (a, b) => a.inspectedAt.isAfter(b.inspectedAt) ? a : b,
+          )
+        : null;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => InspectionFormScreen(apiaryId: apiaryId, hive: hive),
+        builder: (_) => InspectionFormScreen(
+          apiaryId: apiaryId,
+          hive: hive,
+          previousInspection: previous,
+        ),
       ),
     );
     if ((result ?? false) && context.mounted) {
@@ -234,7 +247,7 @@ class _InspectionCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _SummaryRow(inspection: inspection, l10n: l10n),
+                    InspectionSummary(inspection: inspection),
                   ],
                 ),
               ),
@@ -265,41 +278,5 @@ class _InspectionCard extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  final Inspection inspection;
-  final AppLocalizations l10n;
-
-  const _SummaryRow({required this.inspection, required this.l10n});
-
-  @override
-  Widget build(BuildContext context) {
-    final parts = <String>[];
-    if (inspection.queenSeen.isNotEmpty) {
-      parts.add(
-        inspection.queenSeen == 'seen'
-            ? l10n.inspectionQueenStatusSeen
-            : l10n.inspectionQueenStatusNotSeen,
-      );
-    }
-    if (inspection.broodPattern.isNotEmpty) {
-      parts.add(_broodShortLabel(l10n, inspection.broodPattern));
-    }
-    if (parts.isEmpty) return const SizedBox.shrink();
-    return Text(
-      parts.join(' · '),
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-String _broodShortLabel(AppLocalizations l10n, String v) => switch (v) {
-  'none' => l10n.inspectionBroodNone,
-  'poor' => l10n.inspectionBroodPoor,
-  'good' => l10n.inspectionBroodGood,
-  'excellent' => l10n.inspectionBroodExcellent,
-  _ => v,
-};
 
 enum _CardAction { edit, delete }

@@ -15,12 +15,14 @@ class InspectionFormScreen extends StatefulWidget {
   final int apiaryId;
   final Hive hive;
   final Inspection? inspection;
+  final Inspection? previousInspection;
 
   const InspectionFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
     this.inspection,
+    this.previousInspection,
   });
 
   bool get isEditing => inspection != null;
@@ -51,26 +53,28 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   late bool _hiveReadyForHarvest;
   late Set<String> _hiveDiseases;
 
+  // Fields pre-filled from the previous inspection are shown in grey until
+  // the user modifies them.
+  final Set<String> _defaultFields = {};
+
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     final insp = widget.inspection;
+    final prev = !widget.isEditing ? widget.previousInspection : null;
+
     _inspectedAt = insp?.inspectedAt ?? DateTime.now();
-    _queenSeen = insp != null ? insp.queenSeen == 'seen' : true;
+    _queenSeen = insp != null ? insp.queenSeen == 'seen' : false;
     _broodPattern = insp?.broodPattern ?? '';
     _aggressiveness = insp?.aggressiveness ?? '';
     _queenAdded = insp?.queenAdded ?? false;
-    _framesBroodController = TextEditingController(
-      text: insp?.framesBrood?.toString() ?? '',
-    );
-    _framesHoneyController = TextEditingController(
-      text: insp?.framesHoney?.toString() ?? '',
-    );
-    _framesPollenController = TextEditingController(
-      text: insp?.framesPollen?.toString() ?? '',
-    );
+
+    _framesBroodController = _initFrameCtrl('framesBrood', insp?.framesBrood, prev?.framesBrood);
+    _framesHoneyController = _initFrameCtrl('framesHoney', insp?.framesHoney, prev?.framesHoney);
+    _framesPollenController = _initFrameCtrl('framesPollen', insp?.framesPollen, prev?.framesPollen);
+
     _framesAddedDrawnController = TextEditingController(
       text: insp?.framesAddedDrawn?.toString() ?? '',
     );
@@ -89,6 +93,22 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _hiveQueenless = widget.hive.queenless;
     _hiveReadyForHarvest = widget.hive.readyForHarvest;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
+  }
+
+  TextEditingController _initFrameCtrl(
+    String fieldKey,
+    int? editValue,
+    int? prevValue,
+  ) {
+    final text = editValue?.toString() ?? prevValue?.toString() ?? '';
+    if (prevValue != null && editValue == null) _defaultFields.add(fieldKey);
+    return TextEditingController(text: text);
+  }
+
+  void _clearDefault(String fieldKey) {
+    if (_defaultFields.contains(fieldKey)) {
+      setState(() => _defaultFields.remove(fieldKey));
+    }
   }
 
   @override
@@ -288,16 +308,22 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                     _NumericField(
                       controller: _framesBroodController,
                       label: l10n.inspectionFramesBrood,
+                      isDefault: _defaultFields.contains('framesBrood'),
+                      onModified: () => _clearDefault('framesBrood'),
                     ),
                     const SizedBox(height: 16),
                     _NumericField(
                       controller: _framesHoneyController,
                       label: l10n.inspectionFramesHoney,
+                      isDefault: _defaultFields.contains('framesHoney'),
+                      onModified: () => _clearDefault('framesHoney'),
                     ),
                     const SizedBox(height: 16),
                     _NumericField(
                       controller: _framesPollenController,
                       label: l10n.inspectionFramesPollen,
+                      isDefault: _defaultFields.contains('framesPollen'),
+                      onModified: () => _clearDefault('framesPollen'),
                     ),
                     const SizedBox(height: 16),
                     _NumericField(
@@ -525,19 +551,31 @@ class _EnumDropdown extends StatelessWidget {
 class _NumericField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final bool isDefault;
+  final VoidCallback? onModified;
 
-  const _NumericField({required this.controller, required this.label});
+  const _NumericField({
+    required this.controller,
+    required this.label,
+    this.isDefault = false,
+    this.onModified,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final color = isDefault
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : null;
     return TextFormField(
       controller: controller,
+      style: color != null ? TextStyle(color: color) : null,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
       ),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      onChanged: isDefault ? (_) => onModified?.call() : null,
     );
   }
 }

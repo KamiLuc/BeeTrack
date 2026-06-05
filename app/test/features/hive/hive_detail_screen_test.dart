@@ -101,5 +101,19 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('shows Add inspection button when no inspections', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('Add inspection', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('does not show View all button when no inspections', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('View all', skipOffstage: false), findsNothing);
+    });
   });
 }

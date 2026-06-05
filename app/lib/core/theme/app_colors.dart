@@ -11,6 +11,7 @@ abstract final class AppColors {
   static const onSecondary = Color(0xFFFFFFFF);
   static const onBackground = Color(0xFF1A1A1A);
   static const onSurface = Color(0xFF1A1A1A);
+  static const onSurfaceVariant = Color(0xFF6F6961);
   static const onError = Color(0xFFFFFFFF);
   static const outline = Color(0xFFD4C5B0);
 }

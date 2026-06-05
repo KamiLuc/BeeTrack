@@ -17,6 +17,7 @@ abstract final class AppTheme {
         onError: AppColors.onError,
         surface: AppColors.surface,
         onSurface: AppColors.onSurface,
+        onSurfaceVariant: AppColors.onSurfaceVariant,
       ),
       scaffoldBackgroundColor: AppColors.background,
       textTheme: const TextTheme(

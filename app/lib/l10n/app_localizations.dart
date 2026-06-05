@@ -434,6 +434,12 @@ abstract class AppLocalizations {
   /// **'Dodaj inspekcję'**
   String get hiveDetailAddInspection;
 
+  /// No description provided for @hiveDetailViewInspections.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż wszystkie'**
+  String get hiveDetailViewInspections;
+
   /// No description provided for @hiveDetailTreatments.
   ///
   /// In pl, this message translates to:
@@ -673,6 +679,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Notatki'**
   String get inspectionNotes;
+
+  /// No description provided for @inspectionNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Notatka'**
+  String get inspectionNote;
 
   /// No description provided for @inspectionDiseases.
   ///

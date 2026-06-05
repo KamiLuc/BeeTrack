@@ -269,11 +269,12 @@ type Inspection struct {
 
 | File | Purpose |
 |------|---------|
-| `app/lib/core/theme/app_colors.dart` | Color constants (primary = amber `#FBBF24`, background = cream `#FFFBF2`) |
+| `app/lib/core/theme/app_colors.dart` | Color constants (primary = amber `#FBBF24`, background = cream `#FFFBF2`, onSurfaceVariant = warm grey `#6F6961`) |
 | `app/lib/core/theme/app_text_styles.dart` | Text style constants (headlineLarge 28px … caption 12px) |
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
+| `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders grouped observation/frame/note rows; used in hive detail card and inspection history cards |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -364,7 +365,7 @@ BlocProvider(
 ## Localization
 
 - Add strings to both `app_en.arb` and `app_pl.arb`.
-- Flutter regenerates `app_localizations_en.dart` / `app_localizations_pl.dart` automatically on build.
+- Also manually update the abstract class in `app_localizations.dart` and both `app_localizations_en.dart` / `app_localizations_pl.dart` — auto-generation is not wired up.
 - Access: `AppLocalizations.of(context)!.yourKey`
 - Plurals use ICU format; Polish needs `=1 / few / many / other` forms.
 
@@ -388,6 +389,7 @@ LoginScreen / RegisterScreen
           ├── AddHiveScreen (tap empty cell)
           └── HiveDetailScreen (tap hive cell)
               ├── EditHiveScreen (AppBar menu → Edit)
-              └── InspectionHistoryScreen (tap Inspections section)
-                  └── InspectionFormScreen (empty state button / add button)
+              ├── InspectionFormScreen (Add inspection button — direct, copies frames from last inspection)
+              └── InspectionHistoryScreen (View all button — only shown when inspections exist)
+                  └── InspectionFormScreen (empty state button / add button — copies frames from last inspection)
 ```

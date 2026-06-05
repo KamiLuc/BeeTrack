@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../inspection/data/inspection_model.dart';
+import '../../inspection/data/inspection_repository.dart';
+import '../../inspection/view/inspection_form_screen.dart';
 import '../../inspection/view/inspection_history_screen.dart';
+import '../../inspection/view/inspection_summary.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'edit_hive_screen.dart';
@@ -25,11 +30,30 @@ class HiveDetailScreen extends StatefulWidget {
 
 class _HiveDetailScreenState extends State<HiveDetailScreen> {
   late Hive _hive;
+  Inspection? _lastInspection;
+  bool _inspectionLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _hive = widget.hive;
+    _loadLastInspection();
+  }
+
+  Future<void> _loadLastInspection() async {
+    try {
+      final inspections = await InspectionRepository(
+        api: context.read<ApiClient>(),
+      ).listInspections(widget.apiaryId, _hive.id);
+      if (!mounted) return;
+      inspections.sort((a, b) => b.inspectedAt.compareTo(a.inspectedAt));
+      setState(() {
+        _inspectionLoaded = true;
+        _lastInspection = inspections.isNotEmpty ? inspections.first : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _inspectionLoaded = true);
+    }
   }
 
   Future<void> _openEdit() async {
@@ -41,6 +65,31 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     if (updated != null && mounted) {
       setState(() => _hive = updated);
     }
+  }
+
+  Future<void> _openInspections() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InspectionHistoryScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (mounted) _loadLastInspection();
+  }
+
+  Future<void> _openCreateInspection() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => InspectionFormScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+          previousInspection: _lastInspection,
+        ),
+      ),
+    );
+    if (result == true && mounted) _loadLastInspection();
   }
 
   Future<void> _confirmDelete() async {
@@ -112,19 +161,11 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
               children: [
                 _InfoCard(hive: _hive),
                 const SizedBox(height: 16),
-                _SectionCard(
-                  title: l10n.hiveDetailInspections,
-                  icon: Icons.search,
-                  emptyText: l10n.hiveDetailNoInspections,
-                  actionLabel: l10n.hiveDetailAddInspection,
-                  onAction: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => InspectionHistoryScreen(
-                        apiaryId: widget.apiaryId,
-                        hive: _hive,
-                      ),
-                    ),
-                  ),
+                _InspectionSectionCard(
+                  lastInspection: _lastInspection,
+                  inspectionLoaded: _inspectionLoaded,
+                  onAdd: _openCreateInspection,
+                  onViewAll: _openInspections,
                 ),
                 const SizedBox(height: 16),
                 _SectionCard(
@@ -248,6 +289,81 @@ class _InfoRow extends StatelessWidget {
             style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
       ],
+    );
+  }
+}
+
+class _InspectionSectionCard extends StatelessWidget {
+  final Inspection? lastInspection;
+  final bool inspectionLoaded;
+  final VoidCallback onAdd;
+  final VoidCallback onViewAll;
+
+  const _InspectionSectionCard({
+    required this.lastInspection,
+    required this.inspectionLoaded,
+    required this.onAdd,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.search, size: 20, color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.hiveDetailInspections,
+                    style: textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (!inspectionLoaded)
+              const SizedBox.shrink()
+            else if (lastInspection == null)
+              Text(
+                l10n.hiveDetailNoInspections,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              InspectionSummary(inspection: lastInspection!, showDate: true),
+            const SizedBox(height: 12),
+            Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (lastInspection != null)
+                    OutlinedButton(
+                      onPressed: onViewAll,
+                      child: Text(l10n.hiveDetailViewInspections),
+                    ),
+                  OutlinedButton(
+                    onPressed: onAdd,
+                    child: Text(l10n.hiveDetailAddInspection),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

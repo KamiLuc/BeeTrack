@@ -84,6 +84,7 @@
 | IN-08-FE | `FE` | `[x]` | Inspection history list screen | inspection_history_screen.dart; shows date, queen/brood summary, disease chips |
 | IN-09-BE | `BE` | `[x]` | Disease tracking | inspection_diseases table; POST/DELETE endpoints; diseases array in inspection response |
 | IN-09-FE | `FE` | `[x]` | Disease UI | FilterChip multi-select in form; disease chips in history list |
+| IN-10-FE | `FE` | `[x]` | Last inspection summary in hive detail | Hive detail card loads + shows last inspection (date, obs, frames, notes); "Add inspection" goes direct to form; "View all" only when inspections exist; new form copies current frame counts from previous inspection; pre-filled values shown in grey |
 
 ---
 
