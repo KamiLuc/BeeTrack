@@ -9,6 +9,16 @@ class HiveRepository {
 
   HiveRepository({required this._api});
 
+  Future<Hive> getHive(int apiaryId, int hiveId) async {
+    try {
+      final response = await _api.dio
+          .get('/api/v1/apiaries/$apiaryId/hives/$hiveId');
+      return Hive.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<List<Hive>> listHives(int apiaryId) async {
     try {
       final response = await _api.dio.get('/api/v1/apiaries/$apiaryId/hives');

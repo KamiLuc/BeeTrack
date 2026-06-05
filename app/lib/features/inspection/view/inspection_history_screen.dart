@@ -108,13 +108,9 @@ class _InspectionHistoryView extends StatelessWidget {
 
   Future<void> _refreshHive(BuildContext context) async {
     try {
-      final hives = await HiveRepository(
+      final fresh = await HiveRepository(
         api: context.read<ApiClient>(),
-      ).listHives(apiaryId);
-      final fresh = hives.firstWhere(
-        (h) => h.id == hive.id,
-        orElse: () => hive,
-      );
+      ).getHive(apiaryId, hive.id);
       if (context.mounted) onHiveChanged(fresh);
     } catch (_) {}
   }
@@ -233,12 +229,9 @@ class _InspectionCard extends StatelessWidget {
     ).format(inspection.inspectedAt);
 
     return Card(
-      child: InkWell(
-        onTap: onEdit,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
             children: [
               Expanded(
                 child: Column(
@@ -275,7 +268,6 @@ class _InspectionCard extends StatelessWidget {
                 ],
               ),
             ],
-          ),
         ),
       ),
     );

@@ -11,6 +11,7 @@ import '../../inspection/view/inspection_form_screen.dart';
 import '../../inspection/view/inspection_history_screen.dart';
 import '../../inspection/view/inspection_summary.dart';
 import '../data/hive_model.dart';
+import '../data/hive_repository.dart';
 import 'edit_hive_screen.dart';
 import 'hive_form_widgets.dart';
 
@@ -38,6 +39,14 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     super.initState();
     _hive = widget.hive;
     _loadLastInspection();
+  }
+
+  Future<void> _refreshHive() async {
+    try {
+      final fresh = await HiveRepository(api: context.read<ApiClient>())
+          .getHive(widget.apiaryId, _hive.id);
+      if (mounted) setState(() => _hive = fresh);
+    } catch (_) {}
   }
 
   Future<void> _loadLastInspection() async {
@@ -76,7 +85,9 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
         ),
       ),
     );
-    if (mounted) _loadLastInspection();
+    if (!mounted) return;
+    await _refreshHive();
+    _loadLastInspection();
   }
 
   Future<void> _openCreateInspection() async {
@@ -89,7 +100,9 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
         ),
       ),
     );
-    if (result == true && mounted) _loadLastInspection();
+    if (!mounted) return;
+    if (result == true) await _refreshHive();
+    _loadLastInspection();
   }
 
   @override
