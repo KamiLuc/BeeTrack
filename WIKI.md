@@ -274,7 +274,7 @@ type Inspection struct {
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
-| `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders grouped observation/frame/note rows; used in hive detail card and inspection history cards |
+| `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen/notes); used in hive detail card and inspection history cards |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -386,9 +386,14 @@ BlocProvider(
 LoginScreen / RegisterScreen
   └── ApiariesScreen (after login)
       └── ApiaryGridScreen (tap apiary card)
+          │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
+          │   Bottom amber banner has two icon buttons:
+          │     • Filter (Icons.tune) — modal sheet with FilterChip toggles; badge shows active count
+          │     • Hive list (Icons.format_list_bulleted, disabled when no hives) — modal sheet
+          │       listing hives with last-inspection date, active/disease subtitle, status icons
           ├── AddHiveScreen (tap empty cell)
-          └── HiveDetailScreen (tap hive cell)
-              ├── EditHiveScreen (AppBar menu → Edit)
+          ├── HiveDetailScreen (tap hive cell  OR  bottom-bar hive list → tap hive)
+              ├── EditHiveScreen (AppBar edit icon)
               ├── InspectionFormScreen (Add inspection button — direct, copies frames from last inspection)
               └── InspectionHistoryScreen (View all button — only shown when inspections exist)
                   └── InspectionFormScreen (empty state button / add button — copies frames from last inspection)

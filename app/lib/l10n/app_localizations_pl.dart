@@ -191,6 +191,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveSick => 'Chore';
 
   @override
+  String get hiveFilterTooltip => 'Filtruj ule';
+
+  @override
+  String get hiveListTooltip => 'Lista uli';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override

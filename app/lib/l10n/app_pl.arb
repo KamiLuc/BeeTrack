@@ -73,6 +73,8 @@
   "hiveQueenless": "Bezmateczny",
   "hiveReadyForHarvest": "Gotowy do zbioru",
   "hiveSick": "Chore",
+  "hiveFilterTooltip": "Filtruj ule",
+  "hiveListTooltip": "Lista uli",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspekcje",
   "hiveDetailNoInspections": "Brak inspekcji",

@@ -19,12 +19,14 @@ class InspectionSummary extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final style = textTheme.bodyMedium?.copyWith(
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
       color: colorScheme.onSurfaceVariant,
     );
-
-    // Grouped rows of plain text
-    final rows = <String>[];
+    final labelStyle = textTheme.labelSmall?.copyWith(
+      color: colorScheme.primary,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    );
 
     // Observations: queen · brood · aggressiveness
     final obs = <String>[];
@@ -41,7 +43,6 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.aggressiveness.isNotEmpty) {
       obs.add(_aggressivenessLabel(l10n, inspection.aggressiveness));
     }
-    if (obs.isNotEmpty) rows.add(obs.join(' · '));
 
     // Current frame counts
     final frames = <String>[];
@@ -54,7 +55,6 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.framesPollen != null) {
       frames.add('${l10n.inspectionFramesPollen}: ${inspection.framesPollen}');
     }
-    if (frames.isNotEmpty) rows.add(frames.join(' · '));
 
     // Added frames
     final added = <String>[];
@@ -67,7 +67,6 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.framesAddedHoney != null) {
       added.add('${l10n.inspectionFramesAddedHoney}: ${inspection.framesAddedHoney}');
     }
-    if (added.isNotEmpty) rows.add(added.join(' · '));
 
     // Queen cells + queen added
     final queen = <String>[];
@@ -77,9 +76,13 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.queenAdded) {
       queen.add(l10n.inspectionQueenAdded);
     }
-    if (queen.isNotEmpty) rows.add(queen.join(' · '));
 
-    final hasContent = showDate || rows.isNotEmpty || inspection.notes.isNotEmpty;
+    final hasContent = showDate ||
+        obs.isNotEmpty ||
+        frames.isNotEmpty ||
+        added.isNotEmpty ||
+        queen.isNotEmpty ||
+        inspection.notes.isNotEmpty;
     if (!hasContent) return const SizedBox.shrink();
 
     return Column(
@@ -92,21 +95,34 @@ class InspectionSummary extends StatelessWidget {
             ).format(inspection.inspectedAt),
             style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
-          if (rows.isNotEmpty || inspection.notes.isNotEmpty) const SizedBox(height: 2),
+          const SizedBox(height: 6),
         ],
-        for (int i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: 2),
-          Text(rows[i], style: style),
+        if (obs.isNotEmpty) ...[
+          Text(l10n.inspectionSectionObservations, style: labelStyle),
+          const SizedBox(height: 2),
+          Text(obs.join(' · '), style: bodyStyle),
+          const SizedBox(height: 8),
         ],
-        if (inspection.notes.isNotEmpty) ...[
-          if (rows.isNotEmpty) const SizedBox(height: 2),
+        if (frames.isNotEmpty || added.isNotEmpty) ...[
+          Text(l10n.inspectionSectionFrames, style: labelStyle),
+          const SizedBox(height: 2),
+          if (frames.isNotEmpty) Text(frames.join(' · '), style: bodyStyle),
+          if (frames.isNotEmpty && added.isNotEmpty) const SizedBox(height: 2),
+          if (added.isNotEmpty)
+            Text('+ ${added.join(' · ')}', style: bodyStyle),
+          const SizedBox(height: 8),
+        ],
+        if (queen.isNotEmpty) ...[
+          Text(queen.join(' · '), style: bodyStyle),
+          const SizedBox(height: 8),
+        ],
+        if (inspection.notes.isNotEmpty)
           Text(
             '${l10n.inspectionNote}: ${inspection.notes}',
-            style: style,
+            style: bodyStyle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-        ],
       ],
     );
   }

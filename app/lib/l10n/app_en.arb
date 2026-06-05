@@ -73,6 +73,8 @@
   "hiveQueenless": "Queenless",
   "hiveReadyForHarvest": "Ready for harvest",
   "hiveSick": "Sick",
+  "hiveFilterTooltip": "Filter hives",
+  "hiveListTooltip": "Hive list",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspections",
   "hiveDetailNoInspections": "No inspections yet",

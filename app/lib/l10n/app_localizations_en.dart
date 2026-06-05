@@ -185,6 +185,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveSick => 'Sick';
 
   @override
+  String get hiveFilterTooltip => 'Filter hives';
+
+  @override
+  String get hiveListTooltip => 'Hive list';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override

@@ -410,6 +410,18 @@ abstract class AppLocalizations {
   /// **'Chore'**
   String get hiveSick;
 
+  /// No description provided for @hiveFilterTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Filtruj ule'**
+  String get hiveFilterTooltip;
+
+  /// No description provided for @hiveListTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lista uli'**
+  String get hiveListTooltip;
+
   /// No description provided for @hiveStatus.
   ///
   /// In pl, this message translates to:
