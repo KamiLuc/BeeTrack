@@ -16,9 +16,7 @@ class CreateApiaryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ApiariesCubit(
-        repo: ApiaryRepository(api: context.read()),
-      ),
+      create: (_) => ApiariesCubit(repo: ApiaryRepository(api: context.read())),
       child: const _CreateApiaryView(),
     );
   }
@@ -89,18 +87,16 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
 
   Future<void> _pickOnMap() async {
     final result = await Navigator.of(context).push<LatLng>(
-      MaterialPageRoute(
-        builder: (_) => MapPickerScreen(initial: _location),
-      ),
+      MaterialPageRoute(builder: (_) => MapPickerScreen(initial: _location)),
     );
     if (result != null) setState(() => _setLocation(result));
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submit(AppLocalizations l10n) async {
@@ -140,7 +136,9 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
                       children: [
                         TextFormField(
                           controller: _nameController,
-                          decoration: InputDecoration(labelText: l10n.apiaryName),
+                          decoration: InputDecoration(
+                            labelText: l10n.apiaryName,
+                          ),
                           textInputAction: TextInputAction.done,
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? l10n.apiaryName
@@ -163,7 +161,7 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
                           onMap: _pickOnMap,
                           l10n: l10n,
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
                         Center(
                           child: SizedBox(
                             width: 200,
@@ -194,4 +192,3 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
     );
   }
 }
-
