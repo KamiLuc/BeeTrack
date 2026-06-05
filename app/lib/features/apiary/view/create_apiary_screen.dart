@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -120,7 +121,7 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
         if (state is ApiariesError) _showError(l10n.generalError);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.apiaryAdd)),
+        appBar: AppBar(title: Text(l10n.apiaryAdd), actions: const [ProfileIconButton()]),
         body: BlocBuilder<ApiariesCubit, ApiariesState>(
           builder: (context, state) {
             final loading = state is ApiariesLoading;

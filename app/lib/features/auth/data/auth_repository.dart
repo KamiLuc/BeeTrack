@@ -19,6 +19,7 @@ class AuthRepository {
       await _storage.save(
         access: response.data['access_token'],
         refresh: response.data['refresh_token'],
+        email: email,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -35,6 +36,7 @@ class AuthRepository {
         '/api/v1/auth/register',
         data: {'email': email, 'name': name, 'password': password},
       );
+      await _storage.saveName(name);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

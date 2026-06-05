@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../auth/bloc/auth_bloc.dart';
 import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
@@ -42,14 +42,7 @@ class _ApiariesView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.apiaryTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l10n.authLogout,
-            onPressed: () =>
-                context.read<AuthBloc>().add(LogoutRequested()),
-          ),
-        ],
+        actions: const [ProfileIconButton()],
       ),
       body: BlocBuilder<ApiariesCubit, ApiariesState>(
         builder: (context, state) {

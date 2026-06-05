@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -152,7 +153,10 @@ class _InspectionHistoryView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.inspectionTitle)),
+      appBar: AppBar(
+        title: Text(l10n.inspectionTitle),
+        actions: const [ProfileIconButton()],
+      ),
       body: BlocBuilder<InspectionsCubit, InspectionsState>(
         builder: (context, state) {
           if (state is InspectionsLoading || state is InspectionsInitial) {

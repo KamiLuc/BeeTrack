@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_layout.dart';
@@ -76,7 +77,7 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.hiveAdd)),
+      appBar: AppBar(title: Text(l10n.hiveAdd), actions: const [ProfileIconButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

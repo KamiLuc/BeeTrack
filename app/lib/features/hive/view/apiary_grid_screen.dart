@@ -9,6 +9,7 @@ import '../../apiary/data/apiary_model.dart';
 import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import 'add_hive_screen.dart';
 import 'hive_detail_screen.dart';
 
@@ -101,7 +102,10 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.apiary.name)),
+      appBar: AppBar(
+        title: Text(widget.apiary.name),
+        actions: const [ProfileIconButton()],
+      ),
       body: BlocBuilder<HivesCubit, HivesState>(
         builder: (context, state) {
           if (state is HivesInitial || state is HivesLoading) {

@@ -104,6 +104,36 @@ abstract class AppLocalizations {
   /// **'BeeTrack'**
   String get appName;
 
+  /// No description provided for @profileLanguage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Język'**
+  String get profileLanguage;
+
+  /// No description provided for @profileLanguageEn.
+  ///
+  /// In pl, this message translates to:
+  /// **'Angielski'**
+  String get profileLanguageEn;
+
+  /// No description provided for @profileLanguagePl.
+  ///
+  /// In pl, this message translates to:
+  /// **'Polski'**
+  String get profileLanguagePl;
+
+  /// No description provided for @profileDisplayName.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa wyświetlana'**
+  String get profileDisplayName;
+
+  /// No description provided for @profileNameUpdated.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa zaktualizowana'**
+  String get profileNameUpdated;
+
   /// No description provided for @generalSave.
   ///
   /// In pl, this message translates to:

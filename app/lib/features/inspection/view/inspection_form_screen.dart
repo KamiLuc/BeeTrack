@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -255,6 +256,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         title: Text(
           widget.isEditing ? l10n.inspectionEdit : l10n.inspectionAdd,
         ),
+        actions: const [ProfileIconButton()],
       ),
       body: SafeArea(
         child: Center(

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../inspection/data/inspection_repository.dart';
@@ -131,6 +132,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
       appBar: AppBar(
         title: Text(_hive.name),
         actions: [
+          const ProfileIconButton(),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: _openEdit,

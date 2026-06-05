@@ -3,6 +3,12 @@
 
   "appName": "BeeTrack",
 
+  "profileLanguage": "Język",
+  "profileLanguageEn": "Angielski",
+  "profileLanguagePl": "Polski",
+  "profileDisplayName": "Nazwa wyświetlana",
+  "profileNameUpdated": "Nazwa zaktualizowana",
+
   "generalSave": "Zapisz",
   "generalCancel": "Anuluj",
   "generalDelete": "Usuń",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
@@ -118,7 +119,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.hiveEdit)),
+      appBar: AppBar(title: Text(l10n.hiveEdit), actions: const [ProfileIconButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

@@ -12,6 +12,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'BeeTrack';
 
   @override
+  String get profileLanguage => 'Language';
+
+  @override
+  String get profileLanguageEn => 'English';
+
+  @override
+  String get profileLanguagePl => 'Polish';
+
+  @override
+  String get profileDisplayName => 'Display name';
+
+  @override
+  String get profileNameUpdated => 'Name updated';
+
+  @override
   String get generalSave => 'Save';
 
   @override

@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/api/api_client.dart';
+import 'core/locale/locale_controller.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/bloc/auth_bloc.dart';
@@ -21,12 +23,14 @@ Future<void> main() async {
     storage: storage,
     baseUrl: kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080',
   );
+  final localeController = LocaleController(prefs);
 
   runApp(
-    MultiRepositoryProvider(
+    MultiProvider(
       providers: [
         RepositoryProvider.value(value: storage),
         RepositoryProvider.value(value: apiClient),
+        ChangeNotifierProvider.value(value: localeController),
       ],
       child: const BeeTrackApp(),
     ),
@@ -38,22 +42,26 @@ class BeeTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeController = context.read<LocaleController>();
     return BlocProvider(
       create: (_) => AuthBloc(
         auth: AuthRepository(api: context.read(), storage: context.read()),
       )..add(AppStarted()),
-      child: MaterialApp(
-        title: 'BeeTrack',
-        theme: AppTheme.light(),
-        locale: const Locale('pl'),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        home: const AuthWrapper(),
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: localeController,
+        builder: (context, locale, _) => MaterialApp(
+          title: 'BeeTrack',
+          theme: AppTheme.light(),
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const AuthWrapper(),
+        ),
       ),
     );
   }
