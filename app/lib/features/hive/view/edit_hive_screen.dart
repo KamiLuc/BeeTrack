@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_model.dart';
@@ -28,6 +29,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   late bool _active;
   late bool _queenless;
   late bool _readyForHarvest;
+  late Set<String> _hiveDiseases;
   bool _loading = false;
 
   @override
@@ -38,6 +40,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     _active = widget.hive.active;
     _queenless = widget.hive.queenless;
     _readyForHarvest = widget.hive.readyForHarvest;
+    _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
   }
 
   @override
@@ -49,8 +52,9 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   Future<void> _submit(BuildContext context) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
+    final repo = HiveRepository(api: context.read<ApiClient>());
     try {
-      await HiveRepository(api: context.read()).updateHive(
+      await repo.updateHive(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
         name: _nameController.text.trim(),
@@ -59,6 +63,32 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
         queenless: _queenless,
         readyForHarvest: _readyForHarvest,
       );
+
+      final existing = widget.hive.diseases.map((d) => d.disease).toSet();
+      final toAdd = _hiveDiseases.difference(existing);
+      final toRemove = existing.difference(_hiveDiseases);
+
+      final keptDiseases = widget.hive.diseases
+          .where((d) => !toRemove.contains(d.disease))
+          .toList();
+      final addedDiseases = <HiveDisease>[];
+      for (final disease in toAdd) {
+        final d = await repo.addDisease(
+          apiaryId: widget.apiaryId,
+          hiveId: widget.hive.id,
+          disease: disease,
+        );
+        addedDiseases.add(d);
+      }
+      for (final disease in toRemove) {
+        final d = widget.hive.diseases.firstWhere((d) => d.disease == disease);
+        await repo.removeDisease(
+          apiaryId: widget.apiaryId,
+          hiveId: widget.hive.id,
+          diseaseId: d.id,
+        );
+      }
+
       if (context.mounted) {
         Navigator.of(context).pop(Hive(
           id: widget.hive.id,
@@ -70,6 +100,8 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
           readyForHarvest: _readyForHarvest,
           gridRow: widget.hive.gridRow,
           gridCol: widget.hive.gridCol,
+          diseases: [...keptDiseases, ...addedDiseases],
+          lastInspectedAt: widget.hive.lastInspectedAt,
         ));
       }
     } catch (_) {
@@ -118,6 +150,22 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                     HiveReadyForHarvestToggle(
                       value: _readyForHarvest,
                       onChanged: (v) => setState(() => _readyForHarvest = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveDiseasesSection(
+                      label: AppLocalizations.of(context)!.inspectionDiseases,
+                      selected: _hiveDiseases,
+                      onToggle: (disease, selected) {
+                        setState(() {
+                          if (selected) {
+                            _hiveDiseases = {..._hiveDiseases, disease};
+                          } else {
+                            _hiveDiseases = _hiveDiseases
+                                .where((d) => d != disease)
+                                .toSet();
+                          }
+                        });
+                      },
                     ),
                     const SizedBox(height: 24),
                     Center(

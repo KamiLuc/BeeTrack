@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../data/hive_model.dart';
 
 const _hiveTypes = ['dadant', 'langstroth', 'top_bar', 'wielkopolski'];
 
@@ -111,6 +112,57 @@ class HiveReadyForHarvestToggle extends StatelessWidget {
       label: l10n.hiveReadyForHarvest,
       value: value,
       onChanged: onChanged,
+    );
+  }
+}
+
+String hiveDiseaseLabel(AppLocalizations l10n, String v) => switch (v) {
+  'varroa' => l10n.inspectionDiseaseVarroa,
+  'nosema' => l10n.inspectionDiseaseNosema,
+  'dwv' => l10n.inspectionDiseaseDwv,
+  'american_foulbrood' => l10n.inspectionDiseaseAmericanFoulbrood,
+  'chalkbrood' => l10n.inspectionDiseaseChalkbrood,
+  'european_foulbrood' => l10n.inspectionDiseaseEuropeanFoulbrood,
+  'laying_workers' => l10n.inspectionDiseaseLayingWorkers,
+  _ => v,
+};
+
+class HiveDiseasesSection extends StatelessWidget {
+  final String label;
+  final Set<String> selected;
+  final void Function(String disease, bool selected) onToggle;
+
+  const HiveDiseasesSection({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: diseaseValues.map((disease) {
+            final isSelected = selected.contains(disease);
+            return FilterChip(
+              label: Text(hiveDiseaseLabel(l10n, disease)),
+              selected: isSelected,
+              selectedColor: colorScheme.errorContainer,
+              checkmarkColor: colorScheme.onErrorContainer,
+              onSelected: (v) => onToggle(disease, v),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }

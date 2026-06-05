@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -50,13 +51,14 @@ func (r *InspectionRepository) Update(ctx context.Context, insp *model.Inspectio
 			"inspected_at":             insp.InspectedAt,
 			"queen_status":             insp.QueenStatus,
 			"brood_pattern":            insp.BroodPattern,
+			"frames_brood":             insp.FramesBrood,
 			"frames_honey":             insp.FramesHoney,
 			"frames_pollen":            insp.FramesPollen,
-			"varroa_count":             insp.VarroaCount,
 			"queen_cells_count":        insp.QueenCellsCount,
 			"aggressiveness":           insp.Aggressiveness,
 			"frames_added_foundation":  insp.FramesAddedFoundation,
 			"frames_added_drawn":       insp.FramesAddedDrawn,
+			"frames_added_honey":       insp.FramesAddedHoney,
 			"queen_added":              insp.QueenAdded,
 			"notes":                    insp.Notes,
 			"updated_at":               gorm.Expr("NOW()"),
@@ -99,6 +101,33 @@ func (r *InspectionRepository) ListDiseasesByInspectionID(ctx context.Context, i
 		Order("id ASC").
 		Find(&diseases).Error
 	return diseases, err
+}
+
+// LastInspectionDatesByHiveIDs returns the latest inspected_at per hive ID for the given set of hive IDs.
+func (r *InspectionRepository) LastInspectionDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error) {
+	if len(ids) == 0 {
+		return map[int64]*time.Time{}, nil
+	}
+	type row struct {
+		HiveID      int64
+		InspectedAt time.Time
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.Inspection{}).
+		Select("hive_id, MAX(inspected_at) AS inspected_at").
+		Where("hive_id IN ?", ids).
+		Group("hive_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]*time.Time, len(rows))
+	for _, r := range rows {
+		t := r.InspectedAt
+		out[r.HiveID] = &t
+	}
+	return out, nil
 }
 
 // ListDiseasesByInspectionIDs returns all diseases for the given set of inspection IDs.

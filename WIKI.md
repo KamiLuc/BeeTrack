@@ -26,7 +26,8 @@ app/               # Flutter app
     features/
       auth/        # login/register — BLoC pattern
       apiary/      # apiary CRUD — Cubit pattern
-      hive/        # hive CRUD + detail — Cubit pattern
+      hive/        # hive CRUD + grid view + filter — Cubit pattern
+      inspection/  # inspection CRUD + history — Cubit pattern
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -35,6 +36,7 @@ app/               # Flutter app
       auth/        # auth_bloc_test.dart
       apiary/      # apiaries_cubit_test.dart
       hive/        # hives_cubit_test.dart, hive_detail_screen_test.dart
+      inspection/  # inspections_cubit_test.dart
 
 docker/            # Docker Compose config
 ```
@@ -179,14 +181,43 @@ type ApiaryMembership struct {
 
 // hive.go
 type Hive struct {
+    ID              int64
+    ApiaryID        int64
+    Name            string
+    Type            string   // dadant | langstroth | top_bar | wielkopolski
+    Active          bool
+    Queenless       bool
+    ReadyForHarvest bool
+    GridRow         int
+    GridCol         int
+    CreatedAt       time.Time
+    UpdatedAt       time.Time
+}
+type HiveDisease struct {
     ID        int64
-    ApiaryID  int64
-    Name      string
-    Type      string   // dadant | langstroth | top_bar | wielkopolski
-    Active    bool
-    GridRow   int
-    GridCol   int
-    UpdatedAt time.Time
+    HiveID    int64
+    Disease   string
+    CreatedAt time.Time
+}
+type Inspection struct {
+    ID                    int64
+    HiveID                int64
+    InspectedBy           int64
+    InspectedAt           time.Time
+    QueenStatus           string   // seen | not_seen
+    BroodPattern          string   // excellent | good | poor | none
+    FramesBrood           *int
+    FramesHoney           *int
+    FramesPollen          *int
+    QueenCellsCount       *int
+    Aggressiveness        string   // calm | mild | aggressive | very_aggressive
+    FramesAddedFoundation *int
+    FramesAddedDrawn      *int
+    FramesAddedHoney      *int
+    QueenAdded            bool
+    Notes                 string
+    CreatedAt             time.Time
+    UpdatedAt             time.Time
 }
 ```
 
@@ -241,7 +272,7 @@ type Hive struct {
 | `app/lib/core/theme/app_colors.dart` | Color constants (primary = amber `#FBBF24`, background = cream `#FFFBF2`) |
 | `app/lib/core/theme/app_text_styles.dart` | Text style constants (headlineLarge 28px … caption 12px) |
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
-| `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `hiveTypeLabels` map |
+| `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
@@ -250,8 +281,14 @@ type Hive struct {
 ## Data Models (current fields)
 
 ```
-Hive          id, apiaryId, name, type, active, gridRow, gridCol
+Hive          id, apiaryId, name, type, active, queenless, readyForHarvest,
+              gridRow, gridCol, diseases (List<HiveDisease>), lastInspectedAt?
 Apiary        id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole
+HiveDisease   id, disease (string)
+Inspection    id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
+              framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
+              framesAddedFoundation?, framesAddedHoney?, queenCellsCount?,
+              queenAdded, notes
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
@@ -261,19 +298,32 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 
 ## Backend API Endpoints (implemented)
 
-| Method | Path | Handler |
-|--------|------|---------|
-| POST | `/api/v1/auth/register` | RegisterHandler |
-| POST | `/api/v1/auth/login` | LoginHandler |
-| POST | `/api/v1/auth/refresh` | RefreshHandler |
-| GET | `/api/v1/apiaries` | ListApiariesHandler |
-| POST | `/api/v1/apiaries` | CreateApiaryHandler |
-| PATCH | `/api/v1/apiaries/:id` | UpdateApiaryHandler |
-| DELETE | `/api/v1/apiaries/:id` | DeleteApiaryHandler |
-| GET | `/api/v1/apiaries/:id/hives` | ListHivesHandler |
-| POST | `/api/v1/apiaries/:id/hives` | CreateHiveHandler |
-| PATCH | `/api/v1/apiaries/:id/hives/:hiveId` | UpdateHiveHandler |
-| DELETE | `/api/v1/apiaries/:id/hives/:hiveId` | DeleteHiveHandler |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/auth/register` | Register user |
+| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/auth/refresh` | Refresh tokens |
+| POST | `/api/v1/auth/logout` | Logout |
+| PATCH | `/api/v1/users/me/name` | Update display name |
+| GET | `/api/v1/apiaries` | List apiaries |
+| POST | `/api/v1/apiaries` | Create apiary |
+| PATCH | `/api/v1/apiaries/{id}` | Update apiary |
+| DELETE | `/api/v1/apiaries/{id}` | Delete apiary |
+| GET | `/api/v1/apiaries/{id}/hives` | List hives (includes diseases + last_inspected_at) |
+| POST | `/api/v1/apiaries/{id}/hives` | Create hive |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}` | Get hive |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}` | Update hive |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/position` | Move hive |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}` | Delete hive |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/diseases` | Add hive disease |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/diseases/{diseaseId}` | Remove hive disease |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections` | List inspections (paginated) |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections` | Create inspection |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}` | Get inspection |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}` | Update inspection |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}` | Delete inspection |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases` | Add inspection disease |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId}` | Remove inspection disease |
 
 ---
 
@@ -337,5 +387,7 @@ LoginScreen / RegisterScreen
       └── ApiaryGridScreen (tap apiary card)
           ├── AddHiveScreen (tap empty cell)
           └── HiveDetailScreen (tap hive cell)
-              └── EditHiveScreen (AppBar menu → Edit)
+              ├── EditHiveScreen (AppBar menu → Edit)
+              └── InspectionHistoryScreen (tap Inspections section)
+                  └── InspectionFormScreen (empty state button / add button)
 ```

@@ -61,6 +61,14 @@ abstract final class AppTheme {
           textStyle: AppTextStyles.labelLarge,
         ),
       ),
+      switchTheme: SwitchThemeData(
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.hovered)) {
+            return AppColors.onSurface.withValues(alpha: 0.08);
+          }
+          return null;
+        }),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,

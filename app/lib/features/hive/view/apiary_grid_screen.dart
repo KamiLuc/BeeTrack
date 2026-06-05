@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
@@ -8,6 +9,8 @@ import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'add_hive_screen.dart';
 import 'hive_detail_screen.dart';
+
+enum _HiveFilter { readyForHarvest, queenless, sick }
 
 class ApiaryGridScreen extends StatelessWidget {
   final Apiary apiary;
@@ -26,16 +29,45 @@ class ApiaryGridScreen extends StatelessWidget {
   }
 }
 
-class _ApiaryGridView extends StatelessWidget {
+class _ApiaryGridView extends StatefulWidget {
   final Apiary apiary;
 
   const _ApiaryGridView({required this.apiary});
 
+  @override
+  State<_ApiaryGridView> createState() => _ApiaryGridViewState();
+}
+
+class _ApiaryGridViewState extends State<_ApiaryGridView> {
+  final Set<_HiveFilter> _activeFilters = {};
+
+  void _toggleFilter(_HiveFilter filter) {
+    setState(() {
+      if (_activeFilters.contains(filter)) {
+        _activeFilters.remove(filter);
+      } else {
+        _activeFilters.add(filter);
+      }
+    });
+  }
+
+  bool _matches(Hive hive) {
+    if (_activeFilters.isEmpty) return true;
+    if (_activeFilters.contains(_HiveFilter.readyForHarvest) &&
+        hive.readyForHarvest) return true;
+    if (_activeFilters.contains(_HiveFilter.queenless) && hive.queenless) {
+      return true;
+    }
+    if (_activeFilters.contains(_HiveFilter.sick) && hive.diseases.isNotEmpty) {
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _openDetail(BuildContext context, Hive hive) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            HiveDetailScreen(hive: hive, apiaryId: apiary.id),
+        builder: (_) => HiveDetailScreen(hive: hive, apiaryId: widget.apiary.id),
       ),
     );
     if (context.mounted) context.read<HivesCubit>().load();
@@ -52,7 +84,7 @@ class _ApiaryGridView extends StatelessWidget {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AddHiveScreen(
-          apiaryId: apiary.id,
+          apiaryId: widget.apiary.id,
           gridRow: row,
           gridCol: col,
           defaultName: defaultName,
@@ -67,7 +99,7 @@ class _ApiaryGridView extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(apiary.name)),
+      appBar: AppBar(title: Text(widget.apiary.name)),
       body: BlocBuilder<HivesCubit, HivesState>(
         builder: (context, state) {
           if (state is HivesInitial || state is HivesLoading) {
@@ -101,44 +133,63 @@ class _ApiaryGridView extends StatelessWidget {
             const double cellSize = 80;
             const double spacing = 8;
             const double padding = 16;
-            final maxGridWidth = apiary.gridCols * cellSize +
-                (apiary.gridCols - 1) * spacing +
+            final maxGridWidth = widget.apiary.gridCols * cellSize +
+                (widget.apiary.gridCols - 1) * spacing +
                 padding * 2;
             return RefreshIndicator(
               onRefresh: () => context.read<HivesCubit>().load(),
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(padding),
+                  padding: const EdgeInsets.fromLTRB(padding, 8, padding, padding),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: maxGridWidth),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: apiary.gridCols,
-                        crossAxisSpacing: spacing,
-                        mainAxisSpacing: spacing,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _FilterBar(
+                          activeFilters: _activeFilters,
+                          onToggle: _toggleFilter,
+                          l10n: l10n,
+                        ),
+                        const SizedBox(height: 8),
+                        GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: widget.apiary.gridCols,
+                              crossAxisSpacing: spacing,
+                              mainAxisSpacing: spacing,
+                            ),
+                            itemCount:
+                                widget.apiary.gridRows * widget.apiary.gridCols,
+                            itemBuilder: (context, index) {
+                              final row = index ~/ widget.apiary.gridCols;
+                              final col = index % widget.apiary.gridCols;
+                              final hive = hiveMap[(row, col)];
+                              return hive != null
+                                  ? _HiveCell(
+                                      hive: hive,
+                                      dimmed: _activeFilters.isNotEmpty &&
+                                          !_matches(hive),
+                                      onTap: () =>
+                                          _openDetail(context, hive),
+                                    )
+                                  : _EmptyCell(
+                                      onTap: () => _openAddHive(
+                                          context, state, row, col),
+                                      onDrop: (h) => context
+                                          .read<HivesCubit>()
+                                          .move(h.id, row, col),
+                                    );
+                            },
+                          ),
+                        ],
                       ),
-                      itemCount: apiary.gridRows * apiary.gridCols,
-                      itemBuilder: (context, index) {
-                        final row = index ~/ apiary.gridCols;
-                        final col = index % apiary.gridCols;
-                        final hive = hiveMap[(row, col)];
-                        return hive != null
-                            ? _HiveCell(
-                                hive: hive,
-                                onTap: () => _openDetail(context, hive),
-                              )
-                            : _EmptyCell(
-                                onTap: () => _openAddHive(context, state, row, col),
-                                onDrop: (h) => context.read<HivesCubit>().move(h.id, row, col),
-                              );
-                      },
                     ),
                   ),
                 ),
-              ),
-            );
+              );
           }
           return const SizedBox.shrink();
         },
@@ -147,16 +198,61 @@ class _ApiaryGridView extends StatelessWidget {
   }
 }
 
+class _FilterBar extends StatelessWidget {
+  final Set<_HiveFilter> activeFilters;
+  final void Function(_HiveFilter) onToggle;
+  final AppLocalizations l10n;
+
+  const _FilterBar({
+    required this.activeFilters,
+    required this.onToggle,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = [
+      (_HiveFilter.readyForHarvest, l10n.hiveReadyForHarvest),
+      (_HiveFilter.queenless, l10n.hiveQueenless),
+      (_HiveFilter.sick, l10n.hiveSick),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: chips.map((entry) {
+          final (filter, label) = entry;
+          final selected = activeFilters.contains(filter);
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: (_) => onToggle(filter),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
 class _HiveCell extends StatelessWidget {
   final Hive hive;
+  final bool dimmed;
   final VoidCallback onTap;
 
-  const _HiveCell({required this.hive, required this.onTap});
+  const _HiveCell({
+    required this.hive,
+    required this.dimmed,
+    required this.onTap,
+  });
 
   Widget _buildContent(BuildContext context, {double opacity = 1.0}) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final primary = colorScheme.primary;
+    final locale = Localizations.localeOf(context).toString();
 
     return Opacity(
       opacity: opacity,
@@ -169,21 +265,22 @@ class _HiveCell extends StatelessWidget {
           side: const BorderSide(color: Colors.black),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.hive,
-                size: 28,
+                size: 24,
                 color: hive.active ? primary : colorScheme.outline,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Flexible(
                 child: Text(
                   hive.name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -195,7 +292,18 @@ class _HiveCell extends StatelessWidget {
                   l10n.hiveInactive,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: colorScheme.outline,
+                        fontSize: 9,
                       ),
+                ),
+              if (hive.lastInspectedAt != null)
+                Text(
+                  DateFormat('d MMM', locale).format(hive.lastInspectedAt!),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 9,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),
@@ -206,6 +314,7 @@ class _HiveCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveOpacity = dimmed ? 0.3 : 1.0;
     return LongPressDraggable<Hive>(
       data: hive,
       delay: const Duration(milliseconds: 300),
@@ -223,7 +332,7 @@ class _HiveCell extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: _buildContent(context),
+        child: _buildContent(context, opacity: effectiveOpacity),
       ),
     );
   }

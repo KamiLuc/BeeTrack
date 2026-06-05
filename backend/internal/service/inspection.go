@@ -21,8 +21,8 @@ var (
 )
 
 var validDiseases = map[string]bool{
-	"american_foulbrood": true, "chalkbrood": true, "european_foulbrood": true,
-	"nosema": true, "sacbrood": true, "small_hive_beetle": true,
+	"american_foulbrood": true, "chalkbrood": true, "dwv": true,
+	"european_foulbrood": true, "laying_workers": true, "nosema": true, "varroa": true,
 }
 
 var validAggressiveness = map[string]bool{
@@ -31,10 +31,11 @@ var validAggressiveness = map[string]bool{
 
 var validBroodPattern = map[string]bool{
 	"excellent": true, "good": true, "none": true, "poor": true,
+	"few": true, "medium": true, "many": true,
 }
 
 var validQueenStatus = map[string]bool{
-	"capped_cells": true, "eggs": true, "not_seen": true, "seen": true,
+	"not_seen": true, "seen": true,
 }
 
 // InspectionHiveReader is the subset of HiveRepository needed by InspectionService.
@@ -52,6 +53,7 @@ type InspectionRepository interface {
 	GetDiseaseByID(ctx context.Context, diseaseID, inspectionID int64) (*model.InspectionDisease, error)
 	ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Inspection, error)
 	ListDiseasesByInspectionID(ctx context.Context, inspectionID int64) ([]*model.InspectionDisease, error)
+	LastInspectionDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error)
 	ListDiseasesByInspectionIDs(ctx context.Context, ids []int64) ([]*model.InspectionDisease, error)
 	Update(ctx context.Context, insp *model.Inspection) error
 }
@@ -73,13 +75,14 @@ type InspectionParams struct {
 	InspectedAt           time.Time
 	QueenStatus           string
 	BroodPattern          string
+	FramesBrood           *int
 	FramesHoney           *int
 	FramesPollen          *int
-	VarroaCount           *int
 	QueenCellsCount       *int
 	Aggressiveness        string
 	FramesAddedFoundation *int
 	FramesAddedDrawn      *int
+	FramesAddedHoney      *int
 	QueenAdded            bool
 	Notes                 string
 }
@@ -130,13 +133,14 @@ func (s *InspectionService) Create(ctx context.Context, userID, apiaryID, hiveID
 		InspectedAt:           params.InspectedAt,
 		QueenStatus:           params.QueenStatus,
 		BroodPattern:          params.BroodPattern,
+		FramesBrood:           params.FramesBrood,
 		FramesHoney:           params.FramesHoney,
 		FramesPollen:          params.FramesPollen,
-		VarroaCount:           params.VarroaCount,
 		QueenCellsCount:       params.QueenCellsCount,
 		Aggressiveness:        params.Aggressiveness,
 		FramesAddedFoundation: params.FramesAddedFoundation,
 		FramesAddedDrawn:      params.FramesAddedDrawn,
+		FramesAddedHoney:      params.FramesAddedHoney,
 		QueenAdded:            params.QueenAdded,
 		Notes:                 params.Notes,
 	}
@@ -191,13 +195,14 @@ func (s *InspectionService) Update(ctx context.Context, userID, apiaryID, hiveID
 	insp.InspectedAt = params.InspectedAt
 	insp.QueenStatus = params.QueenStatus
 	insp.BroodPattern = params.BroodPattern
+	insp.FramesBrood = params.FramesBrood
 	insp.FramesHoney = params.FramesHoney
 	insp.FramesPollen = params.FramesPollen
-	insp.VarroaCount = params.VarroaCount
 	insp.QueenCellsCount = params.QueenCellsCount
 	insp.Aggressiveness = params.Aggressiveness
 	insp.FramesAddedFoundation = params.FramesAddedFoundation
 	insp.FramesAddedDrawn = params.FramesAddedDrawn
+	insp.FramesAddedHoney = params.FramesAddedHoney
 	insp.QueenAdded = params.QueenAdded
 	insp.Notes = params.Notes
 	if err := s.inspections.Update(ctx, insp); err != nil {
@@ -277,6 +282,18 @@ func (s *InspectionService) RemoveDisease(ctx context.Context, userID, apiaryID,
 		return fmt.Errorf("delete disease: %w", err)
 	}
 	return nil
+}
+
+// LastInspectionDates returns the most recent inspected_at per hive for the given IDs.
+func (s *InspectionService) LastInspectionDates(ctx context.Context, hiveIDs []int64) (map[int64]*time.Time, error) {
+	if len(hiveIDs) == 0 {
+		return map[int64]*time.Time{}, nil
+	}
+	dates, err := s.inspections.LastInspectionDatesByHiveIDs(ctx, hiveIDs)
+	if err != nil {
+		return nil, fmt.Errorf("last inspection dates: %w", err)
+	}
+	return dates, nil
 }
 
 // Delete removes an inspection after verifying membership.

@@ -48,6 +48,8 @@ class HivesCubit extends Cubit<HivesState> {
             readyForHarvest: h.readyForHarvest,
             gridRow: row,
             gridCol: col,
+            diseases: h.diseases,
+            lastInspectedAt: h.lastInspectedAt,
           )
         : h).toList()));
 

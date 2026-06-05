@@ -182,6 +182,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveReadyForHarvest => 'Ready for harvest';
 
   @override
+  String get hiveSick => 'Sick';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override
@@ -213,4 +216,131 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generalRequired => 'Required';
+
+  @override
+  String get inspectionTitle => 'Inspections';
+
+  @override
+  String get inspectionAdd => 'Add inspection';
+
+  @override
+  String get inspectionEdit => 'Edit inspection';
+
+  @override
+  String get inspectionDeleteConfirm => 'Delete inspection?';
+
+  @override
+  String get inspectionDeleteWarning =>
+      'This will permanently delete the inspection.';
+
+  @override
+  String get inspectionEmpty => 'No inspections yet';
+
+  @override
+  String get inspectionDate => 'Inspection date';
+
+  @override
+  String get inspectionQueenSeen => 'Queen seen';
+
+  @override
+  String get inspectionQueenStatusSeen => 'Queen seen';
+
+  @override
+  String get inspectionQueenStatusNotSeen => 'Queen not seen';
+
+  @override
+  String get inspectionBroodPattern => 'Brood';
+
+  @override
+  String get inspectionBroodExcellent => 'Lots';
+
+  @override
+  String get inspectionBroodGood => 'Medium';
+
+  @override
+  String get inspectionBroodPoor => 'Little';
+
+  @override
+  String get inspectionBroodNone => 'None';
+
+  @override
+  String get inspectionAggressiveness => 'Aggressiveness';
+
+  @override
+  String get inspectionAggressivenessCalm => 'Calm';
+
+  @override
+  String get inspectionAggressivenessMild => 'Mild';
+
+  @override
+  String get inspectionAggressivenessAggressive => 'Aggressive';
+
+  @override
+  String get inspectionAggressivenessVeryAggressive => 'Very aggressive';
+
+  @override
+  String get inspectionFramesBrood => 'Brood frames';
+
+  @override
+  String get inspectionFramesHoney => 'Honey frames';
+
+  @override
+  String get inspectionFramesPollen => 'Pollen frames';
+
+  @override
+  String get inspectionFramesAddedDrawn => 'Added empty frames';
+
+  @override
+  String get inspectionFramesAddedFoundation => 'Added foundation';
+
+  @override
+  String get inspectionFramesAddedHoney => 'Added honey frames';
+
+  @override
+  String get inspectionQueenCellsCount => 'Queen cells';
+
+  @override
+  String get inspectionQueenAdded => 'Queen added';
+
+  @override
+  String get inspectionSectionObservations => 'Observations';
+
+  @override
+  String get inspectionSectionFrames => 'Frames';
+
+  @override
+  String get inspectionSectionHealth => 'Zdrowie';
+
+  @override
+  String get inspectionSectionHiveState => 'Hive state';
+
+  @override
+  String get inspectionNotes => 'Notes';
+
+  @override
+  String get inspectionDiseases => 'Diseases';
+
+  @override
+  String get inspectionDiseaseVarroa => 'Varroa';
+
+  @override
+  String get inspectionDiseaseNosema => 'Nosema';
+
+  @override
+  String get inspectionDiseaseDwv => 'DWV viruses';
+
+  @override
+  String get inspectionDiseaseAmericanFoulbrood => 'American foulbrood';
+
+  @override
+  String get inspectionDiseaseChalkbrood => 'Chalkbrood';
+
+  @override
+  String get inspectionDiseaseEuropeanFoulbrood => 'European foulbrood';
+
+  @override
+  String get inspectionDiseaseLayingWorkers => 'Laying workers';
+
+  @override
+  String get inspectionNotSet => 'Not set';
 }

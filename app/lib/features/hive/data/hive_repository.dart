@@ -94,4 +94,34 @@ class HiveRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<HiveDisease> addDisease({
+    required int apiaryId,
+    required int hiveId,
+    required String disease,
+  }) async {
+    try {
+      final response = await _api.dio.post(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/diseases',
+        data: {'disease': disease},
+      );
+      return HiveDisease.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> removeDisease({
+    required int apiaryId,
+    required int hiveId,
+    required int diseaseId,
+  }) async {
+    try {
+      await _api.dio.delete(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/diseases/$diseaseId',
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

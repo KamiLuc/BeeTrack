@@ -9,13 +9,14 @@ type Inspection struct {
 	InspectedAt           time.Time
 	QueenStatus           string
 	BroodPattern          string
+	FramesBrood           *int
 	FramesHoney           *int
 	FramesPollen          *int
-	VarroaCount           *int
 	QueenCellsCount       *int
 	Aggressiveness        string
 	FramesAddedFoundation *int
 	FramesAddedDrawn      *int
+	FramesAddedHoney      *int
 	QueenAdded            bool
 	Notes                 string
 	CreatedAt             time.Time

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../inspection/view/inspection_history_screen.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'edit_hive_screen.dart';
@@ -116,7 +117,14 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   icon: Icons.search,
                   emptyText: l10n.hiveDetailNoInspections,
                   actionLabel: l10n.hiveDetailAddInspection,
-                  onAction: null,
+                  onAction: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => InspectionHistoryScreen(
+                        apiaryId: widget.apiaryId,
+                        hive: _hive,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _SectionCard(

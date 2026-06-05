@@ -404,6 +404,12 @@ abstract class AppLocalizations {
   /// **'Gotowy do zbioru'**
   String get hiveReadyForHarvest;
 
+  /// No description provided for @hiveSick.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chore'**
+  String get hiveSick;
+
   /// No description provided for @hiveStatus.
   ///
   /// In pl, this message translates to:
@@ -469,6 +475,258 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Wymagane'**
   String get generalRequired;
+
+  /// No description provided for @inspectionTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inspekcje'**
+  String get inspectionTitle;
+
+  /// No description provided for @inspectionAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj inspekcję'**
+  String get inspectionAdd;
+
+  /// No description provided for @inspectionEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj inspekcję'**
+  String get inspectionEdit;
+
+  /// No description provided for @inspectionDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć inspekcję?'**
+  String get inspectionDeleteConfirm;
+
+  /// No description provided for @inspectionDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie inspekcję.'**
+  String get inspectionDeleteWarning;
+
+  /// No description provided for @inspectionEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak inspekcji'**
+  String get inspectionEmpty;
+
+  /// No description provided for @inspectionDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Data inspekcji'**
+  String get inspectionDate;
+
+  /// No description provided for @inspectionQueenSeen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Matka widziana'**
+  String get inspectionQueenSeen;
+
+  /// No description provided for @inspectionQueenStatusSeen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Matka widziana'**
+  String get inspectionQueenStatusSeen;
+
+  /// No description provided for @inspectionQueenStatusNotSeen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Matka niewidziana'**
+  String get inspectionQueenStatusNotSeen;
+
+  /// No description provided for @inspectionBroodPattern.
+  ///
+  /// In pl, this message translates to:
+  /// **'Czerw'**
+  String get inspectionBroodPattern;
+
+  /// No description provided for @inspectionBroodExcellent.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dużo'**
+  String get inspectionBroodExcellent;
+
+  /// No description provided for @inspectionBroodGood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Średnio'**
+  String get inspectionBroodGood;
+
+  /// No description provided for @inspectionBroodPoor.
+  ///
+  /// In pl, this message translates to:
+  /// **'Mało'**
+  String get inspectionBroodPoor;
+
+  /// No description provided for @inspectionBroodNone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak'**
+  String get inspectionBroodNone;
+
+  /// No description provided for @inspectionAggressiveness.
+  ///
+  /// In pl, this message translates to:
+  /// **'Agresywność'**
+  String get inspectionAggressiveness;
+
+  /// No description provided for @inspectionAggressivenessCalm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Spokojne'**
+  String get inspectionAggressivenessCalm;
+
+  /// No description provided for @inspectionAggressivenessMild.
+  ///
+  /// In pl, this message translates to:
+  /// **'Łagodne'**
+  String get inspectionAggressivenessMild;
+
+  /// No description provided for @inspectionAggressivenessAggressive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Agresywne'**
+  String get inspectionAggressivenessAggressive;
+
+  /// No description provided for @inspectionAggressivenessVeryAggressive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bardzo agresywne'**
+  String get inspectionAggressivenessVeryAggressive;
+
+  /// No description provided for @inspectionFramesBrood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki z czerwiem'**
+  String get inspectionFramesBrood;
+
+  /// No description provided for @inspectionFramesHoney.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki z miodem'**
+  String get inspectionFramesHoney;
+
+  /// No description provided for @inspectionFramesPollen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki z pyłkiem'**
+  String get inspectionFramesPollen;
+
+  /// No description provided for @inspectionFramesAddedDrawn.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodane puste ramki'**
+  String get inspectionFramesAddedDrawn;
+
+  /// No description provided for @inspectionFramesAddedFoundation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodana węza'**
+  String get inspectionFramesAddedFoundation;
+
+  /// No description provided for @inspectionFramesAddedHoney.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodane ramki z miodem'**
+  String get inspectionFramesAddedHoney;
+
+  /// No description provided for @inspectionQueenCellsCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'Mateczniki'**
+  String get inspectionQueenCellsCount;
+
+  /// No description provided for @inspectionQueenAdded.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodano matkę'**
+  String get inspectionQueenAdded;
+
+  /// No description provided for @inspectionSectionObservations.
+  ///
+  /// In pl, this message translates to:
+  /// **'Obserwacje'**
+  String get inspectionSectionObservations;
+
+  /// No description provided for @inspectionSectionFrames.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki'**
+  String get inspectionSectionFrames;
+
+  /// No description provided for @inspectionSectionHealth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zdrowie'**
+  String get inspectionSectionHealth;
+
+  /// No description provided for @inspectionSectionHiveState.
+  ///
+  /// In pl, this message translates to:
+  /// **'Stan ula'**
+  String get inspectionSectionHiveState;
+
+  /// No description provided for @inspectionNotes.
+  ///
+  /// In pl, this message translates to:
+  /// **'Notatki'**
+  String get inspectionNotes;
+
+  /// No description provided for @inspectionDiseases.
+  ///
+  /// In pl, this message translates to:
+  /// **'Choroby'**
+  String get inspectionDiseases;
+
+  /// No description provided for @inspectionDiseaseVarroa.
+  ///
+  /// In pl, this message translates to:
+  /// **'Warroza'**
+  String get inspectionDiseaseVarroa;
+
+  /// No description provided for @inspectionDiseaseNosema.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nosemoza'**
+  String get inspectionDiseaseNosema;
+
+  /// No description provided for @inspectionDiseaseDwv.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wirusy (DWV)'**
+  String get inspectionDiseaseDwv;
+
+  /// No description provided for @inspectionDiseaseAmericanFoulbrood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgnilec amerykański'**
+  String get inspectionDiseaseAmericanFoulbrood;
+
+  /// No description provided for @inspectionDiseaseChalkbrood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Grzybica wapienna'**
+  String get inspectionDiseaseChalkbrood;
+
+  /// No description provided for @inspectionDiseaseEuropeanFoulbrood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgnilec europejski'**
+  String get inspectionDiseaseEuropeanFoulbrood;
+
+  /// No description provided for @inspectionDiseaseLayingWorkers.
+  ///
+  /// In pl, this message translates to:
+  /// **'Strutowienie rodziny'**
+  String get inspectionDiseaseLayingWorkers;
+
+  /// No description provided for @inspectionNotSet.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie ustawiono'**
+  String get inspectionNotSet;
 }
 
 class _AppLocalizationsDelegate

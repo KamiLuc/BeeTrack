@@ -1,22 +1,83 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/beetrack/backend/internal/middleware"
+	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
 )
 
 type HiveHandler struct {
-	hives *service.HiveService
+	hives       *service.HiveService
+	inspections *service.InspectionService
 }
 
-func NewHiveHandler(hives *service.HiveService) *HiveHandler {
-	return &HiveHandler{hives: hives}
+func NewHiveHandler(hives *service.HiveService, inspections *service.InspectionService) *HiveHandler {
+	return &HiveHandler{hives: hives, inspections: inspections}
+}
+
+func hiveDiseaseJSON(d *model.HiveDisease) map[string]any {
+	return map[string]any{
+		"id":         d.ID,
+		"disease":    d.Disease,
+		"created_at": d.CreatedAt,
+	}
+}
+
+func hiveJSON(hive *model.Hive, diseases []*model.HiveDisease, lastInspectedAt *time.Time) map[string]any {
+	dd := make([]map[string]any, len(diseases))
+	for i, d := range diseases {
+		dd[i] = hiveDiseaseJSON(d)
+	}
+	return map[string]any{
+		"id":                 hive.ID,
+		"apiary_id":          hive.ApiaryID,
+		"name":               hive.Name,
+		"type":               hive.Type,
+		"active":             hive.Active,
+		"queenless":          hive.Queenless,
+		"ready_for_harvest":  hive.ReadyForHarvest,
+		"grid_row":           hive.GridRow,
+		"grid_col":           hive.GridCol,
+		"diseases":           dd,
+		"last_inspected_at":  lastInspectedAt,
+		"created_at":         hive.CreatedAt,
+		"updated_at":         hive.UpdatedAt,
+	}
+}
+
+func (h *HiveHandler) withDiseases(ctx context.Context, hive *model.Hive) (map[string]any, error) {
+	diseases, err := h.hives.DiseasesByHive(ctx, hive.ID)
+	if err != nil {
+		return nil, err
+	}
+	dates, err := h.inspections.LastInspectionDates(ctx, []int64{hive.ID})
+	if err != nil {
+		return nil, err
+	}
+	return hiveJSON(hive, diseases, dates[hive.ID]), nil
+}
+
+func hiveError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrApiaryNotFound):
+		respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+	case errors.Is(err, service.ErrHiveNotFound):
+		respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
+	case errors.Is(err, service.ErrHiveDiseaseNotFound):
+		respond.Error(w, http.StatusNotFound, "HIVE_DISEASE_NOT_FOUND", "hive disease not found")
+	case errors.Is(err, service.ErrInvalidDisease):
+		respond.Error(w, http.StatusBadRequest, "INVALID_DISEASE", err.Error())
+	default:
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+	}
 }
 
 func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -40,30 +101,16 @@ func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	hive, err := h.hives.Get(r.Context(), userID, apiaryID, hiveID)
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrApiaryNotFound):
-			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
-		case errors.Is(err, service.ErrHiveNotFound):
-			respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
-		default:
-			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
-		}
+		hiveError(w, err)
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":                hive.ID,
-		"apiary_id":         hive.ApiaryID,
-		"name":              hive.Name,
-		"type":              hive.Type,
-		"active":            hive.Active,
-		"queenless":         hive.Queenless,
-		"ready_for_harvest": hive.ReadyForHarvest,
-		"grid_row":          hive.GridRow,
-		"grid_col":          hive.GridCol,
-		"created_at":        hive.CreatedAt,
-		"updated_at":        hive.UpdatedAt,
-	})
+	body, err := h.withDiseases(r.Context(), hive)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	respond.JSON(w, http.StatusOK, body)
 }
 
 func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
@@ -111,19 +158,12 @@ func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":                hive.ID,
-		"apiary_id":         hive.ApiaryID,
-		"name":              hive.Name,
-		"type":              hive.Type,
-		"active":            hive.Active,
-		"queenless":         hive.Queenless,
-		"ready_for_harvest": hive.ReadyForHarvest,
-		"grid_row":          hive.GridRow,
-		"grid_col":          hive.GridCol,
-		"created_at":        hive.CreatedAt,
-		"updated_at":        hive.UpdatedAt,
-	})
+	body, err := h.withDiseases(r.Context(), hive)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	respond.JSON(w, http.StatusOK, body)
 }
 
 func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -172,19 +212,12 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, map[string]any{
-		"id":                hive.ID,
-		"apiary_id":         hive.ApiaryID,
-		"name":              hive.Name,
-		"type":              hive.Type,
-		"active":            hive.Active,
-		"queenless":         hive.Queenless,
-		"ready_for_harvest": hive.ReadyForHarvest,
-		"grid_row":          hive.GridRow,
-		"grid_col":          hive.GridCol,
-		"created_at":        hive.CreatedAt,
-		"updated_at":        hive.UpdatedAt,
-	})
+	body, err := h.withDiseases(r.Context(), hive)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	respond.JSON(w, http.StatusOK, body)
 }
 
 func (h *HiveHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -207,14 +240,7 @@ func (h *HiveHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.hives.Delete(r.Context(), userID, apiaryID, hiveID); err != nil {
-		switch {
-		case errors.Is(err, service.ErrApiaryNotFound):
-			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
-		case errors.Is(err, service.ErrHiveNotFound):
-			respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
-		default:
-			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
-		}
+		hiveError(w, err)
 		return
 	}
 
@@ -245,36 +271,25 @@ func (h *HiveHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type item struct {
-		ID              int64  `json:"id"`
-		ApiaryID        int64  `json:"apiary_id"`
-		Name            string `json:"name"`
-		Type            string `json:"type"`
-		Active          bool   `json:"active"`
-		Queenless       bool   `json:"queenless"`
-		ReadyForHarvest bool   `json:"ready_for_harvest"`
-		GridRow         int    `json:"grid_row"`
-		GridCol         int    `json:"grid_col"`
-		CreatedAt       any    `json:"created_at"`
-		UpdatedAt       any    `json:"updated_at"`
+	ids := make([]int64, len(hives))
+	for i, h := range hives {
+		ids[i] = h.ID
 	}
-	items := make([]item, len(hives))
-	for i, hive := range hives {
-		items[i] = item{
-			ID:              hive.ID,
-			ApiaryID:        hive.ApiaryID,
-			Name:            hive.Name,
-			Type:            hive.Type,
-			Active:          hive.Active,
-			Queenless:       hive.Queenless,
-			ReadyForHarvest: hive.ReadyForHarvest,
-			GridRow:         hive.GridRow,
-			GridCol:         hive.GridCol,
-			CreatedAt:       hive.CreatedAt,
-			UpdatedAt:       hive.UpdatedAt,
-		}
+	diseaseMap, err := h.hives.DiseasesForHives(r.Context(), ids)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	lastDates, err := h.inspections.LastInspectionDates(r.Context(), ids)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
 	}
 
+	items := make([]map[string]any, len(hives))
+	for i, hive := range hives {
+		items[i] = hiveJSON(hive, diseaseMap[hive.ID], lastDates[hive.ID])
+	}
 	respond.JSON(w, http.StatusOK, items)
 }
 
@@ -332,17 +347,76 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusCreated, map[string]any{
-		"id":                hive.ID,
-		"apiary_id":         hive.ApiaryID,
-		"name":              hive.Name,
-		"type":              hive.Type,
-		"active":            hive.Active,
-		"queenless":         hive.Queenless,
-		"ready_for_harvest": hive.ReadyForHarvest,
-		"grid_row":          hive.GridRow,
-		"grid_col":          hive.GridCol,
-		"created_at":        hive.CreatedAt,
-		"updated_at":        hive.UpdatedAt,
-	})
+	respond.JSON(w, http.StatusCreated, hiveJSON(hive, []*model.HiveDisease{}, nil))
+}
+
+// AddDisease handles POST /api/v1/apiaries/{id}/hives/{hiveId}/diseases — adds a disease to a hive.
+func (h *HiveHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+		return
+	}
+
+	var req struct {
+		Disease string `json:"disease"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+		return
+	}
+
+	d, err := h.hives.AddDisease(r.Context(), userID, apiaryID, hiveID, req.Disease)
+	if err != nil {
+		hiveError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusCreated, hiveDiseaseJSON(d))
+}
+
+// RemoveDisease handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/diseases/{diseaseId} — removes a disease from a hive.
+func (h *HiveHandler) RemoveDisease(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+		return
+	}
+
+	diseaseID, err := strconv.ParseInt(r.PathValue("diseaseId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid disease id")
+		return
+	}
+
+	if err := h.hives.RemoveDisease(r.Context(), userID, apiaryID, hiveID, diseaseID); err != nil {
+		hiveError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

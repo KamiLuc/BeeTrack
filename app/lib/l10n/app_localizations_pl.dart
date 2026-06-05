@@ -188,6 +188,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveReadyForHarvest => 'Gotowy do zbioru';
 
   @override
+  String get hiveSick => 'Chore';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override
@@ -219,4 +222,130 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get generalRequired => 'Wymagane';
+
+  @override
+  String get inspectionTitle => 'Inspekcje';
+
+  @override
+  String get inspectionAdd => 'Dodaj inspekcję';
+
+  @override
+  String get inspectionEdit => 'Edytuj inspekcję';
+
+  @override
+  String get inspectionDeleteConfirm => 'Usunąć inspekcję?';
+
+  @override
+  String get inspectionDeleteWarning => 'Ta operacja trwale usunie inspekcję.';
+
+  @override
+  String get inspectionEmpty => 'Brak inspekcji';
+
+  @override
+  String get inspectionDate => 'Data inspekcji';
+
+  @override
+  String get inspectionQueenSeen => 'Matka widziana';
+
+  @override
+  String get inspectionQueenStatusSeen => 'Matka widziana';
+
+  @override
+  String get inspectionQueenStatusNotSeen => 'Matka niewidziana';
+
+  @override
+  String get inspectionBroodPattern => 'Czerw';
+
+  @override
+  String get inspectionBroodExcellent => 'Dużo';
+
+  @override
+  String get inspectionBroodGood => 'Średnio';
+
+  @override
+  String get inspectionBroodPoor => 'Mało';
+
+  @override
+  String get inspectionBroodNone => 'Brak';
+
+  @override
+  String get inspectionAggressiveness => 'Agresywność';
+
+  @override
+  String get inspectionAggressivenessCalm => 'Spokojne';
+
+  @override
+  String get inspectionAggressivenessMild => 'Łagodne';
+
+  @override
+  String get inspectionAggressivenessAggressive => 'Agresywne';
+
+  @override
+  String get inspectionAggressivenessVeryAggressive => 'Bardzo agresywne';
+
+  @override
+  String get inspectionFramesBrood => 'Ramki z czerwiem';
+
+  @override
+  String get inspectionFramesHoney => 'Ramki z miodem';
+
+  @override
+  String get inspectionFramesPollen => 'Ramki z pyłkiem';
+
+  @override
+  String get inspectionFramesAddedDrawn => 'Dodane puste ramki';
+
+  @override
+  String get inspectionFramesAddedFoundation => 'Dodana węza';
+
+  @override
+  String get inspectionFramesAddedHoney => 'Dodane ramki z miodem';
+
+  @override
+  String get inspectionQueenCellsCount => 'Mateczniki';
+
+  @override
+  String get inspectionQueenAdded => 'Dodano matkę';
+
+  @override
+  String get inspectionSectionObservations => 'Obserwacje';
+
+  @override
+  String get inspectionSectionFrames => 'Ramki';
+
+  @override
+  String get inspectionSectionHealth => 'Zdrowie';
+
+  @override
+  String get inspectionSectionHiveState => 'Stan ula';
+
+  @override
+  String get inspectionNotes => 'Notatki';
+
+  @override
+  String get inspectionDiseases => 'Choroby';
+
+  @override
+  String get inspectionDiseaseVarroa => 'Warroza';
+
+  @override
+  String get inspectionDiseaseNosema => 'Nosemoza';
+
+  @override
+  String get inspectionDiseaseDwv => 'Wirusy (DWV)';
+
+  @override
+  String get inspectionDiseaseAmericanFoulbrood => 'Zgnilec amerykański';
+
+  @override
+  String get inspectionDiseaseChalkbrood => 'Grzybica wapienna';
+
+  @override
+  String get inspectionDiseaseEuropeanFoulbrood => 'Zgnilec europejski';
+
+  @override
+  String get inspectionDiseaseLayingWorkers => 'Strutowienie rodziny';
+
+  @override
+  String get inspectionNotSet => 'Nie ustawiono';
 }

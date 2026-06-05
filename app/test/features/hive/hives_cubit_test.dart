@@ -27,19 +27,30 @@ void main() {
         'name': 'Ul 1',
         'type': 'langstroth',
         'active': true,
+        'queenless': true,
+        'ready_for_harvest': true,
         'grid_row': 0,
         'grid_col': 1,
+        'diseases': [
+          {'id': 10, 'disease': 'varroa', 'created_at': '2026-06-01T00:00:00Z'},
+        ],
+        'last_inspected_at': '2026-06-01T10:00:00Z',
       });
       expect(hive.id, 1);
       expect(hive.apiaryId, 2);
       expect(hive.name, 'Ul 1');
       expect(hive.type, 'langstroth');
       expect(hive.active, true);
+      expect(hive.queenless, true);
+      expect(hive.readyForHarvest, true);
       expect(hive.gridRow, 0);
       expect(hive.gridCol, 1);
+      expect(hive.diseases.length, 1);
+      expect(hive.diseases.first.disease, 'varroa');
+      expect(hive.lastInspectedAt, DateTime.utc(2026, 6, 1, 10));
     });
 
-    test('parses inactive hive', () {
+    test('parses inactive hive with defaults', () {
       final hive = Hive.fromJson({
         'id': 5,
         'apiary_id': 1,
@@ -51,6 +62,10 @@ void main() {
       });
       expect(hive.active, false);
       expect(hive.type, 'dadant');
+      expect(hive.queenless, false);
+      expect(hive.readyForHarvest, false);
+      expect(hive.diseases, isEmpty);
+      expect(hive.lastInspectedAt, isNull);
     });
   });
 

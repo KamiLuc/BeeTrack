@@ -69,6 +69,27 @@ func (m *mockHiveRepo) Delete(ctx context.Context, hiveID int64) error {
 	return nil
 }
 
+func (m *mockHiveRepo) CreateDisease(ctx context.Context, d *model.HiveDisease) error {
+	d.ID = 1
+	return nil
+}
+
+func (m *mockHiveRepo) DeleteDisease(ctx context.Context, diseaseID, hiveID int64) error {
+	return nil
+}
+
+func (m *mockHiveRepo) GetDiseaseByID(ctx context.Context, diseaseID, hiveID int64) (*model.HiveDisease, error) {
+	return &model.HiveDisease{ID: diseaseID, HiveID: hiveID, Disease: "nosema"}, nil
+}
+
+func (m *mockHiveRepo) ListDiseasesByHiveID(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error) {
+	return []*model.HiveDisease{}, nil
+}
+
+func (m *mockHiveRepo) ListDiseasesByHiveIDs(ctx context.Context, ids []int64) ([]*model.HiveDisease, error) {
+	return []*model.HiveDisease{}, nil
+}
+
 func newTestHiveService() (*HiveService, *mockApiaryMembershipReader, *mockHiveRepo) {
 	apiaryMock := &mockApiaryMembershipReader{}
 	hiveMock := &mockHiveRepo{}

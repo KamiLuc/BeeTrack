@@ -79,6 +79,10 @@ func (m *mockInspectionRepo) ListDiseasesByInspectionID(ctx context.Context, ins
 	return []*model.InspectionDisease{}, nil
 }
 
+func (m *mockInspectionRepo) LastInspectionDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error) {
+	return map[int64]*time.Time{}, nil
+}
+
 func (m *mockInspectionRepo) ListDiseasesByInspectionIDs(ctx context.Context, ids []int64) ([]*model.InspectionDisease, error) {
 	return []*model.InspectionDisease{}, nil
 }
@@ -276,13 +280,13 @@ func TestUpdateInspection_Success(t *testing.T) {
 
 	updated, err := svc.Update(context.Background(), 1, 1, 10, 5, InspectionParams{
 		InspectedAt: time.Now(),
-		QueenStatus: "eggs",
+		QueenStatus: "seen",
 		Notes:       "updated",
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if updated.QueenStatus != "eggs" || updated.Notes != "updated" {
+	if updated.QueenStatus != "seen" || updated.Notes != "updated" {
 		t.Errorf("unexpected state: %+v", updated)
 	}
 }

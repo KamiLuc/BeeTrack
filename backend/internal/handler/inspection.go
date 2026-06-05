@@ -29,6 +29,8 @@ type inspectionRequest struct {
 	BroodPattern          string     `json:"brood_pattern"`
 	FramesAddedDrawn      *int       `json:"frames_added_drawn"`
 	FramesAddedFoundation *int       `json:"frames_added_foundation"`
+	FramesAddedHoney      *int       `json:"frames_added_honey"`
+	FramesBrood           *int       `json:"frames_brood"`
 	FramesHoney           *int       `json:"frames_honey"`
 	FramesPollen          *int       `json:"frames_pollen"`
 	InspectedAt           *time.Time `json:"inspected_at"`
@@ -36,7 +38,6 @@ type inspectionRequest struct {
 	QueenAdded            bool       `json:"queen_added"`
 	QueenCellsCount       *int       `json:"queen_cells_count"`
 	QueenStatus           string     `json:"queen_status"`
-	VarroaCount           *int       `json:"varroa_count"`
 }
 
 func (req inspectionRequest) toParams() service.InspectionParams {
@@ -49,6 +50,8 @@ func (req inspectionRequest) toParams() service.InspectionParams {
 		BroodPattern:          req.BroodPattern,
 		FramesAddedDrawn:      req.FramesAddedDrawn,
 		FramesAddedFoundation: req.FramesAddedFoundation,
+		FramesAddedHoney:      req.FramesAddedHoney,
+		FramesBrood:           req.FramesBrood,
 		FramesHoney:           req.FramesHoney,
 		FramesPollen:          req.FramesPollen,
 		InspectedAt:           at,
@@ -56,7 +59,6 @@ func (req inspectionRequest) toParams() service.InspectionParams {
 		QueenAdded:            req.QueenAdded,
 		QueenCellsCount:       req.QueenCellsCount,
 		QueenStatus:           req.QueenStatus,
-		VarroaCount:           req.VarroaCount,
 	}
 }
 
@@ -81,13 +83,14 @@ func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease)
 		"inspected_at":            insp.InspectedAt,
 		"queen_status":            insp.QueenStatus,
 		"brood_pattern":           insp.BroodPattern,
+		"frames_brood":            insp.FramesBrood,
 		"frames_honey":            insp.FramesHoney,
 		"frames_pollen":           insp.FramesPollen,
-		"varroa_count":            insp.VarroaCount,
 		"queen_cells_count":       insp.QueenCellsCount,
 		"aggressiveness":          insp.Aggressiveness,
 		"frames_added_foundation": insp.FramesAddedFoundation,
 		"frames_added_drawn":      insp.FramesAddedDrawn,
+		"frames_added_honey":      insp.FramesAddedHoney,
 		"queen_added":             insp.QueenAdded,
 		"notes":                   insp.Notes,
 		"diseases":                dd,

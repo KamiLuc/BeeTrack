@@ -74,3 +74,47 @@ func (r *HiveRepository) Move(ctx context.Context, hiveID int64, row, col int) e
 			"updated_at": gorm.Expr("NOW()"),
 		}).Error
 }
+
+// CreateDisease inserts a disease record linked to a hive.
+func (r *HiveRepository) CreateDisease(ctx context.Context, d *model.HiveDisease) error {
+	return r.db.WithContext(ctx).Create(d).Error
+}
+
+// DeleteDisease removes the disease with the given id that belongs to hiveID.
+func (r *HiveRepository) DeleteDisease(ctx context.Context, diseaseID, hiveID int64) error {
+	return r.db.WithContext(ctx).
+		Where("id = ? AND hive_id = ?", diseaseID, hiveID).
+		Delete(&model.HiveDisease{}).Error
+}
+
+// GetDiseaseByID returns the hive disease with the given id.
+func (r *HiveRepository) GetDiseaseByID(ctx context.Context, diseaseID, hiveID int64) (*model.HiveDisease, error) {
+	var d model.HiveDisease
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND hive_id = ?", diseaseID, hiveID).
+		First(&d).Error
+	return &d, err
+}
+
+// ListDiseasesByHiveID returns all diseases for a hive ordered by id.
+func (r *HiveRepository) ListDiseasesByHiveID(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error) {
+	var diseases []*model.HiveDisease
+	err := r.db.WithContext(ctx).
+		Where("hive_id = ?", hiveID).
+		Order("id ASC").
+		Find(&diseases).Error
+	return diseases, err
+}
+
+// ListDiseasesByHiveIDs returns all diseases for the given set of hive IDs.
+func (r *HiveRepository) ListDiseasesByHiveIDs(ctx context.Context, ids []int64) ([]*model.HiveDisease, error) {
+	if len(ids) == 0 {
+		return []*model.HiveDisease{}, nil
+	}
+	var diseases []*model.HiveDisease
+	err := r.db.WithContext(ctx).
+		Where("hive_id IN ?", ids).
+		Order("hive_id ASC, id ASC").
+		Find(&diseases).Error
+	return diseases, err
+}
