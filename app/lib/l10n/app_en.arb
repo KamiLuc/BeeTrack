@@ -11,6 +11,7 @@
 
   "generalSave": "Save",
   "generalCancel": "Cancel",
+  "generalClose": "Close",
   "generalDelete": "Delete",
   "generalEdit": "Edit",
   "generalConfirm": "Confirm",
@@ -81,6 +82,7 @@
   "hiveSick": "Sick",
   "hiveFilterTooltip": "Filter hives",
   "hiveListTooltip": "Hive list",
+  "apiaryCenterView": "Center view",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspections",
   "hiveDetailNoInspections": "No inspections yet",

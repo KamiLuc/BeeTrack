@@ -33,6 +33,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalCancel => 'Cancel';
 
   @override
+  String get generalClose => 'Close';
+
+  @override
   String get generalDelete => 'Delete';
 
   @override
@@ -204,6 +207,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hiveListTooltip => 'Hive list';
+
+  @override
+  String get apiaryCenterView => 'Center view';
 
   @override
   String get hiveStatus => 'Status';

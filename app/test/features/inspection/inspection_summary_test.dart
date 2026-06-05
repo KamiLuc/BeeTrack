@@ -100,11 +100,12 @@ void main() {
       expect(find.textContaining('Queen cells: 4'), findsOneWidget);
     });
 
-    testWidgets('shows Note: prefix before notes text', (tester) async {
+    testWidgets('shows note label and note text as separate widgets', (tester) async {
       await tester.pumpWidget(_wrap(
         InspectionSummary(inspection: _insp(notes: 'All good')),
       ));
-      expect(find.text('Note: All good'), findsOneWidget);
+      expect(find.text('Note'), findsOneWidget);
+      expect(find.text('All good'), findsOneWidget);
     });
 
     testWidgets('shows date when showDate is true', (tester) async {

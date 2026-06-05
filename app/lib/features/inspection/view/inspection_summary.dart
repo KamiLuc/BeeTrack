@@ -116,13 +116,16 @@ class InspectionSummary extends StatelessWidget {
           Text(queen.join(' · '), style: bodyStyle),
           const SizedBox(height: 8),
         ],
-        if (inspection.notes.isNotEmpty)
+        if (inspection.notes.isNotEmpty) ...[
+          Text(l10n.inspectionNote, style: labelStyle),
+          const SizedBox(height: 2),
           Text(
-            '${l10n.inspectionNote}: ${inspection.notes}',
+            inspection.notes,
             style: bodyStyle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+        ],
       ],
     );
   }

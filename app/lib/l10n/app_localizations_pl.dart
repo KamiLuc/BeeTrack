@@ -33,6 +33,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get generalCancel => 'Anuluj';
 
   @override
+  String get generalClose => 'Zamknij';
+
+  @override
   String get generalDelete => 'Usuń';
 
   @override
@@ -203,13 +206,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveReadyForHarvest => 'Gotowy do zbioru';
 
   @override
-  String get hiveSick => 'Chore';
+  String get hiveSick => 'Chory';
 
   @override
   String get hiveFilterTooltip => 'Filtruj ule';
 
   @override
   String get hiveListTooltip => 'Lista uli';
+
+  @override
+  String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override
   String get hiveStatus => 'Status';

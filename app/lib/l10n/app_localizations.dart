@@ -146,6 +146,12 @@ abstract class AppLocalizations {
   /// **'Anuluj'**
   String get generalCancel;
 
+  /// No description provided for @generalClose.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zamknij'**
+  String get generalClose;
+
   /// No description provided for @generalDelete.
   ///
   /// In pl, this message translates to:
@@ -437,7 +443,7 @@ abstract class AppLocalizations {
   /// No description provided for @hiveSick.
   ///
   /// In pl, this message translates to:
-  /// **'Chore'**
+  /// **'Chory'**
   String get hiveSick;
 
   /// No description provided for @hiveFilterTooltip.
@@ -451,6 +457,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Lista uli'**
   String get hiveListTooltip;
+
+  /// No description provided for @apiaryCenterView.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyśrodkuj widok'**
+  String get apiaryCenterView;
 
   /// No description provided for @hiveStatus.
   ///

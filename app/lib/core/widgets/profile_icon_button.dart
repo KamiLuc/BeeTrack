@@ -54,6 +54,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
   bool _editingName = false;
   late TextEditingController _nameController;
   bool _savingName = false;
+  String? _nameError;
 
   @override
   void initState() {
@@ -69,8 +70,14 @@ class _ProfileDialogState extends State<_ProfileDialog> {
 
   Future<void> _saveName(AppLocalizations l10n) async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
-    setState(() => _savingName = true);
+    if (name.isEmpty) {
+      setState(() => _nameError = l10n.generalRequired);
+      return;
+    }
+    setState(() {
+      _nameError = null;
+      _savingName = true;
+    });
     try {
       await widget.apiClient.dio.patch(
         '/api/v1/users/me/name',
@@ -177,9 +184,13 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                       labelText: l10n.profileDisplayName,
                       border: const OutlineInputBorder(),
                       isDense: true,
+                      errorText: _nameError,
                     ),
                     autofocus: true,
                     textInputAction: TextInputAction.done,
+                    onChanged: (_) {
+                      if (_nameError != null) setState(() => _nameError = null);
+                    },
                     onSubmitted: (_) => _saveName(l10n),
                   ),
                   const SizedBox(height: 10),
@@ -234,19 +245,30 @@ class _ProfileDialogState extends State<_ProfileDialog> {
             const SizedBox(height: 4),
 
             // Logout
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading:
-                  Icon(Icons.logout, size: 20, color: colorScheme.error),
-              title: Text(
-                l10n.authLogout,
-                style:
-                    textTheme.bodyMedium?.copyWith(color: colorScheme.error),
-              ),
+            InkWell(
               onTap: () {
                 Navigator.of(context).pop();
                 widget.authBloc.add(LogoutRequested());
               },
+              focusColor: Colors.transparent,
+              hoverColor: colorScheme.error.withAlpha(12),
+              splashColor: colorScheme.error.withAlpha(24),
+              highlightColor: colorScheme.error.withAlpha(24),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 20, color: colorScheme.error),
+                    const SizedBox(width: 16),
+                    Text(
+                      l10n.authLogout,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: colorScheme.error),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

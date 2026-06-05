@@ -249,6 +249,7 @@ type Inspection struct {
   if (context.mounted) context.read<SomeCubit>().load();
   ```
 - `EditHiveScreen` pops with the updated `Hive` object as result so callers can update state without a refetch.
+- Logout: `AuthWrapper` in `main.dart` uses a `BlocListener` (alongside `BlocBuilder`) that calls `Navigator.of(context).popUntil((route) => route.isFirst)` on `AuthUnauthenticated`, clearing any pushed screens before the BlocBuilder swaps home to `LoginScreen`.
 
 ### Repository pattern
 - Each feature has a `XRepository` class that wraps `ApiClient`.
@@ -274,7 +275,7 @@ type Inspection struct {
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
-| `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen/notes); used in hive detail card and inspection history cards |
+| `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -387,10 +388,12 @@ LoginScreen / RegisterScreen
   └── ApiariesScreen (after login)
       └── ApiaryGridScreen (tap apiary card)
           │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
-          │   Bottom amber banner has two icon buttons:
-          │     • Filter (Icons.tune) — modal sheet with FilterChip toggles; badge shows active count
-          │     • Hive list (Icons.format_list_bulleted, disabled when no hives) — modal sheet
-          │       listing hives with last-inspection date, active/disease subtitle, status icons
+          │   Bottom amber banner has three icon buttons:
+          │     • Filter (Icons.tune) — dialog with FilterChip toggles; badge shows active count
+          │     • Hive list (Icons.format_list_bulleted, disabled when no hives) — dialog listing
+          │       hives with last-inspection date, active/disease subtitle, status icons
+          │     • Center view (Icons.center_focus_strong_outlined) — resets TransformationController
+          │       to Matrix4.identity(), snapping pan/zoom back to initial position
           ├── AddHiveScreen (tap empty cell)
           ├── HiveDetailScreen (tap hive cell  OR  bottom-bar hive list → tap hive)
               ├── EditHiveScreen (AppBar edit icon)

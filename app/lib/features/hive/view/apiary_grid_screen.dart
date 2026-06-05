@@ -43,6 +43,14 @@ class _ApiaryGridView extends StatefulWidget {
 
 class _ApiaryGridViewState extends State<_ApiaryGridView> {
   final Set<_HiveFilter> _activeFilters = {};
+  final TransformationController _transformController =
+      TransformationController();
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
 
   void _toggleFilter(_HiveFilter filter) {
     setState(() {
@@ -156,6 +164,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                       final canvasH =
                           max(constraints.maxHeight, contentH);
                       return InteractiveViewer(
+                        transformationController: _transformController,
                         constrained: false,
                         boundaryMargin:
                             const EdgeInsets.all(double.infinity),
@@ -217,6 +226,8 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                 _FilterBar(
                   activeFilters: _activeFilters,
                   onToggle: _toggleFilter,
+                  onCenter: () =>
+                      _transformController.value = Matrix4.identity(),
                   l10n: l10n,
                   hives: state.hives,
                   onHiveTap: (hive) async {
@@ -244,6 +255,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
 class _FilterBar extends StatelessWidget {
   final Set<_HiveFilter> activeFilters;
   final void Function(_HiveFilter) onToggle;
+  final VoidCallback onCenter;
   final AppLocalizations l10n;
   final List<Hive> hives;
   final void Function(Hive) onHiveTap;
@@ -251,22 +263,11 @@ class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.activeFilters,
     required this.onToggle,
+    required this.onCenter,
     required this.l10n,
     required this.hives,
     required this.onHiveTap,
   });
-
-  static Widget _dragHandle() => Center(
-        child: Container(
-          width: 40,
-          height: 4,
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
 
   void _showFilterSheet(BuildContext context) {
     final localFilters = Set<_HiveFilter>.from(activeFilters);
@@ -275,102 +276,162 @@ class _FilterBar extends StatelessWidget {
       (_HiveFilter.queenless, l10n.hiveQueenless),
       (_HiveFilter.sick, l10n.hiveSick),
     ];
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _dragHandle(),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: chips.map((entry) {
-                    final (filter, label) = entry;
-                    final selected = localFilters.contains(filter);
-                    return FilterChip(
-                      label: Text(label),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      selected: selected,
-                      onSelected: (_) {
-                        onToggle(filter);
-                        setSheetState(() {
-                          if (localFilters.contains(filter)) {
-                            localFilters.remove(filter);
-                          } else {
-                            localFilters.add(filter);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
+        builder: (ctx, setDialogState) {
+          final isWide = MediaQuery.sizeOf(ctx).width >= 600;
+          return Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isWide ? 480 : 360),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.tune,
+                            size: 20,
+                            color: Theme.of(ctx)
+                                .colorScheme
+                                .onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Text(l10n.hiveFilterTooltip,
+                            style: Theme.of(ctx).textTheme.titleMedium),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: chips.map((entry) {
+                        final (filter, label) = entry;
+                        final selected = localFilters.contains(filter);
+                        return FilterChip(
+                          label: Text(label),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          selected: selected,
+                          onSelected: (_) {
+                            onToggle(filter);
+                            setDialogState(() {
+                              if (localFilters.contains(filter)) {
+                                localFilters.remove(filter);
+                              } else {
+                                localFilters.add(filter);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: 200,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: Text(l10n.generalClose),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   void _showHiveSheet(BuildContext context) {
     final locale = Localizations.localeOf(context).toString();
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _dragHandle(),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: hives.length,
-                itemBuilder: (_, i) {
-                  final hive = hives[i];
-                  final dateStr = hive.lastInspectedAt != null
-                      ? DateFormat('d MMM yyyy', locale)
-                          .format(hive.lastInspectedAt!)
-                      : l10n.hiveDetailNoInspections;
-                  final details = [
-                    if (!hive.active) l10n.hiveInactive,
-                    if (hive.diseases.isNotEmpty)
-                      hive.diseases.map((d) => d.disease).join(', '),
-                  ];
-                  final subtitleText = details.isEmpty
-                      ? dateStr
-                      : '$dateStr · ${details.join(' · ')}';
-                  return ListTile(
-                    leading: const Icon(Icons.hive),
-                    title: Text(hive.name),
-                    subtitle: Text(subtitleText),
-                    trailing: _HiveStatusIcons(hive: hive),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onHiveTap(hive);
+      builder: (ctx) {
+        final isWide = MediaQuery.sizeOf(ctx).width >= 600;
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: isWide ? 480 : 380),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.format_list_bulleted,
+                          size: 20,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Text(l10n.hiveListTooltip,
+                          style: Theme.of(ctx).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: hives.length,
+                    itemBuilder: (_, i) {
+                      final hive = hives[i];
+                      final dateStr = hive.lastInspectedAt != null
+                          ? DateFormat('d MMM yyyy', locale)
+                              .format(hive.lastInspectedAt!)
+                          : l10n.hiveDetailNoInspections;
+                      final details = [
+                        if (!hive.active) l10n.hiveInactive,
+                        if (hive.diseases.isNotEmpty)
+                          hive.diseases.map((d) => d.disease).join(', '),
+                      ];
+                      final subtitleText = details.isEmpty
+                          ? dateStr
+                          : '$dateStr · ${details.join(' · ')}';
+                      return ListTile(
+                        leading: const Icon(Icons.hive),
+                        title: Text(hive.name),
+                        subtitle: Text(subtitleText),
+                        trailing: _HiveStatusIcons(hive: hive),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          onHiveTap(hive);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: 200,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: Text(l10n.generalClose),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -423,6 +484,12 @@ class _FilterBar extends StatelessWidget {
                     tooltip: l10n.hiveListTooltip,
                     onPressed:
                         hives.isEmpty ? null : () => _showHiveSheet(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.center_focus_strong_outlined),
+                    iconSize: 28,
+                    tooltip: l10n.apiaryCenterView,
+                    onPressed: onCenter,
                   ),
                 ],
               ),
