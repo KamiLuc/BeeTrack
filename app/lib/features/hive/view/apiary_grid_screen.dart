@@ -549,7 +549,9 @@ class _HiveListDialogState extends State<_HiveListDialog> {
 
                   final inspection = _lastInspections[hive.id];
                   String subtitleText = dateStr;
-                  if (hive.lastInspectedAt != null && inspection != null) {
+                  if (isWide &&
+                      hive.lastInspectedAt != null &&
+                      inspection != null) {
                     final hint = _hint(l10n, inspection);
                     if (hint.isNotEmpty) subtitleText = '$dateStr · $hint';
                   }
