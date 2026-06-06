@@ -298,6 +298,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override
+  String get hiveDiseases => 'Choroby';
+
+  @override
+  String get hiveFrames => 'Ramki';
+
+  @override
+  String get hiveFramesWarning =>
+      'Liczba ramek w inspekcji przekracza pojemność ula';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override
@@ -415,7 +425,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionQueenCellsCount => 'Mateczniki';
 
   @override
-  String get inspectionQueenAdded => 'Dodano matkę';
+  String get inspectionQueenAdded => 'Poddano matkę';
 
   @override
   String get inspectionSectionObservations => 'Obserwacje';

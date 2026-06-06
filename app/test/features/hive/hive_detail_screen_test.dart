@@ -29,6 +29,56 @@ const _inactive = Hive(
   gridCol: 1,
 );
 
+const _withFrames = Hive(
+  id: 3,
+  apiaryId: 1,
+  name: 'Gamma',
+  type: 'wielkopolski',
+  active: true,
+  queenless: false,
+  readyForHarvest: false,
+  frames: 10,
+  gridRow: 0,
+  gridCol: 2,
+);
+
+const _queenless = Hive(
+  id: 4,
+  apiaryId: 1,
+  name: 'Delta',
+  type: 'langstroth',
+  active: true,
+  queenless: true,
+  readyForHarvest: false,
+  gridRow: 1,
+  gridCol: 0,
+);
+
+const _readyForHarvest = Hive(
+  id: 5,
+  apiaryId: 1,
+  name: 'Epsilon',
+  type: 'langstroth',
+  active: true,
+  queenless: false,
+  readyForHarvest: true,
+  gridRow: 1,
+  gridCol: 1,
+);
+
+final _withDiseases = Hive(
+  id: 6,
+  apiaryId: 1,
+  name: 'Zeta',
+  type: 'langstroth',
+  active: true,
+  queenless: false,
+  readyForHarvest: false,
+  gridRow: 1,
+  gridCol: 2,
+  diseases: const [HiveDisease(id: 1, disease: 'varroa')],
+);
+
 Widget _wrap(Widget child) => MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -114,6 +164,63 @@ void main() {
         const HiveDetailScreen(hive: _active, apiaryId: 1),
       ));
       expect(find.text('View all', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('shows frames chip when frames > 0', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _withFrames, apiaryId: 1),
+      ));
+      expect(find.text('Frames: 10'), findsOneWidget);
+    });
+
+    testWidgets('hides frames chip when frames == 0', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.textContaining('Frames:'), findsNothing);
+    });
+
+    testWidgets('shows Queenless chip only when queenless is true', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _queenless, apiaryId: 1),
+      ));
+      expect(find.text('Queenless'), findsOneWidget);
+    });
+
+    testWidgets('hides Queenless chip when queenless is false', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('Queenless'), findsNothing);
+    });
+
+    testWidgets('shows Ready for harvest chip only when readyForHarvest is true', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _readyForHarvest, apiaryId: 1),
+      ));
+      expect(find.text('Ready for harvest'), findsOneWidget);
+    });
+
+    testWidgets('hides Ready for harvest chip when readyForHarvest is false', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('Ready for harvest'), findsNothing);
+    });
+
+    testWidgets('shows Diseases section with disease chip when diseases present', (tester) async {
+      await tester.pumpWidget(_wrap(
+        HiveDetailScreen(hive: _withDiseases, apiaryId: 1),
+      ));
+      expect(find.text('Diseases', skipOffstage: false), findsOneWidget);
+      expect(find.text('Varroa', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('hides Diseases section when no diseases', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('Diseases', skipOffstage: false), findsNothing);
     });
   });
 }

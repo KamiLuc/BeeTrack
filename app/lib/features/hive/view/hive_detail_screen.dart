@@ -171,57 +171,87 @@ class _InfoCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
+    final statusChips = <Widget>[
+      _StatusChip(
+        label: hive.active ? l10n.hiveActive : l10n.hiveInactive,
+        background: hive.active
+            ? Colors.green.shade100
+            : colorScheme.errorContainer,
+        foreground: hive.active
+            ? Colors.green.shade800
+            : colorScheme.onErrorContainer,
+      ),
+      if (hive.queenless)
+        _StatusChip(
+          label: l10n.hiveQueenless,
+          background: colorScheme.errorContainer,
+          foreground: colorScheme.onErrorContainer,
+        ),
+      if (hive.readyForHarvest)
+        _StatusChip(
+          label: l10n.hiveReadyForHarvest,
+          background: Colors.amber.shade100,
+          foreground: Colors.amber.shade900,
+        ),
+    ];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InfoRow(
-              label: l10n.hiveType,
-              value: hiveTypeLabels[hive.type] ?? hive.type,
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _StatusChip(
+                  label: hiveTypeLabels[hive.type] ?? hive.type,
+                  background: colorScheme.secondaryContainer,
+                  foreground: colorScheme.onSecondaryContainer,
+                ),
+                if (hive.frames > 0)
+                  _StatusChip(
+                    label: '${l10n.hiveFrames}: ${hive.frames}',
+                    background: colorScheme.secondaryContainer,
+                    foreground: colorScheme.onSecondaryContainer,
+                  ),
+              ],
             ),
             const Divider(height: 24),
-            _InfoRow(
-              label: l10n.hiveQueenless,
-              trailing: Icon(
-                hive.queenless ? Icons.check_circle : Icons.circle_outlined,
-                size: 20,
-                color: hive.queenless ? colorScheme.error : colorScheme.outline,
-              ),
+            Text(
+              l10n.hiveStatus,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
             ),
-            const Divider(height: 24),
-            _InfoRow(
-              label: l10n.hiveReadyForHarvest,
-              trailing: Icon(
-                hive.readyForHarvest ? Icons.check_circle : Icons.circle_outlined,
-                size: 20,
-                color: hive.readyForHarvest ? Colors.amber : colorScheme.outline,
-              ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: statusChips,
             ),
-            const Divider(height: 24),
-            _InfoRow(
-              label: l10n.hiveStatus,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: hive.active ? Colors.green : colorScheme.outline,
+            if (hive.diseases.isNotEmpty) ...[
+              const Divider(height: 24),
+              Text(
+                l10n.hiveDiseases,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    hive.active ? l10n.hiveActive : l10n.hiveInactive,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
               ),
-            ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: hive.diseases
+                    .map((d) => _StatusChip(
+                          label: hiveDiseaseLabel(l10n, d.disease),
+                          background: colorScheme.errorContainer,
+                          foreground: colorScheme.onErrorContainer,
+                        ))
+                    .toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -229,33 +259,27 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String? value;
-  final Widget? trailing;
 
-  const _InfoRow({required this.label, this.value, this.trailing});
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _StatusChip({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        if (trailing != null)
-          trailing!
-        else
-          Text(
-            value ?? '',
-            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-      ],
+    return Chip(
+      label: Text(label),
+      side: BorderSide.none,
+      backgroundColor: background,
+      labelStyle: TextStyle(color: foreground, fontSize: 12),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
     );
   }
 }

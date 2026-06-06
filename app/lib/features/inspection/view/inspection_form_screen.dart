@@ -91,6 +91,14 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _framesAddedHoneyController = TextEditingController(
       text: insp?.framesAddedHoney?.toString() ?? '0',
     );
+
+    void rebuild() => setState(() {});
+    _framesBroodController.addListener(rebuild);
+    _framesHoneyController.addListener(rebuild);
+    _framesPollenController.addListener(rebuild);
+    _framesAddedDrawnController.addListener(rebuild);
+    _framesAddedFoundationController.addListener(rebuild);
+    _framesAddedHoneyController.addListener(rebuild);
     _queenCellsCountController = TextEditingController(
       text: insp?.queenCellsCount?.toString() ?? '',
     );
@@ -255,6 +263,20 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     }
   }
 
+  int get _totalFramesAdded =>
+      (int.tryParse(_framesAddedDrawnController.text) ?? 0) +
+      (int.tryParse(_framesAddedFoundationController.text) ?? 0) +
+      (int.tryParse(_framesAddedHoneyController.text) ?? 0);
+
+  bool get _framesWarning {
+    if (widget.hive.frames <= 0) return false;
+    final capacity = widget.hive.frames + _totalFramesAdded;
+    final inHive = (int.tryParse(_framesBroodController.text) ?? 0) +
+        (int.tryParse(_framesHoneyController.text) ?? 0) +
+        (int.tryParse(_framesPollenController.text) ?? 0);
+    return inHive > capacity;
+  }
+
   Future<void> _syncHiveState(BuildContext ctx, HiveRepository hiveRepo) async {
     if (_hiveActive != widget.hive.active ||
         _hiveQueenless != widget.hive.queenless ||
@@ -267,6 +289,15 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         active: _hiveActive,
         queenless: _hiveQueenless,
         readyForHarvest: _hiveReadyForHarvest,
+        frames: widget.hive.frames,
+      );
+    }
+
+    if (!widget.isEditing && _totalFramesAdded > 0) {
+      await hiveRepo.addFrames(
+        apiaryId: widget.apiaryId,
+        hiveId: widget.hive.id,
+        delta: _totalFramesAdded,
       );
     }
 
@@ -360,6 +391,44 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           const SizedBox(height: 20),
                           _SectionTitle(l10n.inspectionSectionFrames),
                           const SizedBox(height: 12),
+                          if (_framesWarning) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .errorContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 18,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      l10n.hiveFramesWarning,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onErrorContainer,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           _NumericField(
                             controller: _framesBroodController,
                             label: l10n.inspectionFramesBrood,

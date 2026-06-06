@@ -128,33 +128,33 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email, lang string) er
 	return nil
 }
 
-// Login authenticates a user and returns a token pair. Returns ErrEmailNotVerified if
-// the account has not been verified yet.
-func (s *AuthService) Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error) {
+// Login authenticates a user and returns a token pair and the user's display name.
+// Returns ErrEmailNotVerified if the account has not been verified yet.
+func (s *AuthService) Login(ctx context.Context, email, password string) (accessToken, refreshToken, name string, err error) {
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
-		return "", "", fmt.Errorf("login: %w", err)
+		return "", "", "", fmt.Errorf("login: %w", err)
 	}
 	if user == nil {
-		return "", "", ErrInvalidPassword
+		return "", "", "", ErrInvalidPassword
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", "", ErrInvalidPassword
+		return "", "", "", ErrInvalidPassword
 	}
 
 	if !user.Verified {
-		return "", "", ErrEmailNotVerified
+		return "", "", "", ErrEmailNotVerified
 	}
 
 	accessToken, err = token.NewAccessToken(user.ID, s.jwtSecret, s.accessTTLMin)
 	if err != nil {
-		return "", "", fmt.Errorf("generate access token: %w", err)
+		return "", "", "", fmt.Errorf("generate access token: %w", err)
 	}
 
 	refreshToken, err = token.NewRefreshToken()
 	if err != nil {
-		return "", "", fmt.Errorf("generate refresh token: %w", err)
+		return "", "", "", fmt.Errorf("generate refresh token: %w", err)
 	}
 
 	rt := &model.RefreshToken{
@@ -163,10 +163,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (access
 		ExpiresAt: time.Now().AddDate(0, 0, s.refreshTTLDays),
 	}
 	if err := s.tokens.Create(ctx, rt); err != nil {
-		return "", "", fmt.Errorf("store refresh token: %w", err)
+		return "", "", "", fmt.Errorf("store refresh token: %w", err)
 	}
 
-	return accessToken, refreshToken, nil
+	return accessToken, refreshToken, user.Name, nil
 }
 
 // Logout revokes the refresh token.

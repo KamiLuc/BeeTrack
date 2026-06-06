@@ -215,6 +215,7 @@ type Hive struct {
     Active          bool
     Queenless       bool
     ReadyForHarvest bool
+    Frames          int      // total frame capacity; 0 means not set
     GridRow         int
     GridCol         int
     CreatedAt       time.Time
@@ -307,7 +308,7 @@ type InspectionImage struct {
 | `app/lib/core/theme/app_colors.dart` | Color constants (primary = amber `#FBBF24`, background = cream `#FFFBF2`, onSurfaceVariant = warm grey `#6F6961`) |
 | `app/lib/core/theme/app_text_styles.dart` | Text style constants (headlineLarge 28px … caption 12px) |
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
-| `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
+| `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `HiveFramesField`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
 | `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
 | `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle is a proper `StatefulWidget` (`_PuzzleDialog`) — clears error on typing, disposes controller in `dispose()` |
@@ -322,7 +323,8 @@ type InspectionImage struct {
 
 ```
 Hive             id, apiaryId, name, type, active, queenless, readyForHarvest,
-                 gridRow, gridCol, diseases (List<HiveDisease>), lastInspectedAt?
+                 frames (int, 0 = not set), gridRow, gridCol,
+                 diseases (List<HiveDisease>), lastInspectedAt?
 Apiary           id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?
 HiveDisease      id, disease (string)
 Inspection       id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
@@ -362,6 +364,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}` | Get hive |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}` | Update hive |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/position` | Move hive |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/frames` | Atomically increment hive frame count by `delta` |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}` | Delete hive |
 | POST | `/api/v1/apiaries/{id}/hives/{hiveId}/diseases` | Add hive disease |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/diseases/{diseaseId}` | Remove hive disease |

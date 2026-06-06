@@ -79,12 +79,14 @@ Authenticates a user and returns token pair. The account must be verified first.
 ```json
 {
   "access_token": "<jwt>",
-  "refresh_token": "<random string>"
+  "refresh_token": "<random string>",
+  "name": "<display name>"
 }
 ```
 
 - `access_token` — JWT, valid for 15 minutes. Send in `Authorization: Bearer <token>` header on protected routes.
 - `refresh_token` — valid for 30 days, stored in DB. Use to get a new token pair via `/auth/refresh`.
+- `name` — the user's display name.
 
 **Errors**
 | Code | Status | Description |
@@ -424,6 +426,7 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
     "active": true,
     "queenless": false,
     "ready_for_harvest": false,
+    "frames": 10,
     "grid_row": 0,
     "grid_col": 0,
     "diseases": [],
@@ -435,6 +438,7 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
 ```
 
 - Returns an empty array if the apiary has no hives
+- `frames` — total frame capacity of the hive; `0` means not configured
 - `last_inspected_at` is `null` when no inspections exist
 - `diseases` is an array of `{ "id": 1, "disease": "varroa", "created_at": "..." }`
 
@@ -458,12 +462,14 @@ Adds a hive to an apiary. Both owners and members can add hives.
 {
   "name": "Hive A",
   "type": "langstroth",
+  "frames": 10,
   "grid_row": 0,
   "grid_col": 0
 }
 ```
 
 - `type` is optional — defaults to `"langstroth"`
+- `frames` is optional — defaults to `0` (not configured)
 - `active`, `queenless`, `ready_for_harvest` default to `false` if omitted
 - `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
 - Each position within an apiary must be unique
@@ -478,6 +484,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
   "diseases": [],
@@ -516,6 +523,7 @@ Returns a single hive. Caller must be a member of the apiary.
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
   "diseases": [],
@@ -548,7 +556,8 @@ Updates a hive's name, type, and active status. Both owners and members can edit
   "type": "top_bar",
   "active": false,
   "queenless": true,
-  "ready_for_harvest": false
+  "ready_for_harvest": false,
+  "frames": 12
 }
 ```
 
@@ -562,6 +571,7 @@ Updates a hive's name, type, and active status. Both owners and members can edit
   "active": false,
   "queenless": true,
   "ready_for_harvest": false,
+  "frames": 12,
   "grid_row": 0,
   "grid_col": 0,
   "diseases": [],
@@ -579,6 +589,34 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 | `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId}/frames 🔒
+
+Atomically increments the hive's frame count by `delta`. Used by the app after saving an inspection that added frames, to avoid a race condition with read-modify-write.
+
+**Request**
+```json
+{
+  "delta": 3
+}
+```
+
+- `delta` must be a positive integer
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -610,6 +648,7 @@ Moves a hive to a new grid position. Both owners and members can move hives. Mov
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "frames": 10,
   "grid_row": 2,
   "grid_col": 3,
   "diseases": [],

@@ -7,7 +7,7 @@ import '../../../l10n/app_localizations.dart';
 import '../data/hive_repository.dart';
 import 'hive_form_widgets.dart';
 
-String _lastHiveType = 'langstroth';
+String _lastHiveType = 'wielkopolski';
 
 class AddHiveScreen extends StatefulWidget {
   final int apiaryId;
@@ -30,6 +30,7 @@ class AddHiveScreen extends StatefulWidget {
 class _AddHiveScreenState extends State<AddHiveScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _framesController;
   String _type = _lastHiveType;
   bool _active = true;
   bool _queenless = false;
@@ -40,11 +41,13 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.defaultName);
+    _framesController = TextEditingController(text: '0');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _framesController.dispose();
     super.dispose();
   }
 
@@ -61,6 +64,7 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
         readyForHarvest: _readyForHarvest,
         gridRow: widget.gridRow,
         gridCol: widget.gridCol,
+        frames: int.tryParse(_framesController.text.trim()) ?? 0,
       );
       if (context.mounted) Navigator.of(context).pop();
     } catch (_) {
@@ -98,6 +102,8 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
                         _lastHiveType = _type;
                       }),
                     ),
+                    const SizedBox(height: 16),
+                    HiveFramesField(controller: _framesController),
                     const SizedBox(height: 16),
                     HiveActiveToggle(
                       value: _active,

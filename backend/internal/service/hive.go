@@ -26,6 +26,7 @@ type ApiaryMembershipReader interface {
 }
 
 type HiveRepository interface {
+	AddFrames(ctx context.Context, hiveID int64, delta int) error
 	Create(ctx context.Context, h *model.Hive) error
 	CreateDisease(ctx context.Context, d *model.HiveDisease) error
 	Delete(ctx context.Context, hiveID int64) error
@@ -66,7 +67,7 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 	return hives, nil
 }
 
-func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool) (*model.Hive, error) {
+func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool, frames int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -89,6 +90,7 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 	hive.Name = name
 	hive.Type = hiveType
 	hive.Active = active
+	hive.Frames = frames
 	hive.ReadyForHarvest = readyForHarvest
 	hive.Queenless = queenless
 
@@ -255,7 +257,27 @@ func (s *HiveService) RemoveDisease(ctx context.Context, userID, apiaryID, hiveI
 	return nil
 }
 
-func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol int) (*model.Hive, error) {
+// AddFrames atomically increments the frame count of a hive by delta.
+func (s *HiveService) AddFrames(ctx context.Context, userID, apiaryID, hiveID int64, delta int) error {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrApiaryNotFound
+		}
+		return fmt.Errorf("get apiary: %w", err)
+	}
+	if _, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrHiveNotFound
+		}
+		return fmt.Errorf("get hive: %w", err)
+	}
+	if err := s.hives.AddFrames(ctx, hiveID, delta); err != nil {
+		return fmt.Errorf("add frames: %w", err)
+	}
+	return nil
+}
+
+func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol, frames int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -285,6 +307,7 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 		Name:            name,
 		Type:            hiveType,
 		Active:          active,
+		Frames:          frames,
 		Queenless:       queenless,
 		ReadyForHarvest: readyForHarvest,
 		GridRow:         gridRow,

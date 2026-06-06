@@ -34,6 +34,7 @@ class AuthRepository {
         access: response.data['access_token'],
         refresh: response.data['refresh_token'],
         email: email,
+        name: response.data['name'] as String?,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);

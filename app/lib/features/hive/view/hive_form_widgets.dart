@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_model.dart';
@@ -167,6 +168,24 @@ class HiveDiseasesSection extends StatelessWidget {
           }).toList(),
         ),
       ],
+    );
+  }
+}
+
+class HiveFramesField extends StatelessWidget {
+  final TextEditingController controller;
+
+  const HiveFramesField({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(labelText: l10n.hiveFrames),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      textInputAction: TextInputAction.next,
     );
   }
 }

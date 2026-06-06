@@ -244,11 +244,12 @@ func TestLogin_Success(t *testing.T) {
 	users.users["user@example.com"] = &model.User{
 		ID:           1,
 		Email:        "user@example.com",
+		Name:         "Test User",
 		PasswordHash: hashPassword(t, "password123"),
 		Verified:     true,
 	}
 
-	accessToken, refreshToken, err := svc.Login(context.Background(), "user@example.com", "password123")
+	accessToken, refreshToken, name, err := svc.Login(context.Background(), "user@example.com", "password123")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -257,6 +258,9 @@ func TestLogin_Success(t *testing.T) {
 	}
 	if refreshToken == "" {
 		t.Error("expected non-empty refresh token")
+	}
+	if name == "" {
+		t.Error("expected non-empty name")
 	}
 }
 
@@ -269,7 +273,7 @@ func TestLogin_EmailNotVerified(t *testing.T) {
 		Verified:     false,
 	}
 
-	_, _, err := svc.Login(context.Background(), "user@example.com", "password123")
+	_, _, _, err := svc.Login(context.Background(), "user@example.com", "password123")
 	if !errors.Is(err, ErrEmailNotVerified) {
 		t.Errorf("expected ErrEmailNotVerified, got %v", err)
 	}
@@ -278,7 +282,7 @@ func TestLogin_EmailNotVerified(t *testing.T) {
 func TestLogin_UserNotFound(t *testing.T) {
 	svc, _, _, _, _ := newTestService()
 
-	_, _, err := svc.Login(context.Background(), "nobody@example.com", "password123")
+	_, _, _, err := svc.Login(context.Background(), "nobody@example.com", "password123")
 	if !errors.Is(err, ErrInvalidPassword) {
 		t.Errorf("expected ErrInvalidPassword, got %v", err)
 	}
@@ -293,7 +297,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 		Verified:     true,
 	}
 
-	_, _, err := svc.Login(context.Background(), "user@example.com", "wrongpassword")
+	_, _, _, err := svc.Login(context.Background(), "user@example.com", "wrongpassword")
 	if !errors.Is(err, ErrInvalidPassword) {
 		t.Errorf("expected ErrInvalidPassword, got %v", err)
 	}

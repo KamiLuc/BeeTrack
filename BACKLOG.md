@@ -135,7 +135,8 @@ ApiaryMember
   apiary_id, user_id, role (owner|member), joined_at
 
 Hive
-  id, apiary_id, name, type, status, install_date, grid_row, grid_col, notes
+  id, apiary_id, name, type, active, queenless, ready_for_harvest, frames,
+  grid_row, grid_col, notes
 
 Inspection
   id, hive_id, inspected_at, duration_min, weather,

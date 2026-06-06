@@ -292,6 +292,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryCenterView => 'Center view';
 
   @override
+  String get hiveDiseases => 'Diseases';
+
+  @override
+  String get hiveFrames => 'Frames';
+
+  @override
+  String get hiveFramesWarning =>
+      'Frame count in inspection exceeds hive capacity';
+
+  @override
   String get hiveStatus => 'Status';
 
   @override

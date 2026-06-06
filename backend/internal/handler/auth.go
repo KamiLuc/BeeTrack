@@ -171,7 +171,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := h.auth.Login(r.Context(), req.Email, req.Password)
+	accessToken, refreshToken, name, err := h.auth.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidPassword):
@@ -187,6 +187,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	respond.JSON(w, http.StatusOK, map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
+		"name":          name,
 	})
 }
 

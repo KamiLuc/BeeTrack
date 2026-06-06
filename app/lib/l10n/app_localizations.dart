@@ -608,6 +608,24 @@ abstract class AppLocalizations {
   /// **'Wyśrodkuj widok'**
   String get apiaryCenterView;
 
+  /// No description provided for @hiveDiseases.
+  ///
+  /// In pl, this message translates to:
+  /// **'Choroby'**
+  String get hiveDiseases;
+
+  /// No description provided for @hiveFrames.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki'**
+  String get hiveFrames;
+
+  /// No description provided for @hiveFramesWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Liczba ramek w inspekcji przekracza pojemność ula'**
+  String get hiveFramesWarning;
+
   /// No description provided for @hiveStatus.
   ///
   /// In pl, this message translates to:
@@ -845,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @inspectionQueenAdded.
   ///
   /// In pl, this message translates to:
-  /// **'Dodano matkę'**
+  /// **'Poddano matkę'**
   String get inspectionQueenAdded;
 
   /// No description provided for @inspectionSectionObservations.

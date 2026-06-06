@@ -37,19 +37,20 @@ func hiveJSON(hive *model.Hive, diseases []*model.HiveDisease, lastInspectedAt *
 		dd[i] = hiveDiseaseJSON(d)
 	}
 	return map[string]any{
-		"id":                 hive.ID,
-		"apiary_id":          hive.ApiaryID,
-		"name":               hive.Name,
-		"type":               hive.Type,
-		"active":             hive.Active,
-		"queenless":          hive.Queenless,
-		"ready_for_harvest":  hive.ReadyForHarvest,
-		"grid_row":           hive.GridRow,
-		"grid_col":           hive.GridCol,
-		"diseases":           dd,
-		"last_inspected_at":  lastInspectedAt,
-		"created_at":         hive.CreatedAt,
-		"updated_at":         hive.UpdatedAt,
+		"id":                hive.ID,
+		"apiary_id":         hive.ApiaryID,
+		"name":              hive.Name,
+		"type":              hive.Type,
+		"active":            hive.Active,
+		"frames":            hive.Frames,
+		"queenless":         hive.Queenless,
+		"ready_for_harvest": hive.ReadyForHarvest,
+		"grid_row":          hive.GridRow,
+		"grid_col":          hive.GridCol,
+		"diseases":          dd,
+		"last_inspected_at": lastInspectedAt,
+		"created_at":        hive.CreatedAt,
+		"updated_at":        hive.UpdatedAt,
 	}
 }
 
@@ -187,6 +188,7 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Active          bool   `json:"active"`
+		Frames          int    `json:"frames"`
 		Name            string `json:"name"`
 		Queenless       bool   `json:"queenless"`
 		ReadyForHarvest bool   `json:"ready_for_harvest"`
@@ -197,7 +199,7 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless)
+	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless, req.Frames)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -308,6 +310,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Active          *bool  `json:"active"`
+		Frames          int    `json:"frames"`
 		GridCol         int    `json:"grid_col"`
 		GridRow         int    `json:"grid_row"`
 		Name            string `json:"name"`
@@ -330,7 +333,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.GridRow, req.GridCol)
+	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.GridRow, req.GridCol, req.Frames)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -348,6 +351,42 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusCreated, hiveJSON(hive, []*model.HiveDisease{}, nil))
+}
+
+// AddFrames handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/frames — atomically adds frames to a hive.
+func (h *HiveHandler) AddFrames(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+		return
+	}
+
+	var req struct {
+		Delta int `json:"delta"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+		return
+	}
+
+	if err := h.hives.AddFrames(r.Context(), userID, apiaryID, hiveID, req.Delta); err != nil {
+		hiveError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // AddDisease handles POST /api/v1/apiaries/{id}/hives/{hiveId}/diseases — adds a disease to a hive.
