@@ -463,6 +463,14 @@ LoginScreen / RegisterScreen
                   ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
                   └── InspectionHistoryScreen (View all — only shown when inspections exist)
                           └── InspectionFormScreen (add button)
+
+#### Hive list dialog (`_HiveListDialog`)
+Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:
+- No inspection → top (needs attention)
+- Oldest inspection → next
+- Most recently inspected → bottom
+
+Each row subtitle: `"d MMM yyyy · <note>"` (note truncated with ellipsis) or `"d MMM yyyy · Queen seen · Brood: good"` if note is empty. Diseases are shown as icons only (🦠) — never in the subtitle text. Inspection data is lazy-loaded concurrently (one `GET inspections?limit=1` per hive that has `lastInspectedAt`) when the dialog opens; rows update as responses arrive.
 ```
 
 #### InspectionFormScreen — bottom amber banner

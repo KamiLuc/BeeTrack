@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
+import '../../inspection/data/inspection_model.dart';
+import '../../inspection/data/inspection_repository.dart';
 import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
-import '../../../core/widgets/profile_icon_button.dart';
 import 'add_hive_screen.dart';
 import 'hive_detail_screen.dart';
 
@@ -229,6 +232,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                   onCenter: () =>
                       _transformController.value = Matrix4.identity(),
                   l10n: l10n,
+                  apiaryId: widget.apiary.id,
                   hives: state.hives,
                   onHiveTap: (hive) async {
                     await Navigator.of(context).push(
@@ -257,6 +261,7 @@ class _FilterBar extends StatelessWidget {
   final void Function(_HiveFilter) onToggle;
   final VoidCallback onCenter;
   final AppLocalizations l10n;
+  final int apiaryId;
   final List<Hive> hives;
   final void Function(Hive) onHiveTap;
 
@@ -265,6 +270,7 @@ class _FilterBar extends StatelessWidget {
     required this.onToggle,
     required this.onCenter,
     required this.l10n,
+    required this.apiaryId,
     required this.hives,
     required this.onHiveTap,
   });
@@ -352,86 +358,13 @@ class _FilterBar extends StatelessWidget {
   }
 
   void _showHiveSheet(BuildContext context) {
-    final locale = Localizations.localeOf(context).toString();
     showDialog<void>(
       context: context,
-      builder: (ctx) {
-        final isWide = MediaQuery.sizeOf(ctx).width >= 600;
-        return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isWide ? 480 : 380),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.format_list_bulleted,
-                          size: 20,
-                          color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
-                      Text(l10n.hiveListTooltip,
-                          style: Theme.of(ctx).textTheme.titleMedium),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: hives.length,
-                    itemBuilder: (_, i) {
-                      final hive = hives[i];
-                      final dateStr = hive.lastInspectedAt != null
-                          ? DateFormat('d MMM yyyy', locale)
-                              .format(hive.lastInspectedAt!)
-                          : l10n.hiveDetailNoInspections;
-                      final details = [
-                        if (!hive.active) l10n.hiveInactive,
-                        if (hive.diseases.isNotEmpty)
-                          hive.diseases.map((d) => d.disease).join(', '),
-                      ];
-                      final subtitleText = details.isEmpty
-                          ? dateStr
-                          : '$dateStr · ${details.join(' · ')}';
-                      return ListTile(
-                        leading: const Icon(Icons.hive),
-                        title: Text(hive.name),
-                        subtitle: Text(subtitleText),
-                        trailing: _HiveStatusIcons(hive: hive),
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          onHiveTap(hive);
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: SizedBox(
-                      width: 200,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        style: ElevatedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        child: Text(l10n.generalClose),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (_) => _HiveListDialog(
+        apiaryId: apiaryId,
+        hives: hives,
+        onHiveTap: onHiveTap,
+      ),
     );
   }
 
@@ -495,6 +428,166 @@ class _FilterBar extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HiveListDialog extends StatefulWidget {
+  final int apiaryId;
+  final List<Hive> hives;
+  final void Function(Hive) onHiveTap;
+
+  const _HiveListDialog({
+    required this.apiaryId,
+    required this.hives,
+    required this.onHiveTap,
+  });
+
+  @override
+  State<_HiveListDialog> createState() => _HiveListDialogState();
+}
+
+class _HiveListDialogState extends State<_HiveListDialog> {
+  final Map<int, Inspection?> _lastInspections = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInspections();
+  }
+
+  Future<void> _loadInspections() async {
+    final repo = InspectionRepository(api: context.read<ApiClient>());
+    final hivesWithInspections =
+        widget.hives.where((h) => h.lastInspectedAt != null).toList();
+    await Future.wait(
+      hivesWithInspections.map((hive) async {
+        try {
+          final list = await repo.listInspections(
+            widget.apiaryId,
+            hive.id,
+            limit: 1,
+          );
+          if (mounted) {
+            setState(() {
+              _lastInspections[hive.id] = list.isNotEmpty ? list.first : null;
+            });
+          }
+        } catch (_) {}
+      }),
+    );
+  }
+
+  String _hint(AppLocalizations l10n, Inspection inspection) {
+    if (inspection.notes.isNotEmpty) return inspection.notes;
+    final parts = <String>[];
+    if (inspection.queenSeen == 'seen') {
+      parts.add(l10n.inspectionQueenStatusSeen);
+    } else if (inspection.queenSeen == 'not_seen') {
+      parts.add(l10n.inspectionQueenStatusNotSeen);
+    }
+    if (inspection.broodPattern.isNotEmpty &&
+        inspection.broodPattern != 'none') {
+      final broodLabel = switch (inspection.broodPattern) {
+        'excellent' => l10n.inspectionBroodExcellent,
+        'good' => l10n.inspectionBroodGood,
+        'poor' => l10n.inspectionBroodPoor,
+        _ => inspection.broodPattern,
+      };
+      parts.add('${l10n.inspectionBroodPattern}: $broodLabel');
+    }
+    return parts.join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
+
+    final sortedHives = [...widget.hives]..sort((a, b) {
+        if (a.lastInspectedAt == null && b.lastInspectedAt == null) return 0;
+        if (a.lastInspectedAt == null) return -1;
+        if (b.lastInspectedAt == null) return 1;
+        return a.lastInspectedAt!.compareTo(b.lastInspectedAt!);
+      });
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isWide ? 480 : 380),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.format_list_bulleted,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(l10n.hiveListTooltip,
+                      style: Theme.of(context).textTheme.titleMedium),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: sortedHives.length,
+                itemBuilder: (_, i) {
+                  final hive = sortedHives[i];
+                  final dateStr = hive.lastInspectedAt != null
+                      ? DateFormat('d MMM yyyy', locale)
+                          .format(hive.lastInspectedAt!)
+                      : l10n.hiveDetailNoInspections;
+
+                  final inspection = _lastInspections[hive.id];
+                  String subtitleText = dateStr;
+                  if (hive.lastInspectedAt != null && inspection != null) {
+                    final hint = _hint(l10n, inspection);
+                    if (hint.isNotEmpty) subtitleText = '$dateStr · $hint';
+                  }
+
+                  return ListTile(
+                    leading: const Icon(Icons.hive),
+                    title: Text(hive.name),
+                    subtitle: Text(
+                      subtitleText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: _HiveStatusIcons(hive: hive),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      widget.onHiveTap(hive);
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 200,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text(l10n.generalClose),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

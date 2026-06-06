@@ -212,4 +212,79 @@ void main() {
       expect: () => [],
     );
   });
+
+  group('hive list sort order', () {
+    // Mirrors the comparator used in _HiveListDialog:
+    // null (no inspection) first, then oldest to newest.
+    List<Hive> sortHives(List<Hive> hives) => [...hives]..sort((a, b) {
+        if (a.lastInspectedAt == null && b.lastInspectedAt == null) return 0;
+        if (a.lastInspectedAt == null) return -1;
+        if (b.lastInspectedAt == null) return 1;
+        return a.lastInspectedAt!.compareTo(b.lastInspectedAt!);
+      });
+
+    Hive hiveWithDate(int id, DateTime? date) => Hive(
+          id: id,
+          apiaryId: 1,
+          name: 'Ul $id',
+          type: 'langstroth',
+          active: true,
+          queenless: false,
+          readyForHarvest: false,
+          gridRow: 0,
+          gridCol: id,
+          lastInspectedAt: date,
+        );
+
+    test('no-inspection hive sorts before inspected hives', () {
+      final hives = [
+        hiveWithDate(1, DateTime(2026, 6, 6)),
+        hiveWithDate(2, null),
+      ];
+      final sorted = sortHives(hives);
+      expect(sorted[0].lastInspectedAt, isNull);
+      expect(sorted[1].lastInspectedAt, DateTime(2026, 6, 6));
+    });
+
+    test('oldest inspection sorts before most recent', () {
+      final hives = [
+        hiveWithDate(1, DateTime(2026, 6, 6)),
+        hiveWithDate(2, DateTime(2026, 6, 1)),
+        hiveWithDate(3, DateTime(2026, 5, 15)),
+      ];
+      final sorted = sortHives(hives);
+      expect(sorted[0].lastInspectedAt, DateTime(2026, 5, 15));
+      expect(sorted[1].lastInspectedAt, DateTime(2026, 6, 1));
+      expect(sorted[2].lastInspectedAt, DateTime(2026, 6, 6));
+    });
+
+    test('multiple no-inspection hives preserve relative order', () {
+      final hives = [
+        hiveWithDate(1, null),
+        hiveWithDate(2, DateTime(2026, 6, 1)),
+        hiveWithDate(3, null),
+      ];
+      final sorted = sortHives(hives);
+      expect(sorted[0].lastInspectedAt, isNull);
+      expect(sorted[1].lastInspectedAt, isNull);
+      expect(sorted[2].lastInspectedAt, DateTime(2026, 6, 1));
+    });
+
+    test('all inspected sorts oldest to newest', () {
+      final hives = [
+        hiveWithDate(1, DateTime(2026, 6, 5)),
+        hiveWithDate(2, DateTime(2026, 6, 1)),
+        hiveWithDate(3, DateTime(2026, 6, 10)),
+      ];
+      final sorted = sortHives(hives);
+      expect(sorted.map((h) => h.id).toList(), [2, 1, 3]);
+    });
+
+    test('all no-inspection returns same count', () {
+      final hives = [hiveWithDate(1, null), hiveWithDate(2, null)];
+      final sorted = sortHives(hives);
+      expect(sorted.length, 2);
+      expect(sorted.every((h) => h.lastInspectedAt == null), isTrue);
+    });
+  });
 }
