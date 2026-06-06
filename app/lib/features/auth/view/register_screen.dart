@@ -26,6 +26,7 @@ class _RegisterViewState extends State<_RegisterView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _errorMessage;
+  String? _verifiedEmail;
 
   @override
   void dispose() {
@@ -37,9 +38,11 @@ class _RegisterViewState extends State<_RegisterView> {
   void _submit(BuildContext context) {
     if (_formKey.currentState?.validate() ?? false) {
       final email = _emailController.text.trim();
+      final lang = Localizations.localeOf(context).languageCode;
       context.read<AuthBloc>().add(
         RegisterSubmitted(
           email: email,
+          lang: lang,
           name: email,
           password: _passwordController.text,
         ),
@@ -57,6 +60,9 @@ class _RegisterViewState extends State<_RegisterView> {
         if (state is AuthFailure) {
           setState(() => _errorMessage = _mapError(l10n, state.code));
         }
+        if (state is AuthVerificationRequired) {
+          setState(() => _verifiedEmail = state.email);
+        }
       },
       child: Scaffold(
         body: SafeArea(
@@ -65,86 +71,15 @@ class _RegisterViewState extends State<_RegisterView> {
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
                 constraints: AppLayout.formConstraints(context),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 48),
-                      Center(
-                        child: Text(
-                          l10n.authRegister,
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
+                child: _verifiedEmail != null
+                    ? _CheckEmailView(email: _verifiedEmail!)
+                    : _FormView(
+                        formKey: _formKey,
+                        emailController: _emailController,
+                        passwordController: _passwordController,
+                        errorMessage: _errorMessage,
+                        onSubmit: _submit,
                       ),
-                      const SizedBox(height: 24),
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: InputDecoration(labelText: l10n.authEmail),
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) => _isValidEmail(v)
-                            ? null
-                            : l10n.authInvalidEmail,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: l10n.authPassword,
-                        ),
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _submit(context),
-                        validator: (v) => (v == null || v.length < 8)
-                            ? l10n.authWeakPassword
-                            : null,
-                      ),
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      BlocBuilder<AuthBloc, AuthState>(
-                        builder: (context, state) {
-                          return Center(
-                            child: SizedBox(
-                              width: 200,
-                              child: ElevatedButton(
-                                onPressed: state is AuthLoading
-                                    ? null
-                                    : () => _submit(context),
-                                child: state is AuthLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Text(l10n.authRegister),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(l10n.authHaveAccount),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ),
@@ -153,15 +88,148 @@ class _RegisterViewState extends State<_RegisterView> {
     );
   }
 
-  bool _isValidEmail(String? v) {
-    if (v == null) return false;
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim());
-  }
-
   String _mapError(AppLocalizations l10n, String code) {
     return switch (code) {
       'EMAIL_TAKEN' => l10n.authEmailTaken,
       _ => l10n.generalError,
     };
+  }
+}
+
+class _CheckEmailView extends StatelessWidget {
+  final String email;
+
+  const _CheckEmailView({required this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 48),
+        const Icon(Icons.mark_email_read_outlined, size: 64),
+        const SizedBox(height: 24),
+        Text(
+          l10n.authCheckEmail,
+          style: Theme.of(context).textTheme.headlineMedium,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          l10n.authCheckEmailMessage(email),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.authBackToLogin),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FormView extends StatelessWidget {
+  final TextEditingController emailController;
+  final String? errorMessage;
+  final GlobalKey<FormState> formKey;
+  final void Function(BuildContext) onSubmit;
+  final TextEditingController passwordController;
+
+  const _FormView({
+    required this.emailController,
+    required this.errorMessage,
+    required this.formKey,
+    required this.onSubmit,
+    required this.passwordController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 48),
+          Center(
+            child: Text(
+              l10n.authRegister,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: emailController,
+            decoration: InputDecoration(labelText: l10n.authEmail),
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            validator: (v) => _isValidEmail(v) ? null : l10n.authInvalidEmail,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: passwordController,
+            decoration: InputDecoration(labelText: l10n.authPassword),
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => onSubmit(context),
+            validator: (v) =>
+                (v == null || v.length < 8) ? l10n.authWeakPassword : null,
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              errorMessage!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 24),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              return Center(
+                child: SizedBox(
+                  width: 200,
+                  child: ElevatedButton(
+                    onPressed:
+                        state is AuthLoading ? null : () => onSubmit(context),
+                    child: state is AuthLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(l10n.authRegister),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.authHaveAccount),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isValidEmail(String? v) {
+    if (v == null) return false;
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(v.trim());
   }
 }

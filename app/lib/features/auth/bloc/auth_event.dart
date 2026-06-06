@@ -13,11 +13,13 @@ final class LoginSubmitted extends AuthEvent {
 
 final class RegisterSubmitted extends AuthEvent {
   final String email;
+  final String lang;
   final String name;
   final String password;
 
   RegisterSubmitted({
     required this.email,
+    required this.lang,
     required this.name,
     required this.password,
   });

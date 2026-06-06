@@ -28,16 +28,19 @@ If the token is missing or invalid:
 
 ### POST /auth/register
 
-Creates a new user account.
+Creates a new unverified user account and sends a confirmation email. The user must click the link in that email before they can log in.
 
 **Request**
 ```json
 {
   "email": "user@example.com",
   "name": "John",
-  "password": "password123"
+  "password": "password123",
+  "lang": "en"
 }
 ```
+
+- `lang` — optional, `"en"` or `"pl"` (default `"en"`). Determines the language of the confirmation email.
 
 **Response** `201 Created`
 ```json
@@ -62,7 +65,7 @@ Creates a new user account.
 
 ### POST /auth/login
 
-Authenticates a user and returns token pair.
+Authenticates a user and returns token pair. The account must be verified first.
 
 **Request**
 ```json
@@ -88,6 +91,123 @@ Authenticates a user and returns token pair.
 |------|--------|-------------|
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `INVALID_CREDENTIALS` | 401 | Wrong email or password |
+| `EMAIL_NOT_VERIFIED` | 403 | Account email not yet verified |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /auth/resend-verification
+
+Sends a new verification email. Always returns 204 regardless of whether the email is registered or already verified (to avoid enumeration).
+
+**Request**
+```json
+{
+  "email": "user@example.com",
+  "lang": "en"
+}
+```
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /auth/verify-email
+
+Called from the link in the verification email. Validates the token, marks the account as verified, and returns a localized HTML confirmation page (not JSON). Intended to be opened directly in a browser.
+
+**Query parameters**
+| Parameter | Description |
+|-----------|-------------|
+| `token` | Verification token |
+| `lang` | Optional — `en` or `pl`; controls the language of the HTML page |
+
+**Response** `200 OK` — HTML confirmation page ("Email Verified")
+
+**Error response** `400 Bad Request` — HTML error page ("Verification Failed") if token is missing, expired, or already used
+
+---
+
+### POST /auth/forgot-password
+
+Initiates a password reset by sending a reset link to the given email. Always returns 204 to avoid email enumeration. The reset link points to `GET /auth/reset-password-form` on the API.
+
+**Request**
+```json
+{
+  "email": "user@example.com",
+  "lang": "en"
+}
+```
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /auth/reset-password-form
+
+Serves the HTML password reset form. Intended to be opened directly in a browser from the link in the reset email.
+
+**Query parameters**
+| Parameter | Description |
+|-----------|-------------|
+| `token` | Reset token from the email link |
+| `lang` | Optional — `en` or `pl` |
+
+**Response** `200 OK` — HTML form with a password input
+
+**Error response** `400 Bad Request` — HTML error page if token is missing or expired
+
+---
+
+### POST /auth/reset-password-form
+
+Handles HTML form submission from `GET /auth/reset-password-form`. Accepts `application/x-www-form-urlencoded`.
+
+**Form fields**
+
+| Field | Description |
+|-------|-------------|
+| `token` | Reset token (from hidden input) |
+| `password` | New password (min 8 chars) |
+| `lang` | Language (from hidden input) |
+
+**Response** `200 OK` — HTML success page on success; re-renders the form with an error message on weak password; HTML expired page on invalid/expired token
+
+---
+
+### POST /auth/reset-password
+
+Validates the reset token and updates the user's password. For API clients (mobile). Invalidates all existing reset tokens for the user.
+
+**Request**
+```json
+{
+  "token": "<reset token>",
+  "password": "newpassword123"
+}
+```
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INVALID_RESET_TOKEN` | 400 | Token not found or expired |
+| `WEAK_PASSWORD` | 400 | Password shorter than 8 characters |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

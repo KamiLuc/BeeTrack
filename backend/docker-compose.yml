@@ -26,6 +26,12 @@ services:
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   api:
     build: .
     depends_on:
@@ -34,8 +40,13 @@ services:
     env_file:
       - .env
     environment:
+      API_URL: http://localhost:8080
+      APP_URL: http://localhost:5000
       DATABASE_URL: postgres://postgres:password@db:5432/beetrack?sslmode=disable
       IMAGE_STORAGE_PATH: /data/images
+      SMTP_FROM: noreply@beetrack.app
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     ports:
       - "8080:8080"
     volumes:

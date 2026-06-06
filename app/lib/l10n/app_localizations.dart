@@ -266,6 +266,126 @@ abstract class AppLocalizations {
   /// **'Ten adres e-mail jest już zajęty'**
   String get authEmailTaken;
 
+  /// No description provided for @authEmailNotVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdź swój adres e-mail przed zalogowaniem'**
+  String get authEmailNotVerified;
+
+  /// No description provided for @authCheckEmail.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdź pocztę'**
+  String get authCheckEmail;
+
+  /// No description provided for @authCheckEmailMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wysłaliśmy link weryfikacyjny na adres {email}. Sprawdź skrzynkę odbiorczą.'**
+  String authCheckEmailMessage(String email);
+
+  /// No description provided for @authResendEmail.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyślij ponownie'**
+  String get authResendEmail;
+
+  /// No description provided for @authBackToLogin.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wróć do logowania'**
+  String get authBackToLogin;
+
+  /// No description provided for @authForgotPassword.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie pamiętasz hasła?'**
+  String get authForgotPassword;
+
+  /// No description provided for @authForgotPasswordTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Resetowanie hasła'**
+  String get authForgotPasswordTitle;
+
+  /// No description provided for @authForgotPasswordSubtitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podaj swój e-mail, a wyślemy Ci link do resetowania hasła.'**
+  String get authForgotPasswordSubtitle;
+
+  /// No description provided for @authForgotPasswordSent.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdź skrzynkę — link do resetowania hasła został wysłany.'**
+  String get authForgotPasswordSent;
+
+  /// No description provided for @authSendResetLink.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyślij link'**
+  String get authSendResetLink;
+
+  /// No description provided for @authVerifyingEmail.
+  ///
+  /// In pl, this message translates to:
+  /// **'Weryfikacja adresu e-mail...'**
+  String get authVerifyingEmail;
+
+  /// No description provided for @authEmailVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres e-mail zweryfikowany!'**
+  String get authEmailVerified;
+
+  /// No description provided for @authEmailVerifiedMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Twoje konto jest aktywne. Możesz się zalogować.'**
+  String get authEmailVerifiedMessage;
+
+  /// No description provided for @authVerificationFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Weryfikacja nie powiodła się'**
+  String get authVerificationFailed;
+
+  /// No description provided for @authVerificationFailedMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Link mógł wygasnąć lub już był użyty.'**
+  String get authVerificationFailedMessage;
+
+  /// No description provided for @authGoToLogin.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przejdź do logowania'**
+  String get authGoToLogin;
+
+  /// No description provided for @authNewPassword.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowe hasło'**
+  String get authNewPassword;
+
+  /// No description provided for @authPasswordChanged.
+  ///
+  /// In pl, this message translates to:
+  /// **'Hasło zostało zmienione!'**
+  String get authPasswordChanged;
+
+  /// No description provided for @authPasswordChangedMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Możesz teraz zalogować się nowym hasłem.'**
+  String get authPasswordChangedMessage;
+
+  /// No description provided for @authInvalidResetToken.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten link wygasł lub już był użyty.'**
+  String get authInvalidResetToken;
+
   /// No description provided for @roleOwner.
   ///
   /// In pl, this message translates to:

@@ -32,6 +32,31 @@
   "authWeakPassword": "Password must be at least 8 characters",
   "authInvalidCredentials": "Invalid email or password",
   "authEmailTaken": "This email is already taken",
+  "authEmailNotVerified": "Please verify your email before logging in",
+  "authCheckEmail": "Check your email",
+  "authCheckEmailMessage": "We sent a verification link to {email}. Check your inbox.",
+  "@authCheckEmailMessage": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "authResendEmail": "Resend email",
+  "authBackToLogin": "Back to log in",
+  "authForgotPassword": "Forgot password?",
+  "authForgotPasswordTitle": "Reset password",
+  "authForgotPasswordSubtitle": "Enter your email and we'll send you a reset link.",
+  "authForgotPasswordSent": "Check your inbox for the reset link.",
+  "authSendResetLink": "Send reset link",
+  "authVerifyingEmail": "Verifying your email...",
+  "authEmailVerified": "Email verified!",
+  "authEmailVerifiedMessage": "Your account is now active. You can log in.",
+  "authVerificationFailed": "Verification failed",
+  "authVerificationFailedMessage": "The link may have expired or already been used.",
+  "authGoToLogin": "Go to login",
+  "authNewPassword": "New password",
+  "authPasswordChanged": "Password changed!",
+  "authPasswordChangedMessage": "You can now log in with your new password.",
+  "authInvalidResetToken": "This link has expired or already been used.",
 
   "roleOwner": "Owner",
   "roleMember": "Member",

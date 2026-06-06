@@ -32,6 +32,31 @@
   "authWeakPassword": "Hasło musi mieć co najmniej 8 znaków",
   "authInvalidCredentials": "Nieprawidłowy e-mail lub hasło",
   "authEmailTaken": "Ten adres e-mail jest już zajęty",
+  "authEmailNotVerified": "Potwierdź swój adres e-mail przed zalogowaniem",
+  "authCheckEmail": "Sprawdź pocztę",
+  "authCheckEmailMessage": "Wysłaliśmy link weryfikacyjny na adres {email}. Sprawdź skrzynkę odbiorczą.",
+  "@authCheckEmailMessage": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "authResendEmail": "Wyślij ponownie",
+  "authBackToLogin": "Wróć do logowania",
+  "authForgotPassword": "Nie pamiętasz hasła?",
+  "authForgotPasswordTitle": "Resetowanie hasła",
+  "authForgotPasswordSubtitle": "Podaj swój e-mail, a wyślemy Ci link do resetowania hasła.",
+  "authForgotPasswordSent": "Sprawdź skrzynkę — link do resetowania hasła został wysłany.",
+  "authSendResetLink": "Wyślij link",
+  "authVerifyingEmail": "Weryfikacja adresu e-mail...",
+  "authEmailVerified": "Adres e-mail zweryfikowany!",
+  "authEmailVerifiedMessage": "Twoje konto jest aktywne. Możesz się zalogować.",
+  "authVerificationFailed": "Weryfikacja nie powiodła się",
+  "authVerificationFailedMessage": "Link mógł wygasnąć lub już był użyty.",
+  "authGoToLogin": "Przejdź do logowania",
+  "authNewPassword": "Nowe hasło",
+  "authPasswordChanged": "Hasło zostało zmienione!",
+  "authPasswordChangedMessage": "Możesz teraz zalogować się nowym hasłem.",
+  "authInvalidResetToken": "Ten link wygasł lub już był użyty.",
 
   "roleOwner": "Właściciel",
   "roleMember": "Członek",

@@ -44,11 +44,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await _auth.register(
         email: event.email,
+        lang: event.lang,
         name: event.name,
         password: event.password,
       );
-      await _auth.login(email: event.email, password: event.password);
-      emit(AuthAuthenticated());
+      emit(AuthVerificationRequired(event.email));
     } on ApiException catch (e) {
       emit(AuthFailure(e.code));
     }

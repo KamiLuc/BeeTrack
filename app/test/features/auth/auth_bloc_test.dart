@@ -78,18 +78,13 @@ void main() {
 
   group('RegisterSubmitted', () {
     blocTest<AuthBloc, AuthState>(
-      'emits [AuthLoading, AuthAuthenticated] on success',
+      'emits [AuthLoading, AuthVerificationRequired] on success',
       build: () {
         when(
           () => repo.register(
             email: any(named: 'email'),
+            lang: any(named: 'lang'),
             name: any(named: 'name'),
-            password: any(named: 'password'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          () => repo.login(
-            email: any(named: 'email'),
             password: any(named: 'password'),
           ),
         ).thenAnswer((_) async {});
@@ -98,11 +93,15 @@ void main() {
       act: (b) => b.add(
         RegisterSubmitted(
           email: 'a@b.com',
+          lang: 'en',
           name: 'Alice',
           password: 'password123',
         ),
       ),
-      expect: () => [isA<AuthLoading>(), isA<AuthAuthenticated>()],
+      expect: () => [
+        isA<AuthLoading>(),
+        isA<AuthVerificationRequired>().having((s) => s.email, 'email', 'a@b.com'),
+      ],
     );
 
     blocTest<AuthBloc, AuthState>(
@@ -111,6 +110,7 @@ void main() {
         when(
           () => repo.register(
             email: any(named: 'email'),
+            lang: any(named: 'lang'),
             name: any(named: 'name'),
             password: any(named: 'password'),
           ),
@@ -122,6 +122,7 @@ void main() {
       act: (b) => b.add(
         RegisterSubmitted(
           email: 'taken@b.com',
+          lang: 'en',
           name: 'Alice',
           password: 'password123',
         ),

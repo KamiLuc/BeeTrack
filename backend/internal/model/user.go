@@ -7,6 +7,7 @@ type User struct {
 	Email        string
 	Name         string
 	PasswordHash string
+	Verified     bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

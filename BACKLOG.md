@@ -18,40 +18,21 @@
 
 ## Epics Overview
 
-1. [Auth & User Management](#1-auth--user-management)
-2. [Apiary & Hive Management](#2-apiary--hive-management)
-3. [Inspection Logging](#3-inspection-logging)
-4. [Health & Treatment Tracking](#4-health--treatment-tracking)
-5. [Honey Harvest Tracking](#5-honey-harvest-tracking)
-6. [Reports & Analytics](#6-reports--analytics)
-7. [Queen Recognition (AI Feature)](#7-queen-recognition-ai-feature)
-8. [MCP Server](#8-mcp-server)
-9. [Infrastructure & DevOps](#9-infrastructure--devops)
-10. [Localization](#10-localization)
+1. [Apiary & Hive Management](#1-apiary--hive-management)
+2. [Health & Treatment Tracking](#2-health--treatment-tracking)
+3. [Honey Harvest Tracking](#3-honey-harvest-tracking)
+4. [Reports & Analytics](#4-reports--analytics)
+5. [Queen Recognition (AI Feature)](#5-queen-recognition-ai-feature)
+6. [MCP Server](#6-mcp-server)
+7. [Infrastructure & DevOps](#7-infrastructure--devops)
+8. [Localization](#8-localization)
 
 ---
 
-## 1. Auth & User Management
+## 1. Apiary & Hive Management
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| AU-05-FE | `FE` | `[ ]` | Edit display name screen | Name defaults to email on registration; user changes it here |
-
----
-
-## 2. Apiary & Hive Management
-
-| ID | Layer | Status | Title | Notes |
-|----|-------|--------|-------|-------|
-| HV-01-BE | `BE` | `[x]` | Hive CRUD endpoints | Create, list, get, update, delete, move; grid position validation |
-| HV-04-FE | `FE` | `[x]` | Apiary grid view | Display hives on grid; empty cells as placeholders |
-| HV-05-FE | `FE` | `[x]` | Add hive screen | Tap empty grid cell to open form; name/type fields shared with edit |
-| HV-06-FE | `FE` | `[x]` | Move hive UI | Long-press drag-and-drop; optimistic update with API revert on failure |
-| HV-07-BE | `BE` | `[x]` | Update hive endpoint | Name, type, active flag via PATCH |
-| HV-07-FE | `FE` | `[x]` | Edit hive UI | Edit name, type, active toggle |
-| HV-08-FE | `FE` | `[x]` | Delete hive UI | Confirmation dialog via ... popup on hive cell |
-| HV-09-FE | `FE` | `[x]` | Hive detail screen | Info card (type, status) + placeholder sections for inspections, treatments, harvests |
-| HV-10-FE | `FE` | `[x]` | Active toggle UI | Simple on/off toggle (active bool) |
 | HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
 | HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |
 | HV-12-BE | `BE` | `[ ]` | Apiary roles enforcement | Owner can invite/remove/delete; member can manage hives and inspections |
@@ -62,33 +43,7 @@
 
 ---
 
-## 3. Inspection Logging
-
-| ID | Layer | Status | Title | Notes |
-|----|-------|--------|-------|-------|
-| IN-01-BE | `BE` | `[x]` | Create inspection endpoint | Date, aggressiveness, queen/brood/frames/varroa/cells/queen_added fields |
-| IN-01-FE | `FE` | `[x]` | Create inspection screen | inspection_form_screen.dart (shared create/edit) |
-| IN-02-BE | `BE` | `[x]` | Queen status field | Enum: seen, not_seen, capped_cells, eggs |
-| IN-02-FE | `FE` | `[x]` | Queen status UI | Dropdown with "Not set" option |
-| IN-03-BE | `BE` | `[x]` | Brood pattern field | Enum: excellent, good, poor, none |
-| IN-03-FE | `FE` | `[x]` | Brood pattern UI | Dropdown with "Not set" option |
-| IN-04-BE | `BE` | `[x]` | Frames count fields | Honey, pollen (bees dropped) |
-| IN-04-FE | `FE` | `[x]` | Frames count UI | Numeric inputs (honey, pollen, drawn, foundation) |
-| IN-05-BE | `BE` | `[x]` | Varroa mite count field | Numeric; method field dropped |
-| IN-05-FE | `FE` | `[x]` | Varroa count UI | Numeric input |
-| IN-06-BE | `BE` | `[x]` | Free-text notes field | |
-| IN-06-FE | `FE` | `[x]` | Notes UI | Multi-line text area |
-| IN-07-BE | `BE` | `[x]` | Edit / delete inspection endpoints | |
-| IN-07-FE | `FE` | `[x]` | Edit / delete inspection UI | Edit via form (shared screen); delete via popup menu |
-| IN-08-BE | `BE` | `[x]` | Inspection history endpoint | Paginated (limit/offset) |
-| IN-08-FE | `FE` | `[x]` | Inspection history list screen | inspection_history_screen.dart; shows date, queen/brood summary, disease chips |
-| IN-09-BE | `BE` | `[x]` | Disease tracking | inspection_diseases table; POST/DELETE endpoints; diseases array in inspection response |
-| IN-09-FE | `FE` | `[x]` | Disease UI | FilterChip multi-select in form; disease chips in history list |
-| IN-10-FE | `FE` | `[x]` | Last inspection summary in hive detail | Hive detail card loads + shows last inspection (date, obs, frames, notes); "Add inspection" goes direct to form; "View all" only when inspections exist; new form copies current frame counts from previous inspection; pre-filled values shown in grey |
-
----
-
-## 4. Health & Treatment Tracking
+## 2. Health & Treatment Tracking
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -101,7 +56,7 @@
 
 ---
 
-## 5. Honey Harvest Tracking
+## 3. Honey Harvest Tracking
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -112,7 +67,7 @@
 
 ---
 
-## 6. Reports & Analytics
+## 4. Reports & Analytics
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -121,7 +76,7 @@
 
 ---
 
-## 7. Queen Recognition (AI Feature)
+## 5. Queen Recognition (AI Feature)
 
 > **Deferred — implement after core app is stable.**
 
@@ -140,7 +95,7 @@
 
 ---
 
-## 8. MCP Server
+## 6. MCP Server
 
 > **Deferred — enables AI voice assistant integration.**
 
@@ -157,7 +112,7 @@
 
 ---
 
-## 9. Infrastructure & DevOps
+## 7. Infrastructure & DevOps
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|

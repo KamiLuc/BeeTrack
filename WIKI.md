@@ -162,6 +162,33 @@ Naming: `NNN_description.sql` (e.g. `003_create_hives.sql`).
 ### Models (`internal/model/`)
 
 ```go
+// user.go
+type User struct {
+    ID           int64
+    Email        string
+    Name         string
+    PasswordHash string
+    Verified     bool      // false until email verification link is clicked
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
+}
+
+// email_token.go
+type EmailVerificationToken struct {
+    ID        int64
+    UserID    int64
+    Token     string    // base64url random, expires in 24h
+    ExpiresAt time.Time
+    CreatedAt time.Time
+}
+type PasswordResetToken struct {
+    ID        int64
+    UserID    int64
+    Token     string    // base64url random, expires in 1h
+    ExpiresAt time.Time
+    CreatedAt time.Time
+}
+
 // apiary.go
 type Apiary struct {
     ID          int64
@@ -315,10 +342,16 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/auth/register` | Register user |
-| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/auth/register` | Register user — sends verification email (`lang` field sets email language) |
+| POST | `/api/v1/auth/login` | Login (requires verified account; returns `EMAIL_NOT_VERIFIED` if not) |
 | POST | `/api/v1/auth/refresh` | Refresh tokens |
 | POST | `/api/v1/auth/logout` | Logout |
+| GET | `/api/v1/auth/verify-email?token=&lang=` | Verify email — returns HTML page (called from email link) |
+| POST | `/api/v1/auth/resend-verification` | Resend verification email (`lang` field sets email language) |
+| POST | `/api/v1/auth/forgot-password` | Request password reset email (`lang` field sets email language) |
+| GET | `/api/v1/auth/reset-password-form?token=&lang=` | HTML password reset form (called from email link) |
+| POST | `/api/v1/auth/reset-password-form` | Submit HTML reset form (form-encoded) |
+| POST | `/api/v1/auth/reset-password` | Reset password via JSON — for mobile clients |
 | PATCH | `/api/v1/users/me/name` | Update display name |
 | GET | `/api/v1/apiaries` | List apiaries (includes hive_count + last_inspected_at per apiary) |
 | POST | `/api/v1/apiaries` | Create apiary |
@@ -462,3 +495,21 @@ Images uploaded to inspections are stored on disk in a Docker volume:
 - Path configurable via `IMAGE_STORAGE_PATH` env var (default `/data/images`).
 - Files are UUID-named (e.g. `550e8400-e29b-41d4-a716-446655440000.jpg`).
 - Cascade DB delete (via FK) cleans DB records; the service also removes files from disk before the parent inspection row is deleted.
+
+### Docker — email (MailPit)
+In development, all outgoing emails are caught by MailPit instead of being delivered:
+- SMTP on port `1025` (used by the `api` container via `SMTP_HOST=mailpit`).
+- Web UI at `http://localhost:8025` — inspect all sent emails here.
+- No authentication required for MailPit.
+
+Relevant env vars for the `api` container:
+
+| Var | Dev default | Description |
+|-----|-------------|-------------|
+| `API_URL` | `http://localhost:8080` | Base URL of the API — used in verification/reset email links |
+| `APP_URL` | `http://localhost:5000` | Flutter web app URL — reserved for future mobile deep links |
+| `SMTP_HOST` | `mailpit` | SMTP server host |
+| `SMTP_PORT` | `1025` | SMTP server port |
+| `SMTP_USER` | _(empty)_ | SMTP username — leave empty for MailPit, set for production |
+| `SMTP_PASS` | _(empty)_ | SMTP password |
+| `SMTP_FROM` | `noreply@beetrack.app` | Sender address |

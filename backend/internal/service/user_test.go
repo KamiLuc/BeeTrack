@@ -13,13 +13,17 @@ type mockUpdateNameRepo struct {
 	updatedName string
 }
 
-func (m *mockUpdateNameRepo) Create(ctx context.Context, u *model.User) error        { return nil }
+func (m *mockUpdateNameRepo) Create(ctx context.Context, u *model.User) error { return nil }
 func (m *mockUpdateNameRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	return nil, nil
 }
+func (m *mockUpdateNameRepo) SetVerified(ctx context.Context, userID int64) error   { return nil }
 func (m *mockUpdateNameRepo) UpdateName(ctx context.Context, userID int64, name string) error {
 	m.updatedID = userID
 	m.updatedName = name
+	return nil
+}
+func (m *mockUpdateNameRepo) UpdatePassword(ctx context.Context, userID int64, hash string) error {
 	return nil
 }
 

@@ -93,6 +93,74 @@ class AppLocalizationsPl extends AppLocalizations {
   String get authEmailTaken => 'Ten adres e-mail jest już zajęty';
 
   @override
+  String get authEmailNotVerified =>
+      'Potwierdź swój adres e-mail przed zalogowaniem';
+
+  @override
+  String get authCheckEmail => 'Sprawdź pocztę';
+
+  @override
+  String authCheckEmailMessage(String email) {
+    return 'Wysłaliśmy link weryfikacyjny na adres $email. Sprawdź skrzynkę odbiorczą.';
+  }
+
+  @override
+  String get authResendEmail => 'Wyślij ponownie';
+
+  @override
+  String get authBackToLogin => 'Wróć do logowania';
+
+  @override
+  String get authForgotPassword => 'Nie pamiętasz hasła?';
+
+  @override
+  String get authForgotPasswordTitle => 'Resetowanie hasła';
+
+  @override
+  String get authForgotPasswordSubtitle =>
+      'Podaj swój e-mail, a wyślemy Ci link do resetowania hasła.';
+
+  @override
+  String get authForgotPasswordSent =>
+      'Sprawdź skrzynkę — link do resetowania hasła został wysłany.';
+
+  @override
+  String get authSendResetLink => 'Wyślij link';
+
+  @override
+  String get authVerifyingEmail => 'Weryfikacja adresu e-mail...';
+
+  @override
+  String get authEmailVerified => 'Adres e-mail zweryfikowany!';
+
+  @override
+  String get authEmailVerifiedMessage =>
+      'Twoje konto jest aktywne. Możesz się zalogować.';
+
+  @override
+  String get authVerificationFailed => 'Weryfikacja nie powiodła się';
+
+  @override
+  String get authVerificationFailedMessage =>
+      'Link mógł wygasnąć lub już był użyty.';
+
+  @override
+  String get authGoToLogin => 'Przejdź do logowania';
+
+  @override
+  String get authNewPassword => 'Nowe hasło';
+
+  @override
+  String get authPasswordChanged => 'Hasło zostało zmienione!';
+
+  @override
+  String get authPasswordChangedMessage =>
+      'Możesz teraz zalogować się nowym hasłem.';
+
+  @override
+  String get authInvalidResetToken => 'Ten link wygasł lub już był użyty.';
+
+  @override
   String get roleOwner => 'Właściciel';
 
   @override

@@ -1,10 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -31,7 +34,8 @@ class _LoginViewState extends State<_LoginView> {
   final _passwordController = TextEditingController(
     text: kDebugMode ? 'lion12345' : null,
   );
-  String? _errorMessage;
+  String? _errorCode;
+  bool _resendLoading = false;
 
   @override
   void dispose() {
@@ -51,16 +55,35 @@ class _LoginViewState extends State<_LoginView> {
     }
   }
 
+  Future<void> _resendVerification(BuildContext context) async {
+    setState(() => _resendLoading = true);
+    final api = context.read<ApiClient>();
+    final lang = Localizations.localeOf(context).languageCode;
+    final messenger = ScaffoldMessenger.of(context);
+    final checkEmailMsg = AppLocalizations.of(context)!.authCheckEmail;
+    try {
+      await api.dio.post(
+        '/api/v1/auth/resend-verification',
+        data: {'email': _emailController.text.trim(), 'lang': lang},
+      );
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(checkEmailMsg)));
+      }
+    } on DioException {
+      // best-effort
+    } finally {
+      if (mounted) setState(() => _resendLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthLoading) setState(() => _errorMessage = null);
-        if (state is AuthFailure) {
-          setState(() => _errorMessage = _mapError(l10n, state.code));
-        }
+        if (state is AuthLoading) setState(() => _errorCode = null);
+        if (state is AuthFailure) setState(() => _errorCode = state.code);
       },
       child: Scaffold(
         body: SafeArea(
@@ -104,15 +127,33 @@ class _LoginViewState extends State<_LoginView> {
                             ? l10n.authWeakPassword
                             : null,
                       ),
-                      if (_errorMessage != null) ...[
+                      if (_errorCode != null) ...[
                         const SizedBox(height: 12),
                         Text(
-                          _errorMessage!,
+                          _mapError(l10n, _errorCode!),
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
+                        if (_errorCode == 'EMAIL_NOT_VERIFIED') ...[
+                          const SizedBox(height: 4),
+                          Center(
+                            child: _resendLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : TextButton(
+                                    onPressed: () =>
+                                        _resendVerification(context),
+                                    child: Text(l10n.authResendEmail),
+                                  ),
+                          ),
+                        ],
                       ],
                       const SizedBox(height: 24),
                       BlocBuilder<AuthBloc, AuthState>(
@@ -139,7 +180,17 @@ class _LoginViewState extends State<_LoginView> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen(),
+                            ),
+                          ),
+                          child: Text(l10n.authForgotPassword),
+                        ),
+                      ),
                       Center(
                         child: TextButton(
                           onPressed: () => Navigator.of(context).push(
@@ -169,6 +220,7 @@ class _LoginViewState extends State<_LoginView> {
   String _mapError(AppLocalizations l10n, String code) {
     return switch (code) {
       'INVALID_CREDENTIALS' => l10n.authInvalidCredentials,
+      'EMAIL_NOT_VERIFIED' => l10n.authEmailNotVerified,
       _ => l10n.generalError,
     };
   }

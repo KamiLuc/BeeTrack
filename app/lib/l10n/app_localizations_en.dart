@@ -93,6 +93,74 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authEmailTaken => 'This email is already taken';
 
   @override
+  String get authEmailNotVerified =>
+      'Please verify your email before logging in';
+
+  @override
+  String get authCheckEmail => 'Check your email';
+
+  @override
+  String authCheckEmailMessage(String email) {
+    return 'We sent a verification link to $email. Check your inbox.';
+  }
+
+  @override
+  String get authResendEmail => 'Resend email';
+
+  @override
+  String get authBackToLogin => 'Back to log in';
+
+  @override
+  String get authForgotPassword => 'Forgot password?';
+
+  @override
+  String get authForgotPasswordTitle => 'Reset password';
+
+  @override
+  String get authForgotPasswordSubtitle =>
+      'Enter your email and we\'ll send you a reset link.';
+
+  @override
+  String get authForgotPasswordSent => 'Check your inbox for the reset link.';
+
+  @override
+  String get authSendResetLink => 'Send reset link';
+
+  @override
+  String get authVerifyingEmail => 'Verifying your email...';
+
+  @override
+  String get authEmailVerified => 'Email verified!';
+
+  @override
+  String get authEmailVerifiedMessage =>
+      'Your account is now active. You can log in.';
+
+  @override
+  String get authVerificationFailed => 'Verification failed';
+
+  @override
+  String get authVerificationFailedMessage =>
+      'The link may have expired or already been used.';
+
+  @override
+  String get authGoToLogin => 'Go to login';
+
+  @override
+  String get authNewPassword => 'New password';
+
+  @override
+  String get authPasswordChanged => 'Password changed!';
+
+  @override
+  String get authPasswordChangedMessage =>
+      'You can now log in with your new password.';
+
+  @override
+  String get authInvalidResetToken =>
+      'This link has expired or already been used.';
+
+  @override
   String get roleOwner => 'Owner';
 
   @override

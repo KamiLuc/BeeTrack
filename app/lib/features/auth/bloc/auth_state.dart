@@ -10,6 +10,12 @@ final class AuthAuthenticated extends AuthState {}
 
 final class AuthUnauthenticated extends AuthState {}
 
+final class AuthVerificationRequired extends AuthState {
+  final String email;
+
+  AuthVerificationRequired(this.email);
+}
+
 final class AuthFailure extends AuthState {
   final String code;
 

@@ -11,6 +11,7 @@ import (
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/migrations"
+	"github.com/beetrack/backend/pkg/mailer"
 	"github.com/joho/godotenv"
 )
 
@@ -35,12 +36,15 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
+	emailTokenRepo := repository.NewEmailTokenRepository(db)
 	apiaryRepo := repository.NewApiaryRepository(db)
 	hiveRepo := repository.NewHiveRepository(db)
 	inspectionRepo := repository.NewInspectionRepository(db)
 	inspectionImageRepo := repository.NewInspectionImageRepository(db)
 
-	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
+	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
+
+	authSvc := service.NewAuthService(userRepo, tokenRepo, emailTokenRepo, mail, cfg.APIURL, cfg.AppURL, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	apiarySvc := service.NewApiaryService(apiaryRepo, hiveRepo)
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
@@ -58,10 +62,16 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("POST /api/v1/auth/forgot-password", authHandler.ForgotPassword)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/auth/resend-verification", authHandler.ResendVerification)
+	mux.HandleFunc("POST /api/v1/auth/reset-password", authHandler.ResetPassword)
+	mux.HandleFunc("GET /api/v1/auth/reset-password-form", authHandler.ResetPasswordForm)
+	mux.HandleFunc("POST /api/v1/auth/reset-password-form", authHandler.ResetPasswordForm)
+	mux.HandleFunc("GET /api/v1/auth/verify-email", authHandler.VerifyEmail)
 
 	mux.Handle("PATCH /api/v1/users/me/name", auth(http.HandlerFunc(userHandler.UpdateName)))
 
