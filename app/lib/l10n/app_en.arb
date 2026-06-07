@@ -158,6 +158,9 @@
   "hiveDetailHarvests": "Harvests",
   "hiveDetailNoHarvests": "No harvests yet",
   "hiveDetailLogHarvest": "Log harvest",
+  "hiveChangeApiary": "Change apiary",
+  "hiveChangeApiaryTitle": "Move hive",
+  "hiveChangeApiaryNoSpace": "Target apiary has no free space",
   "generalRequired": "Required",
   "generalLoadMore": "Load more",
 

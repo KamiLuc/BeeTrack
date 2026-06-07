@@ -14,6 +14,8 @@ var (
 	ErrHiveNotFound        = errors.New("hive not found")
 	ErrInvalidGridPosition = errors.New("grid position out of apiary bounds")
 	ErrPositionOccupied    = errors.New("grid position already occupied")
+	ErrSameApiary          = errors.New("source and target apiary are the same")
+	ErrTargetApiaryFull    = errors.New("target apiary has no free space")
 )
 
 var validHiveDiseases = map[string]bool{
@@ -38,6 +40,7 @@ type HiveRepository interface {
 	ListDiseasesByHiveID(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error)
 	ListDiseasesByHiveIDs(ctx context.Context, ids []int64) ([]*model.HiveDisease, error)
 	Move(ctx context.Context, hiveID int64, row, col int) error
+	Relocate(ctx context.Context, hiveID, newApiaryID int64, row, col int) error
 	Update(ctx context.Context, h *model.Hive) error
 }
 
@@ -275,6 +278,62 @@ func (s *HiveService) AddFrames(ctx context.Context, userID, apiaryID, hiveID in
 		return fmt.Errorf("add frames: %w", err)
 	}
 	return nil
+}
+
+// ChangeApiary moves a hive from its current apiary to a different one, placing it at the
+// first available grid position in the target apiary. Both apiaries must be accessible to userID.
+func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiveID, dstApiaryID int64) (*model.Hive, error) {
+	if srcApiaryID == dstApiaryID {
+		return nil, ErrSameApiary
+	}
+
+	if _, _, err := s.apiaries.GetMembership(ctx, srcApiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get source apiary: %w", err)
+	}
+
+	hive, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, srcApiaryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHiveNotFound
+		}
+		return nil, fmt.Errorf("get hive: %w", err)
+	}
+
+	target, _, err := s.apiaries.GetMembership(ctx, dstApiaryID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get target apiary: %w", err)
+	}
+
+	existing, err := s.hives.ListByApiaryID(ctx, dstApiaryID)
+	if err != nil {
+		return nil, fmt.Errorf("list target hives: %w", err)
+	}
+
+	if len(existing) >= target.GridRows*target.GridCols {
+		return nil, ErrTargetApiaryFull
+	}
+
+	occupied := make(map[[2]int]bool, len(existing))
+	for _, h := range existing {
+		occupied[[2]int{h.GridRow, h.GridCol}] = true
+	}
+	row, col := firstFreeCell(target.GridRows, target.GridCols, occupied)
+
+	if err := s.hives.Relocate(ctx, hiveID, dstApiaryID, row, col); err != nil {
+		return nil, fmt.Errorf("relocate hive: %w", err)
+	}
+
+	hive.ApiaryID = dstApiaryID
+	hive.GridRow = row
+	hive.GridCol = col
+
+	return hive, nil
 }
 
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol, frames int) (*model.Hive, error) {

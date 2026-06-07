@@ -842,6 +842,24 @@ abstract class AppLocalizations {
   /// **'Dodaj zbiór'**
   String get hiveDetailLogHarvest;
 
+  /// No description provided for @hiveChangeApiary.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zmień pasiekę'**
+  String get hiveChangeApiary;
+
+  /// No description provided for @hiveChangeApiaryTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przenieś ul'**
+  String get hiveChangeApiaryTitle;
+
+  /// No description provided for @hiveChangeApiaryNoSpace.
+  ///
+  /// In pl, this message translates to:
+  /// **'Docelowa pasieka nie ma wolnego miejsca'**
+  String get hiveChangeApiaryNoSpace;
+
   /// No description provided for @generalRequired.
   ///
   /// In pl, this message translates to:

@@ -21,13 +21,28 @@ func (m *mockApiaryMembershipReader) GetMembership(ctx context.Context, apiaryID
 	return m.apiary, m.role, nil
 }
 
+type mockMultiApiaryReader struct {
+	apiaries map[int64]*model.Apiary
+	roles    map[int64]string
+}
+
+func (m *mockMultiApiaryReader) GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error) {
+	a, ok := m.apiaries[apiaryID]
+	if !ok {
+		return nil, "", gorm.ErrRecordNotFound
+	}
+	return a, m.roles[apiaryID], nil
+}
+
 type mockHiveRepo struct {
-	occupied  bool
-	created   *model.Hive
-	hive      *model.Hive
-	hives     []*model.Hive
-	updated   *model.Hive
-	deletedID int64
+	occupied   bool
+	created    *model.Hive
+	hive       *model.Hive
+	hives      []*model.Hive
+	hivesByID  map[int64][]*model.Hive
+	updated    *model.Hive
+	deletedID  int64
+	relocated  *model.Hive
 }
 
 func (m *mockHiveRepo) Create(ctx context.Context, h *model.Hive) error {
@@ -48,6 +63,12 @@ func (m *mockHiveRepo) IsPositionOccupied(ctx context.Context, apiaryID int64, r
 }
 
 func (m *mockHiveRepo) ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error) {
+	if m.hivesByID != nil {
+		if hives, ok := m.hivesByID[apiaryID]; ok {
+			return hives, nil
+		}
+		return []*model.Hive{}, nil
+	}
 	return m.hives, nil
 }
 
@@ -55,6 +76,16 @@ func (m *mockHiveRepo) Move(ctx context.Context, hiveID int64, row, col int) err
 	if m.hive != nil && m.hive.ID == hiveID {
 		m.hive.GridRow = row
 		m.hive.GridCol = col
+	}
+	return nil
+}
+
+func (m *mockHiveRepo) Relocate(ctx context.Context, hiveID, newApiaryID int64, row, col int) error {
+	if m.hive != nil && m.hive.ID == hiveID {
+		m.hive.ApiaryID = newApiaryID
+		m.hive.GridRow = row
+		m.hive.GridCol = col
+		m.relocated = m.hive
 	}
 	return nil
 }
@@ -452,5 +483,96 @@ func TestAddFrames_HiveNotFound(t *testing.T) {
 	err := svc.AddFrames(context.Background(), 1, 1, 99, 5)
 	if !errors.Is(err, ErrHiveNotFound) {
 		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+}
+
+func newChangeApiaryService() (*HiveService, *mockMultiApiaryReader, *mockHiveRepo) {
+	apiaryMock := &mockMultiApiaryReader{
+		apiaries: make(map[int64]*model.Apiary),
+		roles:    make(map[int64]string),
+	}
+	hiveMock := &mockHiveRepo{}
+	svc := NewHiveService(apiaryMock, hiveMock)
+	return svc, apiaryMock, hiveMock
+}
+
+func TestChangeApiary_Success(t *testing.T) {
+	svc, apiaryMock, hiveMock := newChangeApiaryService()
+	apiaryMock.apiaries[1] = &model.Apiary{ID: 1, GridRows: 2, GridCols: 2}
+	apiaryMock.apiaries[2] = &model.Apiary{ID: 2, GridRows: 2, GridCols: 2}
+	apiaryMock.roles[1] = "owner"
+	apiaryMock.roles[2] = "owner"
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, GridRow: 0, GridCol: 0}
+	hiveMock.hivesByID = map[int64][]*model.Hive{
+		2: {{ID: 5, ApiaryID: 2, GridRow: 0, GridCol: 0}},
+	}
+
+	hive, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 2)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hive.ApiaryID != 2 {
+		t.Errorf("expected ApiaryID=2, got %d", hive.ApiaryID)
+	}
+	if hive.GridRow != 0 || hive.GridCol != 1 {
+		t.Errorf("expected position (0,1), got (%d,%d)", hive.GridRow, hive.GridCol)
+	}
+}
+
+func TestChangeApiary_SameApiary(t *testing.T) {
+	svc, _, _ := newChangeApiaryService()
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 1)
+	if !errors.Is(err, ErrSameApiary) {
+		t.Errorf("expected ErrSameApiary, got %v", err)
+	}
+}
+
+func TestChangeApiary_SourceNotFound(t *testing.T) {
+	svc, _, _ := newChangeApiaryService()
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 99, 10, 2)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestChangeApiary_HiveNotFound(t *testing.T) {
+	svc, apiaryMock, _ := newChangeApiaryService()
+	apiaryMock.apiaries[1] = &model.Apiary{ID: 1, GridRows: 2, GridCols: 2}
+	apiaryMock.roles[1] = "owner"
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 1, 99, 2)
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+}
+
+func TestChangeApiary_TargetNotFound(t *testing.T) {
+	svc, apiaryMock, hiveMock := newChangeApiaryService()
+	apiaryMock.apiaries[1] = &model.Apiary{ID: 1, GridRows: 2, GridCols: 2}
+	apiaryMock.roles[1] = "owner"
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 99)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestChangeApiary_TargetFull(t *testing.T) {
+	svc, apiaryMock, hiveMock := newChangeApiaryService()
+	apiaryMock.apiaries[1] = &model.Apiary{ID: 1, GridRows: 2, GridCols: 2}
+	apiaryMock.apiaries[2] = &model.Apiary{ID: 2, GridRows: 1, GridCols: 1}
+	apiaryMock.roles[1] = "owner"
+	apiaryMock.roles[2] = "member"
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	hiveMock.hivesByID = map[int64][]*model.Hive{
+		2: {{ID: 5, ApiaryID: 2, GridRow: 0, GridCol: 0}},
+	}
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 2)
+	if !errors.Is(err, ErrTargetApiaryFull) {
+		t.Errorf("expected ErrTargetApiaryFull, got %v", err)
 	}
 }

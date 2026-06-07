@@ -420,6 +420,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveDetailLogHarvest => 'Dodaj zbiór';
 
   @override
+  String get hiveChangeApiary => 'Zmień pasiekę';
+
+  @override
+  String get hiveChangeApiaryTitle => 'Przenieś ul';
+
+  @override
+  String get hiveChangeApiaryNoSpace =>
+      'Docelowa pasieka nie ma wolnego miejsca';
+
+  @override
   String get generalRequired => 'Wymagane';
 
   @override

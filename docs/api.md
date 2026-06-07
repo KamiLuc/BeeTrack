@@ -729,6 +729,32 @@ Deletes a hive. Both owners and members can delete hives.
 
 ---
 
+### POST /apiaries/{id}/hives/{hiveId}/transfer 🔒
+
+Moves a hive from its current apiary to a different one. The hive is placed at the first available grid position in the target apiary.
+
+**Request**
+```json
+{ "target_apiary_id": 5 }
+```
+
+**Response** `200 OK` — updated hive object (same shape as GET /apiaries/{id}/hives/{hiveId}).
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `SAME_APIARY` | 400 | `target_apiary_id` equals the source apiary |
+| `APIARY_NOT_FOUND` | 404 | Source or target apiary does not exist or user is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist in the source apiary |
+| `TARGET_APIARY_FULL` | 409 | All grid cells in the target apiary are occupied |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ## Hive Diseases
 
 ### POST /apiaries/{id}/hives/{hiveId}/diseases 🔒

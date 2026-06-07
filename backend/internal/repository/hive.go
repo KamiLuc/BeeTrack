@@ -87,6 +87,19 @@ func (r *HiveRepository) Move(ctx context.Context, hiveID int64, row, col int) e
 		}).Error
 }
 
+// Relocate moves a hive to a different apiary at the given grid position.
+func (r *HiveRepository) Relocate(ctx context.Context, hiveID, newApiaryID int64, row, col int) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Hive{}).
+		Where("id = ?", hiveID).
+		Updates(map[string]any{
+			"apiary_id":  newApiaryID,
+			"grid_row":   row,
+			"grid_col":   col,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
 // CreateDisease inserts a disease record linked to a hive.
 func (r *HiveRepository) CreateDisease(ctx context.Context, d *model.HiveDisease) error {
 	return r.db.WithContext(ctx).Create(d).Error

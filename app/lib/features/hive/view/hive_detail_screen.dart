@@ -19,8 +19,11 @@ import '../../treatment/data/treatment_model.dart';
 import '../../treatment/data/treatment_repository.dart';
 import '../../treatment/view/treatment_form_screen.dart';
 import '../../treatment/view/treatment_history_screen.dart';
+import '../../apiary/data/apiary_model.dart';
+import '../../apiary/data/apiary_repository.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
+import 'change_apiary_modal.dart';
 import 'edit_hive_screen.dart';
 import 'hive_form_widgets.dart';
 
@@ -44,6 +47,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   bool _inspectionLoaded = false;
   Treatment? _lastTreatment;
   bool _treatmentLoaded = false;
+  List<Apiary>? _otherApiaries;
 
   @override
   void initState() {
@@ -51,6 +55,20 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     _hive = widget.hive;
     _loadLastInspection();
     _loadLastTreatment();
+    _loadOtherApiaries();
+  }
+
+  Future<void> _loadOtherApiaries() async {
+    try {
+      final all = await ApiaryRepository(api: context.read<ApiClient>())
+          .listApiaries();
+      if (mounted) {
+        setState(() {
+          _otherApiaries =
+              all.where((a) => a.id != widget.apiaryId).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _refreshHive() async {
@@ -87,6 +105,20 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     if (updated != null && mounted) {
       setState(() => _hive = updated);
     }
+  }
+
+  Future<void> _changeApiary() async {
+    if (_otherApiaries == null || _otherApiaries!.isEmpty) return;
+    final moved = await showDialog<bool>(
+      context: context,
+      builder: (_) => ChangeApiaryModal(
+        apiaryId: widget.apiaryId,
+        hiveId: _hive.id,
+        apiClient: context.read<ApiClient>(),
+        otherApiaries: _otherApiaries!,
+      ),
+    );
+    if (moved == true && mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete() async {
@@ -201,7 +233,15 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _InfoCard(hive: _hive, onEdit: _openEdit, onDelete: _delete),
+                _InfoCard(
+                  hive: _hive,
+                  onEdit: _openEdit,
+                  onDelete: _delete,
+                  onChangeApiary: (_otherApiaries != null &&
+                          _otherApiaries!.isNotEmpty)
+                      ? _changeApiary
+                      : null,
+                ),
                 const SizedBox(height: 16),
                 _InspectionSectionCard(
                   lastInspection: _lastInspection,
@@ -234,17 +274,19 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   }
 }
 
-enum _HiveInfoAction { edit, delete }
+enum _HiveInfoAction { edit, changeApiary, delete }
 
 class _InfoCard extends StatelessWidget {
   final Hive hive;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onChangeApiary;
 
   const _InfoCard({
     required this.hive,
     required this.onEdit,
     required this.onDelete,
+    this.onChangeApiary,
   });
 
   @override
@@ -308,6 +350,9 @@ class _InfoCard extends StatelessWidget {
                   icon: const Icon(Icons.more_vert),
                   onSelected: (action) {
                     if (action == _HiveInfoAction.edit) onEdit();
+                    if (action == _HiveInfoAction.changeApiary) {
+                      onChangeApiary?.call();
+                    }
                     if (action == _HiveInfoAction.delete) onDelete();
                   },
                   itemBuilder: (_) => [
@@ -320,6 +365,18 @@ class _InfoCard extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
+                    if (onChangeApiary != null)
+                      PopupMenuItem(
+                        value: _HiveInfoAction.changeApiary,
+                        child: ListTile(
+                          leading: const Icon(Icons.swap_horiz_outlined),
+                          title: Text(
+                            AppLocalizations.of(context)!.hiveChangeApiary,
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                     PopupMenuItem(
                       value: _HiveInfoAction.delete,
                       child: ListTile(

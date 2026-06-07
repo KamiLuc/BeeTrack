@@ -389,6 +389,59 @@ func (h *HiveHandler) AddFrames(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ChangeApiary handles POST /api/v1/apiaries/{id}/hives/{hiveId}/transfer — moves a hive to another apiary.
+func (h *HiveHandler) ChangeApiary(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+		return
+	}
+
+	var req struct {
+		TargetApiaryID int64 `json:"target_apiary_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+		return
+	}
+
+	hive, err := h.hives.ChangeApiary(r.Context(), userID, apiaryID, hiveID, req.TargetApiaryID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrApiaryNotFound):
+			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+		case errors.Is(err, service.ErrHiveNotFound):
+			respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
+		case errors.Is(err, service.ErrSameApiary):
+			respond.Error(w, http.StatusBadRequest, "SAME_APIARY", err.Error())
+		case errors.Is(err, service.ErrTargetApiaryFull):
+			respond.Error(w, http.StatusConflict, "TARGET_APIARY_FULL", err.Error())
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	body, err := h.withDiseases(r.Context(), hive)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	respond.JSON(w, http.StatusOK, body)
+}
+
 // AddDisease handles POST /api/v1/apiaries/{id}/hives/{hiveId}/diseases — adds a disease to a hive.
 func (h *HiveHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

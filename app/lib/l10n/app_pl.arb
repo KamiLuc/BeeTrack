@@ -158,6 +158,9 @@
   "hiveDetailHarvests": "Zbiory",
   "hiveDetailNoHarvests": "Brak zbiorów",
   "hiveDetailLogHarvest": "Dodaj zbiór",
+  "hiveChangeApiary": "Zmień pasiekę",
+  "hiveChangeApiaryTitle": "Przenieś ul",
+  "hiveChangeApiaryNoSpace": "Docelowa pasieka nie ma wolnego miejsca",
   "generalRequired": "Wymagane",
   "generalLoadMore": "Załaduj więcej",
 

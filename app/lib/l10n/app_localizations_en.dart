@@ -414,6 +414,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveDetailLogHarvest => 'Log harvest';
 
   @override
+  String get hiveChangeApiary => 'Change apiary';
+
+  @override
+  String get hiveChangeApiaryTitle => 'Move hive';
+
+  @override
+  String get hiveChangeApiaryNoSpace => 'Target apiary has no free space';
+
+  @override
   String get generalRequired => 'Required';
 
   @override

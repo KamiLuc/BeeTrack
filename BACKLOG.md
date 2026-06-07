@@ -33,6 +33,8 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
+| HV-10-BE | `BE` | `[x]` | Transfer hive to another apiary endpoint | POST /apiaries/{id}/hives/{hiveId}/transfer; places hive at first free cell in target |
+| HV-10-FE | `FE` | `[x]` | Transfer hive to another apiary UI | 3-dots menu → Change apiary modal; option hidden when no other apiaries; error on full grid |
 | HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
 | HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |
 | HV-12-BE | `BE` | `[ ]` | Apiary roles enforcement | Owner can invite/remove/delete; member can manage hives and inspections |

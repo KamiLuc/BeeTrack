@@ -153,4 +153,20 @@ class HiveRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<Hive> changeApiary({
+    required int apiaryId,
+    required int hiveId,
+    required int targetApiaryId,
+  }) async {
+    try {
+      final response = await _api.dio.post(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/transfer',
+        data: {'target_apiary_id': targetApiaryId},
+      );
+      return Hive.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }
