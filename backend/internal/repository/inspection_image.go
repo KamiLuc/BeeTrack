@@ -51,3 +51,29 @@ func (r *InspectionImageRepository) Delete(ctx context.Context, imageID int64) e
 func (r *InspectionImageRepository) ListByInspectionIDForCleanup(ctx context.Context, inspectionID int64) ([]*model.InspectionImage, error) {
 	return r.ListByInspectionID(ctx, inspectionID)
 }
+
+// CountByInspectionIDs returns a map from inspection ID to photo count for the given IDs.
+func (r *InspectionImageRepository) CountByInspectionIDs(ctx context.Context, ids []int64) (map[int64]int, error) {
+	if len(ids) == 0 {
+		return map[int64]int{}, nil
+	}
+	type row struct {
+		InspectionID int64
+		Count        int
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.InspectionImage{}).
+		Select("inspection_id, COUNT(*) AS count").
+		Where("inspection_id IN ?", ids).
+		Group("inspection_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[int64]int, len(rows))
+	for _, r := range rows {
+		result[r.InspectionID] = r.Count
+	}
+	return result, nil
+}

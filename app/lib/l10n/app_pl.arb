@@ -127,6 +127,7 @@
   "hiveDetailNoHarvests": "Brak zbiorów",
   "hiveDetailLogHarvest": "Dodaj zbiór",
   "generalRequired": "Wymagane",
+  "generalLoadMore": "Załaduj więcej",
 
   "inspectionTitle": "Inspekcje",
   "inspectionAdd": "Dodaj inspekcję",
@@ -172,6 +173,8 @@
   "inspectionDiseaseLayingWorkers": "Strutowienie rodziny",
   "inspectionNotSet": "Nie ustawiono",
   "inspectionPhotos": "Zdjęcia",
+  "inspectionPhotoSourceGallery": "Galeria",
+  "inspectionPhotoSourceCamera": "Aparat",
   "inspectionAddPhoto": "Dodaj zdjęcie",
   "inspectionNoPhotos": "Brak zdjęć",
   "inspectionDeletePhoto": "Usunąć zdjęcie?",

@@ -307,7 +307,7 @@ type InspectionImage struct {
 |------|---------|
 | `app/lib/core/theme/app_colors.dart` | Color constants (primary = amber `#FBBF24`, background = cream `#FFFBF2`, onSurfaceVariant = warm grey `#6F6961`) |
 | `app/lib/core/theme/app_text_styles.dart` | Text style constants (headlineLarge 28px … caption 12px) |
-| `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet |
+| `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet; `AppLayout.bannerWidth(context)` — shared amber banner width (85% phone, min(440, 40%) tablet) |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `HiveFramesField`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
 | `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
@@ -330,7 +330,7 @@ HiveDisease      id, disease (string)
 Inspection       id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
                  framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
                  framesAddedFoundation?, framesAddedHoney?, queenCellsCount?,
-                 queenAdded, notes
+                 queenAdded, notes, photoCount (int, default 0)
 InspectionImage  id, inspectionId, mimeType, createdAt
                  (URL built from apiClient.baseUrl + REST path)
 ```
@@ -462,7 +462,11 @@ LoginScreen / RegisterScreen
                   │   On delete: pops both EditHiveScreen and HiveDetailScreen (ApiaryGridScreen reloads).
                   ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
                   └── InspectionHistoryScreen (View all — only shown when inspections exist)
-                          └── InspectionFormScreen (add button)
+                      │   Page-based pagination (10 per page). Bottom amber banner:
+                      │     • + (add) — opens InspectionFormScreen
+                      │     • ← prev / page number buttons / next → (hidden when only 1 page)
+                      │   Page numbers show: 1 … currentPage … lastPage (ellipsis condenses middle).
+                          └── InspectionFormScreen (add button in banner)
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

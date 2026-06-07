@@ -73,7 +73,7 @@ func diseaseJSON(d *model.InspectionDisease) map[string]any {
 	}
 }
 
-func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease) map[string]any {
+func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease, photoCount int) map[string]any {
 	dd := make([]map[string]any, len(diseases))
 	for i, d := range diseases {
 		dd[i] = diseaseJSON(d)
@@ -96,6 +96,7 @@ func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease)
 		"queen_added":             insp.QueenAdded,
 		"notes":                   insp.Notes,
 		"diseases":                dd,
+		"photo_count":             photoCount,
 		"created_at":              insp.CreatedAt,
 		"updated_at":              insp.UpdatedAt,
 	}
@@ -106,7 +107,11 @@ func (h *InspectionHandler) withDiseases(ctx context.Context, insp *model.Inspec
 	if err != nil {
 		return nil, err
 	}
-	return inspectionJSON(insp, diseases), nil
+	counts, err := h.images.CountForInspections(ctx, []int64{insp.ID})
+	if err != nil {
+		return nil, err
+	}
+	return inspectionJSON(insp, diseases, counts[insp.ID]), nil
 }
 
 func inspectionError(w http.ResponseWriter, err error) {
@@ -238,7 +243,7 @@ func (h *InspectionHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	inspections, err := h.inspections.List(r.Context(), userID, apiaryID, hiveID, limit, offset)
+	inspections, total, err := h.inspections.List(r.Context(), userID, apiaryID, hiveID, limit, offset)
 	if err != nil {
 		inspectionError(w, err)
 		return
@@ -253,13 +258,18 @@ func (h *InspectionHandler) List(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		return
 	}
+	photoMap, err := h.images.CountForInspections(r.Context(), ids)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
 
 	items := make([]map[string]any, len(inspections))
 	for i, insp := range inspections {
-		items[i] = inspectionJSON(insp, diseaseMap[insp.ID])
+		items[i] = inspectionJSON(insp, diseaseMap[insp.ID], photoMap[insp.ID])
 	}
 
-	respond.JSON(w, http.StatusOK, items)
+	respond.JSON(w, http.StatusOK, map[string]any{"items": items, "total": total})
 }
 
 // Update handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} — updates an inspection.

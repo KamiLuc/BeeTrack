@@ -39,6 +39,10 @@ func (m *mockInspectionImageRepo) ListByInspectionIDForCleanup(ctx context.Conte
 	return m.images, nil
 }
 
+func (m *mockInspectionImageRepo) CountByInspectionIDs(ctx context.Context, ids []int64) (map[int64]int, error) {
+	return map[int64]int{}, nil
+}
+
 func (m *mockInspectionImageRepo) Delete(ctx context.Context, imageID int64) error {
 	m.deletedID = imageID
 	return nil

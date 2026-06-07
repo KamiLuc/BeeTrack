@@ -338,6 +338,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalRequired => 'Required';
 
   @override
+  String get generalLoadMore => 'Load more';
+
+  @override
   String get inspectionTitle => 'Inspections';
 
   @override
@@ -469,6 +472,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inspectionPhotos => 'Photos';
+
+  @override
+  String get inspectionPhotoSourceGallery => 'Gallery';
+
+  @override
+  String get inspectionPhotoSourceCamera => 'Camera';
 
   @override
   String get inspectionAddPhoto => 'Add photo';

@@ -103,6 +103,9 @@ void main() {
     });
   });
 
+  ({List<Inspection> items, int total}) _result(List<Inspection> items) =>
+      (items: items, total: items.length);
+
   group('load', () {
     final inspections = [_fakeInspection(id: 1), _fakeInspection(id: 2)];
 
@@ -110,8 +113,8 @@ void main() {
       'emits [InspectionsLoading, InspectionsLoaded] on success',
       build: () {
         when(
-          () => repo.listInspections(1, 10),
-        ).thenAnswer((_) async => inspections);
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => _result(inspections));
         return cubit;
       },
       act: (c) => c.load(),
@@ -128,7 +131,9 @@ void main() {
     blocTest<InspectionsCubit, InspectionsState>(
       'emits [InspectionsLoading, InspectionsLoaded] with empty list',
       build: () {
-        when(() => repo.listInspections(1, 10)).thenAnswer((_) async => []);
+        when(
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => _result([]));
         return cubit;
       },
       act: (c) => c.load(),
@@ -146,12 +151,46 @@ void main() {
       'emits [InspectionsLoading, InspectionsError] on failure',
       build: () {
         when(
-          () => repo.listInspections(1, 10),
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
         ).thenThrow(Exception('network error'));
         return cubit;
       },
       act: (c) => c.load(),
       expect: () => [isA<InspectionsLoading>(), isA<InspectionsError>()],
+    );
+  });
+
+  group('goToPage', () {
+    blocTest<InspectionsCubit, InspectionsState>(
+      'emits correct currentPage and totalPages',
+      build: () {
+        when(
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => (items: [_fakeInspection()], total: 15));
+        return cubit;
+      },
+      act: (c) => c.goToPage(2),
+      expect: () => [
+        isA<InspectionsLoading>(),
+        isA<InspectionsLoaded>()
+            .having((s) => s.currentPage, 'currentPage', 2)
+            .having((s) => s.totalPages, 'totalPages', 2),
+      ],
+    );
+
+    blocTest<InspectionsCubit, InspectionsState>(
+      'totalPages is at least 1 when total is 0',
+      build: () {
+        when(
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => (items: <Inspection>[], total: 0));
+        return cubit;
+      },
+      act: (c) => c.load(),
+      expect: () => [
+        isA<InspectionsLoading>(),
+        isA<InspectionsLoaded>().having((s) => s.totalPages, 'totalPages', 1),
+      ],
     );
   });
 
@@ -162,7 +201,9 @@ void main() {
         when(
           () => repo.deleteInspection(apiaryId: 1, hiveId: 10, inspectionId: 1),
         ).thenAnswer((_) async {});
-        when(() => repo.listInspections(1, 10)).thenAnswer((_) async => []);
+        when(
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => _result([]));
         return cubit;
       },
       act: (c) => c.delete(1),
@@ -173,6 +214,33 @@ void main() {
           'inspections',
           isEmpty,
         ),
+      ],
+    );
+
+    blocTest<InspectionsCubit, InspectionsState>(
+      'backs up to previous page when current page becomes empty after delete',
+      build: () {
+        when(
+          () => repo.deleteInspection(apiaryId: 1, hiveId: 10, inspectionId: 1),
+        ).thenAnswer((_) async {});
+        var call = 0;
+        when(
+          () => repo.listInspections(1, 10, limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async {
+          call++;
+          if (call == 1) return (items: <Inspection>[], total: 1);
+          return (items: [_fakeInspection()], total: 1);
+        });
+        return cubit;
+      },
+      seed: () => InspectionsLoaded([], currentPage: 2, totalPages: 2),
+      act: (c) => c.delete(1),
+      expect: () => [
+        isA<InspectionsLoading>(),
+        isA<InspectionsLoading>(),
+        isA<InspectionsLoaded>()
+            .having((s) => s.currentPage, 'currentPage', 1)
+            .having((s) => s.inspections, 'inspections', isNotEmpty),
       ],
     );
 

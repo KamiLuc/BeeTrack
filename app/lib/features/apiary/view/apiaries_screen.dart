@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -153,11 +151,7 @@ class _ApiariesBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isSmallScreen = screenWidth < 600;
-    final bannerWidth = isSmallScreen
-        ? screenWidth * 0.85
-        : min(440.0, screenWidth * 0.40);
+    final bannerWidth = AppLayout.bannerWidth(context);
 
     return SafeArea(
       top: false,

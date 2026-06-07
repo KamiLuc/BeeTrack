@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
@@ -370,11 +371,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isSmallScreen = screenWidth < 600;
-    final bannerWidth = isSmallScreen
-        ? screenWidth * 0.85
-        : min(440.0, screenWidth * 0.40);
+    final bannerWidth = AppLayout.bannerWidth(context);
 
     return SafeArea(
       top: false,
@@ -472,7 +469,7 @@ class _HiveListDialogState extends State<_HiveListDialog> {
           );
           if (mounted) {
             setState(() {
-              _lastInspections[hive.id] = list.isNotEmpty ? list.first : null;
+              _lastInspections[hive.id] = list.items.isNotEmpty ? list.items.first : null;
             });
           }
         } catch (_) {}

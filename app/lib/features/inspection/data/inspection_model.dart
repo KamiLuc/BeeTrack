@@ -14,6 +14,7 @@ class Inspection {
   final int? queenCellsCount;
   final bool queenAdded;
   final String notes;
+  final int photoCount;
 
   const Inspection({
     required this.id,
@@ -31,6 +32,7 @@ class Inspection {
     this.queenCellsCount,
     required this.queenAdded,
     required this.notes,
+    this.photoCount = 0,
   });
 
   factory Inspection.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class Inspection {
       queenCellsCount: json['queen_cells_count'] as int?,
       queenAdded: json['queen_added'] as bool? ?? false,
       notes: json['notes'] as String? ?? '',
+      photoCount: json['photo_count'] as int? ?? 0,
     );
   }
 }

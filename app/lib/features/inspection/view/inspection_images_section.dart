@@ -5,6 +5,157 @@ import 'package:image_picker/image_picker.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/inspection_image_model.dart';
 import '../data/inspection_image_repository.dart';
+import '../data/inspection_model.dart';
+
+Future<void> showInspectionPhotosSheet(
+  BuildContext context, {
+  required int apiaryId,
+  required int hiveId,
+  required Inspection inspection,
+  required InspectionImageRepository imageRepo,
+}) {
+  return showModalBottomSheet(
+    context: context,
+    builder: (_) => _InspectionPhotosSheet(
+      apiaryId: apiaryId,
+      hiveId: hiveId,
+      inspection: inspection,
+      imageRepo: imageRepo,
+    ),
+  );
+}
+
+class _InspectionPhotosSheet extends StatefulWidget {
+  final int apiaryId;
+  final int hiveId;
+  final Inspection inspection;
+  final InspectionImageRepository imageRepo;
+
+  const _InspectionPhotosSheet({
+    required this.apiaryId,
+    required this.hiveId,
+    required this.inspection,
+    required this.imageRepo,
+  });
+
+  @override
+  State<_InspectionPhotosSheet> createState() => _InspectionPhotosSheetState();
+}
+
+class _InspectionPhotosSheetState extends State<_InspectionPhotosSheet> {
+  late final Future<List<InspectionImage>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.imageRepo.listImages(
+      widget.apiaryId,
+      widget.hiveId,
+      widget.inspection.id,
+    );
+  }
+
+  void _openViewer(List<InspectionImage> images, int index) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (_, __, ___) => InspectionPhotoViewer(
+          existingImages: images,
+          pendingFiles: const [],
+          initialIndex: index,
+          urlBuilder: (img) => widget.imageRepo.imageUrl(
+            widget.apiaryId,
+            widget.hiveId,
+            widget.inspection.id,
+            img.id,
+          ),
+          headers: widget.imageRepo.authHeaders(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.inspectionPhotos,
+              style: textTheme.titleSmall?.copyWith(color: colorScheme.primary),
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<List<InspectionImage>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final images = snapshot.data ?? [];
+                if (images.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: Text(
+                        l10n.inspectionNoPhotos,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                final headers = widget.imageRepo.authHeaders();
+                return SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: images.length,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => _openViewer(images, i),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            widget.imageRepo.imageUrl(
+                              widget.apiaryId,
+                              widget.hiveId,
+                              widget.inspection.id,
+                              images[i].id,
+                            ),
+                            headers: headers,
+                            width: 90,
+                            height: 90,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 const int _kMaxPhotos = 6;
 
@@ -61,12 +212,12 @@ class InspectionImagesSection extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: Text(l10n.inspectionAddPhoto),
+              title: Text(l10n.inspectionPhotoSourceGallery),
               onTap: () => Navigator.of(context).pop(ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Camera'),
+              title: Text(l10n.inspectionPhotoSourceCamera),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
           ],
@@ -109,7 +260,7 @@ class InspectionImagesSection extends StatelessWidget {
       PageRouteBuilder(
         opaque: false,
         barrierColor: Colors.black87,
-        pageBuilder: (context, anim, secondaryAnim) => _FormPhotoViewer(
+        pageBuilder: (context, anim, secondaryAnim) => InspectionPhotoViewer(
           existingImages: existingImages,
           pendingFiles: pendingFiles,
           initialIndex: index,
@@ -307,16 +458,16 @@ class _ThumbnailFrame extends StatelessWidget {
   }
 }
 
-// ── Photo viewer (used from the form's inline section) ────────────────────────
+// ── Photo viewer ─────────────────────────────────────────────────────────────
 
-class _FormPhotoViewer extends StatefulWidget {
+class InspectionPhotoViewer extends StatefulWidget {
   final List<InspectionImage> existingImages;
   final List<XFile> pendingFiles;
   final int initialIndex;
   final String Function(InspectionImage) urlBuilder;
   final Map<String, String> headers;
 
-  const _FormPhotoViewer({
+  const InspectionPhotoViewer({
     required this.existingImages,
     required this.pendingFiles,
     required this.initialIndex,
@@ -325,10 +476,10 @@ class _FormPhotoViewer extends StatefulWidget {
   });
 
   @override
-  State<_FormPhotoViewer> createState() => _FormPhotoViewerState();
+  State<InspectionPhotoViewer> createState() => _InspectionPhotoViewerState();
 }
 
-class _FormPhotoViewerState extends State<_FormPhotoViewer> {
+class _InspectionPhotoViewerState extends State<InspectionPhotoViewer> {
   late final PageController _controller;
   late int _current;
 

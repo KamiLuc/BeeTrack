@@ -8,7 +8,13 @@ final class InspectionsLoading extends InspectionsState {}
 
 final class InspectionsLoaded extends InspectionsState {
   final List<Inspection> inspections;
-  InspectionsLoaded(this.inspections);
+  final int currentPage;
+  final int totalPages;
+
+  InspectionsLoaded(this.inspections, {
+    required this.currentPage,
+    required this.totalPages,
+  });
 }
 
 final class InspectionsError extends InspectionsState {}

@@ -698,6 +698,12 @@ abstract class AppLocalizations {
   /// **'Wymagane'**
   String get generalRequired;
 
+  /// No description provided for @generalLoadMore.
+  ///
+  /// In pl, this message translates to:
+  /// **'Załaduj więcej'**
+  String get generalLoadMore;
+
   /// No description provided for @inspectionTitle.
   ///
   /// In pl, this message translates to:
@@ -961,6 +967,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Zdjęcia'**
   String get inspectionPhotos;
+
+  /// No description provided for @inspectionPhotoSourceGallery.
+  ///
+  /// In pl, this message translates to:
+  /// **'Galeria'**
+  String get inspectionPhotoSourceGallery;
+
+  /// No description provided for @inspectionPhotoSourceCamera.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aparat'**
+  String get inspectionPhotoSourceCamera;
 
   /// No description provided for @inspectionAddPhoto.
   ///

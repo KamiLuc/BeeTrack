@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/profile_icon_button.dart';
@@ -570,12 +568,12 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(AppLocalizations.of(context)!.inspectionAddPhoto),
+                title: Text(AppLocalizations.of(context)!.inspectionPhotoSourceGallery),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Camera'),
+                title: Text(AppLocalizations.of(context)!.inspectionPhotoSourceCamera),
                 onTap: () => Navigator.of(context).pop(ImageSource.camera),
               ),
             ],
@@ -610,10 +608,7 @@ class _InspectionFormBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final bannerWidth = screenWidth < 600
-        ? screenWidth * 0.85
-        : min(440.0, screenWidth * 0.40);
+    final bannerWidth = AppLayout.bannerWidth(context);
 
     return SafeArea(
       top: false,

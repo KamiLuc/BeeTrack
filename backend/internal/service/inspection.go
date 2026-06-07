@@ -51,6 +51,7 @@ type InspectionRepository interface {
 	DeleteDisease(ctx context.Context, diseaseID, inspectionID int64) error
 	GetByID(ctx context.Context, inspectionID, hiveID int64) (*model.Inspection, error)
 	GetDiseaseByID(ctx context.Context, diseaseID, inspectionID int64) (*model.InspectionDisease, error)
+	CountByHiveID(ctx context.Context, hiveID int64) (int64, error)
 	ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Inspection, error)
 	ListDiseasesByInspectionID(ctx context.Context, inspectionID int64) ([]*model.InspectionDisease, error)
 	LastInspectionDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error)
@@ -166,15 +167,20 @@ func (s *InspectionService) Get(ctx context.Context, userID, apiaryID, hiveID, i
 }
 
 // List returns paginated inspections for a hive ordered by inspected_at descending.
-func (s *InspectionService) List(ctx context.Context, userID, apiaryID, hiveID int64, limit, offset int) ([]*model.Inspection, error) {
+// List returns a paginated slice of inspections and the total count for a hive.
+func (s *InspectionService) List(ctx context.Context, userID, apiaryID, hiveID int64, limit, offset int) ([]*model.Inspection, int64, error) {
 	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+	total, err := s.inspections.CountByHiveID(ctx, hiveID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count inspections: %w", err)
 	}
 	inspections, err := s.inspections.ListByHiveID(ctx, hiveID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list inspections: %w", err)
+		return nil, 0, fmt.Errorf("list inspections: %w", err)
 	}
-	return inspections, nil
+	return inspections, total, nil
 }
 
 // Update validates params and overwrites all mutable fields of an existing inspection.

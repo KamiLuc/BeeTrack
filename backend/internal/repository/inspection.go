@@ -31,6 +31,16 @@ func (r *InspectionRepository) GetByID(ctx context.Context, inspectionID, hiveID
 	return &insp, err
 }
 
+// CountByHiveID returns the total number of inspections for hiveID.
+func (r *InspectionRepository) CountByHiveID(ctx context.Context, hiveID int64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Inspection{}).
+		Where("hive_id = ?", hiveID).
+		Count(&count).Error
+	return count, err
+}
+
 // ListByHiveID returns inspections for hiveID ordered by inspected_at descending with pagination.
 func (r *InspectionRepository) ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Inspection, error) {
 	var inspections []*model.Inspection

@@ -21,7 +21,7 @@ Future<void> main() async {
   final storage = TokenStorage(prefs);
   final apiClient = ApiClient(
     storage: storage,
-    baseUrl: kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080',
+    baseUrl: kIsWeb ? 'http://localhost:8080' : 'http://192.168.1.177:8080',
   );
   final localeController = LocaleController(prefs);
 

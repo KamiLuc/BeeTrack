@@ -9,7 +9,7 @@ class InspectionRepository {
 
   InspectionRepository({required ApiClient api}) : _api = api;
 
-  Future<List<Inspection>> listInspections(
+  Future<({List<Inspection> items, int total})> listInspections(
     int apiaryId,
     int hiveId, {
     int limit = 20,
@@ -20,10 +20,12 @@ class InspectionRepository {
         '/api/v1/apiaries/$apiaryId/hives/$hiveId/inspections',
         queryParameters: {'limit': limit, 'offset': offset},
       );
-      final data = response.data as List<dynamic>;
-      return data
+      final body = response.data as Map<String, dynamic>;
+      final items = (body['items'] as List<dynamic>)
           .map((e) => Inspection.fromJson(e as Map<String, dynamic>))
           .toList();
+      final total = body['total'] as int;
+      return (items: items, total: total);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

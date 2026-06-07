@@ -5,10 +5,12 @@ import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../inspection/data/inspection_image_repository.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../inspection/data/inspection_repository.dart';
 import '../../inspection/view/inspection_form_screen.dart';
 import '../../inspection/view/inspection_history_screen.dart';
+import '../../inspection/view/inspection_images_section.dart';
 import '../../inspection/view/inspection_summary.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
@@ -51,11 +53,12 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
 
   Future<void> _loadLastInspection() async {
     try {
-      final inspections = await InspectionRepository(
+      final result = await InspectionRepository(
         api: context.read<ApiClient>(),
       ).listInspections(widget.apiaryId, _hive.id);
       if (!mounted) return;
-      inspections.sort((a, b) => b.inspectedAt.compareTo(a.inspectedAt));
+      final inspections = result.items
+        ..sort((a, b) => b.inspectedAt.compareTo(a.inspectedAt));
       setState(() {
         _inspectionLoaded = true;
         _lastInspection = inspections.isNotEmpty ? inspections.first : null;
@@ -112,13 +115,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_hive.name),
-        actions: [
-          const ProfileIconButton(),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _openEdit,
-          ),
-        ],
+        actions: const [ProfileIconButton()],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -128,13 +125,14 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _InfoCard(hive: _hive),
+                _InfoCard(hive: _hive, onEdit: _openEdit),
                 const SizedBox(height: 16),
                 _InspectionSectionCard(
                   lastInspection: _lastInspection,
                   inspectionLoaded: _inspectionLoaded,
                   onAdd: _openCreateInspection,
                   onViewAll: _openInspections,
+                  apiaryId: widget.apiaryId,
                 ),
                 const SizedBox(height: 16),
                 _SectionCard(
@@ -163,8 +161,9 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
 
 class _InfoCard extends StatelessWidget {
   final Hive hive;
+  final VoidCallback onEdit;
 
-  const _InfoCard({required this.hive});
+  const _InfoCard({required this.hive, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -201,21 +200,34 @@ class _InfoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatusChip(
-                  label: hiveTypeLabels[hive.type] ?? hive.type,
-                  background: colorScheme.secondaryContainer,
-                  foreground: colorScheme.onSecondaryContainer,
-                ),
-                if (hive.frames > 0)
-                  _StatusChip(
-                    label: '${l10n.hiveFrames}: ${hive.frames}',
-                    background: colorScheme.secondaryContainer,
-                    foreground: colorScheme.onSecondaryContainer,
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _StatusChip(
+                        label: hiveTypeLabels[hive.type] ?? hive.type,
+                        background: colorScheme.secondaryContainer,
+                        foreground: colorScheme.onSecondaryContainer,
+                      ),
+                      if (hive.frames > 0)
+                        _StatusChip(
+                          label: '${l10n.hiveFrames}: ${hive.frames}',
+                          background: colorScheme.secondaryContainer,
+                          foreground: colorScheme.onSecondaryContainer,
+                        ),
+                    ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: onEdit,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -289,12 +301,14 @@ class _InspectionSectionCard extends StatelessWidget {
   final bool inspectionLoaded;
   final VoidCallback onAdd;
   final VoidCallback onViewAll;
+  final int apiaryId;
 
   const _InspectionSectionCard({
     required this.lastInspection,
     required this.inspectionLoaded,
     required this.onAdd,
     required this.onViewAll,
+    required this.apiaryId,
   });
 
   @override
@@ -304,46 +318,68 @@ class _InspectionSectionCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.search, size: 20, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.hiveDetailInspections,
-                    style: textTheme.titleMedium,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: lastInspection != null ? onViewAll : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.search, size: 20, color: colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.hiveDetailInspections,
+                          style: textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  if (!inspectionLoaded)
+                    const SizedBox.shrink()
+                  else if (lastInspection == null)
+                    Text(
+                      l10n.hiveDetailNoInspections,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    InspectionSummary(
+                      inspection: lastInspection!,
+                      showDate: true,
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            if (!inspectionLoaded)
-              const SizedBox.shrink()
-            else if (lastInspection == null)
-              Text(
-                l10n.hiveDetailNoInspections,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              )
-            else
-              InspectionSummary(inspection: lastInspection!, showDate: true),
-            const SizedBox(height: 12),
-            Center(
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Center(
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 alignment: WrapAlignment.center,
                 children: [
-                  if (lastInspection != null)
+                  if (lastInspection != null && lastInspection!.photoCount > 0)
                     OutlinedButton(
-                      onPressed: onViewAll,
-                      child: Text(l10n.hiveDetailViewInspections),
+                      onPressed: () => showInspectionPhotosSheet(
+                        context,
+                        apiaryId: apiaryId,
+                        hiveId: lastInspection!.hiveId,
+                        inspection: lastInspection!,
+                        imageRepo: InspectionImageRepository(
+                          api: context.read<ApiClient>(),
+                        ),
+                      ),
+                      child: Text(l10n.inspectionPhotos),
                     ),
                   OutlinedButton(
                     onPressed: onAdd,
@@ -352,8 +388,8 @@ class _InspectionSectionCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -344,6 +344,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get generalRequired => 'Wymagane';
 
   @override
+  String get generalLoadMore => 'Załaduj więcej';
+
+  @override
   String get inspectionTitle => 'Inspekcje';
 
   @override
@@ -474,6 +477,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get inspectionPhotos => 'Zdjęcia';
+
+  @override
+  String get inspectionPhotoSourceGallery => 'Galeria';
+
+  @override
+  String get inspectionPhotoSourceCamera => 'Aparat';
 
   @override
   String get inspectionAddPhoto => 'Dodaj zdjęcie';

@@ -798,6 +798,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
   "frames_added_honey": null,
   "queen_added": false,
   "notes": "Colony looks healthy.",
+  "photo_count": 2,
   "diseases": [],
   "created_at": "2026-06-04T10:05:00Z",
   "updated_at": "2026-06-04T10:05:00Z"
@@ -809,6 +810,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
 - `brood_pattern` valid values: `excellent`, `good`, `poor`, `none`
 - `aggressiveness` valid values: `calm`, `mild`, `aggressive`, `very_aggressive`
 - `frames_brood` — nullable int, frames of brood observed
+- `photo_count` — number of images attached to this inspection (only present in list responses)
 - `diseases` — array of disease objects (see below); always included in responses
 
 ---
@@ -857,7 +859,7 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
 
 ### GET /apiaries/{id}/hives/{hiveId}/inspections 🔒
 
-Returns inspections for the hive ordered by `inspected_at` descending.
+Returns a paginated list of inspections for the hive ordered by `inspected_at` descending. Each item includes `photo_count`.
 
 **Query parameters**
 | Parameter | Default | Description |
@@ -865,7 +867,14 @@ Returns inspections for the hive ordered by `inspected_at` descending.
 | `limit` | 20 | Maximum number of records to return |
 | `offset` | 0 | Number of records to skip |
 
-**Response** `200 OK` — array of inspection objects
+**Response** `200 OK`
+```json
+{
+  "items": [ /* inspection objects */ ],
+  "total": 42
+}
+```
+- `total` — total number of inspections for the hive (used for pagination)
 
 **Errors**
 | Code | Status | Description |

@@ -68,6 +68,10 @@ func (m *mockInspectionRepo) GetDiseaseByID(ctx context.Context, diseaseID, insp
 	return m.disease, nil
 }
 
+func (m *mockInspectionRepo) CountByHiveID(ctx context.Context, hiveID int64) (int64, error) {
+	return int64(len(m.inspections)), nil
+}
+
 func (m *mockInspectionRepo) ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Inspection, error) {
 	return m.inspections, nil
 }
@@ -240,7 +244,7 @@ func TestListInspections_Success(t *testing.T) {
 		{ID: 2, HiveID: 10},
 	}
 
-	list, err := svc.List(context.Background(), 1, 1, 10, 20, 0)
+	list, _, err := svc.List(context.Background(), 1, 1, 10, 20, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -254,7 +258,7 @@ func TestListInspections_Empty(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1}
 	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
 
-	list, err := svc.List(context.Background(), 1, 1, 10, 20, 0)
+	list, _, err := svc.List(context.Background(), 1, 1, 10, 20, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -266,7 +270,7 @@ func TestListInspections_Empty(t *testing.T) {
 func TestListInspections_ApiaryNotFound(t *testing.T) {
 	svc, _, _, _ := newTestInspectionService()
 
-	_, err := svc.List(context.Background(), 1, 99, 10, 20, 0)
+	_, _, err := svc.List(context.Background(), 1, 99, 10, 20, 0)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
 	}

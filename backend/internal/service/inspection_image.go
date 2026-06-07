@@ -34,6 +34,7 @@ type InspectionImageRepository interface {
 	GetByID(ctx context.Context, imageID, inspectionID int64) (*model.InspectionImage, error)
 	ListByInspectionID(ctx context.Context, inspectionID int64) ([]*model.InspectionImage, error)
 	ListByInspectionIDForCleanup(ctx context.Context, inspectionID int64) ([]*model.InspectionImage, error)
+	CountByInspectionIDs(ctx context.Context, ids []int64) (map[int64]int, error)
 	Delete(ctx context.Context, imageID int64) error
 }
 
@@ -135,6 +136,11 @@ func (s *InspectionImageService) Delete(ctx context.Context, userID, apiaryID, h
 		return fmt.Errorf("delete image record: %w", err)
 	}
 	return nil
+}
+
+// CountForInspections returns a map from inspection ID to photo count.
+func (s *InspectionImageService) CountForInspections(ctx context.Context, ids []int64) (map[int64]int, error) {
+	return s.images.CountByInspectionIDs(ctx, ids)
 }
 
 // DeleteFilesForInspection removes all image files on disk for an inspection (DB records are cleaned by CASCADE).

@@ -127,6 +127,7 @@
   "hiveDetailNoHarvests": "No harvests yet",
   "hiveDetailLogHarvest": "Log harvest",
   "generalRequired": "Required",
+  "generalLoadMore": "Load more",
 
   "inspectionTitle": "Inspections",
   "inspectionAdd": "Add inspection",
@@ -172,6 +173,8 @@
   "inspectionDiseaseLayingWorkers": "Laying workers",
   "inspectionNotSet": "Not set",
   "inspectionPhotos": "Photos",
+  "inspectionPhotoSourceGallery": "Gallery",
+  "inspectionPhotoSourceCamera": "Camera",
   "inspectionAddPhoto": "Add photo",
   "inspectionNoPhotos": "No photos yet",
   "inspectionDeletePhoto": "Delete photo?",
