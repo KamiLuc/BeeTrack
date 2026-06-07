@@ -18,47 +18,15 @@
 
 ## Epics Overview
 
-1. [Apiary & Hive Management](#1-apiary--hive-management)
-2. [Health & Treatment Tracking](#2-health--treatment-tracking)
-3. [Honey Harvest Tracking](#3-honey-harvest-tracking)
-4. [Reports & Analytics](#4-reports--analytics)
-5. [Queen Recognition (AI Feature)](#5-queen-recognition-ai-feature)
-6. [MCP Server](#6-mcp-server)
-7. [Infrastructure & DevOps](#7-infrastructure--devops)
-8. [Localization](#8-localization)
+1. [Honey Harvest Tracking](#1-honey-harvest-tracking)
+2. [Reports & Analytics](#2-reports--analytics)
+3. [Queen Recognition (AI Feature)](#3-queen-recognition-ai-feature)
+4. [MCP Server](#4-mcp-server)
+5. [Infrastructure & DevOps](#5-infrastructure--devops)
 
 ---
 
-## 1. Apiary & Hive Management
-
-| ID | Layer | Status | Title | Notes |
-|----|-------|--------|-------|-------|
-| HV-10-BE | `BE` | `[x]` | Transfer hive to another apiary endpoint | POST /apiaries/{id}/hives/{hiveId}/transfer; places hive at first free cell in target |
-| HV-10-FE | `FE` | `[x]` | Transfer hive to another apiary UI | 3-dots menu → Change apiary modal; option hidden when no other apiaries; error on full grid |
-| HV-11-BE | `BE` | `[ ]` | Invite user to apiary endpoint | Invited user gets member role |
-| HV-11-FE | `FE` | `[ ]` | Invite user UI | Input email, send invite |
-| HV-12-BE | `BE` | `[ ]` | Apiary roles enforcement | Owner can invite/remove/delete; member can manage hives and inspections |
-| HV-13-BE | `BE` | `[ ]` | List apiary members endpoint | |
-| HV-13-FE | `FE` | `[ ]` | Members list screen | |
-| HV-14-BE | `BE` | `[ ]` | Remove member / leave apiary endpoint | Owner cannot leave without transferring ownership |
-| HV-14-FE | `FE` | `[ ]` | Remove member / leave apiary UI | |
-
----
-
-## 2. Health & Treatment Tracking
-
-| ID | Layer | Status | Title | Notes |
-|----|-------|--------|-------|-------|
-| TR-01-BE | `BE` | `[x]` | Log treatment endpoint | date, medicine_name, dose, notes, diseases |
-| TR-01-FE | `FE` | `[x]` | Log treatment screen | Autocomplete medicine + free text, disease chips |
-| TR-02-BE | `BE` | `[ ]` | Mark treatment complete endpoint | |
-| TR-02-FE | `FE` | `[ ]` | Mark treatment complete UI | |
-| TR-03-BE | `BE` | `[x]` | Treatment history endpoint | Paginated list + diseases |
-| TR-03-FE | `FE` | `[x]` | Treatment history screen | Cards, pagination banner, edit/delete |
-
----
-
-## 3. Honey Harvest Tracking
+## 1. Honey Harvest Tracking
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -69,7 +37,7 @@
 
 ---
 
-## 4. Reports & Analytics
+## 2. Reports & Analytics
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -78,7 +46,7 @@
 
 ---
 
-## 5. Queen Recognition (AI Feature)
+## 3. Queen Recognition (AI Feature)
 
 > **Deferred — implement after core app is stable.**
 
@@ -97,7 +65,7 @@
 
 ---
 
-## 6. MCP Server
+## 4. MCP Server
 
 > **Deferred — enables AI voice assistant integration.**
 
@@ -114,7 +82,7 @@
 
 ---
 
-## 7. Infrastructure & DevOps
+## 5. Infrastructure & DevOps
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -122,38 +90,3 @@
 | INF-06-BE | `BE` | `[ ]` | Input validation & structured error responses | |
 | INF-07-BE | `BE` | `[ ]` | Structured JSON logging | |
 
----
-
-## Data Model (Draft)
-
-```
-User
-  id, email, password_hash, name, created_at
-
-Apiary
-  id, owner_user_id, name, lat, lng, grid_rows, grid_cols, created_at, updated_at
-
-ApiaryMember
-  apiary_id, user_id, role (owner|member), joined_at
-
-Hive
-  id, apiary_id, name, type, active, queenless, ready_for_harvest, frames,
-  grid_row, grid_col, notes
-
-Inspection
-  id, hive_id, inspected_at, duration_min, weather,
-  queen_status, brood_pattern, frames_bees, frames_honey,
-  frames_pollen, varroa_count, varroa_method, notes
-
-Treatment
-  id, hive_id, product, type, dosage, started_at, ends_at, completed
-
-Harvest
-  id, hive_id, harvested_at, frames_extracted, yield_kg, notes
-```
-
----
-
-## Open Questions
-
-- [ ] Offline-first mode on mobile (local SQLite sync)?
