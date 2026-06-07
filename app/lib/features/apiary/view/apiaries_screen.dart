@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/delete_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
@@ -10,7 +12,9 @@ import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
 import '../../hive/view/apiary_grid_screen.dart';
+import '../data/invitation_repository.dart';
 import 'apiaries_map_screen.dart';
+import 'apiary_members_modal.dart';
 import 'create_apiary_screen.dart';
 import 'edit_apiary_screen.dart';
 
@@ -53,7 +57,7 @@ class _ApiariesView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.apiaryTitle),
-        actions: const [ProfileIconButton()],
+        actions: [ProfileIconButton(onRefresh: () => context.read<ApiariesCubit>().load())],
       ),
       body: BlocBuilder<ApiariesCubit, ApiariesState>(
         builder: (context, state) {
@@ -212,18 +216,19 @@ class _ApiaryCard extends StatelessWidget {
     if (context.mounted) context.read<ApiariesCubit>().load();
   }
 
-  Future<void> _confirmDelete(BuildContext context, AppLocalizations l10n) async {
-    final cubit = context.read<ApiariesCubit>();
+  Future<void> _leave(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDeleteDialog(
       context,
-      title: l10n.apiaryDeleteConfirm,
-      warning: l10n.apiaryDeleteWarning,
+      title: l10n.leaveApiaryConfirm,
+      warning: l10n.leaveApiaryWarning,
       l10n: l10n,
-      withPuzzle: apiary.hiveCount > 0,
+      withPuzzle: true,
     );
-    if (confirmed) {
-      cubit.delete(apiary.id);
-    }
+    if (!confirmed || !context.mounted) return;
+    final api = context.read<ApiClient>();
+    await InvitationRepository(api: api).leaveApiary(apiary.id);
+    if (context.mounted) context.read<ApiariesCubit>().load();
   }
 
   @override
@@ -273,38 +278,49 @@ class _ApiaryCard extends StatelessWidget {
                         ),
                   ),
                 const SizedBox(width: 4),
-                if (isOwner)
+                if (isOwner) ...[
                   SizedBox(
                     width: 32,
                     height: 32,
-                    child: PopupMenuButton<_ApiaryAction>(
+                    child: IconButton(
                       padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.more_vert, size: 18),
-                      onSelected: (action) {
-                        if (action == _ApiaryAction.edit) _openEdit(context);
-                        if (action == _ApiaryAction.delete) _confirmDelete(context, l10n);
-                      },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: _ApiaryAction.edit,
-                          child: Text(l10n.generalEdit),
-                        ),
-                        PopupMenuItem(
-                          value: _ApiaryAction.delete,
-                          child: Text(
-                            l10n.generalDelete,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      tooltip: l10n.invitationInvite,
+                      icon: const Icon(Icons.person_add_outlined, size: 18),
+                      onPressed: () {
+                        final apiClient = context.read<ApiClient>();
+                        final ownerEmail = context.read<TokenStorage>().email;
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => ApiaryMembersModal(
+                            apiaryId: apiary.id,
+                            apiClient: apiClient,
+                            ownerEmail: ownerEmail,
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  )
+                  ),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: l10n.generalEdit,
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: () => _openEdit(context),
+                    ),
+                  ),
+                ]
                 else
-                  Chip(
-                    label: Text(l10n.roleMember),
-                    labelStyle: Theme.of(context).textTheme.labelSmall,
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: l10n.leaveApiary,
+                      icon: Icon(Icons.exit_to_app, size: 18, color: Theme.of(context).colorScheme.error),
+                      onPressed: () => _leave(context),
+                    ),
                   ),
               ],
             ),
@@ -315,4 +331,3 @@ class _ApiaryCard extends StatelessWidget {
   }
 }
 
-enum _ApiaryAction { edit, delete }

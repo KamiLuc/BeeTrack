@@ -61,6 +61,34 @@
   "roleOwner": "Właściciel",
   "roleMember": "Członek",
 
+  "invitationTitle": "Zaproszenia",
+  "invitationMembers": "Członkowie",
+  "invitationPending": "Oczekujące zaproszenia",
+  "invitationInvite": "Zarządzaj członkami",
+  "invitationEmailHint": "Adres e-mail",
+  "invitationSend": "Wyślij zaproszenie",
+  "invitationSentSuccess": "Zaproszenie wysłane",
+  "invitationAlreadyPending": "Zaproszenie dla tego adresu e-mail już oczekuje",
+  "invitationAlreadyMember": "Ten użytkownik jest już członkiem",
+  "invitationCannotInviteSelf": "Nie możesz zaprosić siebie",
+  "invitationUserNotFound": "Nie znaleziono konta dla tego adresu e-mail",
+  "invitationNoMembers": "Brak członków",
+  "invitationNoPending": "Brak oczekujących zaproszeń",
+  "invitationRemove": "Usuń",
+  "invitationAccept": "Akceptuj",
+  "invitationDecline": "Odrzuć",
+  "invitationFrom": "z {apiary} od {name}",
+  "@invitationFrom": {
+    "placeholders": {
+      "apiary": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+  "invitationBadgeTooltip": "Oczekujące zaproszenia",
+  "leaveApiary": "Opuść pasiekę",
+  "leaveApiaryConfirm": "Opuścić pasiekę?",
+  "leaveApiaryWarning": "Utracisz dostęp do tej pasieki.",
+
   "apiaryTitle": "Pasieki",
   "apiaryMapTitle": "Mapa pasiek",
   "apiaryMapTooltip": "Pokaż na mapie",

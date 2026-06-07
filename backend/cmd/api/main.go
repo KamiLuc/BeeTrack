@@ -41,11 +41,13 @@ func main() {
 	hiveRepo := repository.NewHiveRepository(db)
 	inspectionRepo := repository.NewInspectionRepository(db)
 	inspectionImageRepo := repository.NewInspectionImageRepository(db)
+	invitationRepo := repository.NewInvitationRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, emailTokenRepo, mail, cfg.APIURL, cfg.AppURL, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
 	apiarySvc := service.NewApiaryService(apiaryRepo, hiveRepo)
+	invitationSvc := service.NewInvitationService(apiaryRepo, invitationRepo, userRepo)
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
 	inspectionImageSvc := service.NewInspectionImageService(apiaryRepo, hiveRepo, inspectionRepo, inspectionImageRepo, cfg.ImageStoragePath)
@@ -53,6 +55,7 @@ func main() {
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
+	invitationHandler := handler.NewInvitationHandler(invitationSvc)
 	hiveHandler := handler.NewHiveHandler(hiveSvc, inspectionSvc)
 	inspectionHandler := handler.NewInspectionHandler(inspectionSvc, inspectionImageSvc)
 	inspectionImageHandler := handler.NewInspectionImageHandler(inspectionImageSvc)
@@ -88,6 +91,15 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/diseases/{diseaseId}", auth(http.HandlerFunc(hiveHandler.RemoveDisease)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Delete)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}", auth(http.HandlerFunc(apiaryHandler.Update)))
+	mux.Handle("POST /api/v1/apiaries/{id}/invitations", auth(http.HandlerFunc(invitationHandler.Invite)))
+	mux.Handle("GET /api/v1/apiaries/{id}/invitations", auth(http.HandlerFunc(invitationHandler.ListForApiary)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/invitations/{invitationId}", auth(http.HandlerFunc(invitationHandler.CancelInvitation)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/members/{userId}", auth(http.HandlerFunc(invitationHandler.RemoveMember)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/leave", auth(http.HandlerFunc(invitationHandler.Leave)))
+	mux.Handle("GET /api/v1/invitations", auth(http.HandlerFunc(invitationHandler.ListMine)))
+	mux.Handle("GET /api/v1/invitations/count", auth(http.HandlerFunc(invitationHandler.CountMine)))
+	mux.Handle("POST /api/v1/invitations/{id}/accept", auth(http.HandlerFunc(invitationHandler.Accept)))
+	mux.Handle("POST /api/v1/invitations/{id}/decline", auth(http.HandlerFunc(invitationHandler.Decline)))
 
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections", auth(http.HandlerFunc(inspectionHandler.List)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections", auth(http.HandlerFunc(inspectionHandler.Create)))

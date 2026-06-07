@@ -20,6 +20,18 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 	return r.db.WithContext(ctx).Create(u).Error
 }
 
+func (r *UserRepository) GetByID(ctx context.Context, id int64) (*model.User, error) {
+	var u model.User
+	result := r.db.WithContext(ctx).Where("id = ?", id).First(&u)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &u, nil
+}
+
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	var u model.User
 	result := r.db.WithContext(ctx).Where("email = ?", email).First(&u)

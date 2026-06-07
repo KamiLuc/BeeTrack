@@ -167,6 +167,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roleMember => 'Member';
 
   @override
+  String get invitationTitle => 'Invitations';
+
+  @override
+  String get invitationMembers => 'Members';
+
+  @override
+  String get invitationPending => 'Pending invitations';
+
+  @override
+  String get invitationInvite => 'Manage members';
+
+  @override
+  String get invitationEmailHint => 'Email address';
+
+  @override
+  String get invitationSend => 'Send invitation';
+
+  @override
+  String get invitationSentSuccess => 'Invitation sent';
+
+  @override
+  String get invitationAlreadyPending =>
+      'An invitation is already pending for this email';
+
+  @override
+  String get invitationAlreadyMember => 'This user is already a member';
+
+  @override
+  String get invitationCannotInviteSelf => 'You cannot invite yourself';
+
+  @override
+  String get invitationUserNotFound =>
+      'No account found for that email address';
+
+  @override
+  String get invitationNoMembers => 'No members yet';
+
+  @override
+  String get invitationNoPending => 'No pending invitations';
+
+  @override
+  String get invitationRemove => 'Remove';
+
+  @override
+  String get invitationAccept => 'Accept';
+
+  @override
+  String get invitationDecline => 'Decline';
+
+  @override
+  String invitationFrom(String apiary, String name) {
+    return 'from $apiary by $name';
+  }
+
+  @override
+  String get invitationBadgeTooltip => 'Pending invitations';
+
+  @override
+  String get leaveApiary => 'Leave apiary';
+
+  @override
+  String get leaveApiaryConfirm => 'Leave apiary?';
+
+  @override
+  String get leaveApiaryWarning => 'You will lose access to this apiary.';
+
+  @override
   String get apiaryTitle => 'Apiaries';
 
   @override

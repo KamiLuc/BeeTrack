@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -145,6 +147,23 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
         .length;
   }
 
+  Future<void> _delete(BuildContext context, AppLocalizations l10n) async {
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.apiaryDeleteConfirm,
+      warning: l10n.apiaryDeleteWarning,
+      l10n: l10n,
+      withPuzzle: widget.apiary.hiveCount > 0,
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await ApiaryRepository(api: context.read<ApiClient>()).deleteApiary(widget.apiary.id);
+      if (context.mounted) Navigator.of(context).pop();
+    } catch (_) {
+      _showError(l10n.generalError);
+    }
+  }
+
   Future<void> _submit(AppLocalizations l10n) async {
     if (_gridTooSmall) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -243,6 +262,19 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                                       ),
                                     )
                                   : Text(l10n.generalSave),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: SizedBox(
+                            width: 200,
+                            child: TextButton(
+                              onPressed: loading ? null : () => _delete(context, l10n),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Theme.of(context).colorScheme.error,
+                              ),
+                              child: Text(l10n.generalDelete),
                             ),
                           ),
                         ),

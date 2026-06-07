@@ -398,6 +398,132 @@ abstract class AppLocalizations {
   /// **'Członek'**
   String get roleMember;
 
+  /// No description provided for @invitationTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zaproszenia'**
+  String get invitationTitle;
+
+  /// No description provided for @invitationMembers.
+  ///
+  /// In pl, this message translates to:
+  /// **'Członkowie'**
+  String get invitationMembers;
+
+  /// No description provided for @invitationPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Oczekujące zaproszenia'**
+  String get invitationPending;
+
+  /// No description provided for @invitationInvite.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zarządzaj członkami'**
+  String get invitationInvite;
+
+  /// No description provided for @invitationEmailHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres e-mail'**
+  String get invitationEmailHint;
+
+  /// No description provided for @invitationSend.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyślij zaproszenie'**
+  String get invitationSend;
+
+  /// No description provided for @invitationSentSuccess.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zaproszenie wysłane'**
+  String get invitationSentSuccess;
+
+  /// No description provided for @invitationAlreadyPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zaproszenie dla tego adresu e-mail już oczekuje'**
+  String get invitationAlreadyPending;
+
+  /// No description provided for @invitationAlreadyMember.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten użytkownik jest już członkiem'**
+  String get invitationAlreadyMember;
+
+  /// No description provided for @invitationCannotInviteSelf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie możesz zaprosić siebie'**
+  String get invitationCannotInviteSelf;
+
+  /// No description provided for @invitationUserNotFound.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie znaleziono konta dla tego adresu e-mail'**
+  String get invitationUserNotFound;
+
+  /// No description provided for @invitationNoMembers.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak członków'**
+  String get invitationNoMembers;
+
+  /// No description provided for @invitationNoPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak oczekujących zaproszeń'**
+  String get invitationNoPending;
+
+  /// No description provided for @invitationRemove.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usuń'**
+  String get invitationRemove;
+
+  /// No description provided for @invitationAccept.
+  ///
+  /// In pl, this message translates to:
+  /// **'Akceptuj'**
+  String get invitationAccept;
+
+  /// No description provided for @invitationDecline.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzuć'**
+  String get invitationDecline;
+
+  /// No description provided for @invitationFrom.
+  ///
+  /// In pl, this message translates to:
+  /// **'z {apiary} od {name}'**
+  String invitationFrom(String apiary, String name);
+
+  /// No description provided for @invitationBadgeTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Oczekujące zaproszenia'**
+  String get invitationBadgeTooltip;
+
+  /// No description provided for @leaveApiary.
+  ///
+  /// In pl, this message translates to:
+  /// **'Opuść pasiekę'**
+  String get leaveApiary;
+
+  /// No description provided for @leaveApiaryConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Opuścić pasiekę?'**
+  String get leaveApiaryConfirm;
+
+  /// No description provided for @leaveApiaryWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Utracisz dostęp do tej pasieki.'**
+  String get leaveApiaryWarning;
+
   /// No description provided for @apiaryTitle.
   ///
   /// In pl, this message translates to:

@@ -1089,3 +1089,226 @@ Deletes an image from the DB and from disk.
 | `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
 | `IMAGE_NOT_FOUND` | 404 | Image does not exist for this inspection |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Invitations
+
+Apiary owners can invite registered users by email. Invited users see pending invitations and can accept or decline them.
+
+### Invitation object (apiary view)
+
+```json
+{
+  "id": 1,
+  "apiary_id": 5,
+  "invited_email": "guest@example.com",
+  "status": "pending",
+  "created_at": "2026-06-07T12:00:00Z"
+}
+```
+
+### Member object (apiary view)
+
+```json
+{
+  "user_id": 3,
+  "email": "guest@example.com",
+  "name": "Guest User",
+  "role": "member",
+  "joined_at": "2026-06-07T12:00:00Z"
+}
+```
+
+### My invitation object
+
+```json
+{
+  "id": 1,
+  "apiary_id": 5,
+  "apiary_name": "My Apiary",
+  "invited_by_name": "Owner Name",
+  "created_at": "2026-06-07T12:00:00Z"
+}
+```
+
+---
+
+### POST /apiaries/{id}/invitations 🔒
+
+Sends an invitation to the given email. Only the apiary owner can invite. The email must belong to a registered account.
+
+**Request**
+```json
+{
+  "email": "guest@example.com"
+}
+```
+
+**Response** `201 Created` — invitation object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON or missing email |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist |
+| `FORBIDDEN` | 403 | Caller is not the owner |
+| `CANNOT_INVITE_SELF` | 400 | Owner tried to invite themselves |
+| `USER_NOT_FOUND` | 404 | No account found for that email |
+| `ALREADY_MEMBER` | 409 | User is already a member |
+| `INVITATION_PENDING` | 409 | A pending invitation already exists for this email |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/invitations 🔒
+
+Returns members and pending invitations for the apiary. Only the owner can call this.
+
+**Response** `200 OK`
+```json
+{
+  "members": [ /* member objects */ ],
+  "invitations": [ /* invitation objects */ ]
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist |
+| `FORBIDDEN` | 403 | Caller is not the owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/invitations/{invitationId} 🔒
+
+Cancels a pending invitation. Only the owner can cancel invitations.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist |
+| `FORBIDDEN` | 403 | Caller is not the owner |
+| `INVITATION_NOT_FOUND` | 404 | Invitation does not exist for this apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/members/{userId} 🔒
+
+Removes a member from the apiary. Only the owner can remove members. The owner cannot remove themselves.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist |
+| `FORBIDDEN` | 403 | Caller is not the owner |
+| `CANNOT_REMOVE_OWNER` | 400 | Cannot remove the apiary owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /apiaries/{id}/leave 🔒
+
+Leaves an apiary. The owner cannot leave — delete the apiary instead.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `CANNOT_LEAVE_AS_OWNER` | 400 | Owner cannot leave the apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /invitations 🔒
+
+Returns all pending invitations addressed to the authenticated user.
+
+**Response** `200 OK` — array of my invitation objects
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /invitations/count 🔒
+
+Returns the count of pending invitations for the authenticated user. Used for the badge indicator.
+
+**Response** `200 OK`
+```json
+{
+  "count": 3
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /invitations/{id}/accept 🔒
+
+Accepts a pending invitation. The caller must be the invited user.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVITATION_NOT_FOUND` | 404 | Invitation does not exist |
+| `FORBIDDEN` | 403 | Invitation does not belong to the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /invitations/{id}/decline 🔒
+
+Declines a pending invitation. The caller must be the invited user.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVITATION_NOT_FOUND` | 404 | Invitation does not exist |
+| `FORBIDDEN` | 403 | Invitation does not belong to the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

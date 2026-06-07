@@ -61,6 +61,34 @@
   "roleOwner": "Owner",
   "roleMember": "Member",
 
+  "invitationTitle": "Invitations",
+  "invitationMembers": "Members",
+  "invitationPending": "Pending invitations",
+  "invitationInvite": "Manage members",
+  "invitationEmailHint": "Email address",
+  "invitationSend": "Send invitation",
+  "invitationSentSuccess": "Invitation sent",
+  "invitationAlreadyPending": "An invitation is already pending for this email",
+  "invitationAlreadyMember": "This user is already a member",
+  "invitationCannotInviteSelf": "You cannot invite yourself",
+  "invitationUserNotFound": "No account found for that email address",
+  "invitationNoMembers": "No members yet",
+  "invitationNoPending": "No pending invitations",
+  "invitationRemove": "Remove",
+  "invitationAccept": "Accept",
+  "invitationDecline": "Decline",
+  "invitationFrom": "from {apiary} by {name}",
+  "@invitationFrom": {
+    "placeholders": {
+      "apiary": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+  "invitationBadgeTooltip": "Pending invitations",
+  "leaveApiary": "Leave apiary",
+  "leaveApiaryConfirm": "Leave apiary?",
+  "leaveApiaryWarning": "You will lose access to this apiary.",
+
   "apiaryTitle": "Apiaries",
   "apiaryMapTitle": "Apiaries map",
   "apiaryMapTooltip": "Show on map",

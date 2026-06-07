@@ -167,6 +167,73 @@ class AppLocalizationsPl extends AppLocalizations {
   String get roleMember => 'Członek';
 
   @override
+  String get invitationTitle => 'Zaproszenia';
+
+  @override
+  String get invitationMembers => 'Członkowie';
+
+  @override
+  String get invitationPending => 'Oczekujące zaproszenia';
+
+  @override
+  String get invitationInvite => 'Zarządzaj członkami';
+
+  @override
+  String get invitationEmailHint => 'Adres e-mail';
+
+  @override
+  String get invitationSend => 'Wyślij zaproszenie';
+
+  @override
+  String get invitationSentSuccess => 'Zaproszenie wysłane';
+
+  @override
+  String get invitationAlreadyPending =>
+      'Zaproszenie dla tego adresu e-mail już oczekuje';
+
+  @override
+  String get invitationAlreadyMember => 'Ten użytkownik jest już członkiem';
+
+  @override
+  String get invitationCannotInviteSelf => 'Nie możesz zaprosić siebie';
+
+  @override
+  String get invitationUserNotFound =>
+      'Nie znaleziono konta dla tego adresu e-mail';
+
+  @override
+  String get invitationNoMembers => 'Brak członków';
+
+  @override
+  String get invitationNoPending => 'Brak oczekujących zaproszeń';
+
+  @override
+  String get invitationRemove => 'Usuń';
+
+  @override
+  String get invitationAccept => 'Akceptuj';
+
+  @override
+  String get invitationDecline => 'Odrzuć';
+
+  @override
+  String invitationFrom(String apiary, String name) {
+    return 'z $apiary od $name';
+  }
+
+  @override
+  String get invitationBadgeTooltip => 'Oczekujące zaproszenia';
+
+  @override
+  String get leaveApiary => 'Opuść pasiekę';
+
+  @override
+  String get leaveApiaryConfirm => 'Opuścić pasiekę?';
+
+  @override
+  String get leaveApiaryWarning => 'Utracisz dostęp do tej pasieki.';
+
+  @override
   String get apiaryTitle => 'Pasieki';
 
   @override
