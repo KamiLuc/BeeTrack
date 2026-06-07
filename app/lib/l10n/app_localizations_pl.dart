@@ -592,4 +592,62 @@ class AppLocalizationsPl extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get hiveTypeRequired => 'Typ ula jest wymagany';
+
+  @override
+  String get treatmentTitle => 'Zabiegi';
+
+  @override
+  String get treatmentAdd => 'Dodaj zabieg';
+
+  @override
+  String get treatmentEdit => 'Edytuj zabieg';
+
+  @override
+  String get treatmentEmpty => 'Brak zabiegów';
+
+  @override
+  String get treatmentDeleteConfirm => 'Usunąć zabieg?';
+
+  @override
+  String get treatmentDeleteWarning =>
+      'Ta operacja trwale usunie wpis zabiegu.';
+
+  @override
+  String get treatmentDate => 'Data zabiegu';
+
+  @override
+  String get treatmentMedicine => 'Preparat';
+
+  @override
+  String get treatmentMedicineRequired => 'Nazwa preparatu jest wymagana';
+
+  @override
+  String get treatmentDose => 'Dawka';
+
+  @override
+  String get treatmentDoseRequired => 'Dawka jest wymagana';
+
+  @override
+  String get treatmentNote => 'Notatka';
+
+  @override
+  String treatmentDoseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dawek',
+      many: '$count dawek',
+      few: '$count dawki',
+      one: '1 dawka',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String treatmentTreatedBy(String name) {
+    return 'Przez $name';
+  }
 }

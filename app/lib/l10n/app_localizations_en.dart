@@ -586,4 +586,60 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get hiveTypeRequired => 'Hive type is required';
+
+  @override
+  String get treatmentTitle => 'Treatments';
+
+  @override
+  String get treatmentAdd => 'Add treatment';
+
+  @override
+  String get treatmentEdit => 'Edit treatment';
+
+  @override
+  String get treatmentEmpty => 'No treatments yet';
+
+  @override
+  String get treatmentDeleteConfirm => 'Delete treatment?';
+
+  @override
+  String get treatmentDeleteWarning =>
+      'This will permanently delete the treatment record.';
+
+  @override
+  String get treatmentDate => 'Treatment date';
+
+  @override
+  String get treatmentMedicine => 'Medicine';
+
+  @override
+  String get treatmentMedicineRequired => 'Medicine name is required';
+
+  @override
+  String get treatmentDose => 'Dose';
+
+  @override
+  String get treatmentDoseRequired => 'Dose is required';
+
+  @override
+  String get treatmentNote => 'Note';
+
+  @override
+  String treatmentDoseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count doses',
+      one: '1 dose',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String treatmentTreatedBy(String name) {
+    return 'By $name';
+  }
 }

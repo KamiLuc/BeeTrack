@@ -28,6 +28,7 @@ app/               # Flutter app
       apiary/      # apiary CRUD — Cubit pattern
       hive/        # hive CRUD + grid view + filter — Cubit pattern
       inspection/  # inspection CRUD + history — Cubit pattern
+      treatment/   # treatment CRUD + history — Cubit pattern
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -37,6 +38,7 @@ app/               # Flutter app
       apiary/      # apiaries_cubit_test.dart
       hive/        # hives_cubit_test.dart, hive_detail_screen_test.dart
       inspection/  # inspections_cubit_test.dart
+      treatment/   # treatments_cubit_test.dart
 
 docker/            # Docker Compose config
 ```
@@ -333,6 +335,8 @@ Inspection       id, hiveId, inspectedAt, queenSeen, broodPattern, aggressivenes
                  queenAdded, notes, photoCount (int, default 0)
 InspectionImage  id, inspectionId, mimeType, createdAt
                  (URL built from apiClient.baseUrl + REST path)
+Treatment        id, hiveId, treatedAt, medicineName, dose (string, default "1"),
+                 notes, treatedByName? (populated via JOIN, not stored in table)
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
@@ -379,6 +383,12 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | POST | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images` | Upload image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 6 per inspection) |
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file` | Serve image bytes (auth-gated, `Cache-Control: private, max-age=86400`) |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}` | Delete image |
+| GET | `/api/v1/medicines` | List known medicine names (no auth required) — 13 predefined varroa/disease treatments |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments` | List treatments (paginated, `limit`/`offset` query params) |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments` | Create treatment (`treated_at`, `medicine_name`, `dose`, `notes`; dose defaults to "1") |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Get treatment |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Update treatment |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Delete treatment |
 
 ---
 
@@ -461,7 +471,15 @@ LoginScreen / RegisterScreen
                   │   Delete button at the bottom; shows math puzzle if hive has inspections.
                   │   On delete: pops both EditHiveScreen and HiveDetailScreen (ApiaryGridScreen reloads).
                   ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
-                  └── InspectionHistoryScreen (View all — only shown when inspections exist)
+                  ├── TreatmentFormScreen (Log treatment button in hive detail)
+                  │   Medicine field is Autocomplete (fetches /api/v1/medicines on open, allows free text).
+                  │   Dose field uses numeric keyboard. Bottom amber banner with ✓ saves.
+                  ├── TreatmentHistoryScreen (View all — opened when last treatment exists)
+                  │   Same amber banner + pagination pattern as InspectionHistoryScreen.
+                  │   TreatmentCard: date · treatedByName (only when != current user) · medicine · dose
+                  │   (dose shown as "1 dawka / 2 dawki / 5 dawek" when dose is a plain integer) ·
+                  │   Note label + note text (labelStyle/bodyStyle same as InspectionSummary).
+                  ├── InspectionHistoryScreen (View all — only shown when inspections exist)
                       │   Page-based pagination (10 per page). Bottom amber banner:
                       │     • + (add) — opens InspectionFormScreen
                       │     • ← prev / page number buttons / next → (hidden when only 1 page)

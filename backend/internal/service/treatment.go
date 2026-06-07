@@ -1,0 +1,176 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/beetrack/backend/internal/model"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrTreatmentNotFound    = errors.New("treatment not found")
+	ErrTreatedAtRequired    = errors.New("treated_at is required")
+	ErrMedicineNameRequired = errors.New("medicine_name is required")
+)
+
+// TreatmentRepository is the persistence interface for treatments.
+type TreatmentRepository interface {
+	Create(ctx context.Context, t *model.Treatment) error
+	Delete(ctx context.Context, treatmentID int64) error
+	GetByID(ctx context.Context, treatmentID, hiveID int64) (*model.Treatment, error)
+	CountByHiveID(ctx context.Context, hiveID int64) (int64, error)
+	ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Treatment, error)
+	Update(ctx context.Context, t *model.Treatment) error
+}
+
+// TreatmentService handles business logic for treatment records.
+type TreatmentService struct {
+	apiaries   ApiaryMembershipReader
+	hives      InspectionHiveReader
+	treatments TreatmentRepository
+}
+
+// NewTreatmentService creates a TreatmentService with the given dependencies.
+func NewTreatmentService(apiaries ApiaryMembershipReader, hives InspectionHiveReader, treatments TreatmentRepository) *TreatmentService {
+	return &TreatmentService{apiaries: apiaries, hives: hives, treatments: treatments}
+}
+
+// TreatmentParams holds the mutable fields for create and update operations.
+type TreatmentParams struct {
+	TreatedAt    time.Time
+	MedicineName string
+	Dose         string
+	Notes        string
+}
+
+func validateTreatmentParams(p TreatmentParams) error {
+	if p.TreatedAt.IsZero() {
+		return ErrTreatedAtRequired
+	}
+	if p.MedicineName == "" {
+		return ErrMedicineNameRequired
+	}
+	return nil
+}
+
+func (s *TreatmentService) checkAccess(ctx context.Context, apiaryID, userID, hiveID int64) error {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrApiaryNotFound
+		}
+		return fmt.Errorf("get apiary: %w", err)
+	}
+	if _, err := s.hives.GetByIDAndApiaryID(ctx, hiveID, apiaryID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrHiveNotFound
+		}
+		return fmt.Errorf("get hive: %w", err)
+	}
+	return nil
+}
+
+// Create validates params, checks membership, and inserts a new treatment.
+func (s *TreatmentService) Create(ctx context.Context, userID, apiaryID, hiveID int64, params TreatmentParams) (*model.Treatment, error) {
+	if err := validateTreatmentParams(params); err != nil {
+		return nil, err
+	}
+	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
+		return nil, err
+	}
+	dose := params.Dose
+	if dose == "" {
+		dose = "1"
+	}
+	t := &model.Treatment{
+		HiveID:       hiveID,
+		TreatedBy:    userID,
+		TreatedAt:    params.TreatedAt,
+		MedicineName: params.MedicineName,
+		Dose:         dose,
+		Notes:        params.Notes,
+	}
+	if err := s.treatments.Create(ctx, t); err != nil {
+		return nil, fmt.Errorf("create treatment: %w", err)
+	}
+	return t, nil
+}
+
+// Get returns a single treatment, verifying apiary membership and hive ownership.
+func (s *TreatmentService) Get(ctx context.Context, userID, apiaryID, hiveID, treatmentID int64) (*model.Treatment, error) {
+	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
+		return nil, err
+	}
+	t, err := s.treatments.GetByID(ctx, treatmentID, hiveID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTreatmentNotFound
+		}
+		return nil, fmt.Errorf("get treatment: %w", err)
+	}
+	return t, nil
+}
+
+// List returns a paginated slice of treatments and the total count for a hive.
+func (s *TreatmentService) List(ctx context.Context, userID, apiaryID, hiveID int64, limit, offset int) ([]*model.Treatment, int64, error) {
+	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
+		return nil, 0, err
+	}
+	total, err := s.treatments.CountByHiveID(ctx, hiveID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count treatments: %w", err)
+	}
+	treatments, err := s.treatments.ListByHiveID(ctx, hiveID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list treatments: %w", err)
+	}
+	return treatments, total, nil
+}
+
+// Update validates params and overwrites all mutable fields of an existing treatment.
+func (s *TreatmentService) Update(ctx context.Context, userID, apiaryID, hiveID, treatmentID int64, params TreatmentParams) (*model.Treatment, error) {
+	if err := validateTreatmentParams(params); err != nil {
+		return nil, err
+	}
+	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
+		return nil, err
+	}
+	t, err := s.treatments.GetByID(ctx, treatmentID, hiveID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTreatmentNotFound
+		}
+		return nil, fmt.Errorf("get treatment: %w", err)
+	}
+	dose := params.Dose
+	if dose == "" {
+		dose = "1"
+	}
+	t.TreatedAt = params.TreatedAt
+	t.MedicineName = params.MedicineName
+	t.Dose = dose
+	t.Notes = params.Notes
+	if err := s.treatments.Update(ctx, t); err != nil {
+		return nil, fmt.Errorf("update treatment: %w", err)
+	}
+	return t, nil
+}
+
+// Delete removes a treatment after verifying membership.
+func (s *TreatmentService) Delete(ctx context.Context, userID, apiaryID, hiveID, treatmentID int64) error {
+	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
+		return err
+	}
+	if _, err := s.treatments.GetByID(ctx, treatmentID, hiveID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTreatmentNotFound
+		}
+		return fmt.Errorf("get treatment: %w", err)
+	}
+	if err := s.treatments.Delete(ctx, treatmentID); err != nil {
+		return fmt.Errorf("delete treatment: %w", err)
+	}
+	return nil
+}

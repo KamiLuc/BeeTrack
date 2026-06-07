@@ -1165,6 +1165,96 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{count, plural, =1{1 zdjęcie} few{{count} zdjęcia} other{{count} zdjęć}}'**
   String inspectionPhotoCount(int count);
+
+  /// No description provided for @hiveTypeRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Typ ula jest wymagany'**
+  String get hiveTypeRequired;
+
+  /// No description provided for @treatmentTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zabiegi'**
+  String get treatmentTitle;
+
+  /// No description provided for @treatmentAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zabieg'**
+  String get treatmentAdd;
+
+  /// No description provided for @treatmentEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj zabieg'**
+  String get treatmentEdit;
+
+  /// No description provided for @treatmentEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak zabiegów'**
+  String get treatmentEmpty;
+
+  /// No description provided for @treatmentDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć zabieg?'**
+  String get treatmentDeleteConfirm;
+
+  /// No description provided for @treatmentDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie wpis zabiegu.'**
+  String get treatmentDeleteWarning;
+
+  /// No description provided for @treatmentDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Data zabiegu'**
+  String get treatmentDate;
+
+  /// No description provided for @treatmentMedicine.
+  ///
+  /// In pl, this message translates to:
+  /// **'Preparat'**
+  String get treatmentMedicine;
+
+  /// No description provided for @treatmentMedicineRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa preparatu jest wymagana'**
+  String get treatmentMedicineRequired;
+
+  /// No description provided for @treatmentDose.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dawka'**
+  String get treatmentDose;
+
+  /// No description provided for @treatmentDoseRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dawka jest wymagana'**
+  String get treatmentDoseRequired;
+
+  /// No description provided for @treatmentNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Notatka'**
+  String get treatmentNote;
+
+  /// No description provided for @treatmentDoseCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 dawka} few{{count} dawki} many{{count} dawek} other{{count} dawek}}'**
+  String treatmentDoseCount(int count);
+
+  /// No description provided for @treatmentTreatedBy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przez {name}'**
+  String treatmentTreatedBy(String name);
 }
 
 class _AppLocalizationsDelegate

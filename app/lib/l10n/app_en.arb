@@ -222,5 +222,32 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+
+  "hiveTypeRequired": "Hive type is required",
+
+  "treatmentTitle": "Treatments",
+  "treatmentAdd": "Add treatment",
+  "treatmentEdit": "Edit treatment",
+  "treatmentEmpty": "No treatments yet",
+  "treatmentDeleteConfirm": "Delete treatment?",
+  "treatmentDeleteWarning": "This will permanently delete the treatment record.",
+  "treatmentDate": "Treatment date",
+  "treatmentMedicine": "Medicine",
+  "treatmentMedicineRequired": "Medicine name is required",
+  "treatmentDose": "Dose",
+  "treatmentDoseRequired": "Dose is required",
+  "treatmentNote": "Note",
+  "treatmentDoseCount": "{count, plural, =1{1 dose} other{{count} doses}}",
+  "@treatmentDoseCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "treatmentTreatedBy": "By {name}",
+  "@treatmentTreatedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
   }
 }

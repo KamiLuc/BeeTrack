@@ -1351,3 +1351,127 @@ Declines a pending invitation. The caller must be the invited user.
 | `INVITATION_NOT_FOUND` | 404 | Invitation does not exist |
 | `FORBIDDEN` | 403 | Invitation does not belong to the caller |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Medicines
+
+### GET /medicines
+
+Returns the list of known medicine names. No authentication required. Intended for autocomplete in treatment forms and AI/MCP voice assistants.
+
+**Response** `200 OK`
+```json
+["Api Life Var","Api-Bioxal","Apiguard","Apivar","Apistan","Apiwarol","Bayvarol","Biowar 500","Formicpro","MAQS","Oxuvar","PolyVar Yellow","VarroMed"]
+```
+
+---
+
+## Treatments
+
+### GET /apiaries/{id}/hives/{hiveId}/treatments 🔒
+
+Returns paginated treatments for a hive, ordered by `treated_at` descending.
+
+**Query Parameters**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | int | 20 | Max items to return |
+| `offset` | int | 0 | Number of items to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "hive_id": 10,
+      "treated_by": 5,
+      "treated_by_name": "Alice",
+      "treated_at": "2025-06-01T10:00:00Z",
+      "medicine_name": "Apiwarol",
+      "dose": "2",
+      "notes": "Applied on frames",
+      "created_at": "2025-06-01T10:05:00Z",
+      "updated_at": "2025-06-01T10:05:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or caller is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not belong to the apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/treatments 🔒
+
+Creates a new treatment record. Caller must be a member of the apiary.
+
+**Request Body**
+```json
+{
+  "treated_at": "2025-06-01T10:00:00Z",
+  "medicine_name": "Apiwarol",
+  "dose": "2",
+  "notes": "Applied on frames"
+}
+```
+
+`dose` defaults to `"1"` if omitted or empty.
+
+**Response** `201 Created` — treatment object (same shape as list item above)
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `TREATED_AT_REQUIRED` | 400 | `treated_at` is missing or zero |
+| `MEDICINE_NAME_REQUIRED` | 400 | `medicine_name` is empty |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} 🔒
+
+Returns a single treatment.
+
+**Response** `200 OK` — treatment object
+
+**Errors** — same as POST above plus `TREATMENT_NOT_FOUND` 404.
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} 🔒
+
+Overwrites all mutable fields of an existing treatment.
+
+**Request Body** — same as POST (all fields required)
+
+**Response** `200 OK` — updated treatment object
+
+**Errors** — same as POST above plus `TREATMENT_NOT_FOUND` 404.
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} 🔒
+
+Deletes a treatment record.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `TREATMENT_NOT_FOUND` | 404 | Treatment not found |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

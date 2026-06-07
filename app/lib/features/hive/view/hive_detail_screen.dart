@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../inspection/data/inspection_image_repository.dart';
@@ -13,6 +15,10 @@ import '../../inspection/view/inspection_form_screen.dart';
 import '../../inspection/view/inspection_history_screen.dart';
 import '../../inspection/view/inspection_images_section.dart';
 import '../../inspection/view/inspection_summary.dart';
+import '../../treatment/data/treatment_model.dart';
+import '../../treatment/data/treatment_repository.dart';
+import '../../treatment/view/treatment_form_screen.dart';
+import '../../treatment/view/treatment_history_screen.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import 'edit_hive_screen.dart';
@@ -36,12 +42,15 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   late Hive _hive;
   Inspection? _lastInspection;
   bool _inspectionLoaded = false;
+  Treatment? _lastTreatment;
+  bool _treatmentLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _hive = widget.hive;
     _loadLastInspection();
+    _loadLastTreatment();
   }
 
   Future<void> _refreshHive() async {
@@ -80,6 +89,31 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     }
   }
 
+  Future<void> _delete() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.hiveDeleteConfirm,
+      warning: l10n.hiveDeleteWarning,
+      l10n: l10n,
+      withPuzzle: _hive.lastInspectedAt != null,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await HiveRepository(api: context.read<ApiClient>()).deleteHive(
+        apiaryId: widget.apiaryId,
+        hiveId: _hive.id,
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
+  }
+
   Future<void> _openInspections() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -92,6 +126,47 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     if (!mounted) return;
     await _refreshHive();
     _loadLastInspection();
+  }
+
+  Future<void> _loadLastTreatment() async {
+    try {
+      final result = await TreatmentRepository(
+        api: context.read<ApiClient>(),
+      ).listTreatments(widget.apiaryId, _hive.id, limit: 1);
+      if (!mounted) return;
+      setState(() {
+        _treatmentLoaded = true;
+        _lastTreatment = result.items.isNotEmpty ? result.items.first : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _treatmentLoaded = true);
+    }
+  }
+
+  Future<void> _openTreatments() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TreatmentHistoryScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _loadLastTreatment();
+  }
+
+  Future<void> _openCreateTreatment() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TreatmentFormScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == true) _loadLastTreatment();
   }
 
   Future<void> _openCreateInspection() async {
@@ -126,7 +201,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _InfoCard(hive: _hive, onEdit: _openEdit),
+                _InfoCard(hive: _hive, onEdit: _openEdit, onDelete: _delete),
                 const SizedBox(height: 16),
                 _InspectionSectionCard(
                   lastInspection: _lastInspection,
@@ -136,12 +211,11 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   apiaryId: widget.apiaryId,
                 ),
                 const SizedBox(height: 16),
-                _SectionCard(
-                  title: l10n.hiveDetailTreatments,
-                  icon: Icons.medical_services_outlined,
-                  emptyText: l10n.hiveDetailNoTreatments,
-                  actionLabel: l10n.hiveDetailLogTreatment,
-                  onAction: null,
+                _TreatmentSectionCard(
+                  lastTreatment: _lastTreatment,
+                  treatmentLoaded: _treatmentLoaded,
+                  onAdd: _openCreateTreatment,
+                  onViewAll: _openTreatments,
                 ),
                 const SizedBox(height: 16),
                 _SectionCard(
@@ -160,11 +234,18 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   }
 }
 
+enum _HiveInfoAction { edit, delete }
+
 class _InfoCard extends StatelessWidget {
   final Hive hive;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _InfoCard({required this.hive, required this.onEdit});
+  const _InfoCard({
+    required this.hive,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -223,11 +304,38 @@ class _InfoCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: onEdit,
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
+                PopupMenuButton<_HiveInfoAction>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (action) {
+                    if (action == _HiveInfoAction.edit) onEdit();
+                    if (action == _HiveInfoAction.delete) onDelete();
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: _HiveInfoAction.edit,
+                      child: ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: Text(AppLocalizations.of(context)!.generalEdit),
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _HiveInfoAction.delete,
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: colorScheme.error,
+                        ),
+                        title: Text(
+                          AppLocalizations.of(context)!.generalDelete,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -397,6 +505,166 @@ class _InspectionSectionCard extends StatelessWidget {
   }
 }
 
+class _TreatmentSummary extends StatelessWidget {
+  final Treatment treatment;
+  final AppLocalizations l10n;
+  final String? currentUserName;
+
+  const _TreatmentSummary({
+    required this.treatment,
+    required this.l10n,
+    this.currentUserName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+    final labelStyle = textTheme.labelSmall?.copyWith(
+      color: colorScheme.primary,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    );
+
+    final dateStr = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).add_Hm().format(treatment.treatedAt);
+
+    final doseCount = int.tryParse(treatment.dose);
+    final doseDisplay = doseCount != null
+        ? l10n.treatmentDoseCount(doseCount)
+        : treatment.dose;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          dateStr,
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (treatment.treatedByName != null &&
+            treatment.treatedByName != currentUserName) ...[
+          const SizedBox(height: 2),
+          Text(
+            l10n.treatmentTreatedBy(treatment.treatedByName!),
+            style: bodyStyle,
+          ),
+        ],
+        const SizedBox(height: 8),
+        Text(l10n.treatmentMedicine, style: labelStyle),
+        const SizedBox(height: 2),
+        Text(
+          '${treatment.medicineName} · $doseDisplay',
+          style: bodyStyle,
+        ),
+        if (treatment.notes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(l10n.treatmentNote, style: labelStyle),
+          const SizedBox(height: 2),
+          Text(
+            treatment.notes,
+            style: bodyStyle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _TreatmentSectionCard extends StatelessWidget {
+  final Treatment? lastTreatment;
+  final bool treatmentLoaded;
+  final VoidCallback onAdd;
+  final VoidCallback onViewAll;
+
+  const _TreatmentSectionCard({
+    required this.lastTreatment,
+    required this.treatmentLoaded,
+    required this.onAdd,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: lastTreatment != null ? onViewAll : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.medical_services_outlined,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.hiveDetailTreatments,
+                          style: textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (!treatmentLoaded)
+                    const SizedBox.shrink()
+                  else if (lastTreatment == null)
+                    Text(
+                      l10n.hiveDetailNoTreatments,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    _TreatmentSummary(
+                      treatment: lastTreatment!,
+                      l10n: l10n,
+                      currentUserName: context.read<TokenStorage>().name,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: onAdd,
+                    child: Text(l10n.hiveDetailLogTreatment),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -440,9 +708,11 @@ class _SectionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: onAction,
-              child: Text(actionLabel),
+            Center(
+              child: OutlinedButton(
+                onPressed: onAction,
+                child: Text(actionLabel),
+              ),
             ),
           ],
         ),

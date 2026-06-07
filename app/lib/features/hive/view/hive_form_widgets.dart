@@ -190,7 +190,11 @@ class HiveFramesField extends StatelessWidget {
   }
 }
 
-class HiveTypeDropdown extends StatelessWidget {
+final _hiveTypeLabelToKey = {
+  for (final e in hiveTypeLabels.entries) e.value: e.key,
+};
+
+class HiveTypeDropdown extends StatefulWidget {
   final String value;
   final ValueChanged<String?> onChanged;
 
@@ -201,18 +205,58 @@ class HiveTypeDropdown extends StatelessWidget {
   });
 
   @override
+  State<HiveTypeDropdown> createState() => _HiveTypeDropdownState();
+}
+
+class _HiveTypeDropdownState extends State<HiveTypeDropdown> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: hiveTypeLabels[widget.value] ?? widget.value,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _keyFor(String label) => _hiveTypeLabelToKey[label] ?? label;
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(labelText: l10n.hiveType),
-      items: _hiveTypes
-          .map((t) => DropdownMenuItem(
-                value: t,
-                child: Text(hiveTypeLabels[t]!),
-              ))
-          .toList(),
-      onChanged: onChanged,
+    return Autocomplete<String>(
+      key: ValueKey(widget.value),
+      initialValue: TextEditingValue(
+        text: hiveTypeLabels[widget.value] ?? widget.value,
+      ),
+      optionsBuilder: (textEditingValue) {
+        if (textEditingValue.text.isEmpty) {
+          return hiveTypeLabels.values;
+        }
+        final query = textEditingValue.text.toLowerCase();
+        return hiveTypeLabels.values.where(
+          (label) => label.toLowerCase().contains(query),
+        );
+      },
+      onSelected: (label) {
+        widget.onChanged(_keyFor(label));
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(labelText: l10n.hiveType),
+          onChanged: (v) => widget.onChanged(_keyFor(v)),
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? l10n.hiveTypeRequired : null,
+        );
+      },
     );
   }
 }

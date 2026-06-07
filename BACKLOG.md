@@ -47,12 +47,12 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| TR-01-BE | `BE` | `[ ]` | Log treatment endpoint | Type, product, dosage, date applied, date ended |
-| TR-01-FE | `FE` | `[ ]` | Log treatment screen | e.g., Apivar, oxalic acid, Apiguard |
+| TR-01-BE | `BE` | `[x]` | Log treatment endpoint | date, medicine_name, dose, notes, diseases |
+| TR-01-FE | `FE` | `[x]` | Log treatment screen | Autocomplete medicine + free text, disease chips |
 | TR-02-BE | `BE` | `[ ]` | Mark treatment complete endpoint | |
 | TR-02-FE | `FE` | `[ ]` | Mark treatment complete UI | |
-| TR-03-BE | `BE` | `[ ]` | Treatment history endpoint | |
-| TR-03-FE | `FE` | `[ ]` | Treatment history screen | |
+| TR-03-BE | `BE` | `[x]` | Treatment history endpoint | Paginated list + diseases |
+| TR-03-FE | `FE` | `[x]` | Treatment history screen | Cards, pagination banner, edit/delete |
 
 ---
 

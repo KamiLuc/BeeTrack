@@ -42,6 +42,7 @@ func main() {
 	inspectionRepo := repository.NewInspectionRepository(db)
 	inspectionImageRepo := repository.NewInspectionImageRepository(db)
 	invitationRepo := repository.NewInvitationRepository(db)
+	treatmentRepo := repository.NewTreatmentRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -51,6 +52,7 @@ func main() {
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
 	inspectionImageSvc := service.NewInspectionImageService(apiaryRepo, hiveRepo, inspectionRepo, inspectionImageRepo, cfg.ImageStoragePath)
+	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, treatmentRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -59,6 +61,7 @@ func main() {
 	hiveHandler := handler.NewHiveHandler(hiveSvc, inspectionSvc)
 	inspectionHandler := handler.NewInspectionHandler(inspectionSvc, inspectionImageSvc)
 	inspectionImageHandler := handler.NewInspectionImageHandler(inspectionImageSvc)
+	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
@@ -110,6 +113,13 @@ func main() {
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases", auth(http.HandlerFunc(inspectionHandler.AddDisease)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId}", auth(http.HandlerFunc(inspectionHandler.RemoveDisease)))
 
+	mux.HandleFunc("GET /api/v1/medicines", handler.Medicines)
+
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments", auth(http.HandlerFunc(treatmentHandler.List)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/treatments", auth(http.HandlerFunc(treatmentHandler.Create)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Delete)))
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Get)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Update)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.List)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.Upload)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}", auth(http.HandlerFunc(inspectionImageHandler.Delete)))

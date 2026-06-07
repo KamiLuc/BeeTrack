@@ -222,5 +222,32 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+
+  "hiveTypeRequired": "Typ ula jest wymagany",
+
+  "treatmentTitle": "Zabiegi",
+  "treatmentAdd": "Dodaj zabieg",
+  "treatmentEdit": "Edytuj zabieg",
+  "treatmentEmpty": "Brak zabiegów",
+  "treatmentDeleteConfirm": "Usunąć zabieg?",
+  "treatmentDeleteWarning": "Ta operacja trwale usunie wpis zabiegu.",
+  "treatmentDate": "Data zabiegu",
+  "treatmentMedicine": "Preparat",
+  "treatmentMedicineRequired": "Nazwa preparatu jest wymagana",
+  "treatmentDose": "Dawka",
+  "treatmentDoseRequired": "Dawka jest wymagana",
+  "treatmentNote": "Notatka",
+  "treatmentDoseCount": "{count, plural, =1{1 dawka} few{{count} dawki} many{{count} dawek} other{{count} dawek}}",
+  "@treatmentDoseCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "treatmentTreatedBy": "Przez {name}",
+  "@treatmentTreatedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
   }
 }
