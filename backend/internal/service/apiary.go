@@ -19,6 +19,7 @@ var (
 
 type ApiaryRepository interface {
 	Create(ctx context.Context, a *model.Apiary, ownerRole string) error
+	DeepCopy(ctx context.Context, sourceID, ownerID int64, newName string) (*model.Apiary, error)
 	Delete(ctx context.Context, apiaryID int64) error
 	GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error)
 	ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error)
@@ -143,6 +144,30 @@ func firstFreeCell(rows, cols int, occupied map[[2]int]bool) (row, col int) {
 		}
 	}
 	return 0, 0
+}
+
+// Copy creates a deep copy of an apiary the user is a member of. The copy is owned by the
+// requesting user and includes all hives, hive diseases, inspections, and inspection diseases.
+// Members, invitations, and inspection images are not copied. newName is used as-is if non-empty;
+// otherwise falls back to the source name suffixed with " (copy)".
+func (s *ApiaryService) Copy(ctx context.Context, userID, apiaryID int64, newName string) (*model.Apiary, error) {
+	apiary, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+
+	if newName == "" {
+		newName = apiary.Name + " (copy)"
+	}
+
+	result, err := s.apiaries.DeepCopy(ctx, apiaryID, userID, newName)
+	if err != nil {
+		return nil, fmt.Errorf("copy apiary: %w", err)
+	}
+	return result, nil
 }
 
 // Delete deletes an apiary; returns ErrForbidden if the user is not the owner.

@@ -169,6 +169,48 @@ func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Copy handles POST /api/v1/apiaries/{id}/copy — creates a deep copy of an apiary for the authenticated user.
+func (h *ApiaryHandler) Copy(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	apiary, err := h.apiary.Copy(r.Context(), userID, apiaryID, req.Name)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrApiaryNotFound):
+			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	respond.JSON(w, http.StatusCreated, map[string]any{
+		"id":         apiary.ID,
+		"name":       apiary.Name,
+		"lat":        apiary.Lat,
+		"lng":        apiary.Lng,
+		"grid_rows":  apiary.GridRows,
+		"grid_cols":  apiary.GridCols,
+		"created_at": apiary.CreatedAt,
+		"updated_at": apiary.UpdatedAt,
+	})
+}
+
 // Delete handles DELETE /api/v1/apiaries/{id} — deletes an apiary; only the owner may do this.
 func (h *ApiaryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

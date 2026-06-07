@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalError => 'Something went wrong. Please try again.';
 
   @override
+  String get generalRetry => 'Retry';
+
+  @override
   String get generalLoading => 'Loading...';
 
   @override
@@ -241,6 +244,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apiaryMapTooltip => 'Show on map';
+
+  @override
+  String get apiaryCopy => 'Copy apiary';
+
+  @override
+  String get apiaryCopySuffix => 'copy';
+
+  @override
+  String get apiaryCopied => 'Apiary copied';
 
   @override
   String get apiaryAdd => 'Add apiary';

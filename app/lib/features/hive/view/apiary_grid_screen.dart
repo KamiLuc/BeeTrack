@@ -138,7 +138,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(120, 40),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(l10n.generalRetry),
                   ),
                 ],
               ),

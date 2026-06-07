@@ -48,6 +48,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get generalError => 'Wystąpił błąd. Spróbuj ponownie.';
 
   @override
+  String get generalRetry => 'Spróbuj ponownie';
+
+  @override
   String get generalLoading => 'Ładowanie...';
 
   @override
@@ -241,6 +244,15 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get apiaryMapTooltip => 'Pokaż na mapie';
+
+  @override
+  String get apiaryCopy => 'Skopiuj pasiekę';
+
+  @override
+  String get apiaryCopySuffix => 'kopia';
+
+  @override
+  String get apiaryCopied => 'Pasieka skopiowana';
 
   @override
   String get apiaryAdd => 'Dodaj pasiekę';

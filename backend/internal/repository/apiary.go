@@ -98,6 +98,139 @@ func (r *ApiaryRepository) Update(ctx context.Context, a *model.Apiary) error {
 		}).Error
 }
 
+// DeepCopy creates a new apiary owned by ownerID, copying all hives, hive diseases,
+// inspections, and inspection diseases from the source apiary. Members, invitations,
+// and inspection images are not copied.
+func (r *ApiaryRepository) DeepCopy(ctx context.Context, sourceID, ownerID int64, newName string) (*model.Apiary, error) {
+	var result *model.Apiary
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var source model.Apiary
+		if err := tx.Where("id = ?", sourceID).First(&source).Error; err != nil {
+			return err
+		}
+
+		newApiary := &model.Apiary{
+			OwnerUserID: ownerID,
+			Name:        newName,
+			Lat:         source.Lat,
+			Lng:         source.Lng,
+			GridRows:    source.GridRows,
+			GridCols:    source.GridCols,
+		}
+		if err := tx.Create(newApiary).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&model.ApiaryMember{ApiaryID: newApiary.ID, UserID: ownerID, Role: "owner"}).Error; err != nil {
+			return err
+		}
+
+		var hives []*model.Hive
+		if err := tx.Where("apiary_id = ?", sourceID).Find(&hives).Error; err != nil {
+			return err
+		}
+		if len(hives) == 0 {
+			result = newApiary
+			return nil
+		}
+
+		sourceHiveIDs := make([]int64, len(hives))
+		for i, h := range hives {
+			sourceHiveIDs[i] = h.ID
+		}
+
+		var hiveDiseases []*model.HiveDisease
+		if err := tx.Where("hive_id IN ?", sourceHiveIDs).Find(&hiveDiseases).Error; err != nil {
+			return err
+		}
+		hiveDiseasesByHiveID := make(map[int64][]*model.HiveDisease, len(hiveDiseases))
+		for _, d := range hiveDiseases {
+			hiveDiseasesByHiveID[d.HiveID] = append(hiveDiseasesByHiveID[d.HiveID], d)
+		}
+
+		var inspections []*model.Inspection
+		if err := tx.Where("hive_id IN ?", sourceHiveIDs).Find(&inspections).Error; err != nil {
+			return err
+		}
+		inspsByHiveID := make(map[int64][]*model.Inspection, len(inspections))
+		for _, insp := range inspections {
+			inspsByHiveID[insp.HiveID] = append(inspsByHiveID[insp.HiveID], insp)
+		}
+
+		var inspDiseasesByInspID map[int64][]*model.InspectionDisease
+		if len(inspections) > 0 {
+			sourceInspIDs := make([]int64, len(inspections))
+			for i, insp := range inspections {
+				sourceInspIDs[i] = insp.ID
+			}
+			var inspDiseases []*model.InspectionDisease
+			if err := tx.Where("inspection_id IN ?", sourceInspIDs).Find(&inspDiseases).Error; err != nil {
+				return err
+			}
+			inspDiseasesByInspID = make(map[int64][]*model.InspectionDisease, len(inspDiseases))
+			for _, d := range inspDiseases {
+				inspDiseasesByInspID[d.InspectionID] = append(inspDiseasesByInspID[d.InspectionID], d)
+			}
+		}
+
+		for _, h := range hives {
+			newHive := &model.Hive{
+				ApiaryID:        newApiary.ID,
+				Name:            h.Name,
+				Type:            h.Type,
+				Active:          h.Active,
+				Frames:          h.Frames,
+				ReadyForHarvest: h.ReadyForHarvest,
+				Queenless:       h.Queenless,
+				GridRow:         h.GridRow,
+				GridCol:         h.GridCol,
+			}
+			if err := tx.Create(newHive).Error; err != nil {
+				return err
+			}
+			for _, d := range hiveDiseasesByHiveID[h.ID] {
+				if err := tx.Create(&model.HiveDisease{HiveID: newHive.ID, Disease: d.Disease}).Error; err != nil {
+					return err
+				}
+			}
+			for _, insp := range inspsByHiveID[h.ID] {
+				newInsp := &model.Inspection{
+					HiveID:                newHive.ID,
+					InspectedBy:           insp.InspectedBy,
+					InspectedAt:           insp.InspectedAt,
+					QueenStatus:           insp.QueenStatus,
+					BroodPattern:          insp.BroodPattern,
+					FramesBrood:           insp.FramesBrood,
+					FramesHoney:           insp.FramesHoney,
+					FramesPollen:          insp.FramesPollen,
+					QueenCellsCount:       insp.QueenCellsCount,
+					Aggressiveness:        insp.Aggressiveness,
+					FramesAddedFoundation: insp.FramesAddedFoundation,
+					FramesAddedDrawn:      insp.FramesAddedDrawn,
+					FramesAddedHoney:      insp.FramesAddedHoney,
+					QueenAdded:            insp.QueenAdded,
+					Notes:                 insp.Notes,
+				}
+				if err := tx.Create(newInsp).Error; err != nil {
+					return err
+				}
+				for _, d := range inspDiseasesByInspID[insp.ID] {
+					if err := tx.Create(&model.InspectionDisease{
+						InspectionID: newInsp.ID,
+						Disease:      d.Disease,
+						Notes:        d.Notes,
+					}).Error; err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		result = newApiary
+		return nil
+	})
+	return result, err
+}
+
 // Delete soft-deletes an apiary by ID.
 func (r *ApiaryRepository) Delete(ctx context.Context, apiaryID int64) error {
 	return r.db.WithContext(ctx).

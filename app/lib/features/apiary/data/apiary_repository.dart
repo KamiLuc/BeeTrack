@@ -62,6 +62,14 @@ class ApiaryRepository {
     }
   }
 
+  Future<void> copyApiary(int id, {required String name}) async {
+    try {
+      await _api.dio.post('/api/v1/apiaries/$id/copy', data: {'name': name});
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<void> deleteApiary(int id) async {
     try {
       await _api.dio.delete('/api/v1/apiaries/$id');

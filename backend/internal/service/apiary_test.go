@@ -17,6 +17,7 @@ type mockApiaryRepo struct {
 	role         string
 	updated      *model.Apiary
 	deletedID    int64
+	deepCopied   *model.Apiary
 }
 
 func (m *mockApiaryRepo) Create(ctx context.Context, a *model.Apiary, ownerRole string) error {
@@ -39,6 +40,11 @@ func (m *mockApiaryRepo) GetMembership(ctx context.Context, apiaryID, userID int
 func (m *mockApiaryRepo) Update(ctx context.Context, a *model.Apiary) error {
 	m.updated = a
 	return nil
+}
+
+func (m *mockApiaryRepo) DeepCopy(ctx context.Context, sourceID, ownerID int64, newName string) (*model.Apiary, error) {
+	m.deepCopied = &model.Apiary{ID: 99, OwnerUserID: ownerID, Name: newName}
+	return m.deepCopied, nil
 }
 
 func (m *mockApiaryRepo) Delete(ctx context.Context, apiaryID int64) error {
@@ -286,6 +292,46 @@ func TestListApiaries_ReturnsMemberships(t *testing.T) {
 	}
 	if list[1].LastInspectedAt != nil {
 		t.Errorf("expected nil LastInspectedAt for Beta, got %v", list[1].LastInspectedAt)
+	}
+}
+
+func TestCopyApiary_Success(t *testing.T) {
+	svc, repo, _ := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, Name: "My Apiary"}
+	repo.role = "member"
+
+	result, err := svc.Copy(context.Background(), 1, 10, "My Apiary (copy)")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Name != "My Apiary (copy)" {
+		t.Errorf("expected name 'My Apiary (copy)', got %s", result.Name)
+	}
+	if repo.deepCopied.OwnerUserID != 1 {
+		t.Errorf("expected owner ID 1, got %d", repo.deepCopied.OwnerUserID)
+	}
+}
+
+func TestCopyApiary_NotFound(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	_, err := svc.Copy(context.Background(), 1, 99, "")
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestCopyApiary_MemberCanCopy(t *testing.T) {
+	svc, repo, _ := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, Name: "Shared Apiary"}
+	repo.role = "member"
+
+	result, err := svc.Copy(context.Background(), 2, 10, "Shared Apiary (kopia)")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.OwnerUserID != 2 {
+		t.Errorf("expected copy owned by user 2, got %d", result.OwnerUserID)
 	}
 }
 

@@ -79,7 +79,7 @@ class _ApiariesView extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(120, 40),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(l10n.generalRetry),
                   ),
                 ],
               ),
@@ -216,6 +216,50 @@ class _ApiaryCard extends StatelessWidget {
     if (context.mounted) context.read<ApiariesCubit>().load();
   }
 
+  Future<void> _copy(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await ApiaryRepository(api: context.read<ApiClient>()).copyApiary(
+        apiary.id,
+        name: '${apiary.name} (${l10n.apiaryCopySuffix})',
+      );
+      if (context.mounted) {
+        context.read<ApiariesCubit>().load();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.apiaryCopied)),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.apiaryDeleteConfirm,
+      warning: l10n.apiaryDeleteWarning,
+      l10n: l10n,
+      withPuzzle: apiary.hiveCount > 0,
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await ApiaryRepository(api: context.read<ApiClient>()).deleteApiary(apiary.id);
+      if (context.mounted) context.read<ApiariesCubit>().load();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
+  }
+
   Future<void> _leave(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDeleteDialog(
@@ -244,98 +288,262 @@ class _ApiaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isOwner = apiary.userRole == 'owner';
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return SizedBox(
-      height: 48,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          onTap: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ApiaryGridScreen(apiary: apiary),
-              ),
-            );
-            if (context.mounted) context.read<ApiariesCubit>().load();
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(apiary.name, style: Theme.of(context).textTheme.bodyMedium),
-                      if (apiary.hiveCount > 0)
-                        Text(
-                          l10n.hiveCount(apiary.hiveCount),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  ),
-                ),
-                if (apiary.lastInspectedAt != null)
-                  Text(
-                    DateFormat('d MMM yyyy',
-                            Localizations.localeOf(context).toString())
-                        .format(apiary.lastInspectedAt!),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                const SizedBox(width: 4),
-                if (isOwner) ...[
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      tooltip: l10n.invitationInvite,
-                      icon: const Icon(Icons.person_add_outlined, size: 18),
-                      onPressed: () {
-                        final apiClient = context.read<ApiClient>();
-                        final ownerEmail = context.read<TokenStorage>().email;
-                        showDialog<void>(
-                          context: context,
-                          builder: (_) => ApiaryMembersModal(
-                            apiaryId: apiary.id,
-                            apiClient: apiClient,
-                            ownerEmail: ownerEmail,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      tooltip: l10n.generalEdit,
-                      icon: const Icon(Icons.edit, size: 18),
-                      onPressed: () => _openEdit(context),
-                    ),
-                  ),
-                ]
-                else
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      tooltip: l10n.leaveApiary,
-                      icon: Icon(Icons.exit_to_app, size: 18, color: Theme.of(context).colorScheme.error),
-                      onPressed: () => _leave(context),
-                    ),
-                  ),
-              ],
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ApiaryGridScreen(apiary: apiary),
             ),
+          );
+          if (context.mounted) context.read<ApiariesCubit>().load();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 4, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      apiary.name,
+                      style: textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  _RoleBadge(isOwner: isOwner, l10n: l10n),
+                  _ApiaryMenu(
+                    apiary: apiary,
+                    isOwner: isOwner,
+                    l10n: l10n,
+                    onEdit: () => _openEdit(context),
+                    onCopy: () => _copy(context),
+                    onDelete: () => _delete(context),
+                    onLeave: () => _leave(context),
+                    onMembers: () {
+                      final apiClient = context.read<ApiClient>();
+                      final ownerEmail = context.read<TokenStorage>().email;
+                      showDialog<void>(
+                        context: context,
+                        builder: (_) => ApiaryMembersModal(
+                          apiaryId: apiary.id,
+                          apiClient: apiClient,
+                          ownerEmail: ownerEmail,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 6,
+                children: [
+                  _InfoChip(
+                    icon: Icons.hive_outlined,
+                    label: l10n.hiveCount(apiary.hiveCount),
+                  ),
+                  _InfoChip(
+                    icon: Icons.grid_on_outlined,
+                    label: '${apiary.gridRows}×${apiary.gridCols}',
+                  ),
+                  if (apiary.lat != null)
+                    _InfoChip(
+                      icon: Icons.location_on_outlined,
+                      label: 'GPS',
+                      color: Colors.green,
+                    ),
+                ],
+              ),
+              if (apiary.lastInspectedAt != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 13,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      DateFormat(
+                        'd MMM yyyy',
+                        Localizations.localeOf(context).toString(),
+                      ).format(apiary.lastInspectedAt!),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RoleBadge extends StatelessWidget {
+  final bool isOwner;
+  final AppLocalizations l10n;
+
+  const _RoleBadge({required this.isOwner, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bgColor = colorScheme.surfaceContainerHighest;
+    final fgColor = colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        isOwner ? l10n.roleOwner : l10n.roleMember,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: fgColor,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+}
+
+class _ApiaryMenu extends StatelessWidget {
+  final Apiary apiary;
+  final bool isOwner;
+  final AppLocalizations l10n;
+  final VoidCallback onEdit;
+  final VoidCallback onCopy;
+  final VoidCallback onDelete;
+  final VoidCallback onLeave;
+  final VoidCallback onMembers;
+
+  const _ApiaryMenu({
+    required this.apiary,
+    required this.isOwner,
+    required this.l10n,
+    required this.onEdit,
+    required this.onCopy,
+    required this.onDelete,
+    required this.onLeave,
+    required this.onMembers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
+
+    return PopupMenuButton<_ApiaryAction>(
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _ApiaryAction.members:
+            onMembers();
+          case _ApiaryAction.edit:
+            onEdit();
+          case _ApiaryAction.copy:
+            onCopy();
+          case _ApiaryAction.delete:
+            onDelete();
+          case _ApiaryAction.leave:
+            onLeave();
+        }
+      },
+      itemBuilder: (_) => [
+        if (isOwner) ...[
+          PopupMenuItem(
+            value: _ApiaryAction.members,
+            child: ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: Text(l10n.invitationInvite),
+              contentPadding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          PopupMenuItem(
+            value: _ApiaryAction.edit,
+            child: ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.generalEdit),
+              contentPadding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
+        PopupMenuItem(
+          value: _ApiaryAction.copy,
+          child: ListTile(
+            leading: const Icon(Icons.copy_outlined),
+            title: Text(l10n.apiaryCopy),
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        if (isOwner)
+          PopupMenuItem(
+            value: _ApiaryAction.delete,
+            child: ListTile(
+              leading: Icon(Icons.delete_outline, color: errorColor),
+              title: Text(l10n.generalDelete, style: TextStyle(color: errorColor)),
+              contentPadding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          )
+        else
+          PopupMenuItem(
+            value: _ApiaryAction.leave,
+            child: ListTile(
+              leading: Icon(Icons.exit_to_app, color: errorColor),
+              title: Text(l10n.leaveApiary, style: TextStyle(color: errorColor)),
+              contentPadding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+enum _ApiaryAction { members, edit, copy, delete, leave }
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _InfoChip({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final effectiveColor = color ?? colorScheme.onSurfaceVariant;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: effectiveColor),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: effectiveColor,
+              ),
+        ),
+      ],
     );
   }
 }

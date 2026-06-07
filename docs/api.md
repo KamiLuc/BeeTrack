@@ -391,6 +391,44 @@ Updates an apiary. Only the owner can edit.
 
 ---
 
+### POST /apiaries/{id}/copy 🔒
+
+Creates a deep copy of an apiary the user is a member of. The copy is owned by the requesting
+user and includes all hives, hive diseases, inspections, and inspection diseases.
+Members, invitations, and inspection images are not copied.
+
+**Request body** (optional)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Name for the new apiary. If omitted or empty, defaults to the source name suffixed with ` (copy)`. |
+
+**Response** `201 Created`
+
+```json
+{
+  "id": 7,
+  "name": "My Apiary (copy)",
+  "lat": 52.23,
+  "lng": 21.01,
+  "grid_rows": 3,
+  "grid_cols": 4,
+  "created_at": "2025-06-07T12:00:00Z",
+  "updated_at": "2025-06-07T12:00:00Z"
+}
+```
+
+**Errors**
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No auth token |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### DELETE /apiaries/{id} 🔒
 
 Deletes an apiary and all its members. Only the owner can delete.

@@ -176,6 +176,12 @@ abstract class AppLocalizations {
   /// **'Wystąpił błąd. Spróbuj ponownie.'**
   String get generalError;
 
+  /// No description provided for @generalRetry.
+  ///
+  /// In pl, this message translates to:
+  /// **'Spróbuj ponownie'**
+  String get generalRetry;
+
   /// No description provided for @generalLoading.
   ///
   /// In pl, this message translates to:
@@ -541,6 +547,24 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Pokaż na mapie'**
   String get apiaryMapTooltip;
+
+  /// No description provided for @apiaryCopy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skopiuj pasiekę'**
+  String get apiaryCopy;
+
+  /// No description provided for @apiaryCopySuffix.
+  ///
+  /// In pl, this message translates to:
+  /// **'kopia'**
+  String get apiaryCopySuffix;
+
+  /// No description provided for @apiaryCopied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pasieka skopiowana'**
+  String get apiaryCopied;
 
   /// No description provided for @apiaryAdd.
   ///
