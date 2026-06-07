@@ -16,6 +16,7 @@ type mockInspectionImageRepo struct {
 	image     *model.InspectionImage
 	created   *model.InspectionImage
 	deletedID int64
+	counts    map[int64]int
 }
 
 func (m *mockInspectionImageRepo) Create(ctx context.Context, img *model.InspectionImage) error {
@@ -40,6 +41,9 @@ func (m *mockInspectionImageRepo) ListByInspectionIDForCleanup(ctx context.Conte
 }
 
 func (m *mockInspectionImageRepo) CountByInspectionIDs(ctx context.Context, ids []int64) (map[int64]int, error) {
+	if m.counts != nil {
+		return m.counts, nil
+	}
 	return map[int64]int{}, nil
 }
 
@@ -171,6 +175,34 @@ func TestListImages_Success(t *testing.T) {
 	}
 	if len(imgs) != 2 {
 		t.Errorf("expected 2 images, got %d", len(imgs))
+	}
+}
+
+func TestCountForInspections_Success(t *testing.T) {
+	svc, _, _, _, imgMock, _ := newTestImageService(t)
+	imgMock.counts = map[int64]int{5: 3, 6: 0}
+
+	counts, err := svc.CountForInspections(context.Background(), []int64{5, 6})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if counts[5] != 3 {
+		t.Errorf("expected 3 photos for inspection 5, got %d", counts[5])
+	}
+	if counts[6] != 0 {
+		t.Errorf("expected 0 photos for inspection 6, got %d", counts[6])
+	}
+}
+
+func TestCountForInspections_Empty(t *testing.T) {
+	svc, _, _, _, _, _ := newTestImageService(t)
+
+	counts, err := svc.CountForInspections(context.Background(), []int64{})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(counts) != 0 {
+		t.Errorf("expected empty map, got %v", counts)
 	}
 }
 

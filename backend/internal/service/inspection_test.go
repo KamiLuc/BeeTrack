@@ -253,6 +253,25 @@ func TestListInspections_Success(t *testing.T) {
 	}
 }
 
+func TestListInspections_ReturnsTotal(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	inspMock.inspections = []*model.Inspection{
+		{ID: 1, HiveID: 10},
+		{ID: 2, HiveID: 10},
+		{ID: 3, HiveID: 10},
+	}
+
+	_, total, err := svc.List(context.Background(), 1, 1, 10, 2, 0)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if total != 3 {
+		t.Errorf("expected total 3, got %d", total)
+	}
+}
+
 func TestListInspections_Empty(t *testing.T) {
 	svc, apiaryMock, hiveMock, _ := newTestInspectionService()
 	apiaryMock.apiary = &model.Apiary{ID: 1}
