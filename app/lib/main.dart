@@ -17,11 +17,12 @@ import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   final prefs = await SharedPreferences.getInstance();
   final storage = TokenStorage(prefs);
   final apiClient = ApiClient(
     storage: storage,
-    baseUrl: kIsWeb ? 'http://localhost:8080' : 'http://192.168.1.177:8080',
+    baseUrl: kIsWeb ? 'http://localhost:8080' : 'https://beetrack.duckdns.org',
   );
   final localeController = LocaleController(prefs);
 
