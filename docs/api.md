@@ -785,6 +785,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
   "id": 1,
   "hive_id": 10,
   "inspected_by": 1,
+  "inspected_by_name": "John Doe",
   "inspected_at": "2026-06-04T10:00:00Z",
   "queen_status": "seen",
   "brood_pattern": "good",

@@ -7,11 +7,13 @@ import '../data/inspection_model.dart';
 class InspectionSummary extends StatelessWidget {
   final Inspection inspection;
   final bool showDate;
+  final String? currentUserName;
 
   const InspectionSummary({
     super.key,
     required this.inspection,
     this.showDate = false,
+    this.currentUserName,
   });
 
   @override
@@ -77,7 +79,14 @@ class InspectionSummary extends StatelessWidget {
       queen.add(l10n.inspectionQueenAdded);
     }
 
+    final otherInspector = currentUserName != null &&
+            inspection.inspectedByName != null &&
+            inspection.inspectedByName != currentUserName
+        ? inspection.inspectedByName
+        : null;
+
     final hasContent = showDate ||
+        otherInspector != null ||
         obs.isNotEmpty ||
         frames.isNotEmpty ||
         added.isNotEmpty ||
@@ -92,11 +101,19 @@ class InspectionSummary extends StatelessWidget {
           Text(
             DateFormat.yMMMd(
               Localizations.localeOf(context).toString(),
-            ).format(inspection.inspectedAt),
+            ).add_Hm().format(inspection.inspectedAt),
             style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
         ],
+        if (otherInspector != null) ...[
+          Text(
+            l10n.inspectionInspectedBy(otherInspector),
+            style: bodyStyle,
+          ),
+          const SizedBox(height: 6),
+        ] else if (showDate)
+          const SizedBox(height: 4),
         if (obs.isNotEmpty) ...[
           Text(l10n.inspectionSectionObservations, style: labelStyle),
           const SizedBox(height: 2),

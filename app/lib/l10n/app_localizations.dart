@@ -1034,6 +1034,12 @@ abstract class AppLocalizations {
   /// **'Notatka'**
   String get inspectionNote;
 
+  /// No description provided for @inspectionInspectedBy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przez {name}'**
+  String inspectionInspectedBy(String name);
+
   /// No description provided for @inspectionDiseases.
   ///
   /// In pl, this message translates to:

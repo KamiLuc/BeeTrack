@@ -448,3 +448,39 @@ func TestRemoveDisease_DiseaseNotFound(t *testing.T) {
 		t.Errorf("expected ErrDiseaseNotFound, got %v", err)
 	}
 }
+
+func TestGetInspection_PropagatesInspectedByName(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	inspMock.inspection = &model.Inspection{ID: 5, HiveID: 10, InspectedByName: "Alice"}
+
+	insp, err := svc.Get(context.Background(), 1, 1, 10, 5)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if insp.InspectedByName != "Alice" {
+		t.Errorf("expected InspectedByName %q, got %q", "Alice", insp.InspectedByName)
+	}
+}
+
+func TestListInspections_PropagatesInspectedByName(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	inspMock.inspections = []*model.Inspection{
+		{ID: 1, HiveID: 10, InspectedByName: "Bob"},
+		{ID: 2, HiveID: 10, InspectedByName: ""},
+	}
+
+	list, _, err := svc.List(context.Background(), 1, 1, 10, 20, 0)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if list[0].InspectedByName != "Bob" {
+		t.Errorf("expected InspectedByName %q, got %q", "Bob", list[0].InspectedByName)
+	}
+	if list[1].InspectedByName != "" {
+		t.Errorf("expected empty InspectedByName, got %q", list[1].InspectedByName)
+	}
+}

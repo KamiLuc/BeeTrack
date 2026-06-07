@@ -191,6 +191,12 @@
   "inspectionSectionHiveState": "Hive state",
   "inspectionNotes": "Notes",
   "inspectionNote": "Note",
+  "inspectionInspectedBy": "By {name}",
+  "@inspectionInspectedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "inspectionDiseases": "Diseases",
   "inspectionDiseaseVarroa": "Varroa",
   "inspectionDiseaseNosema": "Nosema",

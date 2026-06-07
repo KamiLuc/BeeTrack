@@ -6,6 +6,7 @@ type Inspection struct {
 	ID                    int64
 	HiveID                int64
 	InspectedBy           int64
+	InspectedByName       string `gorm:"-"`
 	InspectedAt           time.Time
 	QueenStatus           string
 	BroodPattern          string

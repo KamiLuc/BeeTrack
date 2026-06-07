@@ -511,6 +511,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionNote => 'Note';
 
   @override
+  String inspectionInspectedBy(String name) {
+    return 'By $name';
+  }
+
+  @override
   String get inspectionDiseases => 'Diseases';
 
   @override

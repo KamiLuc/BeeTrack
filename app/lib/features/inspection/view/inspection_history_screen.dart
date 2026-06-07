@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -193,7 +194,7 @@ class _InspectionHistoryView extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           for (final insp in inspections) ...[
-                            _InspectionCard(
+                            InspectionCard(
                               apiaryId: apiaryId,
                               inspection: insp,
                               onEdit: () => _openEdit(context, insp),
@@ -220,13 +221,13 @@ class _InspectionHistoryView extends StatelessWidget {
   }
 }
 
-class _InspectionCard extends StatelessWidget {
+class InspectionCard extends StatelessWidget {
   final int apiaryId;
   final Inspection inspection;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _InspectionCard({
+  const InspectionCard({
     required this.apiaryId,
     required this.inspection,
     required this.onEdit,
@@ -240,7 +241,8 @@ class _InspectionCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final dateStr = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
-    ).format(inspection.inspectedAt);
+    ).add_Hm().format(inspection.inspectedAt);
+    final myName = context.read<TokenStorage>().name;
 
     return Card(
       child: Padding(
@@ -258,7 +260,10 @@ class _InspectionCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    InspectionSummary(inspection: inspection),
+                    InspectionSummary(
+                      inspection: inspection,
+                      currentUserName: myName,
+                    ),
                   ],
                 ),
               ),

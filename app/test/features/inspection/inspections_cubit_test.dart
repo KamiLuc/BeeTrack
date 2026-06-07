@@ -101,6 +101,31 @@ void main() {
       expect(insp.framesAddedHoney, isNull);
       expect(insp.notes, '');
     });
+
+    test('parses inspected_by_name when present', () {
+      final json = {
+        'id': 1,
+        'hive_id': 10,
+        'inspected_at': '2025-06-01T10:00:00Z',
+        'queen_added': false,
+        'notes': '',
+        'inspected_by_name': 'Alice',
+      };
+      final insp = Inspection.fromJson(json);
+      expect(insp.inspectedByName, 'Alice');
+    });
+
+    test('sets inspectedByName to null when absent from json', () {
+      final json = {
+        'id': 1,
+        'hive_id': 10,
+        'inspected_at': '2025-06-01T10:00:00Z',
+        'queen_added': false,
+        'notes': '',
+      };
+      final insp = Inspection.fromJson(json);
+      expect(insp.inspectedByName, isNull);
+    });
   });
 
   ({List<Inspection> items, int total}) _result(List<Inspection> items) =>

@@ -516,6 +516,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionNote => 'Notatka';
 
   @override
+  String inspectionInspectedBy(String name) {
+    return 'Przez $name';
+  }
+
+  @override
   String get inspectionDiseases => 'Choroby';
 
   @override

@@ -24,11 +24,23 @@ func (r *InspectionRepository) Create(ctx context.Context, insp *model.Inspectio
 
 // GetByID returns the inspection with the given id that belongs to hiveID.
 func (r *InspectionRepository) GetByID(ctx context.Context, inspectionID, hiveID int64) (*model.Inspection, error) {
-	var insp model.Inspection
+	type row struct {
+		model.Inspection
+		InspectorName string `gorm:"column:inspected_by_name"`
+	}
+	var result row
 	err := r.db.WithContext(ctx).
-		Where("id = ? AND hive_id = ?", inspectionID, hiveID).
-		First(&insp).Error
-	return &insp, err
+		Table("inspections i").
+		Select("i.*, u.name AS inspected_by_name").
+		Joins("LEFT JOIN users u ON u.id = i.inspected_by").
+		Where("i.id = ? AND i.hive_id = ?", inspectionID, hiveID).
+		First(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	insp := result.Inspection
+	insp.InspectedByName = result.InspectorName
+	return &insp, nil
 }
 
 // CountByHiveID returns the total number of inspections for hiveID.
@@ -43,14 +55,30 @@ func (r *InspectionRepository) CountByHiveID(ctx context.Context, hiveID int64) 
 
 // ListByHiveID returns inspections for hiveID ordered by inspected_at descending with pagination.
 func (r *InspectionRepository) ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Inspection, error) {
-	var inspections []*model.Inspection
+	type row struct {
+		model.Inspection
+		InspectorName string `gorm:"column:inspected_by_name"`
+	}
+	var rows []row
 	err := r.db.WithContext(ctx).
-		Where("hive_id = ?", hiveID).
-		Order("inspected_at DESC").
+		Table("inspections i").
+		Select("i.*, u.name AS inspected_by_name").
+		Joins("LEFT JOIN users u ON u.id = i.inspected_by").
+		Where("i.hive_id = ?", hiveID).
+		Order("i.inspected_at DESC").
 		Limit(limit).
 		Offset(offset).
-		Find(&inspections).Error
-	return inspections, err
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	inspections := make([]*model.Inspection, len(rows))
+	for i, r := range rows {
+		insp := r.Inspection
+		insp.InspectedByName = r.InspectorName
+		inspections[i] = &insp
+	}
+	return inspections, nil
 }
 
 // Update persists all mutable fields of insp.

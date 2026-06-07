@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -355,6 +356,7 @@ class _InspectionSectionCard extends StatelessWidget {
                     InspectionSummary(
                       inspection: lastInspection!,
                       showDate: true,
+                      currentUserName: context.read<TokenStorage>().name,
                     ),
                 ],
               ),

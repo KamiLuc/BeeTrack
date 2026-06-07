@@ -191,6 +191,12 @@
   "inspectionSectionHiveState": "Stan ula",
   "inspectionNotes": "Notatki",
   "inspectionNote": "Notatka",
+  "inspectionInspectedBy": "Przez {name}",
+  "@inspectionInspectedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "inspectionDiseases": "Choroby",
   "inspectionDiseaseVarroa": "Warroza",
   "inspectionDiseaseNosema": "Nosemoza",

@@ -108,7 +108,7 @@ void main() {
       expect(find.text('All good'), findsOneWidget);
     });
 
-    testWidgets('shows date when showDate is true', (tester) async {
+    testWidgets('shows date and time when showDate is true', (tester) async {
       await tester.pumpWidget(_wrap(
         InspectionSummary(
           inspection: _insp(queenSeen: 'seen'),
@@ -116,6 +116,7 @@ void main() {
         ),
       ));
       expect(find.textContaining('Jun 1, 2025'), findsOneWidget);
+      expect(find.textContaining('0:00'), findsOneWidget);
     });
 
     testWidgets('does not show date when showDate is false', (tester) async {
