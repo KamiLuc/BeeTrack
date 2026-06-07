@@ -18,15 +18,26 @@
 
 ## Epics Overview
 
-1. [Honey Harvest Tracking](#1-honey-harvest-tracking)
-2. [Reports & Analytics](#2-reports--analytics)
-3. [Queen Recognition (AI Feature)](#3-queen-recognition-ai-feature)
-4. [MCP Server](#4-mcp-server)
-5. [Infrastructure & DevOps](#5-infrastructure--devops)
+1. [UX Polish](#1-ux-polish)
+2. [Honey Harvest Tracking](#2-honey-harvest-tracking)
+3. [Reports & Analytics](#3-reports--analytics)
+4. [Bulk Operations](#4-bulk-operations)
+5. [Voice Logging](#5-voice-logging)
+6. [Queen Recognition (AI Feature)](#6-queen-recognition-ai-feature)
+7. [MCP Server](#7-mcp-server)
+8. [Infrastructure & DevOps](#8-infrastructure--devops)
 
 ---
 
-## 1. Honey Harvest Tracking
+## 1. UX Polish
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| UX-01-FE | `FE` | `[ ]` | Apiary copy — name picker modal | Instead of auto-suffixing, show a modal with a pre-filled name the user can edit before confirming |
+
+---
+
+## 2. Honey Harvest Tracking
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -37,7 +48,7 @@
 
 ---
 
-## 2. Reports & Analytics
+## 3. Reports & Analytics
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
@@ -46,7 +57,27 @@
 
 ---
 
-## 3. Queen Recognition (AI Feature)
+## 4. Bulk Operations
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| BK-01-BE | `BE` | `[ ]` | Bulk treatment endpoint | POST /api/v1/apiaries/{id}/treatments/bulk — same body as single treatment, inserts one record per hive in a transaction |
+| BK-01-FE | `FE` | `[ ]` | "Treat all hives" from apiary view | 3-dots menu option; reuses treatment form; shows "Treatment logged for N hives" snackbar on success |
+
+---
+
+## 5. Voice Logging
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| VC-01-BE | `BE` | `[ ]` | Voice endpoint | POST /api/v1/hives/{hiveId}/voice — accepts audio file, calls Whisper → Claude, dispatches to correct service |
+| VC-02-BE | `BE` | `[ ]` | Claude intent parser | Given transcript + hive context, returns structured action (log_inspection / log_treatment / log_harvest) with fields filled |
+| VC-03-FE | `FE` | `[ ]` | Hold-to-record mic button on hive detail screen | Uses `record` package; sends audio to VC-01 on release; saves immediately, no confirmation step |
+| VC-04-FE | `FE` | `[ ]` | Result snackbar | Show what was saved ("Inspection logged: queen added, brood good") so user knows what was recorded; tap to edit if wrong |
+
+---
+
+## 6. Queen Recognition (AI Feature)
 
 > **Deferred — implement after core app is stable.**
 
@@ -65,7 +96,7 @@
 
 ---
 
-## 4. MCP Server
+## 7. MCP Server
 
 > **Deferred — enables AI voice assistant integration.**
 
@@ -82,7 +113,7 @@
 
 ---
 
-## 5. Infrastructure & DevOps
+## 8. Infrastructure & DevOps
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
