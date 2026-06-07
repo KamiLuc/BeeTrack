@@ -224,11 +224,20 @@ class _ApiaryCard extends StatelessWidget {
       warning: l10n.leaveApiaryWarning,
       l10n: l10n,
       withPuzzle: true,
+      confirmLabel: l10n.leaveApiary,
     );
     if (!confirmed || !context.mounted) return;
     final api = context.read<ApiClient>();
-    await InvitationRepository(api: api).leaveApiary(apiary.id);
-    if (context.mounted) context.read<ApiariesCubit>().load();
+    try {
+      await InvitationRepository(api: api).leaveApiary(apiary.id);
+      if (context.mounted) context.read<ApiariesCubit>().load();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
   }
 
   @override

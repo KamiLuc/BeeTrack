@@ -14,13 +14,14 @@ Future<bool> showDeleteDialog(
   required String warning,
   required AppLocalizations l10n,
   bool withPuzzle = false,
+  String? confirmLabel,
 }) async {
   if (!withPuzzle) {
     return await _showSimpleConfirm(context,
-        title: title, warning: warning, l10n: l10n);
+        title: title, warning: warning, l10n: l10n, confirmLabel: confirmLabel);
   }
   return await _showPuzzleConfirm(context,
-      title: title, warning: warning, l10n: l10n);
+      title: title, warning: warning, l10n: l10n, confirmLabel: confirmLabel);
 }
 
 Future<bool> _showSimpleConfirm(
@@ -28,6 +29,7 @@ Future<bool> _showSimpleConfirm(
   required String title,
   required String warning,
   required AppLocalizations l10n,
+  String? confirmLabel,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -42,7 +44,7 @@ Future<bool> _showSimpleConfirm(
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(true),
           child: Text(
-            l10n.generalDelete,
+            confirmLabel ?? l10n.generalDelete,
             style: TextStyle(color: Theme.of(ctx).colorScheme.error),
           ),
         ),
@@ -57,10 +59,16 @@ Future<bool> _showPuzzleConfirm(
   required String title,
   required String warning,
   required AppLocalizations l10n,
+  String? confirmLabel,
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (ctx) => _PuzzleDialog(title: title, warning: warning, l10n: l10n),
+    builder: (ctx) => _PuzzleDialog(
+      title: title,
+      warning: warning,
+      l10n: l10n,
+      confirmLabel: confirmLabel,
+    ),
   );
   return result ?? false;
 }
@@ -69,11 +77,13 @@ class _PuzzleDialog extends StatefulWidget {
   final String title;
   final String warning;
   final AppLocalizations l10n;
+  final String? confirmLabel;
 
   const _PuzzleDialog({
     required this.title,
     required this.warning,
     required this.l10n,
+    this.confirmLabel,
   });
 
   @override
@@ -158,7 +168,7 @@ class _PuzzleDialogState extends State<_PuzzleDialog> {
         TextButton(
           onPressed: _tryConfirm,
           child: Text(
-            l10n.generalDelete,
+            widget.confirmLabel ?? l10n.generalDelete,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ),
