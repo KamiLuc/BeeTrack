@@ -591,35 +591,23 @@ class _HiveListDialogState extends State<_HiveListDialog> {
                 },
               ),
             ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: OverflowBar(
-                alignment: MainAxisAlignment.spaceBetween,
-                spacing: 8,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    child: Text(l10n.generalClose),
+            if (widget.hives.length > 1) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    widget.onTreatAll();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
                   ),
-                  if (widget.hives.length > 1)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onTreatAll();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.medical_services_outlined, size: 18),
-                      label: Text(l10n.treatmentTreatAllHives),
-                    ),
-                ],
+                  icon: const Icon(Icons.medical_services_outlined, size: 18),
+                  label: Text(l10n.treatmentTreatAllHives),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
