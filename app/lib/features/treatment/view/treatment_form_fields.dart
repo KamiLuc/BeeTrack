@@ -29,7 +29,7 @@ class TreatmentFormFields extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final dateStr = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
-    ).format(treatedAt);
+    ).add_Hm().format(treatedAt);
 
     return Form(
       key: formKey,

@@ -260,5 +260,25 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+
+  "harvestTitle": "Harvests",
+  "harvestAdd": "Add harvest",
+  "harvestEdit": "Edit harvest",
+  "harvestEmpty": "No harvests yet",
+  "harvestDeleteConfirm": "Delete harvest?",
+  "harvestDeleteWarning": "This will permanently delete the harvest record.",
+  "harvestDate": "Harvest date",
+  "harvestFrames": "Frames",
+  "harvestHalfFrames": "Half frames",
+  "harvestKilograms": "Kilograms (kg)",
+  "harvestKilogramsRequired": "Kilograms is required",
+  "harvestNote": "Note",
+  "harvestFramesRequired": "At least one frame is required",
+  "harvestHarvestedBy": "By {name}",
+  "@harvestHarvestedBy": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
   }
 }

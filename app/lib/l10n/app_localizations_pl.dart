@@ -679,4 +679,48 @@ class AppLocalizationsPl extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get harvestTitle => 'Zbiory';
+
+  @override
+  String get harvestAdd => 'Dodaj zbiór';
+
+  @override
+  String get harvestEdit => 'Edytuj zbiór';
+
+  @override
+  String get harvestEmpty => 'Brak zbiorów';
+
+  @override
+  String get harvestDeleteConfirm => 'Usunąć zbiór?';
+
+  @override
+  String get harvestDeleteWarning => 'Ta operacja trwale usunie wpis zbioru.';
+
+  @override
+  String get harvestDate => 'Data zbioru';
+
+  @override
+  String get harvestFrames => 'Ramki';
+
+  @override
+  String get harvestHalfFrames => 'Półramki';
+
+  @override
+  String get harvestKilograms => 'Kilogramy (kg)';
+
+  @override
+  String get harvestKilogramsRequired => 'Kilogramy są wymagane';
+
+  @override
+  String get harvestNote => 'Notatka';
+
+  @override
+  String get harvestFramesRequired => 'Wymagana co najmniej jedna ramka';
+
+  @override
+  String harvestHarvestedBy(String name) {
+    return 'Przez $name';
+  }
 }

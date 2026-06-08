@@ -260,5 +260,25 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+
+  "harvestTitle": "Zbiory",
+  "harvestAdd": "Dodaj zbiór",
+  "harvestEdit": "Edytuj zbiór",
+  "harvestEmpty": "Brak zbiorów",
+  "harvestDeleteConfirm": "Usunąć zbiór?",
+  "harvestDeleteWarning": "Ta operacja trwale usunie wpis zbioru.",
+  "harvestDate": "Data zbioru",
+  "harvestFrames": "Ramki",
+  "harvestHalfFrames": "Półramki",
+  "harvestKilograms": "Kilogramy (kg)",
+  "harvestKilogramsRequired": "Kilogramy są wymagane",
+  "harvestNote": "Notatka",
+  "harvestFramesRequired": "Wymagana co najmniej jedna ramka",
+  "harvestHarvestedBy": "Przez {name}",
+  "@harvestHarvestedBy": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
   }
 }

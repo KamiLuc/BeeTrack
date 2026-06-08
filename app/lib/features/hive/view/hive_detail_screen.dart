@@ -17,6 +17,10 @@ import '../../inspection/view/inspection_images_section.dart';
 import '../../inspection/view/inspection_summary.dart';
 import '../../treatment/data/treatment_model.dart';
 import '../../treatment/data/treatment_repository.dart';
+import '../../harvest/data/harvest_model.dart';
+import '../../harvest/data/harvest_repository.dart';
+import '../../harvest/view/harvest_form_screen.dart';
+import '../../harvest/view/harvest_history_screen.dart';
 import '../../treatment/view/treatment_form_screen.dart';
 import '../../treatment/view/treatment_history_screen.dart';
 import '../../apiary/data/apiary_model.dart';
@@ -47,6 +51,8 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   bool _inspectionLoaded = false;
   Treatment? _lastTreatment;
   bool _treatmentLoaded = false;
+  Harvest? _lastHarvest;
+  bool _harvestLoaded = false;
   List<Apiary>? _otherApiaries;
 
   @override
@@ -55,6 +61,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     _hive = widget.hive;
     _loadLastInspection();
     _loadLastTreatment();
+    _loadLastHarvest();
     _loadOtherApiaries();
   }
 
@@ -188,6 +195,47 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     _loadLastTreatment();
   }
 
+  Future<void> _loadLastHarvest() async {
+    try {
+      final result = await HarvestRepository(
+        api: context.read<ApiClient>(),
+      ).listHarvests(widget.apiaryId, _hive.id, limit: 1);
+      if (!mounted) return;
+      setState(() {
+        _harvestLoaded = true;
+        _lastHarvest = result.items.isNotEmpty ? result.items.first : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _harvestLoaded = true);
+    }
+  }
+
+  Future<void> _openHarvests() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HarvestHistoryScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _loadLastHarvest();
+  }
+
+  Future<void> _openCreateHarvest() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => HarvestFormScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == true) _loadLastHarvest();
+  }
+
   Future<void> _openCreateTreatment() async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -258,12 +306,11 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   onViewAll: _openTreatments,
                 ),
                 const SizedBox(height: 16),
-                _SectionCard(
-                  title: l10n.hiveDetailHarvests,
-                  icon: Icons.water_drop_outlined,
-                  emptyText: l10n.hiveDetailNoHarvests,
-                  actionLabel: l10n.hiveDetailLogHarvest,
-                  onAction: null,
+                _HarvestSectionCard(
+                  lastHarvest: _lastHarvest,
+                  harvestLoaded: _harvestLoaded,
+                  onAdd: _openCreateHarvest,
+                  onViewAll: _openHarvests,
                 ),
               ],
             ),
@@ -711,6 +758,173 @@ class _TreatmentSectionCard extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onAdd,
                     child: Text(l10n.hiveDetailLogTreatment),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HarvestSummary extends StatelessWidget {
+  final Harvest harvest;
+  final AppLocalizations l10n;
+  final String? currentUserName;
+
+  const _HarvestSummary({
+    required this.harvest,
+    required this.l10n,
+    this.currentUserName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+    final labelStyle = textTheme.labelSmall?.copyWith(
+      color: colorScheme.primary,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    );
+    final dateStr = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).add_Hm().format(harvest.harvestedAt);
+
+    final otherHarvester =
+        harvest.harvestedByName != null &&
+                harvest.harvestedByName!.isNotEmpty &&
+                harvest.harvestedByName != currentUserName
+            ? harvest.harvestedByName
+            : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          dateStr,
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (otherHarvester != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            l10n.harvestHarvestedBy(otherHarvester),
+            style: bodyStyle,
+          ),
+        ],
+        const SizedBox(height: 8),
+        Text(l10n.harvestFrames, style: labelStyle),
+        const SizedBox(height: 2),
+        Text(
+          '${harvest.frames} + ${harvest.halfFrames} ${l10n.harvestHalfFrames.toLowerCase()}',
+          style: bodyStyle,
+        ),
+        const SizedBox(height: 8),
+        Text(l10n.harvestKilograms, style: labelStyle),
+        const SizedBox(height: 2),
+        Text(
+          '${harvest.kilograms.toStringAsFixed(2)} kg',
+          style: bodyStyle,
+        ),
+        if (harvest.notes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(l10n.harvestNote, style: labelStyle),
+          const SizedBox(height: 2),
+          Text(
+            harvest.notes,
+            style: bodyStyle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HarvestSectionCard extends StatelessWidget {
+  final Harvest? lastHarvest;
+  final bool harvestLoaded;
+  final VoidCallback onAdd;
+  final VoidCallback onViewAll;
+
+  const _HarvestSectionCard({
+    required this.lastHarvest,
+    required this.harvestLoaded,
+    required this.onAdd,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: lastHarvest != null ? onViewAll : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.water_drop_outlined,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.hiveDetailHarvests,
+                          style: textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (!harvestLoaded)
+                    const SizedBox.shrink()
+                  else if (lastHarvest == null)
+                    Text(
+                      l10n.hiveDetailNoHarvests,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    _HarvestSummary(
+                      harvest: lastHarvest!,
+                      l10n: l10n,
+                      currentUserName: context.read<TokenStorage>().name,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: onAdd,
+                    child: Text(l10n.hiveDetailLogHarvest),
                   ),
                 ],
               ),

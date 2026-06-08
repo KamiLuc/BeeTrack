@@ -29,6 +29,7 @@ app/               # Flutter app
       hive/        # hive CRUD + grid view + filter — Cubit pattern
       inspection/  # inspection CRUD + history — Cubit pattern
       treatment/   # treatment CRUD + history — Cubit pattern
+      harvest/     # harvest CRUD + history — Cubit pattern
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -38,7 +39,8 @@ app/               # Flutter app
       apiary/      # apiaries_cubit_test.dart
       hive/        # hives_cubit_test.dart, hive_detail_screen_test.dart
       inspection/  # inspections_cubit_test.dart
-      treatment/   # treatments_cubit_test.dart
+      treatment/   # treatments_cubit_test.dart, treatment_form_fields_test.dart
+      harvest/     # harvests_cubit_test.dart, harvest_form_fields_test.dart
 
 docker/            # Docker Compose config
 ```
@@ -338,6 +340,8 @@ InspectionImage  id, inspectionId, mimeType, createdAt
                  (URL built from apiClient.baseUrl + REST path)
 Treatment        id, hiveId, treatedAt, medicineName, dose (string, default "1"),
                  notes, treatedByName? (populated via JOIN, not stored in table)
+Harvest          id, hiveId, harvestedAt, frames (int, default 1), halfFrames (int, default 0),
+                 kilograms (double, 2dp), notes, harvestedByName? (populated via JOIN)
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
@@ -391,6 +395,11 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Get treatment |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Update treatment |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Delete treatment |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests` | List harvests (paginated, `limit`/`offset` query params) |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests` | Create harvest (`harvested_at`, `frames`, `half_frames`, `kilograms`, `notes`; frames must sum > 0, kilograms > 0) |
+| GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Get harvest |
+| PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Update harvest |
+| DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Delete harvest |
 
 ---
 

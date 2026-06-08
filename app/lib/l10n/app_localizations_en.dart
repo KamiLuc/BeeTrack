@@ -668,4 +668,49 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get harvestTitle => 'Harvests';
+
+  @override
+  String get harvestAdd => 'Add harvest';
+
+  @override
+  String get harvestEdit => 'Edit harvest';
+
+  @override
+  String get harvestEmpty => 'No harvests yet';
+
+  @override
+  String get harvestDeleteConfirm => 'Delete harvest?';
+
+  @override
+  String get harvestDeleteWarning =>
+      'This will permanently delete the harvest record.';
+
+  @override
+  String get harvestDate => 'Harvest date';
+
+  @override
+  String get harvestFrames => 'Frames';
+
+  @override
+  String get harvestHalfFrames => 'Half frames';
+
+  @override
+  String get harvestKilograms => 'Kilograms (kg)';
+
+  @override
+  String get harvestKilogramsRequired => 'Kilograms is required';
+
+  @override
+  String get harvestNote => 'Note';
+
+  @override
+  String get harvestFramesRequired => 'At least one frame is required';
+
+  @override
+  String harvestHarvestedBy(String name) {
+    return 'By $name';
+  }
 }

@@ -52,7 +52,7 @@ void main() {
       expect(find.text('Note'), findsOneWidget);
     });
 
-    testWidgets('displays formatted treatedAt date', (tester) async {
+    testWidgets('displays formatted treatedAt date with time', (tester) async {
       final formKey = GlobalKey<FormState>();
       await tester.pumpWidget(_wrap(
         formKey: formKey,
@@ -62,7 +62,7 @@ void main() {
         notesController: TextEditingController(),
       ));
 
-      expect(find.text('Jun 8, 2026'), findsOneWidget);
+      expect(find.textContaining('Jun 8, 2026'), findsOneWidget);
     });
 
     testWidgets('calls onDateTap when date field is tapped', (tester) async {
@@ -77,7 +77,7 @@ void main() {
         onDateTap: () => tapped = true,
       ));
 
-      await tester.tap(find.text('Jun 8, 2026'));
+      await tester.tap(find.textContaining('Jun 8, 2026'));
       expect(tapped, isTrue);
     });
 

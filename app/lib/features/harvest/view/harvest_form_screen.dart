@@ -6,63 +6,59 @@ import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
-import '../data/treatment_model.dart';
-import '../data/treatment_repository.dart';
-import 'treatment_form_fields.dart';
+import '../data/harvest_model.dart';
+import '../data/harvest_repository.dart';
+import 'harvest_form_fields.dart';
 
-class TreatmentFormScreen extends StatefulWidget {
+class HarvestFormScreen extends StatefulWidget {
   final int apiaryId;
   final Hive hive;
-  final Treatment? treatment;
+  final Harvest? harvest;
 
-  const TreatmentFormScreen({
+  const HarvestFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
-    this.treatment,
+    this.harvest,
   });
 
-  bool get isEditing => treatment != null;
+  bool get isEditing => harvest != null;
 
   @override
-  State<TreatmentFormScreen> createState() => _TreatmentFormScreenState();
+  State<HarvestFormScreen> createState() => _HarvestFormScreenState();
 }
 
-class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
+class _HarvestFormScreenState extends State<HarvestFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late DateTime _treatedAt;
-  late final TextEditingController _medicineController;
-  late final TextEditingController _doseController;
+  late DateTime _harvestedAt;
+  late final TextEditingController _framesController;
+  late final TextEditingController _halfFramesController;
+  late final TextEditingController _kilogramsController;
   late final TextEditingController _notesController;
 
-  List<String> _medicineOptions = [];
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    final t = widget.treatment;
-    _treatedAt = t?.treatedAt ?? DateTime.now();
-    _medicineController = TextEditingController(text: t?.medicineName ?? '');
-    _doseController = TextEditingController(text: t?.dose ?? '1');
-    _notesController = TextEditingController(text: t?.notes ?? '');
-    _loadMedicines();
-  }
-
-  Future<void> _loadMedicines() async {
-    try {
-      final options = await TreatmentRepository(
-        api: context.read<ApiClient>(),
-      ).listMedicines();
-      if (mounted) setState(() => _medicineOptions = options);
-    } catch (_) {}
+    final h = widget.harvest;
+    _harvestedAt = h?.harvestedAt ?? DateTime.now();
+    _framesController =
+        TextEditingController(text: h != null ? '${h.frames}' : '1');
+    _halfFramesController =
+        TextEditingController(text: h != null ? '${h.halfFrames}' : '0');
+    _kilogramsController = TextEditingController(
+      text: h != null ? h.kilograms.toStringAsFixed(2) : '',
+    );
+    _notesController = TextEditingController(text: h?.notes ?? '');
   }
 
   @override
   void dispose() {
-    _medicineController.dispose();
-    _doseController.dispose();
+    _framesController.dispose();
+    _halfFramesController.dispose();
+    _kilogramsController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -70,50 +66,54 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _treatedAt,
+      initialDate: _harvestedAt,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (picked == null || !mounted) return;
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_treatedAt),
-    );
-    if (!mounted) return;
-    setState(
-      () => _treatedAt = DateTime(
-        picked.year,
-        picked.month,
-        picked.day,
-        pickedTime?.hour ?? _treatedAt.hour,
-        pickedTime?.minute ?? _treatedAt.minute,
-      ),
-    );
+    if (picked != null && mounted) {
+      setState(
+        () => _harvestedAt = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _harvestedAt.hour,
+          _harvestedAt.minute,
+        ),
+      );
+    }
   }
 
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
-    final repo = TreatmentRepository(api: ctx.read<ApiClient>());
+    final repo = HarvestRepository(api: ctx.read<ApiClient>());
+    final frames = int.tryParse(_framesController.text.trim()) ?? 0;
+    final halfFrames = int.tryParse(_halfFramesController.text.trim()) ?? 0;
+    final kilograms =
+        double.tryParse(_kilogramsController.text.trim().replaceAll(',', '.')) ??
+            0.0;
+    final notes = _notesController.text.trim();
     try {
       if (widget.isEditing) {
-        await repo.updateTreatment(
+        await repo.updateHarvest(
           apiaryId: widget.apiaryId,
           hiveId: widget.hive.id,
-          treatmentId: widget.treatment!.id,
-          treatedAt: _treatedAt,
-          medicineName: _medicineController.text.trim(),
-          dose: _doseController.text.trim(),
-          notes: _notesController.text.trim(),
+          harvestId: widget.harvest!.id,
+          harvestedAt: _harvestedAt,
+          frames: frames,
+          halfFrames: halfFrames,
+          kilograms: kilograms,
+          notes: notes,
         );
       } else {
-        await repo.createTreatment(
+        await repo.createHarvest(
           apiaryId: widget.apiaryId,
           hiveId: widget.hive.id,
-          treatedAt: _treatedAt,
-          medicineName: _medicineController.text.trim(),
-          dose: _doseController.text.trim(),
-          notes: _notesController.text.trim(),
+          harvestedAt: _harvestedAt,
+          frames: frames,
+          halfFrames: halfFrames,
+          kilograms: kilograms,
+          notes: notes,
         );
       }
 
@@ -135,7 +135,7 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? l10n.treatmentEdit : l10n.treatmentAdd),
+        title: Text(widget.isEditing ? l10n.harvestEdit : l10n.harvestAdd),
         actions: const [ProfileIconButton()],
       ),
       body: Column(
@@ -148,13 +148,13 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: AppLayout.formConstraints(context),
-                    child: TreatmentFormFields(
+                    child: HarvestFormFields(
                       formKey: _formKey,
-                      treatedAt: _treatedAt,
-                      medicineController: _medicineController,
-                      doseController: _doseController,
+                      harvestedAt: _harvestedAt,
+                      framesController: _framesController,
+                      halfFramesController: _halfFramesController,
+                      kilogramsController: _kilogramsController,
                       notesController: _notesController,
-                      medicineOptions: _medicineOptions,
                       onDateTap: _pickDate,
                     ),
                   ),

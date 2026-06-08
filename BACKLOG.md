@@ -41,10 +41,10 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| HH-01-BE | `BE` | `[ ]` | Log harvest endpoint | Date, hive, frames extracted, kg/litres yield |
-| HH-01-FE | `FE` | `[ ]` | Log harvest screen | |
-| HH-02-BE | `BE` | `[ ]` | Edit / delete harvest endpoint | |
-| HH-02-FE | `FE` | `[ ]` | Edit / delete harvest UI | |
+| HH-01-BE | `BE` | `[x]` | Log harvest endpoint | Date, hive, frames, kg, notes, harvested_by |
+| HH-01-FE | `FE` | `[x]` | Log harvest screen | Form with date, frames, half frames, kg, notes |
+| HH-02-BE | `BE` | `[x]` | Edit / delete harvest endpoint | |
+| HH-02-FE | `FE` | `[x]` | Edit / delete harvest UI | History screen with pagination, attribution |
 
 ---
 

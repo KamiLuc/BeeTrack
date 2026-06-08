@@ -1533,3 +1533,119 @@ Deletes a treatment record.
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Harvests
+
+### GET /apiaries/{id}/hives/{hiveId}/harvests 🔒
+
+Returns paginated harvests for a hive, ordered by `harvested_at` descending.
+
+**Query Parameters**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | int | 20 | Max items to return |
+| `offset` | int | 0 | Number of items to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "hive_id": 10,
+      "harvested_by": 5,
+      "harvested_by_name": "Alice",
+      "harvested_at": "2025-08-10T09:00:00Z",
+      "frames": 8,
+      "half_frames": 2,
+      "kilograms": 24.50,
+      "notes": "Good harvest",
+      "created_at": "2025-08-10T09:05:00Z",
+      "updated_at": "2025-08-10T09:05:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+`harvested_by_name` is `null` when the recording user is unknown (harvests created before attribution tracking was added).
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or caller is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not belong to the apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/harvests 🔒
+
+Creates a new harvest record. Caller must be a member of the apiary. `harvested_by` is set automatically from the authenticated user.
+
+**Request Body**
+```json
+{
+  "harvested_at": "2025-08-10T09:00:00Z",
+  "frames": 8,
+  "half_frames": 2,
+  "kilograms": 24.50,
+  "notes": "Good harvest"
+}
+```
+
+`frames` and `half_frames` default to `0` if omitted. `notes` defaults to `""`.
+
+**Response** `201 Created` — harvest object (same shape as list item above)
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `HARVESTED_AT_REQUIRED` | 400 | `harvested_at` is missing or zero |
+| `HARVEST_FRAMES_REQUIRED` | 400 | Both `frames` and `half_frames` are zero |
+| `HARVEST_KILOGRAMS_REQUIRED` | 400 | `kilograms` is zero or negative |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/harvests/{harvestId} 🔒
+
+Returns a single harvest.
+
+**Response** `200 OK` — harvest object
+
+**Errors** — same as POST above plus `HARVEST_NOT_FOUND` 404.
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId}/harvests/{harvestId} 🔒
+
+Overwrites all mutable fields of an existing harvest.
+
+**Request Body** — same as POST (all fields required)
+
+**Response** `200 OK` — updated harvest object
+
+**Errors** — same as POST above plus `HARVEST_NOT_FOUND` 404.
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/harvests/{harvestId} 🔒
+
+Deletes a harvest record.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `HARVEST_NOT_FOUND` | 404 | Harvest not found |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

@@ -1291,6 +1291,90 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{count, plural, =1{Leczenie zapisano dla 1 ula} few{Leczenie zapisano dla {count} uli} many{Leczenie zapisano dla {count} uli} other{Leczenie zapisano dla {count} uli}}'**
   String treatmentBulkSuccess(int count);
+
+  /// No description provided for @harvestTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zbiory'**
+  String get harvestTitle;
+
+  /// No description provided for @harvestAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zbiór'**
+  String get harvestAdd;
+
+  /// No description provided for @harvestEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj zbiór'**
+  String get harvestEdit;
+
+  /// No description provided for @harvestEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak zbiorów'**
+  String get harvestEmpty;
+
+  /// No description provided for @harvestDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć zbiór?'**
+  String get harvestDeleteConfirm;
+
+  /// No description provided for @harvestDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie wpis zbioru.'**
+  String get harvestDeleteWarning;
+
+  /// No description provided for @harvestDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Data zbioru'**
+  String get harvestDate;
+
+  /// No description provided for @harvestFrames.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ramki'**
+  String get harvestFrames;
+
+  /// No description provided for @harvestHalfFrames.
+  ///
+  /// In pl, this message translates to:
+  /// **'Półramki'**
+  String get harvestHalfFrames;
+
+  /// No description provided for @harvestKilograms.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kilogramy (kg)'**
+  String get harvestKilograms;
+
+  /// No description provided for @harvestKilogramsRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kilogramy są wymagane'**
+  String get harvestKilogramsRequired;
+
+  /// No description provided for @harvestNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Notatka'**
+  String get harvestNote;
+
+  /// No description provided for @harvestFramesRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wymagana co najmniej jedna ramka'**
+  String get harvestFramesRequired;
+
+  /// No description provided for @harvestHarvestedBy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przez {name}'**
+  String harvestHarvestedBy(String name);
 }
 
 class _AppLocalizationsDelegate
