@@ -106,6 +106,35 @@ func parseTreatmentPathIDs(r *http.Request) (apiaryID, hiveID int64, err error) 
 	return
 }
 
+// BulkCreate handles POST /api/v1/apiaries/{id}/treatments/bulk — creates one treatment per hive in the apiary.
+func (h *TreatmentHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+		return
+	}
+
+	var req treatmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+		return
+	}
+
+	count, err := h.treatments.BulkTreat(r.Context(), userID, apiaryID, req.toParams())
+	if err != nil {
+		treatmentError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusCreated, map[string]any{"count": count})
+}
+
 // Create handles POST /api/v1/apiaries/{id}/hives/{hiveId}/treatments — creates a new treatment.
 func (h *TreatmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

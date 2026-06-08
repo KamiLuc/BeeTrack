@@ -61,8 +61,8 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| BK-01-BE | `BE` | `[ ]` | Bulk treatment endpoint | POST /api/v1/apiaries/{id}/treatments/bulk — same body as single treatment, inserts one record per hive in a transaction |
-| BK-01-FE | `FE` | `[ ]` | "Treat all hives" from apiary view | 3-dots menu option; reuses treatment form; shows "Treatment logged for N hives" snackbar on success |
+| BK-01-BE | `BE` | `[x]` | Bulk treatment endpoint | POST /api/v1/apiaries/{id}/treatments/bulk — same body as single treatment, inserts one record per hive in a transaction |
+| BK-01-FE | `FE` | `[x]` | "Treat all hives" from apiary view | 3-dots menu option; reuses treatment form; shows "Treatment logged for N hives" snackbar on success |
 
 ---
 

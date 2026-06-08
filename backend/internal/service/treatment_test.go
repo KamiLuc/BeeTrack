@@ -10,11 +10,20 @@ import (
 )
 
 type mockTreatmentRepo struct {
-	treatment *model.Treatment
-	treatments []*model.Treatment
-	created   *model.Treatment
-	updated   *model.Treatment
-	deletedID int64
+	treatment    *model.Treatment
+	treatments   []*model.Treatment
+	bulkCreated  []*model.Treatment
+	created      *model.Treatment
+	updated      *model.Treatment
+	deletedID    int64
+}
+
+func (m *mockTreatmentRepo) BulkCreate(ctx context.Context, treatments []*model.Treatment) error {
+	for i, t := range treatments {
+		t.ID = int64(i + 1)
+	}
+	m.bulkCreated = treatments
+	return nil
 }
 
 func (m *mockTreatmentRepo) Create(ctx context.Context, t *model.Treatment) error {
@@ -48,11 +57,20 @@ func (m *mockTreatmentRepo) Update(ctx context.Context, t *model.Treatment) erro
 	return nil
 }
 
+type mockBulkHiveReader struct {
+	hives []*model.Hive
+}
+
+func (m *mockBulkHiveReader) ListByApiaryID(_ context.Context, _ int64) ([]*model.Hive, error) {
+	return m.hives, nil
+}
+
 func newTreatmentSvc(repo *mockTreatmentRepo) *TreatmentService {
 	hive := &model.Hive{ID: 10, ApiaryID: 1}
 	return NewTreatmentService(
 		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
 		&mockInspectionHiveReader{hive: hive},
+		&mockBulkHiveReader{hives: []*model.Hive{hive}},
 		repo,
 	)
 }
@@ -142,5 +160,102 @@ func TestTreatmentDelete(t *testing.T) {
 	}
 	if repo.deletedID != 5 {
 		t.Errorf("expected deletedID 5, got %d", repo.deletedID)
+	}
+}
+
+func TestBulkTreat(t *testing.T) {
+	hives := []*model.Hive{
+		{ID: 10, ApiaryID: 1},
+		{ID: 11, ApiaryID: 1},
+		{ID: 12, ApiaryID: 1},
+	}
+	repo := &mockTreatmentRepo{}
+	svc := NewTreatmentService(
+		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
+		&mockInspectionHiveReader{hive: hives[0]},
+		&mockBulkHiveReader{hives: hives},
+		repo,
+	)
+
+	count, err := svc.BulkTreat(context.Background(), 1, 1, validTreatmentParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected count 3, got %d", count)
+	}
+	if len(repo.bulkCreated) != 3 {
+		t.Errorf("expected 3 bulk created, got %d", len(repo.bulkCreated))
+	}
+	for _, tr := range repo.bulkCreated {
+		if tr.MedicineName != "Apiwarol" {
+			t.Errorf("expected medicine_name Apiwarol, got %s", tr.MedicineName)
+		}
+	}
+}
+
+func TestBulkTreat_NoHives(t *testing.T) {
+	repo := &mockTreatmentRepo{}
+	svc := NewTreatmentService(
+		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
+		&mockInspectionHiveReader{},
+		&mockBulkHiveReader{hives: []*model.Hive{}},
+		repo,
+	)
+
+	count, err := svc.BulkTreat(context.Background(), 1, 1, validTreatmentParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected count 0, got %d", count)
+	}
+}
+
+func TestBulkTreat_DefaultDose(t *testing.T) {
+	hives := []*model.Hive{{ID: 10, ApiaryID: 1}}
+	repo := &mockTreatmentRepo{}
+	svc := NewTreatmentService(
+		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
+		&mockInspectionHiveReader{hive: hives[0]},
+		&mockBulkHiveReader{hives: hives},
+		repo,
+	)
+
+	params := validTreatmentParams()
+	params.Dose = ""
+	_, err := svc.BulkTreat(context.Background(), 1, 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.bulkCreated[0].Dose != "1" {
+		t.Errorf("expected default dose '1', got %s", repo.bulkCreated[0].Dose)
+	}
+}
+
+func TestBulkTreat_MissingMedicine(t *testing.T) {
+	repo := &mockTreatmentRepo{}
+	svc := newTreatmentSvc(repo)
+
+	params := validTreatmentParams()
+	params.MedicineName = ""
+	_, err := svc.BulkTreat(context.Background(), 1, 1, params)
+	if err != ErrMedicineNameRequired {
+		t.Errorf("expected ErrMedicineNameRequired, got %v", err)
+	}
+}
+
+func TestBulkTreat_ApiaryNotFound(t *testing.T) {
+	repo := &mockTreatmentRepo{}
+	svc := NewTreatmentService(
+		&mockApiaryRepo{},
+		&mockInspectionHiveReader{},
+		&mockBulkHiveReader{},
+		repo,
+	)
+
+	_, err := svc.BulkTreat(context.Background(), 1, 99, validTreatmentParams())
+	if err != ErrApiaryNotFound {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
 	}
 }

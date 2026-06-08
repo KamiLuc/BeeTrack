@@ -89,6 +89,29 @@ class TreatmentRepository {
     }
   }
 
+  Future<int> bulkTreatment({
+    required int apiaryId,
+    required DateTime treatedAt,
+    required String medicineName,
+    required String dose,
+    required String notes,
+  }) async {
+    try {
+      final response = await _api.dio.post(
+        '/api/v1/apiaries/$apiaryId/treatments/bulk',
+        data: {
+          'treated_at': treatedAt.toUtc().toIso8601String(),
+          'medicine_name': medicineName,
+          'dose': dose,
+          'notes': notes,
+        },
+      );
+      return response.data['count'] as int;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<void> deleteTreatment({
     required int apiaryId,
     required int hiveId,

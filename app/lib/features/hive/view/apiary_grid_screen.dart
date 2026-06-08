@@ -14,8 +14,11 @@ import '../../inspection/data/inspection_repository.dart';
 import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
+import '../../treatment/view/bulk_treatment_form_screen.dart';
 import 'add_hive_screen.dart';
 import 'hive_detail_screen.dart';
+
+enum _ApiaryGridAction { treatAll }
 
 enum _HiveFilter { readyForHarvest, queenless, sick }
 
@@ -88,6 +91,20 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     if (context.mounted) context.read<HivesCubit>().load();
   }
 
+  Future<void> _openBulkTreatment(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final count = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => BulkTreatmentFormScreen(apiaryId: widget.apiary.id),
+      ),
+    );
+    if (count != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.treatmentBulkSuccess(count))),
+      );
+    }
+  }
+
   Future<void> _openAddHive(
     BuildContext context,
     HivesLoaded state,
@@ -116,7 +133,34 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.apiary.name),
-        actions: const [ProfileIconButton()],
+        actions: [
+          BlocBuilder<HivesCubit, HivesState>(
+            builder: (context, state) {
+              if (state is HivesLoaded && state.hives.isNotEmpty) {
+                return PopupMenuButton<_ApiaryGridAction>(
+                  onSelected: (action) {
+                    if (action == _ApiaryGridAction.treatAll) {
+                      _openBulkTreatment(context);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: _ApiaryGridAction.treatAll,
+                      child: ListTile(
+                        leading: const Icon(Icons.medical_services_outlined),
+                        title: Text(l10n.treatmentTreatAllHives),
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          const ProfileIconButton(),
+        ],
       ),
       body: BlocBuilder<HivesCubit, HivesState>(
         builder: (context, state) {

@@ -654,4 +654,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String treatmentTreatedBy(String name) {
     return 'By $name';
   }
+
+  @override
+  String get treatmentTreatAllHives => 'Treat all hives';
+
+  @override
+  String treatmentBulkSuccess(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Treatment logged for $count hives',
+      one: 'Treatment logged for 1 hive',
+    );
+    return '$_temp0';
+  }
 }

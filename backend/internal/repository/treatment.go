@@ -94,6 +94,18 @@ func (r *TreatmentRepository) Update(ctx context.Context, t *model.Treatment) er
 		}).Error
 }
 
+// BulkCreate inserts multiple treatment records in a single transaction.
+func (r *TreatmentRepository) BulkCreate(ctx context.Context, treatments []*model.Treatment) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, t := range treatments {
+			if err := tx.Create(t).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // Delete removes the treatment with the given id.
 func (r *TreatmentRepository) Delete(ctx context.Context, treatmentID int64) error {
 	return r.db.WithContext(ctx).

@@ -1279,6 +1279,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Przez {name}'**
   String treatmentTreatedBy(String name);
+
+  /// No description provided for @treatmentTreatAllHives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lecz wszystkie ule'**
+  String get treatmentTreatAllHives;
+
+  /// No description provided for @treatmentBulkSuccess.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{Leczenie zapisano dla 1 ula} few{Leczenie zapisano dla {count} uli} many{Leczenie zapisano dla {count} uli} other{Leczenie zapisano dla {count} uli}}'**
+  String treatmentBulkSuccess(int count);
 }
 
 class _AppLocalizationsDelegate

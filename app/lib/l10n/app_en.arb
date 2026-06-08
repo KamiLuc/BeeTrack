@@ -253,5 +253,12 @@
     "placeholders": {
       "name": {"type": "String"}
     }
+  },
+  "treatmentTreatAllHives": "Treat all hives",
+  "treatmentBulkSuccess": "{count, plural, =1{Treatment logged for 1 hive} other{Treatment logged for {count} hives}}",
+  "@treatmentBulkSuccess": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
   }
 }

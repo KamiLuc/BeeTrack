@@ -663,4 +663,20 @@ class AppLocalizationsPl extends AppLocalizations {
   String treatmentTreatedBy(String name) {
     return 'Przez $name';
   }
+
+  @override
+  String get treatmentTreatAllHives => 'Lecz wszystkie ule';
+
+  @override
+  String treatmentBulkSuccess(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Leczenie zapisano dla $count uli',
+      many: 'Leczenie zapisano dla $count uli',
+      few: 'Leczenie zapisano dla $count uli',
+      one: 'Leczenie zapisano dla 1 ula',
+    );
+    return '$_temp0';
+  }
 }

@@ -18,6 +18,7 @@ var (
 
 // TreatmentRepository is the persistence interface for treatments.
 type TreatmentRepository interface {
+	BulkCreate(ctx context.Context, treatments []*model.Treatment) error
 	Create(ctx context.Context, t *model.Treatment) error
 	Delete(ctx context.Context, treatmentID int64) error
 	GetByID(ctx context.Context, treatmentID, hiveID int64) (*model.Treatment, error)
@@ -26,16 +27,22 @@ type TreatmentRepository interface {
 	Update(ctx context.Context, t *model.Treatment) error
 }
 
+// BulkHiveReader lists all hives for an apiary.
+type BulkHiveReader interface {
+	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
+}
+
 // TreatmentService handles business logic for treatment records.
 type TreatmentService struct {
 	apiaries   ApiaryMembershipReader
 	hives      InspectionHiveReader
+	allHives   BulkHiveReader
 	treatments TreatmentRepository
 }
 
 // NewTreatmentService creates a TreatmentService with the given dependencies.
-func NewTreatmentService(apiaries ApiaryMembershipReader, hives InspectionHiveReader, treatments TreatmentRepository) *TreatmentService {
-	return &TreatmentService{apiaries: apiaries, hives: hives, treatments: treatments}
+func NewTreatmentService(apiaries ApiaryMembershipReader, hives InspectionHiveReader, allHives BulkHiveReader, treatments TreatmentRepository) *TreatmentService {
+	return &TreatmentService{apiaries: apiaries, hives: hives, allHives: allHives, treatments: treatments}
 }
 
 // TreatmentParams holds the mutable fields for create and update operations.
@@ -156,6 +163,43 @@ func (s *TreatmentService) Update(ctx context.Context, userID, apiaryID, hiveID,
 		return nil, fmt.Errorf("update treatment: %w", err)
 	}
 	return t, nil
+}
+
+// BulkTreat creates one treatment record per hive in the apiary within a single transaction.
+// It returns the number of treatments inserted.
+func (s *TreatmentService) BulkTreat(ctx context.Context, userID, apiaryID int64, params TreatmentParams) (int, error) {
+	if err := validateTreatmentParams(params); err != nil {
+		return 0, err
+	}
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrApiaryNotFound
+		}
+		return 0, fmt.Errorf("get apiary: %w", err)
+	}
+	hives, err := s.allHives.ListByApiaryID(ctx, apiaryID)
+	if err != nil {
+		return 0, fmt.Errorf("list hives: %w", err)
+	}
+	dose := params.Dose
+	if dose == "" {
+		dose = "1"
+	}
+	treatments := make([]*model.Treatment, len(hives))
+	for i, h := range hives {
+		treatments[i] = &model.Treatment{
+			HiveID:       h.ID,
+			TreatedBy:    userID,
+			TreatedAt:    params.TreatedAt,
+			MedicineName: params.MedicineName,
+			Dose:         dose,
+			Notes:        params.Notes,
+		}
+	}
+	if err := s.treatments.BulkCreate(ctx, treatments); err != nil {
+		return 0, fmt.Errorf("bulk create treatments: %w", err)
+	}
+	return len(treatments), nil
 }
 
 // Delete removes a treatment after verifying membership.

@@ -52,7 +52,7 @@ func main() {
 	hiveSvc := service.NewHiveService(apiaryRepo, hiveRepo)
 	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
 	inspectionImageSvc := service.NewInspectionImageService(apiaryRepo, hiveRepo, inspectionRepo, inspectionImageRepo, cfg.ImageStoragePath)
-	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, treatmentRepo)
+	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -116,6 +116,7 @@ func main() {
 
 	mux.HandleFunc("GET /api/v1/medicines", handler.Medicines)
 
+	mux.Handle("POST /api/v1/apiaries/{id}/treatments/bulk", auth(http.HandlerFunc(treatmentHandler.BulkCreate)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments", auth(http.HandlerFunc(treatmentHandler.List)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/treatments", auth(http.HandlerFunc(treatmentHandler.Create)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Delete)))
