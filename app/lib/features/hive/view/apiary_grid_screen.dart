@@ -18,8 +18,6 @@ import '../../treatment/view/bulk_treatment_form_screen.dart';
 import 'add_hive_screen.dart';
 import 'hive_detail_screen.dart';
 
-enum _ApiaryGridAction { treatAll }
-
 enum _HiveFilter { readyForHarvest, queenless, sick }
 
 class ApiaryGridScreen extends StatelessWidget {
@@ -133,34 +131,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.apiary.name),
-        actions: [
-          BlocBuilder<HivesCubit, HivesState>(
-            builder: (context, state) {
-              if (state is HivesLoaded && state.hives.isNotEmpty) {
-                return PopupMenuButton<_ApiaryGridAction>(
-                  onSelected: (action) {
-                    if (action == _ApiaryGridAction.treatAll) {
-                      _openBulkTreatment(context);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: _ApiaryGridAction.treatAll,
-                      child: ListTile(
-                        leading: const Icon(Icons.medical_services_outlined),
-                        title: Text(l10n.treatmentTreatAllHives),
-                        contentPadding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ],
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-          const ProfileIconButton(),
-        ],
+        actions: const [ProfileIconButton()],
       ),
       body: BlocBuilder<HivesCubit, HivesState>(
         builder: (context, state) {
@@ -276,6 +247,7 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                   onToggle: _toggleFilter,
                   onCenter: () =>
                       _transformController.value = Matrix4.identity(),
+                  onTreatAll: () => _openBulkTreatment(context),
                   l10n: l10n,
                   apiaryId: widget.apiary.id,
                   hives: state.hives,
@@ -305,6 +277,7 @@ class _FilterBar extends StatelessWidget {
   final Set<_HiveFilter> activeFilters;
   final void Function(_HiveFilter) onToggle;
   final VoidCallback onCenter;
+  final VoidCallback onTreatAll;
   final AppLocalizations l10n;
   final int apiaryId;
   final List<Hive> hives;
@@ -314,6 +287,7 @@ class _FilterBar extends StatelessWidget {
     required this.activeFilters,
     required this.onToggle,
     required this.onCenter,
+    required this.onTreatAll,
     required this.l10n,
     required this.apiaryId,
     required this.hives,
@@ -458,6 +432,12 @@ class _FilterBar extends StatelessWidget {
                     tooltip: l10n.hiveListTooltip,
                     onPressed:
                         hives.isEmpty ? null : () => _showHiveSheet(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.medical_services_outlined),
+                    iconSize: 28,
+                    tooltip: l10n.treatmentTreatAllHives,
+                    onPressed: hives.isEmpty ? null : onTreatAll,
                   ),
                   IconButton(
                     icon: const Icon(Icons.center_focus_strong_outlined),

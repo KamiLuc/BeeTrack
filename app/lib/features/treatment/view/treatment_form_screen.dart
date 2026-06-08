@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
@@ -10,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../data/treatment_model.dart';
 import '../data/treatment_repository.dart';
+import 'treatment_form_fields.dart';
 
 class TreatmentFormScreen extends StatefulWidget {
   final int apiaryId;
@@ -129,9 +128,6 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final dateStr = DateFormat.yMMMd(
-      Localizations.localeOf(context).toString(),
-    ).format(_treatedAt);
 
     return Scaffold(
       appBar: AppBar(
@@ -148,92 +144,14 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: AppLayout.formConstraints(context),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          InkWell(
-                            onTap: _pickDate,
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: l10n.treatmentDate,
-                                suffixIcon:
-                                    const Icon(Icons.calendar_today, size: 20),
-                              ),
-                              child: Text(dateStr),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Autocomplete<String>(
-                            initialValue: TextEditingValue(
-                              text: _medicineController.text,
-                            ),
-                            optionsBuilder: (textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return _medicineOptions;
-                              }
-                              final query =
-                                  textEditingValue.text.toLowerCase();
-                              return _medicineOptions.where(
-                                (m) => m.toLowerCase().contains(query),
-                              );
-                            },
-                            onSelected: (selection) {
-                              _medicineController.text = selection;
-                            },
-                            fieldViewBuilder: (
-                              context,
-                              controller,
-                              focusNode,
-                              onFieldSubmitted,
-                            ) {
-                              if (controller.text.isEmpty &&
-                                  _medicineController.text.isNotEmpty) {
-                                controller.text = _medicineController.text;
-                              }
-                              return TextFormField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                decoration: InputDecoration(
-                                  labelText: l10n.treatmentMedicine,
-                                ),
-                                onChanged: (v) => _medicineController.text = v,
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty)
-                                        ? l10n.treatmentMedicineRequired
-                                        : null,
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _doseController,
-                            decoration:
-                                InputDecoration(labelText: l10n.treatmentDose),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[0-9.,]'),
-                              ),
-                            ],
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? l10n.treatmentDoseRequired
-                                    : null,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _notesController,
-                            decoration:
-                                InputDecoration(labelText: l10n.treatmentNote),
-                            maxLines: 3,
-                            minLines: 1,
-                          ),
-                        ],
-                      ),
+                    child: TreatmentFormFields(
+                      formKey: _formKey,
+                      treatedAt: _treatedAt,
+                      medicineController: _medicineController,
+                      doseController: _doseController,
+                      notesController: _notesController,
+                      medicineOptions: _medicineOptions,
+                      onDateTap: _pickDate,
                     ),
                   ),
                 ),
