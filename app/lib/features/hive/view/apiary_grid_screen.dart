@@ -594,10 +594,9 @@ class _HiveListDialogState extends State<_HiveListDialog> {
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Row(
-                mainAxisAlignment: widget.hives.length > 1
-                    ? MainAxisAlignment.spaceBetween
-                    : MainAxisAlignment.center,
+              child: OverflowBar(
+                alignment: MainAxisAlignment.spaceBetween,
+                spacing: 8,
                 children: [
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
