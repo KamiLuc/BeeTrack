@@ -595,17 +595,19 @@ class _HiveListDialogState extends State<_HiveListDialog> {
             if (widget.hives.length > 1) ...[
               const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    widget.onTreatAll();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: FractionallySizedBox(
+                    widthFactor: 0.6,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onTreatAll();
+                      },
+                      icon: const Icon(Icons.medical_services_outlined, size: 18),
+                      label: Text(l10n.treatmentTreatAllHives),
+                    ),
                   ),
-                  icon: const Icon(Icons.medical_services_outlined, size: 18),
-                  label: Text(l10n.treatmentTreatAllHives),
                 ),
               ),
             ],
