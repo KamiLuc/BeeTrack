@@ -33,7 +33,7 @@
 
 | ID | Layer | Status | Title | Notes |
 |----|-------|--------|-------|-------|
-| UX-01-FE | `FE` | `[ ]` | Apiary copy — name picker modal | Instead of auto-suffixing, show a modal with a pre-filled name the user can edit before confirming |
+| UX-01-FE | `FE` | `[x]` | Apiary copy — name picker modal | Instead of auto-suffixing, show a modal with a pre-filled name the user can edit before confirming |
 
 ---
 

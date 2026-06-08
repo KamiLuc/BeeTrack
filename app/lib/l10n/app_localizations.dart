@@ -560,6 +560,12 @@ abstract class AppLocalizations {
   /// **'kopia'**
   String get apiaryCopySuffix;
 
+  /// No description provided for @apiaryCopyNewName.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowa nazwa'**
+  String get apiaryCopyNewName;
+
   /// No description provided for @apiaryCopied.
   ///
   /// In pl, this message translates to:

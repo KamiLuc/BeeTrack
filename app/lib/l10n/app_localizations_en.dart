@@ -252,6 +252,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryCopySuffix => 'copy';
 
   @override
+  String get apiaryCopyNewName => 'New name';
+
+  @override
   String get apiaryCopied => 'Apiary copied';
 
   @override

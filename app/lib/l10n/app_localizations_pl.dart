@@ -252,6 +252,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryCopySuffix => 'kopia';
 
   @override
+  String get apiaryCopyNewName => 'Nowa nazwa';
+
+  @override
   String get apiaryCopied => 'Pasieka skopiowana';
 
   @override

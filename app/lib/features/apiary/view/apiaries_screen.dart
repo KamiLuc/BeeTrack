@@ -218,10 +218,13 @@ class _ApiaryCard extends StatelessWidget {
 
   Future<void> _copy(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    final defaultName = '${apiary.name} (${l10n.apiaryCopySuffix})';
+    final name = await _showCopyApiaryDialog(context, defaultName: defaultName, l10n: l10n);
+    if (name == null) return;
     try {
       await ApiaryRepository(api: context.read<ApiClient>()).copyApiary(
         apiary.id,
-        name: '${apiary.name} (${l10n.apiaryCopySuffix})',
+        name: name,
       );
       if (context.mounted) {
         context.read<ApiariesCubit>().load();
@@ -513,6 +516,75 @@ class _ApiaryMenu extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           ),
+      ],
+    );
+  }
+}
+
+Future<String?> _showCopyApiaryDialog(
+  BuildContext context, {
+  required String defaultName,
+  required AppLocalizations l10n,
+}) {
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => CopyApiaryDialog(defaultName: defaultName, l10n: l10n),
+  );
+}
+
+class CopyApiaryDialog extends StatefulWidget {
+  final String defaultName;
+  final AppLocalizations l10n;
+
+  const CopyApiaryDialog({super.key, required this.defaultName, required this.l10n});
+
+  @override
+  State<CopyApiaryDialog> createState() => _CopyApiaryDialogState();
+}
+
+class _CopyApiaryDialogState extends State<CopyApiaryDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.defaultName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    return AlertDialog(
+      title: Text(l10n.apiaryCopy),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: l10n.apiaryCopyNewName,
+          border: const OutlineInputBorder(),
+        ),
+        onSubmitted: (_) => _confirm(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: Text(l10n.generalCancel),
+        ),
+        TextButton(
+          onPressed: _confirm,
+          child: Text(l10n.generalConfirm),
+        ),
       ],
     );
   }

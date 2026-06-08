@@ -95,6 +95,7 @@
   "apiaryMapTooltip": "Pokaż na mapie",
   "apiaryCopy": "Skopiuj pasiekę",
   "apiaryCopySuffix": "kopia",
+  "apiaryCopyNewName": "Nowa nazwa",
   "apiaryCopied": "Pasieka skopiowana",
   "apiaryAdd": "Dodaj pasiekę",
   "apiaryName": "Pasieka",
