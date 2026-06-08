@@ -383,6 +383,7 @@ class _FilterBar extends StatelessWidget {
         apiaryId: apiaryId,
         hives: hives,
         onHiveTap: onHiveTap,
+        onTreatAll: onTreatAll,
       ),
     );
   }
@@ -434,12 +435,6 @@ class _FilterBar extends StatelessWidget {
                         hives.isEmpty ? null : () => _showHiveSheet(context),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.medical_services_outlined),
-                    iconSize: 28,
-                    tooltip: l10n.treatmentTreatAllHives,
-                    onPressed: hives.isEmpty ? null : onTreatAll,
-                  ),
-                  IconButton(
                     icon: const Icon(Icons.center_focus_strong_outlined),
                     iconSize: 28,
                     tooltip: l10n.apiaryCenterView,
@@ -459,11 +454,13 @@ class _HiveListDialog extends StatefulWidget {
   final int apiaryId;
   final List<Hive> hives;
   final void Function(Hive) onHiveTap;
+  final VoidCallback onTreatAll;
 
   const _HiveListDialog({
     required this.apiaryId,
     required this.hives,
     required this.onHiveTap,
+    required this.onTreatAll,
   });
 
   @override
@@ -596,18 +593,32 @@ class _HiveListDialogState extends State<_HiveListDialog> {
             ),
             const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: SizedBox(
-                  width: 200,
-                  child: ElevatedButton(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                mainAxisAlignment: widget.hives.length > 1
+                    ? MainAxisAlignment.spaceBetween
+                    : MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                     ),
                     child: Text(l10n.generalClose),
                   ),
-                ),
+                  if (widget.hives.length > 1)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onTreatAll();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.medical_services_outlined, size: 18),
+                      label: Text(l10n.treatmentTreatAllHives),
+                    ),
+                ],
               ),
             ),
           ],
