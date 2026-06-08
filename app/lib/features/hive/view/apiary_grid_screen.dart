@@ -355,17 +355,6 @@ class _FilterBar extends StatelessWidget {
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: 200,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        style: ElevatedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        child: Text(l10n.generalClose),
-                      ),
-                    ),
                   ],
                 ),
               ),
