@@ -1395,6 +1395,38 @@ Returns the list of known medicine names. No authentication required. Intended f
 
 ## Treatments
 
+### POST /apiaries/{id}/treatments/bulk 🔒
+
+Creates one treatment record per hive in the apiary, all inside a single transaction. Same request body as the single-hive create endpoint.
+
+**Request**
+```json
+{
+  "treated_at": "2026-06-08T10:00:00Z",
+  "medicine_name": "Apiwarol",
+  "dose": "2",
+  "notes": "applied evenly"
+}
+```
+
+- `dose` — optional; defaults to `"1"` if omitted or empty.
+
+**Response** `201 Created`
+```json
+{ "count": 5 }
+```
+
+- `count` — number of treatments inserted (equals number of hives in the apiary at the time of the call). `0` if the apiary has no hives.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `TREATED_AT_REQUIRED` | 400 | `treated_at` missing or zero |
+| `MEDICINE_NAME_REQUIRED` | 400 | `medicine_name` empty |
+
+---
+
 ### GET /apiaries/{id}/hives/{hiveId}/treatments 🔒
 
 Returns paginated treatments for a hive, ordered by `treated_at` descending.

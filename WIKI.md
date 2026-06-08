@@ -312,6 +312,7 @@ type InspectionImage struct {
 | `app/lib/core/theme/app_layout.dart` | `AppLayout.formConstraints(context)` — 85% width on phone, 40% on tablet; `AppLayout.bannerWidth(context)` — shared amber banner width (85% phone, min(440, 40%) tablet) |
 | `app/lib/features/hive/view/hive_form_widgets.dart` | `HiveNameField`, `HiveTypeDropdown`, `HiveActiveToggle`, `HiveDiseasesSection`, `HiveFramesField`, `hiveDiseaseLabel()`, `hiveTypeLabels` map |
 | `app/lib/features/apiary/view/apiary_form_widgets.dart` | `ApiaryGridSection`, `ApiaryLocationSection` |
+| `app/lib/features/treatment/view/treatment_form_fields.dart` | `TreatmentFormFields` — shared form body (date picker, medicine autocomplete, dose, notes); used by both `TreatmentFormScreen` and `BulkTreatmentFormScreen` |
 | `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
 | `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle is a proper `StatefulWidget` (`_PuzzleDialog`) — clears error on typing, disposes controller in `dispose()` |
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
@@ -384,6 +385,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file` | Serve image bytes (auth-gated, `Cache-Control: private, max-age=86400`) |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}` | Delete image |
 | GET | `/api/v1/medicines` | List known medicine names (no auth required) — 13 predefined varroa/disease treatments |
+| POST | `/api/v1/apiaries/{id}/treatments/bulk` | Create one treatment per hive in the apiary (same body as single; wrapped in a transaction; returns `{"count": N}`) |
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments` | List treatments (paginated, `limit`/`offset` query params) |
 | POST | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments` | Create treatment (`treated_at`, `medicine_name`, `dose`, `notes`; dose defaults to "1") |
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}` | Get treatment |
@@ -460,9 +462,13 @@ LoginScreen / RegisterScreen
       └── ApiaryGridScreen (tap apiary card)
           │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
           │   Bottom amber banner has three icon buttons:
-          │     • Filter (Icons.tune) — dialog with FilterChip toggles; badge shows active count
+          │     • Filter (Icons.tune) — dialog with FilterChip toggles; badge shows active count;
+          │       × close button in header
           │     • Hive list (Icons.format_list_bulleted, disabled when no hives) — dialog listing
-          │       hives with last-inspection date, active/disease subtitle, status icons
+          │       hives with last-inspection date, active/disease subtitle, status icons;
+          │       × close button in header; "Treat all hives" OutlinedButton.icon at 60% width
+          │       shown at bottom when apiary has > 1 hive — closes dialog then opens
+          │       BulkTreatmentFormScreen; on return shows "Treatment logged for N hives" snackbar
           │     • Center view (Icons.center_focus_strong_outlined) — resets TransformationController
           │       to Matrix4.identity(), snapping pan/zoom back to initial position
           ├── AddHiveScreen (tap empty cell)
@@ -472,8 +478,11 @@ LoginScreen / RegisterScreen
                   │   On delete: pops both EditHiveScreen and HiveDetailScreen (ApiaryGridScreen reloads).
                   ├── InspectionFormScreen (Add inspection button — copies frames from last inspection)
                   ├── TreatmentFormScreen (Log treatment button in hive detail)
-                  │   Medicine field is Autocomplete (fetches /api/v1/medicines on open, allows free text).
-                  │   Dose field uses numeric keyboard. Bottom amber banner with ✓ saves.
+                  │   Shared form body via TreatmentFormFields (date, medicine Autocomplete, dose, notes).
+                  │   Bottom amber banner with ✓ saves.
+                  ├── BulkTreatmentFormScreen (Treat all hives — opened from hive list dialog)
+                  │   Same TreatmentFormFields body; on save POSTs to /apiaries/{id}/treatments/bulk;
+                  │   pops with count (int) so caller can show snackbar.
                   ├── TreatmentHistoryScreen (View all — opened when last treatment exists)
                   │   Same amber banner + pagination pattern as InspectionHistoryScreen.
                   │   TreatmentCard: date · treatedByName (only when != current user) · medicine · dose
