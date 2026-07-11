@@ -59,8 +59,13 @@ class HiveActiveToggle extends StatelessWidget {
 
 class HiveNameField extends StatelessWidget {
   final TextEditingController controller;
+  final Set<String> existingNames;
 
-  const HiveNameField({super.key, required this.controller});
+  const HiveNameField({
+    super.key,
+    required this.controller,
+    this.existingNames = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +74,14 @@ class HiveNameField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(labelText: l10n.hiveName),
       textInputAction: TextInputAction.next,
-      validator: (v) =>
-          (v == null || v.trim().isEmpty) ? l10n.generalRequired : null,
+      validator: (v) {
+        final trimmed = v?.trim() ?? '';
+        if (trimmed.isEmpty) return l10n.generalRequired;
+        if (existingNames.contains(trimmed.toLowerCase())) {
+          return l10n.hiveDuplicateName;
+        }
+        return null;
+      },
     );
   }
 }

@@ -15,6 +15,7 @@ class AddHiveScreen extends StatefulWidget {
   final int gridRow;
   final int gridCol;
   final String defaultName;
+  final Set<String> existingNames;
 
   const AddHiveScreen({
     super.key,
@@ -22,6 +23,7 @@ class AddHiveScreen extends StatefulWidget {
     required this.gridRow,
     required this.gridCol,
     required this.defaultName,
+    this.existingNames = const {},
   });
 
   @override
@@ -94,10 +96,14 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
               constraints: AppLayout.formConstraints(context),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    HiveNameField(controller: _nameController),
+                    HiveNameField(
+                      controller: _nameController,
+                      existingNames: widget.existingNames,
+                    ),
                     const SizedBox(height: 16),
                     HiveTypeDropdown(
                       value: _type,

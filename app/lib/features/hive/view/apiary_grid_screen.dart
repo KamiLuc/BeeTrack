@@ -118,6 +118,8 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
           gridRow: row,
           gridCol: col,
           defaultName: defaultName,
+          existingNames:
+              state.hives.map((h) => h.name.trim().toLowerCase()).toSet(),
         ),
       ),
     );

@@ -33,6 +33,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   late bool _queenless;
   late bool _readyForHarvest;
   late Set<String> _hiveDiseases;
+  Set<String> _existingNames = {};
   bool _loading = false;
 
   @override
@@ -47,6 +48,22 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     _queenless = widget.hive.queenless;
     _readyForHarvest = widget.hive.readyForHarvest;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
+    _loadExistingNames();
+  }
+
+  Future<void> _loadExistingNames() async {
+    try {
+      final hives = await HiveRepository(api: context.read<ApiClient>())
+          .listHives(widget.apiaryId);
+      if (mounted) {
+        setState(() {
+          _existingNames = hives
+              .where((h) => h.id != widget.hive.id)
+              .map((h) => h.name.trim().toLowerCase())
+              .toSet();
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -140,10 +157,14 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
               constraints: AppLayout.formConstraints(context),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    HiveNameField(controller: _nameController),
+                    HiveNameField(
+                      controller: _nameController,
+                      existingNames: _existingNames,
+                    ),
                     const SizedBox(height: 16),
                     HiveTypeDropdown(
                       value: _type,
