@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_repository.dart';
@@ -67,11 +68,14 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
         frames: int.tryParse(_framesController.text.trim()) ?? 0,
       );
       if (context.mounted) Navigator.of(context).pop();
-    } catch (_) {
+    } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.generalError)),
-        );
+        final l10n = AppLocalizations.of(context)!;
+        final message = (e is ApiException && e.code == 'DUPLICATE_HIVE_NAME')
+            ? l10n.hiveDuplicateName
+            : l10n.generalError;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       }
       setState(() => _loading = false);
     }

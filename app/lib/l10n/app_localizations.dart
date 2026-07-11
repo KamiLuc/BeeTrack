@@ -866,6 +866,12 @@ abstract class AppLocalizations {
   /// **'Docelowa pasieka nie ma wolnego miejsca'**
   String get hiveChangeApiaryNoSpace;
 
+  /// No description provided for @hiveDuplicateName.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ul o tej nazwie już istnieje w tej pasiece'**
+  String get hiveDuplicateName;
+
   /// No description provided for @generalRequired.
   ///
   /// In pl, this message translates to:

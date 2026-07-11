@@ -426,6 +426,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveChangeApiaryNoSpace => 'Target apiary has no free space';
 
   @override
+  String get hiveDuplicateName =>
+      'A hive with this name already exists in this apiary';
+
+  @override
   String get generalRequired => 'Required';
 
   @override

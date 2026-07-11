@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	ErrDuplicateHiveName   = errors.New("a hive with this name already exists in this apiary")
 	ErrHiveDiseaseNotFound = errors.New("hive disease not found")
 	ErrHiveNotFound        = errors.New("hive not found")
 	ErrInvalidGridPosition = errors.New("grid position out of apiary bounds")
@@ -33,6 +34,7 @@ type HiveRepository interface {
 	CreateDisease(ctx context.Context, d *model.HiveDisease) error
 	Delete(ctx context.Context, hiveID int64) error
 	DeleteDisease(ctx context.Context, diseaseID, hiveID int64) error
+	ExistsByName(ctx context.Context, apiaryID int64, name string, excludeHiveID int64) (bool, error)
 	GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID int64) (*model.Hive, error)
 	GetDiseaseByID(ctx context.Context, diseaseID, hiveID int64) (*model.HiveDisease, error)
 	IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error)
@@ -70,6 +72,7 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 	return hives, nil
 }
 
+// Update modifies a hive's name, type, and status fields. The caller must be an apiary member.
 func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool, frames int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
@@ -90,6 +93,14 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 		return nil, fmt.Errorf("get hive: %w", err)
 	}
 
+	duplicate, err := s.hives.ExistsByName(ctx, apiaryID, name, hiveID)
+	if err != nil {
+		return nil, fmt.Errorf("check hive name: %w", err)
+	}
+	if duplicate {
+		return nil, ErrDuplicateHiveName
+	}
+
 	hive.Name = name
 	hive.Type = hiveType
 	hive.Active = active
@@ -98,6 +109,9 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 	hive.Queenless = queenless
 
 	if err := s.hives.Update(ctx, hive); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, ErrDuplicateHiveName
+		}
 		return nil, fmt.Errorf("update hive: %w", err)
 	}
 
@@ -319,6 +333,14 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 		return nil, ErrTargetApiaryFull
 	}
 
+	duplicate, err := s.hives.ExistsByName(ctx, dstApiaryID, hive.Name, 0)
+	if err != nil {
+		return nil, fmt.Errorf("check hive name: %w", err)
+	}
+	if duplicate {
+		return nil, ErrDuplicateHiveName
+	}
+
 	occupied := make(map[[2]int]bool, len(existing))
 	for _, h := range existing {
 		occupied[[2]int{h.GridRow, h.GridCol}] = true
@@ -326,6 +348,9 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 	row, col := firstFreeCell(target.GridRows, target.GridCols, occupied)
 
 	if err := s.hives.Relocate(ctx, hiveID, dstApiaryID, row, col); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, ErrDuplicateHiveName
+		}
 		return nil, fmt.Errorf("relocate hive: %w", err)
 	}
 
@@ -336,6 +361,7 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 	return hive, nil
 }
 
+// Add creates a hive at the given grid position within an apiary. The caller must be an apiary member.
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol, frames int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
@@ -361,6 +387,14 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 		return nil, ErrPositionOccupied
 	}
 
+	duplicate, err := s.hives.ExistsByName(ctx, apiaryID, name, 0)
+	if err != nil {
+		return nil, fmt.Errorf("check hive name: %w", err)
+	}
+	if duplicate {
+		return nil, ErrDuplicateHiveName
+	}
+
 	h := &model.Hive{
 		ApiaryID:        apiaryID,
 		Name:            name,
@@ -374,6 +408,9 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 	}
 
 	if err := s.hives.Create(ctx, h); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, ErrDuplicateHiveName
+		}
 		return nil, fmt.Errorf("create hive: %w", err)
 	}
 

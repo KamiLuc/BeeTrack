@@ -50,9 +50,11 @@ class _ChangeApiaryModalState extends State<ChangeApiaryModal> {
       final l10n = AppLocalizations.of(context)!;
       setState(() {
         _confirmState = _ConfirmState.idle;
-        _errorMessage = (e is ApiException && e.code == 'TARGET_APIARY_FULL')
-            ? l10n.hiveChangeApiaryNoSpace
-            : l10n.generalError;
+        _errorMessage = switch (e is ApiException ? e.code : null) {
+          'TARGET_APIARY_FULL' => l10n.hiveChangeApiaryNoSpace,
+          'DUPLICATE_HIVE_NAME' => l10n.hiveDuplicateName,
+          _ => l10n.generalError,
+        };
       });
     }
   }

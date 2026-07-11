@@ -511,6 +511,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
 - `active`, `queenless`, `ready_for_harvest` default to `false` if omitted
 - `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
 - Each position within an apiary must be unique
+- `name` must be unique within the apiary, case-insensitive
 
 **Response** `201 Created`
 ```json
@@ -543,6 +544,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `INVALID_GRID_POSITION` | 400 | Position is outside apiary grid bounds |
 | `POSITION_OCCUPIED` | 409 | Another hive already occupies that position |
+| `DUPLICATE_HIVE_NAME` | 409 | A hive with this name already exists in this apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -599,6 +601,8 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 }
 ```
 
+- `name` must be unique within the apiary, case-insensitive
+
 **Response** `200 OK`
 ```json
 {
@@ -629,6 +633,7 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 | `NAME_REQUIRED` | 400 | Name field is empty |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
+| `DUPLICATE_HIVE_NAME` | 409 | A hive with this name already exists in this apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -733,6 +738,8 @@ Deletes a hive. Both owners and members can delete hives.
 
 Moves a hive from its current apiary to a different one. The hive is placed at the first available grid position in the target apiary.
 
+- The target apiary must not already have a hive with the same name (case-insensitive)
+
 **Request**
 ```json
 { "target_apiary_id": 5 }
@@ -751,6 +758,7 @@ Moves a hive from its current apiary to a different one. The hive is placed at t
 | `APIARY_NOT_FOUND` | 404 | Source or target apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in the source apiary |
 | `TARGET_APIARY_FULL` | 409 | All grid cells in the target apiary are occupied |
+| `DUPLICATE_HIVE_NAME` | 409 | The target apiary already has a hive with this name |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

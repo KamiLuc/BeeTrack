@@ -433,6 +433,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'Docelowa pasieka nie ma wolnego miejsca';
 
   @override
+  String get hiveDuplicateName => 'Ul o tej nazwie już istnieje w tej pasiece';
+
+  @override
   String get generalRequired => 'Wymagane';
 
   @override

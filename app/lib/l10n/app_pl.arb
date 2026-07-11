@@ -162,6 +162,7 @@
   "hiveChangeApiary": "Zmień pasiekę",
   "hiveChangeApiaryTitle": "Przenieś ul",
   "hiveChangeApiaryNoSpace": "Docelowa pasieka nie ma wolnego miejsca",
+  "hiveDuplicateName": "Ul o tej nazwie już istnieje w tej pasiece",
   "generalRequired": "Wymagane",
   "generalLoadMore": "Załaduj więcej",
 

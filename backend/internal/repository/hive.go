@@ -45,6 +45,17 @@ func (r *HiveRepository) GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryI
 	return &h, err
 }
 
+// ExistsByName reports whether an apiary already has a hive with the given name (case-insensitive),
+// excluding excludeHiveID from the check.
+func (r *HiveRepository) ExistsByName(ctx context.Context, apiaryID int64, name string, excludeHiveID int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Hive{}).
+		Where("apiary_id = ? AND LOWER(name) = LOWER(?) AND id != ?", apiaryID, name, excludeHiveID).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func (r *HiveRepository) Update(ctx context.Context, h *model.Hive) error {
 	return r.db.WithContext(ctx).
 		Model(h).

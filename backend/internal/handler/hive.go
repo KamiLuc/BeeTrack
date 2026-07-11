@@ -208,6 +208,8 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 		case errors.Is(err, service.ErrHiveNotFound):
 			respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
+		case errors.Is(err, service.ErrDuplicateHiveName):
+			respond.Error(w, http.StatusConflict, "DUPLICATE_HIVE_NAME", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}
@@ -344,6 +346,8 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusBadRequest, "INVALID_GRID_POSITION", err.Error())
 		case errors.Is(err, service.ErrPositionOccupied):
 			respond.Error(w, http.StatusConflict, "POSITION_OCCUPIED", err.Error())
+		case errors.Is(err, service.ErrDuplicateHiveName):
+			respond.Error(w, http.StatusConflict, "DUPLICATE_HIVE_NAME", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}
@@ -428,6 +432,8 @@ func (h *HiveHandler) ChangeApiary(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusBadRequest, "SAME_APIARY", err.Error())
 		case errors.Is(err, service.ErrTargetApiaryFull):
 			respond.Error(w, http.StatusConflict, "TARGET_APIARY_FULL", err.Error())
+		case errors.Is(err, service.ErrDuplicateHiveName):
+			respond.Error(w, http.StatusConflict, "DUPLICATE_HIVE_NAME", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}

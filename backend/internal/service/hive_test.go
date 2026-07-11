@@ -35,14 +35,20 @@ func (m *mockMultiApiaryReader) GetMembership(ctx context.Context, apiaryID, use
 }
 
 type mockHiveRepo struct {
-	occupied   bool
-	created    *model.Hive
-	hive       *model.Hive
-	hives      []*model.Hive
-	hivesByID  map[int64][]*model.Hive
-	updated    *model.Hive
-	deletedID  int64
-	relocated  *model.Hive
+	occupied      bool
+	duplicateName bool
+	created       *model.Hive
+	hive          *model.Hive
+	hives         []*model.Hive
+	hivesByID     map[int64][]*model.Hive
+	updated       *model.Hive
+	deletedID     int64
+	relocated     *model.Hive
+
+	existsByNameApiaryID  int64
+	existsByNameName      string
+	existsByNameExcludeID int64
+	existsByNameCalled    bool
 }
 
 func (m *mockHiveRepo) Create(ctx context.Context, h *model.Hive) error {
@@ -60,6 +66,14 @@ func (m *mockHiveRepo) GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryID 
 
 func (m *mockHiveRepo) IsPositionOccupied(ctx context.Context, apiaryID int64, row, col int) (bool, error) {
 	return m.occupied, nil
+}
+
+func (m *mockHiveRepo) ExistsByName(ctx context.Context, apiaryID int64, name string, excludeHiveID int64) (bool, error) {
+	m.existsByNameCalled = true
+	m.existsByNameApiaryID = apiaryID
+	m.existsByNameName = name
+	m.existsByNameExcludeID = excludeHiveID
+	return m.duplicateName, nil
 }
 
 func (m *mockHiveRepo) ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error) {
@@ -186,6 +200,13 @@ func TestAddHive_Success(t *testing.T) {
 	if !hiveMock.created.Active {
 		t.Error("expected hive to be active")
 	}
+	if !hiveMock.existsByNameCalled {
+		t.Fatal("expected ExistsByName to be called")
+	}
+	if hiveMock.existsByNameApiaryID != 1 || hiveMock.existsByNameName != "Hive A" || hiveMock.existsByNameExcludeID != 0 {
+		t.Errorf("unexpected ExistsByName args: apiaryID=%d name=%q excludeID=%d",
+			hiveMock.existsByNameApiaryID, hiveMock.existsByNameName, hiveMock.existsByNameExcludeID)
+	}
 }
 
 func TestAddHive_MemberCanAdd(t *testing.T) {
@@ -255,6 +276,13 @@ func TestUpdateHive_Success(t *testing.T) {
 	if hive.Name != "New Name" || hive.Type != "top_bar" || hive.Active || !hive.ReadyForHarvest || !hive.Queenless {
 		t.Errorf("unexpected hive state: %+v", hive)
 	}
+	if !hiveMock.existsByNameCalled {
+		t.Fatal("expected ExistsByName to be called")
+	}
+	if hiveMock.existsByNameApiaryID != 1 || hiveMock.existsByNameName != "New Name" || hiveMock.existsByNameExcludeID != 10 {
+		t.Errorf("unexpected ExistsByName args: apiaryID=%d name=%q excludeID=%d",
+			hiveMock.existsByNameApiaryID, hiveMock.existsByNameName, hiveMock.existsByNameExcludeID)
+	}
 }
 
 func TestUpdateHive_NoName(t *testing.T) {
@@ -273,6 +301,18 @@ func TestUpdateHive_ApiaryNotFound(t *testing.T) {
 	_, err := svc.Update(context.Background(), 1, 99, 10, "Name", "langstroth", true, false, false, 0)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestUpdateHive_DuplicateName(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Old", Type: "langstroth", Active: true}
+	hiveMock.duplicateName = true
+
+	_, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false, true, true, 0)
+	if !errors.Is(err, ErrDuplicateHiveName) {
+		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
 	}
 }
 
@@ -430,6 +470,17 @@ func TestAddHive_PositionOccupied(t *testing.T) {
 	}
 }
 
+func TestAddHive_DuplicateName(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.duplicateName = true
+
+	_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, 0, 0, 0)
+	if !errors.Is(err, ErrDuplicateHiveName) {
+		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
+	}
+}
+
 func TestAddHive_FramesStored(t *testing.T) {
 	svc, apiaryMock, hiveMock := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
@@ -574,5 +625,20 @@ func TestChangeApiary_TargetFull(t *testing.T) {
 	_, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 2)
 	if !errors.Is(err, ErrTargetApiaryFull) {
 		t.Errorf("expected ErrTargetApiaryFull, got %v", err)
+	}
+}
+
+func TestChangeApiary_DuplicateName(t *testing.T) {
+	svc, apiaryMock, hiveMock := newChangeApiaryService()
+	apiaryMock.apiaries[1] = &model.Apiary{ID: 1, GridRows: 2, GridCols: 2}
+	apiaryMock.apiaries[2] = &model.Apiary{ID: 2, GridRows: 2, GridCols: 2}
+	apiaryMock.roles[1] = "owner"
+	apiaryMock.roles[2] = "owner"
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", GridRow: 0, GridCol: 0}
+	hiveMock.duplicateName = true
+
+	_, err := svc.ChangeApiary(context.Background(), 1, 1, 10, 2)
+	if !errors.Is(err, ErrDuplicateHiveName) {
+		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
 	}
 }

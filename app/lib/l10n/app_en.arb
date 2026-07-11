@@ -162,6 +162,7 @@
   "hiveChangeApiary": "Change apiary",
   "hiveChangeApiaryTitle": "Move hive",
   "hiveChangeApiaryNoSpace": "Target apiary has no free space",
+  "hiveDuplicateName": "A hive with this name already exists in this apiary",
   "generalRequired": "Required",
   "generalLoadMore": "Load more",
 
