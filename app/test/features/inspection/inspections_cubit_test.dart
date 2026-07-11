@@ -57,11 +57,12 @@ void main() {
         'brood_pattern': 'good',
         'aggressiveness': 'calm',
         'frames_brood': 6,
-        'frames_honey': 5,
+        'frames_feed': 5,
         'frames_pollen': 2,
-        'frames_added_drawn': 1,
+        'frames_added_drawn': -1,
         'frames_added_foundation': 0,
-        'frames_added_honey': 3,
+        'frames_added_brood': 4,
+        'frames_added_feed': -3,
         'queen_cells_count': 0,
         'queen_added': false,
         'notes': 'All good',
@@ -74,8 +75,11 @@ void main() {
       expect(insp.broodPattern, 'good');
       expect(insp.aggressiveness, 'calm');
       expect(insp.framesBrood, 6);
-      expect(insp.framesHoney, 5);
-      expect(insp.framesAddedHoney, 3);
+      expect(insp.framesFeed, 5);
+      expect(insp.framesAddedDrawn, -1);
+      expect(insp.framesAddedFoundation, 0);
+      expect(insp.framesAddedBrood, 4);
+      expect(insp.framesAddedFeed, -3);
       expect(insp.queenAdded, false);
       expect(insp.notes, 'All good');
     });
@@ -89,16 +93,16 @@ void main() {
         'brood_pattern': null,
         'aggressiveness': null,
         'frames_brood': null,
-        'frames_honey': null,
-        'frames_added_honey': null,
+        'frames_feed': null,
+        'frames_added_feed': null,
         'queen_added': false,
         'notes': null,
       };
       final insp = Inspection.fromJson(json);
       expect(insp.queenSeen, '');
       expect(insp.framesBrood, isNull);
-      expect(insp.framesHoney, isNull);
-      expect(insp.framesAddedHoney, isNull);
+      expect(insp.framesFeed, isNull);
+      expect(insp.framesAddedFeed, isNull);
       expect(insp.notes, '');
     });
 

@@ -239,13 +239,14 @@ type Inspection struct {
     QueenStatus           string   // seen | not_seen
     BroodPattern          string   // excellent | good | poor | none
     FramesBrood           *int
-    FramesHoney           *int
+    FramesFeed            *int
     FramesPollen          *int
     QueenCellsCount       *int
     Aggressiveness        string   // calm | mild | aggressive | very_aggressive
-    FramesAddedFoundation *int
-    FramesAddedDrawn      *int
-    FramesAddedHoney      *int
+    FramesAddedFoundation *int // signed; negative = frames removed
+    FramesAddedDrawn      *int // signed; negative = frames removed
+    FramesAddedBrood      *int // signed; negative = frames removed
+    FramesAddedFeed       *int // signed; negative = frames removed
     QueenAdded            bool
     Notes                 string
     CreatedAt             time.Time
@@ -333,9 +334,11 @@ Hive             id, apiaryId, name, type, active, queenless, readyForHarvest,
 Apiary           id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?
 HiveDisease      id, disease (string)
 Inspection       id, hiveId, inspectedAt, queenSeen, broodPattern, aggressiveness,
-                 framesBrood?, framesHoney?, framesPollen?, framesAddedDrawn?,
-                 framesAddedFoundation?, framesAddedHoney?, queenCellsCount?,
-                 queenAdded, notes, photoCount (int, default 0)
+                 framesBrood?, framesFeed?, framesPollen?, framesAddedDrawn?,
+                 framesAddedFoundation?, framesAddedBrood?, framesAddedFeed?,
+                 framesTakenFoundation?, framesTakenDrawn?, framesTakenBrood?,
+                 framesTakenFeed?, queenCellsCount?, queenAdded, notes,
+                 photoCount (int, default 0)
 InspectionImage  id, inspectionId, mimeType, createdAt
                  (URL built from apiClient.baseUrl + REST path)
 Treatment        id, hiveId, treatedAt, medicineName, dose (string, default "1"),

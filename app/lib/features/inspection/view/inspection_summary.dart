@@ -51,24 +51,43 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.framesBrood != null) {
       frames.add('${l10n.inspectionFramesBrood}: ${inspection.framesBrood}');
     }
-    if (inspection.framesHoney != null) {
-      frames.add('${l10n.inspectionFramesHoney}: ${inspection.framesHoney}');
+    if (inspection.framesFeed != null) {
+      frames.add('${l10n.inspectionFramesFeed}: ${inspection.framesFeed}');
     }
     if (inspection.framesPollen != null) {
       frames.add('${l10n.inspectionFramesPollen}: ${inspection.framesPollen}');
     }
 
-    // Added frames — only show non-zero values
+    // Added/taken frames — only show non-zero values. A negative value
+    // means frames were taken rather than added, so the taken label and
+    // its absolute value are shown instead.
     final added = <String>[];
-    if ((inspection.framesAddedDrawn ?? 0) > 0) {
-      added.add('${l10n.inspectionFramesAddedDrawn}: ${inspection.framesAddedDrawn}');
+    void addFrameDelta(int? value, String addedLabel, String takenLabel) {
+      if (value == null || value == 0) return;
+      final label = value > 0 ? addedLabel : takenLabel;
+      added.add('$label: ${value.abs()}');
     }
-    if ((inspection.framesAddedFoundation ?? 0) > 0) {
-      added.add('${l10n.inspectionFramesAddedFoundation}: ${inspection.framesAddedFoundation}');
-    }
-    if ((inspection.framesAddedHoney ?? 0) > 0) {
-      added.add('${l10n.inspectionFramesAddedHoney}: ${inspection.framesAddedHoney}');
-    }
+
+    addFrameDelta(
+      inspection.framesAddedDrawn,
+      l10n.inspectionFramesAddedDrawn,
+      l10n.inspectionFramesTakenDrawn,
+    );
+    addFrameDelta(
+      inspection.framesAddedFoundation,
+      l10n.inspectionFramesAddedFoundation,
+      l10n.inspectionFramesTakenFoundation,
+    );
+    addFrameDelta(
+      inspection.framesAddedBrood,
+      l10n.inspectionFramesAddedBrood,
+      l10n.inspectionFramesTakenBrood,
+    );
+    addFrameDelta(
+      inspection.framesAddedFeed,
+      l10n.inspectionFramesAddedFeed,
+      l10n.inspectionFramesTakenFeed,
+    );
 
     // Queen cells + queen added
     final queen = <String>[];
@@ -125,8 +144,7 @@ class InspectionSummary extends StatelessWidget {
           const SizedBox(height: 2),
           if (frames.isNotEmpty) Text(frames.join(' · '), style: bodyStyle),
           if (frames.isNotEmpty && added.isNotEmpty) const SizedBox(height: 2),
-          if (added.isNotEmpty)
-            Text('+ ${added.join(' · ')}', style: bodyStyle),
+          if (added.isNotEmpty) Text(added.join(' · '), style: bodyStyle),
           const SizedBox(height: 8),
         ],
         if (queen.isNotEmpty) ...[

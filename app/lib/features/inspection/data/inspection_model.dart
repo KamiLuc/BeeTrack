@@ -6,11 +6,14 @@ class Inspection {
   final String broodPattern;
   final String aggressiveness;
   final int? framesBrood;
-  final int? framesHoney;
+  final int? framesFeed;
   final int? framesPollen;
+  // Signed delta of frames physically added (positive) or removed
+  // (negative) from the hive during this inspection.
   final int? framesAddedDrawn;
   final int? framesAddedFoundation;
-  final int? framesAddedHoney;
+  final int? framesAddedBrood;
+  final int? framesAddedFeed;
   final int? queenCellsCount;
   final bool queenAdded;
   final String notes;
@@ -25,11 +28,12 @@ class Inspection {
     required this.broodPattern,
     required this.aggressiveness,
     this.framesBrood,
-    this.framesHoney,
+    this.framesFeed,
     this.framesPollen,
     this.framesAddedDrawn,
     this.framesAddedFoundation,
-    this.framesAddedHoney,
+    this.framesAddedBrood,
+    this.framesAddedFeed,
     this.queenCellsCount,
     required this.queenAdded,
     required this.notes,
@@ -46,11 +50,12 @@ class Inspection {
       broodPattern: json['brood_pattern'] as String? ?? '',
       aggressiveness: json['aggressiveness'] as String? ?? '',
       framesBrood: json['frames_brood'] as int?,
-      framesHoney: json['frames_honey'] as int?,
+      framesFeed: json['frames_feed'] as int?,
       framesPollen: json['frames_pollen'] as int?,
       framesAddedDrawn: json['frames_added_drawn'] as int?,
       framesAddedFoundation: json['frames_added_foundation'] as int?,
-      framesAddedHoney: json['frames_added_honey'] as int?,
+      framesAddedBrood: json['frames_added_brood'] as int?,
+      framesAddedFeed: json['frames_added_feed'] as int?,
       queenCellsCount: json['queen_cells_count'] as int?,
       queenAdded: json['queen_added'] as bool? ?? false,
       notes: json['notes'] as String? ?? '',

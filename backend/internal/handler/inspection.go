@@ -26,14 +26,18 @@ func NewInspectionHandler(inspections *service.InspectionService, images *servic
 	return &InspectionHandler{inspections: inspections, images: images}
 }
 
+// inspectionRequest is the JSON body for creating/updating an inspection.
+// The frames_added_* fields hold a signed delta of frames physically added
+// to (positive) or removed from (negative) the hive during the inspection.
 type inspectionRequest struct {
 	Aggressiveness        string     `json:"aggressiveness"`
 	BroodPattern          string     `json:"brood_pattern"`
+	FramesAddedBrood      *int       `json:"frames_added_brood"`
 	FramesAddedDrawn      *int       `json:"frames_added_drawn"`
+	FramesAddedFeed       *int       `json:"frames_added_feed"`
 	FramesAddedFoundation *int       `json:"frames_added_foundation"`
-	FramesAddedHoney      *int       `json:"frames_added_honey"`
 	FramesBrood           *int       `json:"frames_brood"`
-	FramesHoney           *int       `json:"frames_honey"`
+	FramesFeed            *int       `json:"frames_feed"`
 	FramesPollen          *int       `json:"frames_pollen"`
 	InspectedAt           *time.Time `json:"inspected_at"`
 	Notes                 string     `json:"notes"`
@@ -50,11 +54,12 @@ func (req inspectionRequest) toParams() service.InspectionParams {
 	return service.InspectionParams{
 		Aggressiveness:        req.Aggressiveness,
 		BroodPattern:          req.BroodPattern,
+		FramesAddedBrood:      req.FramesAddedBrood,
 		FramesAddedDrawn:      req.FramesAddedDrawn,
+		FramesAddedFeed:       req.FramesAddedFeed,
 		FramesAddedFoundation: req.FramesAddedFoundation,
-		FramesAddedHoney:      req.FramesAddedHoney,
 		FramesBrood:           req.FramesBrood,
-		FramesHoney:           req.FramesHoney,
+		FramesFeed:            req.FramesFeed,
 		FramesPollen:          req.FramesPollen,
 		InspectedAt:           at,
 		Notes:                 req.Notes,
@@ -87,13 +92,14 @@ func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease,
 		"queen_status":            insp.QueenStatus,
 		"brood_pattern":           insp.BroodPattern,
 		"frames_brood":            insp.FramesBrood,
-		"frames_honey":            insp.FramesHoney,
+		"frames_feed":             insp.FramesFeed,
 		"frames_pollen":           insp.FramesPollen,
 		"queen_cells_count":       insp.QueenCellsCount,
 		"aggressiveness":          insp.Aggressiveness,
 		"frames_added_foundation": insp.FramesAddedFoundation,
 		"frames_added_drawn":      insp.FramesAddedDrawn,
-		"frames_added_honey":      insp.FramesAddedHoney,
+		"frames_added_brood":      insp.FramesAddedBrood,
+		"frames_added_feed":       insp.FramesAddedFeed,
 		"queen_added":             insp.QueenAdded,
 		"notes":                   insp.Notes,
 		"diseases":                dd,

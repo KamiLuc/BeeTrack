@@ -508,7 +508,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionFramesBrood => 'Ramki z czerwiem';
 
   @override
-  String get inspectionFramesHoney => 'Ramki z miodem';
+  String get inspectionFramesFeed => 'Ramki z pokarmem';
 
   @override
   String get inspectionFramesPollen => 'Ramki z pyłkiem';
@@ -520,7 +520,22 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionFramesAddedFoundation => 'Dodana węza';
 
   @override
-  String get inspectionFramesAddedHoney => 'Dodane ramki z miodem';
+  String get inspectionFramesAddedBrood => 'Dodane ramki z czerwiem';
+
+  @override
+  String get inspectionFramesAddedFeed => 'Dodane ramki z pokarmem';
+
+  @override
+  String get inspectionFramesTakenDrawn => 'Zabrane puste ramki';
+
+  @override
+  String get inspectionFramesTakenFoundation => 'Zabrana węza';
+
+  @override
+  String get inspectionFramesTakenBrood => 'Zabrane ramki z czerwiem';
+
+  @override
+  String get inspectionFramesTakenFeed => 'Zabrane ramki z pokarmem';
 
   @override
   String get inspectionQueenCellsCount => 'Mateczniki';

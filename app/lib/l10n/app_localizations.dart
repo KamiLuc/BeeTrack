@@ -1016,11 +1016,11 @@ abstract class AppLocalizations {
   /// **'Ramki z czerwiem'**
   String get inspectionFramesBrood;
 
-  /// No description provided for @inspectionFramesHoney.
+  /// No description provided for @inspectionFramesFeed.
   ///
   /// In pl, this message translates to:
-  /// **'Ramki z miodem'**
-  String get inspectionFramesHoney;
+  /// **'Ramki z pokarmem'**
+  String get inspectionFramesFeed;
 
   /// No description provided for @inspectionFramesPollen.
   ///
@@ -1040,11 +1040,41 @@ abstract class AppLocalizations {
   /// **'Dodana węza'**
   String get inspectionFramesAddedFoundation;
 
-  /// No description provided for @inspectionFramesAddedHoney.
+  /// No description provided for @inspectionFramesAddedBrood.
   ///
   /// In pl, this message translates to:
-  /// **'Dodane ramki z miodem'**
-  String get inspectionFramesAddedHoney;
+  /// **'Dodane ramki z czerwiem'**
+  String get inspectionFramesAddedBrood;
+
+  /// No description provided for @inspectionFramesAddedFeed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodane ramki z pokarmem'**
+  String get inspectionFramesAddedFeed;
+
+  /// No description provided for @inspectionFramesTakenDrawn.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zabrane puste ramki'**
+  String get inspectionFramesTakenDrawn;
+
+  /// No description provided for @inspectionFramesTakenFoundation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zabrana węza'**
+  String get inspectionFramesTakenFoundation;
+
+  /// No description provided for @inspectionFramesTakenBrood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zabrane ramki z czerwiem'**
+  String get inspectionFramesTakenBrood;
+
+  /// No description provided for @inspectionFramesTakenFeed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zabrane ramki z pokarmem'**
+  String get inspectionFramesTakenFeed;
 
   /// No description provided for @inspectionQueenCellsCount.
   ///

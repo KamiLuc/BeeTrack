@@ -862,13 +862,14 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
   "queen_status": "seen",
   "brood_pattern": "good",
   "frames_brood": 5,
-  "frames_honey": 4,
+  "frames_feed": 4,
   "frames_pollen": 2,
   "queen_cells_count": 0,
   "aggressiveness": "calm",
   "frames_added_foundation": 1,
   "frames_added_drawn": null,
-  "frames_added_honey": null,
+  "frames_added_brood": null,
+  "frames_added_feed": null,
   "queen_added": false,
   "notes": "Colony looks healthy.",
   "photo_count": 2,
@@ -883,6 +884,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
 - `brood_pattern` valid values: `excellent`, `good`, `poor`, `none`
 - `aggressiveness` valid values: `calm`, `mild`, `aggressive`, `very_aggressive`
 - `frames_brood` — nullable int, frames of brood observed
+- `frames_added_foundation`, `frames_added_drawn`, `frames_added_brood`, `frames_added_feed` — signed frame-delta counts for this inspection; positive means frames were added to the hive, negative means frames were taken/removed
 - `photo_count` — number of images attached to this inspection (only present in list responses)
 - `diseases` — array of disease objects (see below); always included in responses
 
@@ -899,13 +901,14 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
   "queen_status": "seen",
   "brood_pattern": "good",
   "frames_brood": 5,
-  "frames_honey": 4,
+  "frames_feed": 4,
   "frames_pollen": 2,
   "queen_cells_count": 0,
   "aggressiveness": "calm",
   "frames_added_foundation": 1,
   "frames_added_drawn": null,
-  "frames_added_honey": null,
+  "frames_added_brood": null,
+  "frames_added_feed": null,
   "queen_added": false,
   "notes": "Colony looks healthy."
 }

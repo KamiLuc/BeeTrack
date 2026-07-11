@@ -503,7 +503,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionFramesBrood => 'Brood frames';
 
   @override
-  String get inspectionFramesHoney => 'Honey frames';
+  String get inspectionFramesFeed => 'Feed frames';
 
   @override
   String get inspectionFramesPollen => 'Pollen frames';
@@ -515,7 +515,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionFramesAddedFoundation => 'Added foundation';
 
   @override
-  String get inspectionFramesAddedHoney => 'Added honey frames';
+  String get inspectionFramesAddedBrood => 'Added brood frames';
+
+  @override
+  String get inspectionFramesAddedFeed => 'Added feed frames';
+
+  @override
+  String get inspectionFramesTakenDrawn => 'Taken empty frames';
+
+  @override
+  String get inspectionFramesTakenFoundation => 'Taken foundation';
+
+  @override
+  String get inspectionFramesTakenBrood => 'Taken brood frames';
+
+  @override
+  String get inspectionFramesTakenFeed => 'Taken feed frames';
 
   @override
   String get inspectionQueenCellsCount => 'Queen cells';

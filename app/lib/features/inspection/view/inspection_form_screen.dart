@@ -46,11 +46,12 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   late String _aggressiveness;
   late bool _queenAdded;
   late final TextEditingController _framesBroodController;
-  late final TextEditingController _framesHoneyController;
+  late final TextEditingController _framesFeedController;
   late final TextEditingController _framesPollenController;
-  late final TextEditingController _framesAddedDrawnController;
-  late final TextEditingController _framesAddedFoundationController;
-  late final TextEditingController _framesAddedHoneyController;
+  late int _framesAddedDrawn;
+  late int _framesAddedFoundation;
+  late int _framesAddedBrood;
+  late int _framesAddedFeed;
   late final TextEditingController _queenCellsCountController;
   late final TextEditingController _notesController;
 
@@ -77,26 +78,18 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _queenAdded = insp?.queenAdded ?? false;
 
     _framesBroodController = _initFrameCtrl(insp?.framesBrood, prev?.framesBrood);
-    _framesHoneyController = _initFrameCtrl(insp?.framesHoney, prev?.framesHoney);
+    _framesFeedController = _initFrameCtrl(insp?.framesFeed, prev?.framesFeed);
     _framesPollenController = _initFrameCtrl(insp?.framesPollen, prev?.framesPollen);
 
-    _framesAddedDrawnController = TextEditingController(
-      text: insp?.framesAddedDrawn?.toString() ?? '0',
-    );
-    _framesAddedFoundationController = TextEditingController(
-      text: insp?.framesAddedFoundation?.toString() ?? '0',
-    );
-    _framesAddedHoneyController = TextEditingController(
-      text: insp?.framesAddedHoney?.toString() ?? '0',
-    );
+    _framesAddedDrawn = insp?.framesAddedDrawn ?? 0;
+    _framesAddedFoundation = insp?.framesAddedFoundation ?? 0;
+    _framesAddedBrood = insp?.framesAddedBrood ?? 0;
+    _framesAddedFeed = insp?.framesAddedFeed ?? 0;
 
     void rebuild() => setState(() {});
     _framesBroodController.addListener(rebuild);
-    _framesHoneyController.addListener(rebuild);
+    _framesFeedController.addListener(rebuild);
     _framesPollenController.addListener(rebuild);
-    _framesAddedDrawnController.addListener(rebuild);
-    _framesAddedFoundationController.addListener(rebuild);
-    _framesAddedHoneyController.addListener(rebuild);
     _queenCellsCountController = TextEditingController(
       text: insp?.queenCellsCount?.toString() ?? '',
     );
@@ -119,11 +112,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   @override
   void dispose() {
     _framesBroodController.dispose();
-    _framesHoneyController.dispose();
+    _framesFeedController.dispose();
     _framesPollenController.dispose();
-    _framesAddedDrawnController.dispose();
-    _framesAddedFoundationController.dispose();
-    _framesAddedHoneyController.dispose();
     _queenCellsCountController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -209,13 +199,12 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           queenAdded: _queenAdded,
           notes: _notesController.text.trim(),
           framesBrood: _parseOptionalInt(_framesBroodController.text),
-          framesHoney: _parseOptionalInt(_framesHoneyController.text),
+          framesFeed: _parseOptionalInt(_framesFeedController.text),
           framesPollen: _parseOptionalInt(_framesPollenController.text),
-          framesAddedDrawn: _parseOptionalInt(_framesAddedDrawnController.text),
-          framesAddedFoundation: _parseOptionalInt(
-            _framesAddedFoundationController.text,
-          ),
-          framesAddedHoney: _parseOptionalInt(_framesAddedHoneyController.text),
+          framesAddedDrawn: _framesAddedDrawn,
+          framesAddedFoundation: _framesAddedFoundation,
+          framesAddedBrood: _framesAddedBrood,
+          framesAddedFeed: _framesAddedFeed,
           queenCellsCount: _parseOptionalInt(_queenCellsCountController.text),
         );
       } else {
@@ -229,13 +218,12 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           queenAdded: _queenAdded,
           notes: _notesController.text.trim(),
           framesBrood: _parseOptionalInt(_framesBroodController.text),
-          framesHoney: _parseOptionalInt(_framesHoneyController.text),
+          framesFeed: _parseOptionalInt(_framesFeedController.text),
           framesPollen: _parseOptionalInt(_framesPollenController.text),
-          framesAddedDrawn: _parseOptionalInt(_framesAddedDrawnController.text),
-          framesAddedFoundation: _parseOptionalInt(
-            _framesAddedFoundationController.text,
-          ),
-          framesAddedHoney: _parseOptionalInt(_framesAddedHoneyController.text),
+          framesAddedDrawn: _framesAddedDrawn,
+          framesAddedFoundation: _framesAddedFoundation,
+          framesAddedBrood: _framesAddedBrood,
+          framesAddedFeed: _framesAddedFeed,
           queenCellsCount: _parseOptionalInt(_queenCellsCountController.text),
         );
         inspectionId = created.id;
@@ -261,16 +249,14 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     }
   }
 
-  int get _totalFramesAdded =>
-      (int.tryParse(_framesAddedDrawnController.text) ?? 0) +
-      (int.tryParse(_framesAddedFoundationController.text) ?? 0) +
-      (int.tryParse(_framesAddedHoneyController.text) ?? 0);
+  int get _netFramesDelta =>
+      _framesAddedDrawn + _framesAddedFoundation + _framesAddedBrood + _framesAddedFeed;
 
   bool get _framesWarning {
     if (widget.hive.frames <= 0) return false;
-    final capacity = widget.hive.frames + _totalFramesAdded;
+    final capacity = widget.hive.frames + _netFramesDelta;
     final inHive = (int.tryParse(_framesBroodController.text) ?? 0) +
-        (int.tryParse(_framesHoneyController.text) ?? 0) +
+        (int.tryParse(_framesFeedController.text) ?? 0) +
         (int.tryParse(_framesPollenController.text) ?? 0);
     return inHive > capacity;
   }
@@ -291,11 +277,11 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
       );
     }
 
-    if (!widget.isEditing && _totalFramesAdded > 0) {
+    if (!widget.isEditing && _netFramesDelta != 0) {
       await hiveRepo.addFrames(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
-        delta: _totalFramesAdded,
+        delta: _netFramesDelta,
       );
     }
 
@@ -433,8 +419,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           ),
                           const SizedBox(height: 16),
                           _NumericField(
-                            controller: _framesHoneyController,
-                            label: l10n.inspectionFramesHoney,
+                            controller: _framesFeedController,
+                            label: l10n.inspectionFramesFeed,
                           ),
                           const SizedBox(height: 16),
                           _NumericField(
@@ -442,19 +428,36 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             label: l10n.inspectionFramesPollen,
                           ),
                           const SizedBox(height: 16),
-                          _NumericField(
-                            controller: _framesAddedDrawnController,
-                            label: l10n.inspectionFramesAddedDrawn,
+                          _SignedFrameField(
+                            value: _framesAddedDrawn,
+                            onChanged: (v) =>
+                                setState(() => _framesAddedDrawn = v),
+                            addedLabel: l10n.inspectionFramesAddedDrawn,
+                            removedLabel: l10n.inspectionFramesTakenDrawn,
                           ),
                           const SizedBox(height: 16),
-                          _NumericField(
-                            controller: _framesAddedFoundationController,
-                            label: l10n.inspectionFramesAddedFoundation,
+                          _SignedFrameField(
+                            value: _framesAddedFoundation,
+                            onChanged: (v) =>
+                                setState(() => _framesAddedFoundation = v),
+                            addedLabel: l10n.inspectionFramesAddedFoundation,
+                            removedLabel: l10n.inspectionFramesTakenFoundation,
                           ),
                           const SizedBox(height: 16),
-                          _NumericField(
-                            controller: _framesAddedHoneyController,
-                            label: l10n.inspectionFramesAddedHoney,
+                          _SignedFrameField(
+                            value: _framesAddedBrood,
+                            onChanged: (v) =>
+                                setState(() => _framesAddedBrood = v),
+                            addedLabel: l10n.inspectionFramesAddedBrood,
+                            removedLabel: l10n.inspectionFramesTakenBrood,
+                          ),
+                          const SizedBox(height: 16),
+                          _SignedFrameField(
+                            value: _framesAddedFeed,
+                            onChanged: (v) =>
+                                setState(() => _framesAddedFeed = v),
+                            addedLabel: l10n.inspectionFramesAddedFeed,
+                            removedLabel: l10n.inspectionFramesTakenFeed,
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -1066,6 +1069,61 @@ class _EnumDropdown extends StatelessWidget {
           .map((v) => DropdownMenuItem(value: v, child: Text(labelFor(v))))
           .toList(),
       onChanged: onChanged,
+    );
+  }
+}
+
+class _SignedFrameField extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+  final String addedLabel;
+  final String removedLabel;
+
+  const _SignedFrameField({
+    required this.value,
+    required this.onChanged,
+    required this.addedLabel,
+    required this.removedLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        IconButton.filled(
+          icon: const Icon(Icons.remove),
+          tooltip: removedLabel,
+          onPressed: () => onChanged(value - 1),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: value < 0 ? removedLabel : addedLabel,
+              border: const OutlineInputBorder(),
+            ),
+            child: Text(
+              value > 0 ? '+$value' : '$value',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filled(
+          icon: const Icon(Icons.add),
+          tooltip: addedLabel,
+          onPressed: () => onChanged(value + 1),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+          ),
+        ),
+      ],
     );
   }
 }

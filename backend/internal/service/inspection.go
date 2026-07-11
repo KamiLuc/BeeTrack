@@ -77,13 +77,14 @@ type InspectionParams struct {
 	QueenStatus           string
 	BroodPattern          string
 	FramesBrood           *int
-	FramesHoney           *int
+	FramesFeed            *int
 	FramesPollen          *int
 	QueenCellsCount       *int
 	Aggressiveness        string
 	FramesAddedFoundation *int
 	FramesAddedDrawn      *int
-	FramesAddedHoney      *int
+	FramesAddedBrood      *int
+	FramesAddedFeed       *int
 	QueenAdded            bool
 	Notes                 string
 }
@@ -135,13 +136,14 @@ func (s *InspectionService) Create(ctx context.Context, userID, apiaryID, hiveID
 		QueenStatus:           params.QueenStatus,
 		BroodPattern:          params.BroodPattern,
 		FramesBrood:           params.FramesBrood,
-		FramesHoney:           params.FramesHoney,
+		FramesFeed:            params.FramesFeed,
 		FramesPollen:          params.FramesPollen,
 		QueenCellsCount:       params.QueenCellsCount,
 		Aggressiveness:        params.Aggressiveness,
 		FramesAddedFoundation: params.FramesAddedFoundation,
 		FramesAddedDrawn:      params.FramesAddedDrawn,
-		FramesAddedHoney:      params.FramesAddedHoney,
+		FramesAddedBrood:      params.FramesAddedBrood,
+		FramesAddedFeed:       params.FramesAddedFeed,
 		QueenAdded:            params.QueenAdded,
 		Notes:                 params.Notes,
 	}
@@ -202,13 +204,14 @@ func (s *InspectionService) Update(ctx context.Context, userID, apiaryID, hiveID
 	insp.QueenStatus = params.QueenStatus
 	insp.BroodPattern = params.BroodPattern
 	insp.FramesBrood = params.FramesBrood
-	insp.FramesHoney = params.FramesHoney
+	insp.FramesFeed = params.FramesFeed
 	insp.FramesPollen = params.FramesPollen
 	insp.QueenCellsCount = params.QueenCellsCount
 	insp.Aggressiveness = params.Aggressiveness
 	insp.FramesAddedFoundation = params.FramesAddedFoundation
 	insp.FramesAddedDrawn = params.FramesAddedDrawn
-	insp.FramesAddedHoney = params.FramesAddedHoney
+	insp.FramesAddedBrood = params.FramesAddedBrood
+	insp.FramesAddedFeed = params.FramesAddedFeed
 	insp.QueenAdded = params.QueenAdded
 	insp.Notes = params.Notes
 	if err := s.inspections.Update(ctx, insp); err != nil {

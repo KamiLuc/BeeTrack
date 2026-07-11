@@ -22,13 +22,13 @@ func (m *mockInspectionHiveReader) GetByIDAndApiaryID(ctx context.Context, hiveI
 }
 
 type mockInspectionRepo struct {
-	inspection     *model.Inspection
-	inspections    []*model.Inspection
-	created        *model.Inspection
-	updated        *model.Inspection
-	deletedID      int64
-	disease        *model.InspectionDisease
-	createdDisease *model.InspectionDisease
+	inspection       *model.Inspection
+	inspections      []*model.Inspection
+	created          *model.Inspection
+	updated          *model.Inspection
+	deletedID        int64
+	disease          *model.InspectionDisease
+	createdDisease   *model.InspectionDisease
 	deletedDiseaseID int64
 }
 
@@ -292,6 +292,78 @@ func TestListInspections_ApiaryNotFound(t *testing.T) {
 	_, _, err := svc.List(context.Background(), 1, 99, 10, 20, 0)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestCreateInspection_SignedFramesAddedRoundTrip(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	addedBrood, addedFeed, addedDrawn, addedFoundation := 1, 2, -3, -4
+
+	insp, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:           time.Now(),
+		QueenStatus:           "seen",
+		FramesAddedBrood:      &addedBrood,
+		FramesAddedFeed:       &addedFeed,
+		FramesAddedDrawn:      &addedDrawn,
+		FramesAddedFoundation: &addedFoundation,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if insp.FramesAddedBrood == nil || *insp.FramesAddedBrood != addedBrood {
+		t.Errorf("expected FramesAddedBrood %d, got %+v", addedBrood, insp.FramesAddedBrood)
+	}
+	if insp.FramesAddedFeed == nil || *insp.FramesAddedFeed != addedFeed {
+		t.Errorf("expected FramesAddedFeed %d, got %+v", addedFeed, insp.FramesAddedFeed)
+	}
+	if insp.FramesAddedDrawn == nil || *insp.FramesAddedDrawn != addedDrawn {
+		t.Errorf("expected FramesAddedDrawn %d, got %+v", addedDrawn, insp.FramesAddedDrawn)
+	}
+	if insp.FramesAddedFoundation == nil || *insp.FramesAddedFoundation != addedFoundation {
+		t.Errorf("expected FramesAddedFoundation %d, got %+v", addedFoundation, insp.FramesAddedFoundation)
+	}
+	if inspMock.created != insp {
+		t.Error("expected Create to be called with the same inspection")
+	}
+}
+
+func TestUpdateInspection_SignedFramesAddedRoundTrip(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	inspMock.inspection = &model.Inspection{ID: 5, HiveID: 10}
+
+	addedBrood, addedFeed := 1, -2
+	addedDrawn, addedFoundation := -3, 4
+
+	updated, err := svc.Update(context.Background(), 1, 1, 10, 5, InspectionParams{
+		InspectedAt:           time.Now(),
+		QueenStatus:           "seen",
+		FramesAddedBrood:      &addedBrood,
+		FramesAddedFeed:       &addedFeed,
+		FramesAddedDrawn:      &addedDrawn,
+		FramesAddedFoundation: &addedFoundation,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.FramesAddedBrood == nil || *updated.FramesAddedBrood != addedBrood {
+		t.Errorf("expected FramesAddedBrood %d, got %+v", addedBrood, updated.FramesAddedBrood)
+	}
+	if updated.FramesAddedFeed == nil || *updated.FramesAddedFeed != addedFeed {
+		t.Errorf("expected FramesAddedFeed %d, got %+v", addedFeed, updated.FramesAddedFeed)
+	}
+	if updated.FramesAddedDrawn == nil || *updated.FramesAddedDrawn != addedDrawn {
+		t.Errorf("expected FramesAddedDrawn %d, got %+v", addedDrawn, updated.FramesAddedDrawn)
+	}
+	if updated.FramesAddedFoundation == nil || *updated.FramesAddedFoundation != addedFoundation {
+		t.Errorf("expected FramesAddedFoundation %d, got %+v", addedFoundation, updated.FramesAddedFoundation)
+	}
+	if inspMock.updated != updated {
+		t.Error("expected Update to be called with the same inspection")
 	}
 }
 
