@@ -132,6 +132,7 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
                   constraints: AppLayout.formConstraints(context),
                   child: Form(
                     key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -142,7 +143,7 @@ class _CreateApiaryViewState extends State<_CreateApiaryView> {
                           ),
                           textInputAction: TextInputAction.done,
                           validator: (v) => (v == null || v.trim().isEmpty)
-                              ? l10n.apiaryName
+                              ? l10n.apiaryNameRequired
                               : null,
                         ),
                         const SizedBox(height: 24),

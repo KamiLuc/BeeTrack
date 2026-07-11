@@ -264,6 +264,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryName => 'Pasieka';
 
   @override
+  String get apiaryNameRequired => 'Nazwa pasieki nie może być pusta';
+
+  @override
   String get apiaryLatitude => 'Szerokość geograficzna';
 
   @override

@@ -264,6 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryName => 'Apiary';
 
   @override
+  String get apiaryNameRequired => 'Apiary name cannot be empty';
+
+  @override
   String get apiaryLatitude => 'Latitude';
 
   @override

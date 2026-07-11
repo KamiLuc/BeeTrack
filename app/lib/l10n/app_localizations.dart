@@ -584,6 +584,12 @@ abstract class AppLocalizations {
   /// **'Pasieka'**
   String get apiaryName;
 
+  /// No description provided for @apiaryNameRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa pasieki nie może być pusta'**
+  String get apiaryNameRequired;
+
   /// No description provided for @apiaryLatitude.
   ///
   /// In pl, this message translates to:

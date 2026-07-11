@@ -99,6 +99,7 @@
   "apiaryCopied": "Apiary copied",
   "apiaryAdd": "Add apiary",
   "apiaryName": "Apiary",
+  "apiaryNameRequired": "Apiary name cannot be empty",
   "apiaryLatitude": "Latitude",
   "apiaryLongitude": "Longitude",
   "apiaryGpsUnavailable": "GPS not available on this device",

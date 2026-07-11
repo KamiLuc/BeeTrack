@@ -99,6 +99,7 @@
   "apiaryCopied": "Pasieka skopiowana",
   "apiaryAdd": "Dodaj pasiekę",
   "apiaryName": "Pasieka",
+  "apiaryNameRequired": "Nazwa pasieki nie może być pusta",
   "apiaryLatitude": "Szerokość geograficzna",
   "apiaryLongitude": "Długość geograficzna",
   "apiaryGpsUnavailable": "GPS niedostępny na tym urządzeniu",
