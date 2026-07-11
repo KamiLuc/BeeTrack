@@ -18,6 +18,18 @@ Beekeeping management app for hobbyist and professional beekeepers.
 - **Tests:** Write unit tests for each feature and run them yourself — do not wait to be asked (`go test ./...` / `flutter test`)
 - **Review:** When the user says "let me review", list changed files with a short note on what changed in each
 
+## Pre-commit Subagents
+
+Before asking to commit, run the relevant subagents from `.claude/agents/` on the change set:
+
+- **code-reviewer** (green) — always, on every change
+- **tester** (red) — whenever backend Go or Flutter app code changed; ensures tests exist and are green
+- **doc-updater** (blue) — whenever backend endpoints or project structure changed; updates `docs/api.md` / `WIKI.md` / `BACKLOG.md`
+- **migration-safety** (yellow) — whenever `backend/migrations/*.sql` changed
+- **l10n-checker** (cyan) — whenever Flutter UI files or `app_en.arb` / `app_pl.arb` changed
+
+Only after these pass clean should you ask the user "Ready to commit?" per the version control rule above.
+
 ## Project Structure (planned)
 
 ```
