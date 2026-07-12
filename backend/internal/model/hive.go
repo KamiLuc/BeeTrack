@@ -8,7 +8,6 @@ type Hive struct {
 	Name            string
 	Type            string
 	Active          bool
-	Frames          int
 	ReadyForHarvest bool
 	Queenless       bool
 	GridRow         int

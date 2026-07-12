@@ -91,7 +91,6 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}", auth(http.HandlerFunc(hiveHandler.Delete)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}", auth(http.HandlerFunc(hiveHandler.Get)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}", auth(http.HandlerFunc(hiveHandler.Update)))
-	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/frames", auth(http.HandlerFunc(hiveHandler.AddFrames)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/position", auth(http.HandlerFunc(hiveHandler.Move)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/diseases", auth(http.HandlerFunc(hiveHandler.AddDisease)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/transfer", auth(http.HandlerFunc(hiveHandler.ChangeApiary)))

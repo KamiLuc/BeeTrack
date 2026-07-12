@@ -384,12 +384,6 @@ class _InfoCard extends StatelessWidget {
                         background: colorScheme.secondaryContainer,
                         foreground: colorScheme.onSecondaryContainer,
                       ),
-                      if (hive.frames > 0)
-                        _StatusChip(
-                          label: '${l10n.hiveFrames}: ${hive.frames}',
-                          background: colorScheme.secondaryContainer,
-                          foreground: colorScheme.onSecondaryContainer,
-                        ),
                     ],
                   ),
                 ),

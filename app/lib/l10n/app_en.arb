@@ -147,8 +147,6 @@
   "hiveListTooltip": "Hive list",
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
-  "hiveFrames": "Frames",
-  "hiveFramesWarning": "Frame count in inspection exceeds hive capacity",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspections",
   "hiveDetailNoInspections": "No inspections yet",

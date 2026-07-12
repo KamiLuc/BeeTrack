@@ -61,23 +61,11 @@ func (r *HiveRepository) Update(ctx context.Context, h *model.Hive) error {
 		Model(h).
 		Updates(map[string]any{
 			"active":            h.Active,
-			"frames":            h.Frames,
 			"name":              h.Name,
 			"queenless":         h.Queenless,
 			"ready_for_harvest": h.ReadyForHarvest,
 			"type":              h.Type,
 			"updated_at":        gorm.Expr("NOW()"),
-		}).Error
-}
-
-// AddFrames atomically increments the frame count of a hive by delta.
-func (r *HiveRepository) AddFrames(ctx context.Context, hiveID int64, delta int) error {
-	return r.db.WithContext(ctx).
-		Model(&model.Hive{}).
-		Where("id = ?", hiveID).
-		Updates(map[string]any{
-			"frames":     gorm.Expr("frames + ?", delta),
-			"updated_at": gorm.Expr("NOW()"),
 		}).Error
 }
 

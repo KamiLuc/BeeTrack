@@ -28,7 +28,6 @@ class Hive {
   final String name;
   final String type;
   final bool active;
-  final int frames;
   final bool queenless;
   final bool readyForHarvest;
   final int gridRow;
@@ -42,7 +41,6 @@ class Hive {
     required this.name,
     required this.type,
     required this.active,
-    this.frames = 0,
     required this.queenless,
     required this.readyForHarvest,
     required this.gridRow,
@@ -62,7 +60,6 @@ class Hive {
       name: json['name'] as String,
       type: json['type'] as String,
       active: json['active'] as bool,
-      frames: json['frames'] as int? ?? 0,
       queenless: json['queenless'] as bool? ?? false,
       readyForHarvest: json['ready_for_harvest'] as bool? ?? false,
       gridRow: json['grid_row'] as int,
@@ -75,7 +72,6 @@ class Hive {
   }
 
   Hive copyWith({
-    int? frames,
     bool? queenless,
     List<HiveDisease>? diseases,
     DateTime? lastInspectedAt,
@@ -86,7 +82,6 @@ class Hive {
       name: name,
       type: type,
       active: active,
-      frames: frames ?? this.frames,
       queenless: queenless ?? this.queenless,
       readyForHarvest: readyForHarvest,
       gridRow: gridRow,

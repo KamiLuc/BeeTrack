@@ -27,7 +27,6 @@ class EditHiveScreen extends StatefulWidget {
 class _EditHiveScreenState extends State<EditHiveScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _framesController;
   late String _type;
   late bool _active;
   late bool _queenless;
@@ -40,9 +39,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.hive.name);
-    _framesController = TextEditingController(
-      text: widget.hive.frames.toString(),
-    );
     _type = widget.hive.type;
     _active = widget.hive.active;
     _queenless = widget.hive.queenless;
@@ -69,7 +65,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _framesController.dispose();
     super.dispose();
   }
 
@@ -78,7 +73,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     setState(() => _loading = true);
     final repo = HiveRepository(api: context.read<ApiClient>());
     try {
-      final frames = int.tryParse(_framesController.text.trim()) ?? 0;
       await repo.updateHive(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
@@ -87,7 +81,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
         active: _active,
         queenless: _queenless,
         readyForHarvest: _readyForHarvest,
-        frames: frames,
       );
 
       final existing = widget.hive.diseases.map((d) => d.disease).toSet();
@@ -122,7 +115,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
           name: _nameController.text.trim(),
           type: _type,
           active: _active,
-          frames: frames,
           queenless: _queenless,
           readyForHarvest: _readyForHarvest,
           gridRow: widget.hive.gridRow,
@@ -170,8 +162,6 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                       value: _type,
                       onChanged: (v) => setState(() => _type = v ?? _type),
                     ),
-                    const SizedBox(height: 16),
-                    HiveFramesField(controller: _framesController),
                     const SizedBox(height: 16),
                     HiveActiveToggle(
                       value: _active,

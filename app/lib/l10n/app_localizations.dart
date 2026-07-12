@@ -776,18 +776,6 @@ abstract class AppLocalizations {
   /// **'Choroby'**
   String get hiveDiseases;
 
-  /// No description provided for @hiveFrames.
-  ///
-  /// In pl, this message translates to:
-  /// **'Ramki'**
-  String get hiveFrames;
-
-  /// No description provided for @hiveFramesWarning.
-  ///
-  /// In pl, this message translates to:
-  /// **'Liczba ramek w inspekcji przekracza pojemność ula'**
-  String get hiveFramesWarning;
-
   /// No description provided for @hiveStatus.
   ///
   /// In pl, this message translates to:

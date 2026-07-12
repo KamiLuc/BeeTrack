@@ -147,8 +147,6 @@
   "hiveListTooltip": "Lista uli",
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
-  "hiveFrames": "Ramki",
-  "hiveFramesWarning": "Liczba ramek w inspekcji przekracza pojemność ula",
   "hiveStatus": "Status",
   "hiveDetailInspections": "Inspekcje",
   "hiveDetailNoInspections": "Brak inspekcji",

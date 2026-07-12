@@ -40,12 +40,10 @@ class HiveRepository {
     required bool readyForHarvest,
     required int gridRow,
     required int gridCol,
-    int frames = 0,
   }) async {
     try {
       await _api.dio.post('/api/v1/apiaries/$apiaryId/hives', data: {
         'active': active,
-        'frames': frames,
         'grid_col': gridCol,
         'grid_row': gridRow,
         'name': name,
@@ -66,32 +64,15 @@ class HiveRepository {
     required bool active,
     required bool queenless,
     required bool readyForHarvest,
-    int frames = 0,
   }) async {
     try {
       await _api.dio.patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
         'active': active,
-        'frames': frames,
         'name': name,
         'queenless': queenless,
         'ready_for_harvest': readyForHarvest,
         'type': type,
       });
-    } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    }
-  }
-
-  Future<void> addFrames({
-    required int apiaryId,
-    required int hiveId,
-    required int delta,
-  }) async {
-    try {
-      await _api.dio.patch(
-        '/api/v1/apiaries/$apiaryId/hives/$hiveId/frames',
-        data: {'delta': delta},
-      );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

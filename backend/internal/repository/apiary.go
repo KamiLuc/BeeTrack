@@ -178,7 +178,6 @@ func (r *ApiaryRepository) DeepCopy(ctx context.Context, sourceID, ownerID int64
 				Name:            h.Name,
 				Type:            h.Type,
 				Active:          h.Active,
-				Frames:          h.Frames,
 				ReadyForHarvest: h.ReadyForHarvest,
 				Queenless:       h.Queenless,
 				GridRow:         h.GridRow,

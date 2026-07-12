@@ -386,13 +386,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveDiseases => 'Choroby';
 
   @override
-  String get hiveFrames => 'Ramki';
-
-  @override
-  String get hiveFramesWarning =>
-      'Liczba ramek w inspekcji przekracza pojemność ula';
-
-  @override
   String get hiveStatus => 'Status';
 
   @override

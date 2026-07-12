@@ -252,14 +252,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   int get _netFramesDelta =>
       _framesAddedDrawn + _framesAddedFoundation + _framesAddedBrood + _framesAddedFeed;
 
-  bool get _framesWarning {
-    if (widget.hive.frames <= 0) return false;
-    final capacity = widget.hive.frames + _netFramesDelta;
-    final inHive = (int.tryParse(_framesBroodController.text) ?? 0) +
-        (int.tryParse(_framesFeedController.text) ?? 0) +
-        (int.tryParse(_framesPollenController.text) ?? 0);
-    return inHive > capacity;
-  }
+  bool get _framesWarning => false;
 
   Future<void> _syncHiveState(BuildContext ctx, HiveRepository hiveRepo) async {
     if (_hiveActive != widget.hive.active ||
@@ -273,15 +266,6 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         active: _hiveActive,
         queenless: _hiveQueenless,
         readyForHarvest: _hiveReadyForHarvest,
-        frames: widget.hive.frames,
-      );
-    }
-
-    if (!widget.isEditing && _netFramesDelta != 0) {
-      await hiveRepo.addFrames(
-        apiaryId: widget.apiaryId,
-        hiveId: widget.hive.id,
-        delta: _netFramesDelta,
       );
     }
 
@@ -375,44 +359,6 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           const SizedBox(height: 20),
                           _SectionTitle(l10n.inspectionSectionFrames),
                           const SizedBox(height: 12),
-                          if (_framesWarning) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .errorContainer,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    size: 18,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onErrorContainer,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      l10n.hiveFramesWarning,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onErrorContainer,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
                           _NumericField(
                             controller: _framesBroodController,
                             label: l10n.inspectionFramesBrood,
