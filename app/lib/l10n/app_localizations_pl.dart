@@ -240,6 +240,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get apiaryTitle => 'Pasieki';
 
   @override
+  String get marketplaceTitle => 'Ogłoszenia';
+
+  @override
+  String get marketplaceComingSoon => 'Wkrótce';
+
+  @override
   String get apiaryMapTitle => 'Mapa pasiek';
 
   @override

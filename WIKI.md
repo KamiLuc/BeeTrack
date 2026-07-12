@@ -23,6 +23,7 @@ app/               # Flutter app
       api/         # ApiClient (Dio wrapper), ApiException
       storage/     # TokenStorage (JWT in SharedPreferences)
       theme/       # AppColors, AppTextStyles, AppLayout, AppTheme
+      widgets/     # Shared widgets: AppDrawer (top-level nav), delete_dialog, profile_icon_button
     features/
       auth/        # login/register — BLoC pattern
       apiary/      # apiary CRUD — Cubit pattern
@@ -285,14 +286,17 @@ type InspectionImage struct {
 - Global providers (in `main.dart`): `TokenStorage`, `ApiClient`.
 
 ### Navigation
-- Imperative `Navigator.push` / `MaterialPageRoute` everywhere — no named routes, no GoRouter.
+- Imperative `Navigator.push` / `MaterialPageRoute` for screen-to-screen navigation within a section — no named routes, no GoRouter.
+- Top-level navigation (switching between Apiaries, Marketplace, and the login screen) is handled differently: it's driven by app state, not by pushing routes, so logging in or out always lands you in the right place.
+- Apiaries is the app's main section, but it requires being logged in. A visitor who isn't logged in lands on the login screen by default; Marketplace is public and can be browsed without an account by choosing it from the navigation drawer.
+- A navigation drawer (opened from the hamburger icon in the top-left) lets you switch between Apiaries and Marketplace, and log out, when signed in. When signed out, the drawer instead offers Marketplace (browsable) and a way to log in — Apiaries is visible but shown as locked until you sign in.
+- The bottom amber banner pattern (see below) is reserved for actions on the current screen (add, filter, etc.), not for switching between top-level sections.
 - Pattern after returning from a pushed screen:
   ```dart
   await Navigator.of(context).push(...);
   if (context.mounted) context.read<SomeCubit>().load();
   ```
 - `EditHiveScreen` pops with the updated `Hive` object as result so callers can update state without a refetch.
-- Logout: `AuthWrapper` in `main.dart` uses a `BlocListener` (alongside `BlocBuilder`) that calls `Navigator.of(context).popUntil((route) => route.isFirst)` on `AuthUnauthenticated`, clearing any pushed screens before the BlocBuilder swaps home to `LoginScreen`.
 
 ### Repository pattern
 - Each feature has a `XRepository` class that wraps `ApiClient`.
@@ -324,6 +328,7 @@ type InspectionImage struct {
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
 | `app/lib/features/inspection/data/inspection_image_model.dart` | `InspectionImage` — id, inspectionId, mimeType, createdAt; `fromJson` factory |
 | `app/lib/features/inspection/data/inspection_image_repository.dart` | `listImages`, `uploadImage` (multipart via Dio), `deleteImage`, `imageUrl()` (builds full URL from `apiClient.baseUrl`), `authHeaders()` |
+| `app/lib/core/widgets/app_drawer.dart` | `AuthenticatedAppDrawer(current, onSelect)` and `UnauthenticatedAppDrawer(isLogin, onMarketplace, onLogin)` — top-level nav Drawer variants, both built on shared private `_DrawerNavTile`; `AppSection` enum (`apiaries`, `marketplace`); authenticated variant highlights `current` section and calls `onSelect` (mutates `AuthWrapper` state, no `Navigator`), plus logout; unauthenticated variant shows Apiaries highlighted-but-locked, Marketplace, and Log in, used on both `MarketplaceHomeScreen` and `LoginScreen` |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -480,8 +485,16 @@ BlocProvider(
 ## Screen Navigation Map
 
 ```
-LoginScreen / RegisterScreen
-  └── ApiariesScreen (after login)
+AuthWrapper (main.dart — decides whether to show Apiaries, Marketplace, or the login screen)
+  │   Not logged in by default → LoginScreen (Apiaries is the app's main section but requires login).
+
+LoginScreen (login gate — has a navigation drawer, no back button)
+  │   Top-left hamburger opens a drawer: Apiaries (locked) + Marketplace + Log in.
+  │   Choosing "Marketplace" takes you to public browsing without logging in.
+  └── RegisterScreen
+
+ApiariesScreen (shown once logged in)
+      │   Top-left hamburger opens a drawer to switch to Marketplace or to log out.
       │   Shows apiary cards (name, hive count, last inspection date).
       │   Empty state: centered Add button only.
       │   Non-empty: bottom amber banner with two buttons:
@@ -525,6 +538,11 @@ LoginScreen / RegisterScreen
                       │     • ← prev / page number buttons / next → (hidden when only 1 page)
                       │   Page numbers show: 1 … currentPage … lastPage (ellipsis condenses middle).
                           └── InspectionFormScreen (add button in banner)
+
+MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option)
+  │   Stub screen — "Coming soon" placeholder. Adapts to whether you're logged in:
+  │   shows the full drawer + profile icon when signed in, or a simpler drawer with a
+  │   "Log in" option when browsing as a visitor.
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

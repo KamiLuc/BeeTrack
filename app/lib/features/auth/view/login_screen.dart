@@ -11,16 +11,22 @@ import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+  /// When provided, the screen shows an app bar with a hamburger that opens
+  /// this drawer (used for public navigation). Null when login is the root.
+  final Widget? drawer;
+
+  const LoginScreen({super.key, this.drawer});
 
   @override
   Widget build(BuildContext context) {
-    return const _LoginView();
+    return _LoginView(drawer: drawer);
   }
 }
 
 class _LoginView extends StatefulWidget {
-  const _LoginView();
+  final Widget? drawer;
+
+  const _LoginView({this.drawer});
 
   @override
   State<_LoginView> createState() => _LoginViewState();
@@ -86,6 +92,8 @@ class _LoginViewState extends State<_LoginView> {
         if (state is AuthFailure) setState(() => _errorCode = state.code);
       },
       child: Scaffold(
+        appBar: widget.drawer != null ? AppBar() : null,
+        drawer: widget.drawer,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(

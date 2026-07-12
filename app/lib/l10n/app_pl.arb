@@ -91,6 +91,8 @@
   "leaveApiaryWarning": "Utracisz dostęp do tej pasieki.",
 
   "apiaryTitle": "Pasieki",
+  "marketplaceTitle": "Ogłoszenia",
+  "marketplaceComingSoon": "Wkrótce",
   "apiaryMapTitle": "Mapa pasiek",
   "apiaryMapTooltip": "Pokaż na mapie",
   "apiaryCopy": "Skopiuj pasiekę",

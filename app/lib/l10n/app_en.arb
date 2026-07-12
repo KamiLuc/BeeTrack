@@ -91,6 +91,8 @@
   "leaveApiaryWarning": "You will lose access to this apiary.",
 
   "apiaryTitle": "Apiaries",
+  "marketplaceTitle": "Marketplace",
+  "marketplaceComingSoon": "Coming soon",
   "apiaryMapTitle": "Apiaries map",
   "apiaryMapTooltip": "Show on map",
   "apiaryCopy": "Copy apiary",

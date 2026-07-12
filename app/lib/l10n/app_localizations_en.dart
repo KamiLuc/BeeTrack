@@ -240,6 +240,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiaryTitle => 'Apiaries';
 
   @override
+  String get marketplaceTitle => 'Marketplace';
+
+  @override
+  String get marketplaceComingSoon => 'Coming soon';
+
+  @override
   String get apiaryMapTitle => 'Apiaries map';
 
   @override

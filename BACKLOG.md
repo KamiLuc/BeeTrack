@@ -203,7 +203,7 @@
 
 | ID        | Layer | Status | Title                             | Notes                                                 |
 | --------- | ----- | ------ | --------------------------------- | ----------------------------------------------------- |
-| MKT-FE-21 | `FE`  | `[ ]`  | Add Marketplace tab to bottom nav | Between Hives and Account (or similar placement)      |
+| MKT-FE-21 | `FE`  | `[x]`  | Marketplace nav entry (drawer)    | Top-left hamburger opens a navigation drawer with Apiaries + Marketplace (Ogłoszenia). Replaced the "bottom nav" idea: the bottom amber bar is per-screen actions, so a shared `AppDrawer` is used instead. Points at a stub `MarketplaceHomeScreen` until MKT-FE-01 lands. |
 | MKT-FE-22 | `FE`  | `[ ]`  | Marketplace BLoC/Cubit            | Manage listings, search state, filters                |
 | MKT-FE-23 | `FE`  | `[ ]`  | Handle public vs. auth views      | Show "Create Listing" button for logged-in users only |
 

@@ -536,6 +536,18 @@ abstract class AppLocalizations {
   /// **'Pasieki'**
   String get apiaryTitle;
 
+  /// No description provided for @marketplaceTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ogłoszenia'**
+  String get marketplaceTitle;
+
+  /// No description provided for @marketplaceComingSoon.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wkrótce'**
+  String get marketplaceComingSoon;
+
   /// No description provided for @apiaryMapTitle.
   ///
   /// In pl, this message translates to:

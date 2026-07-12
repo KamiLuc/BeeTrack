@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/app_drawer.dart';
 import '../../../core/widgets/delete_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -19,7 +20,9 @@ import 'create_apiary_screen.dart';
 import 'edit_apiary_screen.dart';
 
 class ApiariesScreen extends StatelessWidget {
-  const ApiariesScreen({super.key});
+  final ValueChanged<AppSection> onSelectSection;
+
+  const ApiariesScreen({super.key, required this.onSelectSection});
 
   @override
   Widget build(BuildContext context) {
@@ -27,13 +30,15 @@ class ApiariesScreen extends StatelessWidget {
       create: (_) => ApiariesCubit(
         repo: ApiaryRepository(api: context.read()),
       )..load(),
-      child: const _ApiariesView(),
+      child: _ApiariesView(onSelectSection: onSelectSection),
     );
   }
 }
 
 class _ApiariesView extends StatelessWidget {
-  const _ApiariesView();
+  final ValueChanged<AppSection> onSelectSection;
+
+  const _ApiariesView({required this.onSelectSection});
 
   Future<void> _openCreate(BuildContext context) async {
     await Navigator.of(context).push(
@@ -58,6 +63,10 @@ class _ApiariesView extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.apiaryTitle),
         actions: [ProfileIconButton(onRefresh: () => context.read<ApiariesCubit>().load())],
+      ),
+      drawer: AuthenticatedAppDrawer(
+        current: AppSection.apiaries,
+        onSelect: onSelectSection,
       ),
       body: BlocBuilder<ApiariesCubit, ApiariesState>(
         builder: (context, state) {
