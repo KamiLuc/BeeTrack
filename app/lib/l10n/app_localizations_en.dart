@@ -246,6 +246,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceComingSoon => 'Coming soon';
 
   @override
+  String get marketplaceSearchHint => 'Search listings';
+
+  @override
+  String get marketplaceEmpty => 'No listings yet';
+
+  @override
+  String get marketplaceMapTooltip => 'Map view (coming soon)';
+
+  @override
+  String get marketplacePriceOnRequest => 'Price on request';
+
+  @override
+  String get marketplaceCategoryAll => 'All';
+
+  @override
+  String get marketplaceCategoryHoney => 'Honey';
+
+  @override
+  String get marketplaceCategoryPollen => 'Pollen';
+
+  @override
+  String get marketplaceCategoryBeeColonies => 'Bee colonies';
+
+  @override
+  String get marketplaceCategoryQueenBees => 'Queen bees';
+
+  @override
+  String get marketplaceCategoryBeehives => 'Beehives';
+
+  @override
+  String get marketplaceCategoryPopulatedBeehives => 'Populated beehives';
+
+  @override
+  String get marketplaceCategoryEquipment => 'Equipment';
+
+  @override
+  String get marketplaceCategoryExtractionEquipment => 'Extraction equipment';
+
+  @override
+  String get marketplaceCategoryFeed => 'Feed';
+
+  @override
+  String get marketplaceCategorySupplies => 'Supplies';
+
+  @override
+  String get marketplaceCategoryWaxFoundation => 'Wax foundation';
+
+  @override
+  String get marketplaceCategoryBeeswax => 'Beeswax';
+
+  @override
+  String get marketplaceCategoryPropolis => 'Propolis';
+
+  @override
+  String get marketplaceCategoryServices => 'Services';
+
+  @override
+  String get marketplaceCategoryOther => 'Other';
+
+  @override
   String get apiaryMapTitle => 'Apiaries map';
 
   @override

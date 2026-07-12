@@ -158,7 +158,7 @@
 
 | ID        | Layer | Status | Title                   | Notes                                                                                                                |
 | --------- | ----- | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| MKT-FE-01 | `FE`  | `[ ]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
+| MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
 | MKT-FE-02 | `FE`  | `[ ]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
 | MKT-FE-03 | `FE`  | `[ ]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
 | MKT-FE-04 | `FE`  | `[ ]`  | Edit listing screen     | Reuse create form, pre-filled with existing data, image management                                                   |
@@ -169,9 +169,9 @@
 
 | ID        | Layer | Status | Title                    | Notes                                                        |
 | --------- | ----- | ------ | ------------------------ | ------------------------------------------------------------ |
-| MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI                     |
+| MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI. Single-select chips landed with MKT-FE-01 (backend only supports one `category` param); multi-select still open |
 | MKT-FE-08 | `FE`  | `[ ]`  | Price range slider       | Min/max inputs or slider widget                              |
-| MKT-FE-09 | `FE`  | `[ ]`  | Keyword search           | Text field, real-time or search button                       |
+| MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
 | MKT-FE-10 | `FE`  | `[ ]`  | Date range filter        | Posted within last X days (or date picker)                   |
 | MKT-FE-11 | `FE`  | `[ ]`  | Distance/location filter | If user location available, show radius filter; else disable |
 

@@ -157,8 +157,7 @@ void main() {
       expect(find.byType(MarketplaceHomeScreen), findsOneWidget);
 
       authBloc.emit(AuthUnauthenticated());
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.byType(MarketplaceHomeScreen), findsNothing);
@@ -199,7 +198,7 @@ void main() {
       final apiariesScreen =
           tester.widget<ApiariesScreen>(find.byType(ApiariesScreen));
       apiariesScreen.onSelectSection(AppSection.marketplace);
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(tester.state(find.byType(AuthWrapper)), same(initialState));
       expect(find.byType(MarketplaceHomeScreen), findsOneWidget);
 

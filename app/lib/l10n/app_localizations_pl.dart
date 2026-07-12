@@ -246,6 +246,67 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceComingSoon => 'Wkrótce';
 
   @override
+  String get marketplaceSearchHint => 'Szukaj ogłoszeń';
+
+  @override
+  String get marketplaceEmpty => 'Brak ogłoszeń';
+
+  @override
+  String get marketplaceMapTooltip => 'Widok mapy (wkrótce)';
+
+  @override
+  String get marketplacePriceOnRequest => 'Cena do negocjacji';
+
+  @override
+  String get marketplaceCategoryAll => 'Wszystkie';
+
+  @override
+  String get marketplaceCategoryHoney => 'Miód';
+
+  @override
+  String get marketplaceCategoryPollen => 'Pyłek';
+
+  @override
+  String get marketplaceCategoryBeeColonies => 'Rodziny pszczele';
+
+  @override
+  String get marketplaceCategoryQueenBees => 'Matki pszczele';
+
+  @override
+  String get marketplaceCategoryBeehives => 'Ule';
+
+  @override
+  String get marketplaceCategoryPopulatedBeehives => 'Ule zasiedlone';
+
+  @override
+  String get marketplaceCategoryEquipment => 'Sprzęt';
+
+  @override
+  String get marketplaceCategoryExtractionEquipment =>
+      'Sprzęt do wirowania miodu';
+
+  @override
+  String get marketplaceCategoryFeed => 'Pasza';
+
+  @override
+  String get marketplaceCategorySupplies => 'Zaopatrzenie';
+
+  @override
+  String get marketplaceCategoryWaxFoundation => 'Węza';
+
+  @override
+  String get marketplaceCategoryBeeswax => 'Wosk pszczeli';
+
+  @override
+  String get marketplaceCategoryPropolis => 'Propolis';
+
+  @override
+  String get marketplaceCategoryServices => 'Usługi';
+
+  @override
+  String get marketplaceCategoryOther => 'Inne';
+
+  @override
   String get apiaryMapTitle => 'Mapa pasiek';
 
   @override

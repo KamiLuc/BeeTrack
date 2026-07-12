@@ -548,6 +548,126 @@ abstract class AppLocalizations {
   /// **'Wkrótce'**
   String get marketplaceComingSoon;
 
+  /// No description provided for @marketplaceSearchHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj ogłoszeń'**
+  String get marketplaceSearchHint;
+
+  /// No description provided for @marketplaceEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak ogłoszeń'**
+  String get marketplaceEmpty;
+
+  /// No description provided for @marketplaceMapTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Widok mapy (wkrótce)'**
+  String get marketplaceMapTooltip;
+
+  /// No description provided for @marketplacePriceOnRequest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena do negocjacji'**
+  String get marketplacePriceOnRequest;
+
+  /// No description provided for @marketplaceCategoryAll.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wszystkie'**
+  String get marketplaceCategoryAll;
+
+  /// No description provided for @marketplaceCategoryHoney.
+  ///
+  /// In pl, this message translates to:
+  /// **'Miód'**
+  String get marketplaceCategoryHoney;
+
+  /// No description provided for @marketplaceCategoryPollen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pyłek'**
+  String get marketplaceCategoryPollen;
+
+  /// No description provided for @marketplaceCategoryBeeColonies.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rodziny pszczele'**
+  String get marketplaceCategoryBeeColonies;
+
+  /// No description provided for @marketplaceCategoryQueenBees.
+  ///
+  /// In pl, this message translates to:
+  /// **'Matki pszczele'**
+  String get marketplaceCategoryQueenBees;
+
+  /// No description provided for @marketplaceCategoryBeehives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ule'**
+  String get marketplaceCategoryBeehives;
+
+  /// No description provided for @marketplaceCategoryPopulatedBeehives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ule zasiedlone'**
+  String get marketplaceCategoryPopulatedBeehives;
+
+  /// No description provided for @marketplaceCategoryEquipment.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprzęt'**
+  String get marketplaceCategoryEquipment;
+
+  /// No description provided for @marketplaceCategoryExtractionEquipment.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprzęt do wirowania miodu'**
+  String get marketplaceCategoryExtractionEquipment;
+
+  /// No description provided for @marketplaceCategoryFeed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pasza'**
+  String get marketplaceCategoryFeed;
+
+  /// No description provided for @marketplaceCategorySupplies.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zaopatrzenie'**
+  String get marketplaceCategorySupplies;
+
+  /// No description provided for @marketplaceCategoryWaxFoundation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Węza'**
+  String get marketplaceCategoryWaxFoundation;
+
+  /// No description provided for @marketplaceCategoryBeeswax.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wosk pszczeli'**
+  String get marketplaceCategoryBeeswax;
+
+  /// No description provided for @marketplaceCategoryPropolis.
+  ///
+  /// In pl, this message translates to:
+  /// **'Propolis'**
+  String get marketplaceCategoryPropolis;
+
+  /// No description provided for @marketplaceCategoryServices.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usługi'**
+  String get marketplaceCategoryServices;
+
+  /// No description provided for @marketplaceCategoryOther.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inne'**
+  String get marketplaceCategoryOther;
+
   /// No description provided for @apiaryMapTitle.
   ///
   /// In pl, this message translates to:
