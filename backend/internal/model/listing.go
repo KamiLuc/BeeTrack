@@ -1,0 +1,23 @@
+package model
+
+import "time"
+
+// Listing represents a marketplace sale announcement posted by a user.
+type Listing struct {
+	ID           int64
+	UserID       int64
+	Title        string
+	Description  string
+	Category     string
+	Price        *float64
+	Quantity     string
+	Address      string
+	ApiaryID     *int64
+	ContactPhone string
+	ContactEmail string
+	IsHidden     bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Images       []ListingImage `gorm:"-"`
+	ApiaryName   string         `gorm:"-"`
+}

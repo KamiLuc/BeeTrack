@@ -114,23 +114,23 @@
 
 | ID        | Layer | Status | Title                             | Notes                                                                                                                                           |
 | --------- | ----- | ------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| MKT-BE-01 | `BE`  | `[ ]`  | Model: `Listing` struct           | id, user_id, title, description, category, price, quantity, address, apiary_id, contact_phone, contact_email, is_hidden, created_at, updated_at |
-| MKT-BE-02 | `BE`  | `[ ]`  | Model: `ListingImage` struct      | id, listing_id, image_url, display_order, created_at                                                                                            |
-| MKT-BE-03 | `BE`  | `[ ]`  | Repository: Create listing        | Insert + associated images                                                                                                                      |
-| MKT-BE-04 | `BE`  | `[ ]`  | Repository: Get listing by ID     | With images and apiary details                                                                                                                  |
-| MKT-BE-05 | `BE`  | `[ ]`  | Repository: List/search listings  | Filters: category, price_min/max, keyword, date_range, distance (if location provided), hidden status (only own)                                |
-| MKT-BE-06 | `BE`  | `[ ]`  | Repository: Update listing        | Title, description, category, price, quantity, address, contact_phone, contact_email, is_hidden                                                 |
-| MKT-BE-07 | `BE`  | `[ ]`  | Repository: Hide/show listing     | Toggle is_hidden (soft delete, not permanent)                                                                                                   |
-| MKT-BE-08 | `BE`  | `[ ]`  | Repository: Delete listing images | Remove old images before update                                                                                                                 |
+| MKT-BE-01 | `BE`  | `[x]`    | Model: `Listing` struct           | id, user_id, title, description, category, price, quantity, address, apiary_id, contact_phone, contact_email, is_hidden, created_at, updated_at |
+| MKT-BE-02 | `BE`  | `[x]`    | Model: `ListingImage` struct      | id, listing_id, image_url, display_order, created_at                                                                                            |
+| MKT-BE-03 | `BE`  | `[x]`    | Repository: Create listing        | Insert + associated images                                                                                                                      |
+| MKT-BE-04 | `BE`  | `[x]`    | Repository: Get listing by ID     | With images and apiary details                                                                                                                  |
+| MKT-BE-05 | `BE`  | `[x]`    | Repository: List/search listings  | Filters: category, price_min/max, keyword, date_range, distance (if location provided), hidden status (only own)                                |
+| MKT-BE-06 | `BE`  | `[x]`    | Repository: Update listing        | Title, description, category, price, quantity, address, contact_phone, contact_email, is_hidden                                                 |
+| MKT-BE-07 | `BE`  | `[x]`    | Repository: Hide/show listing     | Toggle is_hidden (soft delete, not permanent)                                                                                                   |
+| MKT-BE-08 | `BE`  | `[x]`    | Repository: Delete listing images | Remove old images before update                                                                                                                 |
 
 ### 9.3 Backend — Business Logic
 
 | ID        | Layer | Status | Title                           | Notes                                                                        |
 | --------- | ----- | ------ | ------------------------------- | ---------------------------------------------------------------------------- |
-| MKT-BE-09 | `BE`  | `[ ]`  | Service: Create listing         | Validate auth, images (max 3), required fields; return listing with images   |
-| MKT-BE-10 | `BE`  | `[ ]`  | Service: Update listing         | Validate ownership, handle image updates                                     |
-| MKT-BE-11 | `BE`  | `[ ]`  | Service: Get listing            | Check if hidden; allow owner or public view; include apiary info if attached |
-| MKT-BE-12 | `BE`  | `[ ]`  | Service: Search/filter listings | Build dynamic query based on filters; exclude hidden for non-owners          |
+| MKT-BE-09 | `BE`  | `[x]`  | Service: Create listing         | Validate auth, images (max 3), required fields; return listing with images   |
+| MKT-BE-10 | `BE`  | `[x]`  | Service: Update listing         | Validate ownership, handle image updates                                     |
+| MKT-BE-11 | `BE`  | `[x]`  | Service: Get listing            | Check if hidden; allow owner or public view; include apiary info if attached |
+| MKT-BE-12 | `BE`  | `[x]`  | Service: Search/filter listings | Build dynamic query based on filters; exclude hidden for non-owners          |
 
 ### 9.4 Backend — API Handlers
 
