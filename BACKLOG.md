@@ -197,7 +197,7 @@
 | --------- | ----- | ------ | ------------------- | -------------------------------------------- |
 | MKT-FE-18 | `FE`  | `[x]`  | ListingModel (Dart) | Mirrors Listing struct from backend          |
 | MKT-FE-19 | `FE`  | `[x]`  | ListingRepository   | CRUD + search methods, call backend handlers |
-| MKT-FE-20 | `FE`  | `[ ]`  | FavoritesRepository | Add/remove favorite, list favorites          |
+| MKT-FE-20 | `FE`  | `[x]`  | FavoritesRepository | Add/remove favorite, list favorites          |
 
 ### 9.10 Frontend — Navigation & State
 
