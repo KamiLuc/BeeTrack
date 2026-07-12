@@ -27,6 +27,7 @@
 7. [MCP Server](#7-mcp-server)
 8. [Infrastructure & DevOps](#8-infrastructure--devops)
 9. [Marketplace — Sale Announcements](#9-marketplace--sale-announcements)
+10. [Honey Certification & Blockchain](#10-honey-certification--blockchain)
 
 ---
 
@@ -235,4 +236,123 @@
 | MKT-09-05 | `FE` | `[ ]` | Confirmation dialogs | Before delete/hide listing |
 | MKT-09-06 | `BE/FE` | `[ ]` | Prevent self-contact | If listing has apiary, show apiary owner info (not user contact) if viewing own listing |
 | MKT-09-07 | `FE` | `[ ]` | Localization | Add l10n strings for all UI text (categories, labels, filters) |
+
+---
+
+## 10. Honey Certification & Blockchain
+
+> Immutable honey batch certification stored on Polygon blockchain. Each batch gets a QR code that verifies authenticity via blockchain hash of lab PDF.
+>
+> **Blockchain Strategy:** Store minimal data on-chain (hash, metadata hash, timestamp) for cost efficiency. PDF hash links to lab report; scanning verifies hash hasn't changed.
+
+### 10.1 Database Schema
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-DB-01 | `DB` | `[ ]` | Create `honey_batches` table | id, user_id, apiary_id, gathering_date, amount (kg), processing_method (enum: raw/filtered/pasteurized), honey_type (text: wildflower/acacia/etc), lab_pdf_url, pdf_file_hash (SHA256), metadata_hash, blockchain_tx_hash, blockchain_contract_address, blockchain_status (pending/confirmed/failed), created_at, updated_at |
+| HC-DB-02 | `DB` | `[ ]` | Create `honey_batch_qr_codes` table | id, batch_id, qr_code_data (URL), created_at |
+
+### 10.2 Backend — Blockchain Integration
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-BE-01 | `BE` | `[ ]` | Blockchain config | Polygon RPC endpoint, contract address, private key management (env vars) |
+| HC-BE-02 | `BE` | `[ ]` | Smart contract (Solidity) | Simple registry: store (batch_id, pdf_hash, metadata_hash, timestamp, owner_address); emit CertificationCreated event |
+| HC-BE-03 | `BE` | `[ ]` | Deploy contract to Polygon | Testnet first (Mumbai), then mainnet |
+| HC-BE-04 | `BE` | `[ ]` | Blockchain writer | Function to hash batch metadata, call contract.certify() with PDF hash, wait for tx confirmation |
+| HC-BE-05 | `BE` | `[ ]` | Blockchain reader | Function to query contract state; check if tx_hash exists and is confirmed; return stored hash |
+| HC-BE-06 | `BE` | `[ ]` | Hash utilities | SHA256 for PDF file + batch metadata; ensure consistent hashing |
+
+### 10.3 Backend — Models & Persistence
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-BE-07 | `BE` | `[ ]` | Model: `HoneyBatch` struct | Mirrors DB schema |
+| HC-BE-08 | `BE` | `[ ]` | Model: `ProcessingMethod` enum | raw, filtered, pasteurized |
+| HC-BE-09 | `BE` | `[ ]` | Repository: Create batch | Insert batch + store blockchain metadata (before tx) |
+| HC-BE-10 | `BE` | `[ ]` | Repository: Get batch by ID | Fetch from DB + fetch blockchain verification status |
+| HC-BE-11 | `BE` | `[ ]` | Repository: List batches by user/apiary | Filter by user_id or apiary_id |
+| HC-BE-12 | `BE` | `[ ]` | Repository: Update batch status | When blockchain tx confirmed, update blockchain_status + blockchain_tx_hash |
+
+### 10.4 Backend — Business Logic
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-BE-13 | `BE` | `[ ]` | Service: Create honey batch | Validate auth, apiary ownership, calculate PDF hash, trigger blockchain write, return batch with tx_hash |
+| HC-BE-14 | `BE` | `[ ]` | Service: Get batch + verify | Fetch batch from DB, query blockchain for verification status, compare PDF hash |
+| HC-BE-15 | `BE` | `[ ]` | Service: Poll blockchain status | Background job: check pending txs, update status when confirmed |
+| HC-BE-16 | `BE` | `[ ]` | Service: Generate QR code data | Create URL (e.g., https://beetrack.app/verify/batch/{id}); encode as QR |
+
+### 10.5 Backend — API Handlers
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-BE-17 | `BE` | `[ ]` | Handler: POST /api/v1/honey-batches | Create batch (auth required; multipart form: data + PDF file) |
+| HC-BE-18 | `BE` | `[ ]` | Handler: GET /api/v1/honey-batches/{id} | Get batch + blockchain verification (public endpoint) |
+| HC-BE-19 | `BE` | `[ ]` | Handler: GET /api/v1/honey-batches/{id}/verify | Detailed verification: on-chain hash vs PDF hash, tx status |
+| HC-BE-20 | `BE` | `[ ]` | Handler: GET /api/v1/honey-batches | List batches (filters: user_id, apiary_id, honey_type, auth-protected) |
+| HC-BE-21 | `BE` | `[ ]` | Handler: GET /api/v1/honey-batches/{id}/qr-code | Generate/return QR code image (PNG/SVG) |
+| HC-BE-22 | `BE` | `[ ]` | Handler: PATCH /api/v1/honey-batches/{id} | Update batch (auth + ownership; title, notes only; cannot change PDF/blockchain data) |
+| HC-BE-23 | `BE` | `[ ]` | Handler: DELETE /api/v1/honey-batches/{id} | Soft delete batch (auth + ownership required) |
+| HC-BE-24 | `BE` | `[ ]` | Handler: POST /api/v1/honey-batches/{id}/pdf | Retrieve lab PDF URL (public) |
+
+### 10.6 Frontend — Core Screens
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-FE-01 | `FE` | `[ ]` | Honey batches home screen | Tab in hive detail or separate "Honey" section; list user's batches + create button |
+| HC-FE-02 | `FE` | `[ ]` | Create honey batch screen | Form: gathering_date, amount (kg), processing_method (dropdown), honey_type (text), attach apiary, upload lab PDF |
+| HC-FE-03 | `FE` | `[ ]` | Honey batch detail screen | Show: all batch info, PDF preview/download, QR code display, blockchain verification status |
+| HC-FE-04 | `FE` | `[ ]` | Honey batch verification screen | Display: "✓ Verified on Polygon", "PDF hash matches", tx link, timestamp |
+| HC-FE-05 | `FE` | `[ ]` | QR code display screen | Show QR code + "Share" button; long-press/right-click to save as image |
+| HC-FE-06 | `FE` | `[ ]` | QR code scanner screen | Use camera, scan QR, navigate to verification screen |
+| HC-FE-07 | `FE` | `[ ]` | My honey batches screen | List all user's certified batches, edit/delete/view details, show blockchain status (pending/confirmed) |
+
+### 10.7 Frontend — Data Models & Repositories
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-FE-08 | `FE` | `[ ]` | HoneyBatchModel (Dart) | Mirrors HoneyBatch struct from backend |
+| HC-FE-09 | `FE` | `[ ]` | ProcessingMethodEnum (Dart) | raw, filtered, pasteurized with display labels |
+| HC-FE-10 | `FE` | `[ ]` | HoneyBatchRepository | CRUD + get verification status, download PDF |
+
+### 10.8 Frontend — QR Code & PDF Handling
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-FE-11 | `FE` | `[ ]` | QR code generation | Generate QR from batch ID URL; display as image in UI |
+| HC-FE-12 | `FE` | `[ ]` | QR code scanner | Use `qr_code_scanner` or `mobile_scanner` package; extract batch ID from URL |
+| HC-FE-13 | `FE` | `[ ]` | PDF preview / download | Embed PDF viewer or link to download; show in detail screen |
+| HC-FE-14 | `FE` | `[ ]` | PDF upload UI | File picker; show file name + size before upload; upload progress indicator |
+
+### 10.9 Frontend — Verification UI
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-FE-15 | `FE` | `[ ]` | Blockchain status indicator | Show "Pending", "✓ Verified", or "✗ Failed" with visual icon |
+| HC-FE-16 | `FE` | `[ ]` | Verification details modal | Show: tx hash (clickable link to Polygonscan), confirmed timestamp, PDF hash, metadata hash |
+| HC-FE-17 | `FE` | `[ ]` | Hash comparison display | Show "On-chain hash: xyz..." and "Current PDF hash: xyz..." side-by-side |
+
+### 10.10 Frontend — Navigation & State
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-FE-18 | `FE` | `[ ]` | Add Honey Batches section to hive detail | Tab or collapsible section with "Create Batch" button |
+| HC-FE-19 | `FE` | `[ ]` | Honey BLoC/Cubit | Manage batches, verification state, QR scanner state |
+| HC-FE-20 | `FE` | `[ ]` | Deep link for QR verification | Support scanning external QR codes that link to /verify/batch/{id} |
+
+### 10.11 Polish & Edge Cases
+
+| ID | Layer | Status | Title | Notes |
+|----|-------|--------|-------|-------|
+| HC-10-01 | `BE` | `[ ]` | PDF file validation | Check MIME type, max size (e.g., 10MB), scan for malware (optional) |
+| HC-10-02 | `BE` | `[ ]` | Blockchain retry logic | If tx fails, retry with exponential backoff; notify user if permanently failed |
+| HC-10-03 | `BE` | `[ ]` | Storage for PDFs | Use S3/cloud storage or local file system; secure access control |
+| HC-10-04 | `BE` | `[ ]` | Gas fee management | Log tx costs; consider implementing gas relay for user (pay on behalf) |
+| HC-10-05 | `FE` | `[ ]` | Offline handling | Cache batch info locally; show "Verification pending" if network offline |
+| HC-10-06 | `FE` | `[ ]` | Loading states | Show spinner while blockchain tx pending; allow user to check status later |
+| HC-10-07 | `FE` | `[ ]` | Error handling | Display user-friendly blockchain errors (tx failed, contract error, network issue) |
+| HC-10-08 | `FE` | `[ ]` | Localization | Add l10n for processing methods, blockchain status labels, verification text |
+| HC-10-09 | `FE` | `[ ]` | Empty states | "No honey batches yet", "No verified batches" screens |
+| HC-10-10 | `BE` | `[ ]` | Database indexing | Index on (user_id, created_at), (apiary_id), (blockchain_status) for query performance |
 
