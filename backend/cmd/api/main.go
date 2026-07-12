@@ -44,6 +44,7 @@ func main() {
 	invitationRepo := repository.NewInvitationRepository(db)
 	treatmentRepo := repository.NewTreatmentRepository(db)
 	harvestRepo := repository.NewHarvestRepository(db)
+	listingRepo := repository.NewListingRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -55,6 +56,7 @@ func main() {
 	inspectionImageSvc := service.NewInspectionImageService(apiaryRepo, hiveRepo, inspectionRepo, inspectionImageRepo, cfg.ImageStoragePath)
 	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
+	listingSvc := service.NewListingService(listingRepo, apiaryRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -65,9 +67,11 @@ func main() {
 	inspectionImageHandler := handler.NewInspectionImageHandler(inspectionImageSvc)
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	harvestHandler := handler.NewHarvestHandler(harvestSvc)
+	listingHandler := handler.NewListingHandler(listingSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
+	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
 
 	mux := http.NewServeMux()
 
@@ -134,6 +138,13 @@ func main() {
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.Upload)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}", auth(http.HandlerFunc(inspectionImageHandler.Delete)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file", auth(http.HandlerFunc(inspectionImageHandler.ServeFile)))
+
+	mux.Handle("POST /api/v1/listings", auth(http.HandlerFunc(listingHandler.Create)))
+	mux.Handle("GET /api/v1/listings", optionalAuth(http.HandlerFunc(listingHandler.Search)))
+	mux.Handle("GET /api/v1/listings/{id}", optionalAuth(http.HandlerFunc(listingHandler.Get)))
+	mux.Handle("PATCH /api/v1/listings/{id}", auth(http.HandlerFunc(listingHandler.Update)))
+	mux.Handle("PATCH /api/v1/listings/{id}/hide", auth(http.HandlerFunc(listingHandler.Hide)))
+	mux.Handle("DELETE /api/v1/listings/{id}", auth(http.HandlerFunc(listingHandler.Delete)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

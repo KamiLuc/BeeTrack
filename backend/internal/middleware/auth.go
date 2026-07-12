@@ -35,6 +35,23 @@ func Auth(secret string) func(http.Handler) http.Handler {
 	}
 }
 
+// OptionalAuth attaches the userID to the request context when a valid Bearer
+// token is present, but allows the request to proceed anonymously otherwise.
+func OptionalAuth(secret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+				if userID, err := token.ParseAccessToken(tokenStr, secret); err == nil {
+					r = r.WithContext(context.WithValue(r.Context(), userIDKey, userID))
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func UserIDFromContext(ctx context.Context) (int64, bool) {
 	id, ok := ctx.Value(userIDKey).(int64)
 	return id, ok

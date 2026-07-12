@@ -139,7 +139,8 @@ hiveSvc   := service.NewHiveService(apiaryRepo, hiveRepo)
 
 ### Middleware
 
-- `middleware.Auth(jwtSecret)` — validates Bearer token, injects `userID` into context.
+- `middleware.Auth(jwtSecret)` — validates Bearer token, injects `userID` into context; rejects the request if the token is missing/invalid.
+- `middleware.OptionalAuth(jwtSecret)` — same decoding as `Auth`, but does not reject the request if the token is missing/invalid; used on public routes (e.g. listing search) that behave differently for authenticated callers.
 - `middleware.CORS(allowedOrigins)` — wraps the whole mux.
 - `middleware.UserIDFromContext(ctx)` — extracts userID; returns `(int64, bool)`.
 
@@ -403,6 +404,12 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Get harvest |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Update harvest |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Delete harvest |
+| POST | `/api/v1/listings` | Create marketplace listing |
+| GET | `/api/v1/listings` | Search/filter listings (public; `mine=true` requires auth) |
+| GET | `/api/v1/listings/{id}` | Get listing (public; hidden listings 404 unless owner) |
+| PATCH | `/api/v1/listings/{id}` | Update listing (owner only) |
+| PATCH | `/api/v1/listings/{id}/hide` | Toggle listing visibility (owner only) |
+| DELETE | `/api/v1/listings/{id}` | Delete listing (owner only) |
 
 ---
 

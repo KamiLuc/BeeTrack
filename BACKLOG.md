@@ -136,12 +136,12 @@
 
 | ID        | Layer | Status | Title                                     | Notes                                                             |
 | --------- | ----- | ------ | ----------------------------------------- | ----------------------------------------------------------------- |
-| MKT-BE-13 | `BE`  | `[ ]`  | Handler: POST /api/v1/listings            | Create listing (auth required)                                    |
-| MKT-BE-14 | `BE`  | `[ ]`  | Handler: GET /api/v1/listings             | Search/filter (public, excludes hidden)                           |
-| MKT-BE-15 | `BE`  | `[ ]`  | Handler: GET /api/v1/listings/{id}        | Get single listing (public)                                       |
-| MKT-BE-16 | `BE`  | `[ ]`  | Handler: PATCH /api/v1/listings/{id}      | Update listing (auth + ownership required)                        |
-| MKT-BE-17 | `BE`  | `[ ]`  | Handler: PATCH /api/v1/listings/{id}/hide | Hide listing (toggle is_hidden; auth + ownership)                 |
-| MKT-BE-18 | `BE`  | `[ ]`  | Handler: DELETE /api/v1/listings/{id}     | Delete listing (auth + ownership required)                        |
+| MKT-BE-13 | `BE`  | `[x]`  | Handler: POST /api/v1/listings            | Create listing (auth required)                                    |
+| MKT-BE-14 | `BE`  | `[x]`  | Handler: GET /api/v1/listings             | Search/filter (public, excludes hidden)                           |
+| MKT-BE-15 | `BE`  | `[x]`  | Handler: GET /api/v1/listings/{id}        | Get single listing (public)                                       |
+| MKT-BE-16 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}      | Update listing (auth + ownership required)                        |
+| MKT-BE-17 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}/hide | Hide listing (toggle is_hidden; auth + ownership)                 |
+| MKT-BE-18 | `BE`  | `[x]`  | Handler: DELETE /api/v1/listings/{id}     | Delete listing (auth + ownership required)                        |
 | MKT-BE-19 | `BE`  | `[ ]`  | Handler: Image upload endpoint            | Multipart POST, validate MIME type, store in S3/local, return URL |
 
 ### 9.5 Frontend — Core Screens

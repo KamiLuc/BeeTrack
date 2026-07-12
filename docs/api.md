@@ -1660,3 +1660,201 @@ Deletes a harvest record.
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Marketplace Listings
+
+Listings are public classifieds posted by users. Auth is optional on read routes (`GET`) — an authenticated caller sees their own hidden listings and can filter to `mine=true`; anonymous callers only see visible listings.
+
+### Listing object
+
+```json
+{
+  "id": 1,
+  "user_id": 3,
+  "title": "Wildflower honey, 500g jars",
+  "description": "Raw, unfiltered, harvested this summer.",
+  "category": "HONEY",
+  "price": 25.00,
+  "quantity": "10 jars",
+  "address": "Warsaw, Poland",
+  "apiary_id": 5,
+  "apiary_name": "My Apiary",
+  "contact_phone": "+48123456789",
+  "contact_email": "seller@example.com",
+  "is_hidden": false,
+  "created_at": "2026-07-01T10:00:00Z",
+  "updated_at": "2026-07-01T10:00:00Z",
+  "images": [
+    {
+      "id": 1,
+      "listing_id": 1,
+      "image_url": "https://.../image.jpg",
+      "display_order": 0,
+      "created_at": "2026-07-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+- `category` valid values: `HONEY`, `POLLEN`, `BEE_COLONIES`, `QUEEN_BEES`, `BEEHIVES`, `POPULATED_BEEHIVES`, `EQUIPMENT`, `EXTRACTION_EQUIPMENT`, `FEED`, `SUPPLIES`, `WAX_FOUNDATION`, `BEESWAX`, `PROPOLIS`, `SERVICES`, `OTHER`
+- `price` — nullable number
+- `apiary_id` — nullable; if set, must be an apiary the caller belongs to; `apiary_name` is populated via JOIN
+- `images` — max 3 per listing
+
+---
+
+### POST /listings 🔒
+
+Creates a listing owned by the authenticated user.
+
+**Request**
+```json
+{
+  "title": "Wildflower honey, 500g jars",
+  "description": "Raw, unfiltered, harvested this summer.",
+  "category": "HONEY",
+  "price": 25.00,
+  "quantity": "10 jars",
+  "address": "Warsaw, Poland",
+  "apiary_id": 5,
+  "contact_phone": "+48123456789",
+  "contact_email": "seller@example.com",
+  "image_urls": ["https://.../image.jpg"]
+}
+```
+
+- `title` and `category` are required
+- `image_urls` — optional array of strings, max 3
+
+**Response** `201 Created` — listing object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `TITLE_REQUIRED` | 400 | Title field is empty |
+| `CATEGORY_INVALID` | 400 | Category not in allowed set |
+| `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /listings
+
+Searches/filters listings. Public — auth optional.
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `category` | — | Filter by exact category |
+| `keyword` | — | Matches title/description |
+| `price_min` | — | Minimum price |
+| `price_max` | — | Maximum price |
+| `posted_after` | — | Only listings created after this timestamp |
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+| `mine` | false | If `true`, requires auth; returns only the caller's own listings, including hidden ones |
+
+Non-owner and anonymous callers never see hidden listings.
+
+**Response** `200 OK`
+```json
+{
+  "items": [ /* listing objects */ ],
+  "total": 1
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | `mine=true` given without a Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /listings/{id}
+
+Returns a single listing. Public — auth optional. Hidden listings return `404` unless the caller is the owner.
+
+**Response** `200 OK` — listing object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist, or is hidden and caller is not the owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /listings/{id} 🔒
+
+Updates a listing. Only the owner can edit. Same body as create; when `image_urls` is provided, it replaces the existing images.
+
+**Request** — same shape as POST
+
+**Response** `200 OK` — updated listing object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `TITLE_REQUIRED` | 400 | Title field is empty |
+| `CATEGORY_INVALID` | 400 | Category not in allowed set |
+| `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
+| `NOT_OWNER` | 403 | Caller is not the listing owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /listings/{id}/hide 🔒
+
+Toggles listing visibility. Only the owner can hide/unhide.
+
+**Request**
+```json
+{ "hidden": true }
+```
+
+**Response** `200 OK` — updated listing object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `NOT_OWNER` | 403 | Caller is not the listing owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /listings/{id} 🔒
+
+Deletes a listing. Only the owner can delete. Images cascade.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `NOT_OWNER` | 403 | Caller is not the listing owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
