@@ -144,6 +144,16 @@
 | MKT-BE-18 | `BE`  | `[x]`  | Handler: DELETE /api/v1/listings/{id}     | Delete listing (auth + ownership required)                        |
 | MKT-BE-19 | `BE`  | `[x]`  | Handler: Image upload endpoint            | Multipart POST, validate MIME type, store in S3/local, return URL |
 
+### 9.4a Backend — Favorites
+
+> Backend for `listing_favorites` (was missing; frontend MKT-FE-20 depends on it).
+
+| ID        | Layer | Status | Title                                        | Notes                                                                                         |
+| --------- | ----- | ------ | -------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| MKT-BE-20 | `BE`  | `[x]`  | Favorites repository + service               | Add (idempotent via ON CONFLICT), remove, list favorited listings; hidden excluded for non-owner |
+| MKT-BE-21 | `BE`  | `[x]`  | Handler: POST/DELETE /api/v1/listings/{id}/favorite | Add/remove favorite (auth); verifies listing is visible to caller                      |
+| MKT-BE-22 | `BE`  | `[x]`  | Handler: GET /api/v1/favorites               | List caller's favorited listings (auth); returns `{items, total}`                             |
+
 ### 9.5 Frontend — Core Screens
 
 | ID        | Layer | Status | Title                   | Notes                                                                                                                |

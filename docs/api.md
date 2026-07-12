@@ -1936,3 +1936,63 @@ Deletes an image from the DB and from disk. Only the listing owner can delete.
 | `IMAGE_NOT_FOUND` | 404 | Image does not exist for this listing |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Listing Favorites
+
+Lets a user save listings for later. A favorite is a per-user, per-listing bookmark.
+
+---
+
+### POST /listings/{id}/favorite 🔒
+
+Saves the listing to the caller's favorites. Idempotent — favoriting an already-favorited listing succeeds with no change.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist, or is hidden and caller is not the owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /listings/{id}/favorite 🔒
+
+Removes the listing from the caller's favorites. No-op if it wasn't favorited.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /favorites 🔒
+
+Returns the caller's favorited listings, most recently favorited first. Hidden listings are excluded unless the caller owns them.
+
+**Response** `200 OK`
+```json
+{
+  "items": [ /* listing objects */ ],
+  "total": 1
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

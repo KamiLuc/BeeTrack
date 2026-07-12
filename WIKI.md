@@ -413,6 +413,9 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | POST | `/api/v1/listings/{id}/images` | Upload listing image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 3 per listing; owner only) |
 | GET | `/api/v1/listings/{id}/images/{imageId}/file` | Serve listing image bytes (public, `Cache-Control: public, max-age=86400`) |
 | DELETE | `/api/v1/listings/{id}/images/{imageId}` | Delete listing image (owner only) |
+| POST | `/api/v1/listings/{id}/favorite` | Favorite a listing (auth; idempotent) |
+| DELETE | `/api/v1/listings/{id}/favorite` | Unfavorite a listing (auth; no-op if not favorited) |
+| GET | `/api/v1/favorites` | List caller's favorited listings, most recently favorited first (auth) |
 
 ---
 

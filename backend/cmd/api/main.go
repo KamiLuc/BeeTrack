@@ -45,6 +45,7 @@ func main() {
 	treatmentRepo := repository.NewTreatmentRepository(db)
 	harvestRepo := repository.NewHarvestRepository(db)
 	listingRepo := repository.NewListingRepository(db)
+	listingFavoriteRepo := repository.NewListingFavoriteRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -58,6 +59,7 @@ func main() {
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
 	listingSvc := service.NewListingService(listingRepo, apiaryRepo)
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
+	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -70,6 +72,7 @@ func main() {
 	harvestHandler := handler.NewHarvestHandler(harvestSvc)
 	listingHandler := handler.NewListingHandler(listingSvc)
 	listingImageHandler := handler.NewListingImageHandler(listingImageSvc)
+	listingFavoriteHandler := handler.NewListingFavoriteHandler(listingFavoriteSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
@@ -150,6 +153,9 @@ func main() {
 	mux.Handle("POST /api/v1/listings/{id}/images", auth(http.HandlerFunc(listingImageHandler.Upload)))
 	mux.HandleFunc("GET /api/v1/listings/{id}/images/{imageId}/file", listingImageHandler.ServeFile)
 	mux.Handle("DELETE /api/v1/listings/{id}/images/{imageId}", auth(http.HandlerFunc(listingImageHandler.Delete)))
+	mux.Handle("GET /api/v1/favorites", auth(http.HandlerFunc(listingFavoriteHandler.List)))
+	mux.Handle("POST /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Add)))
+	mux.Handle("DELETE /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Remove)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 
