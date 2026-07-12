@@ -57,6 +57,7 @@ func main() {
 	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
 	listingSvc := service.NewListingService(listingRepo, apiaryRepo)
+	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	userSvc := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -68,6 +69,7 @@ func main() {
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	harvestHandler := handler.NewHarvestHandler(harvestSvc)
 	listingHandler := handler.NewListingHandler(listingSvc)
+	listingImageHandler := handler.NewListingImageHandler(listingImageSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
@@ -145,6 +147,9 @@ func main() {
 	mux.Handle("PATCH /api/v1/listings/{id}", auth(http.HandlerFunc(listingHandler.Update)))
 	mux.Handle("PATCH /api/v1/listings/{id}/hide", auth(http.HandlerFunc(listingHandler.Hide)))
 	mux.Handle("DELETE /api/v1/listings/{id}", auth(http.HandlerFunc(listingHandler.Delete)))
+	mux.Handle("POST /api/v1/listings/{id}/images", auth(http.HandlerFunc(listingImageHandler.Upload)))
+	mux.HandleFunc("GET /api/v1/listings/{id}/images/{imageId}/file", listingImageHandler.ServeFile)
+	mux.Handle("DELETE /api/v1/listings/{id}/images/{imageId}", auth(http.HandlerFunc(listingImageHandler.Delete)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -59,7 +60,7 @@ func listingImageJSON(img model.ListingImage) map[string]any {
 	return map[string]any{
 		"id":            img.ID,
 		"listing_id":    img.ListingID,
-		"image_url":     img.ImageURL,
+		"url":           fmt.Sprintf("/api/v1/listings/%d/images/%d/file", img.ListingID, img.ID),
 		"display_order": img.DisplayOrder,
 		"created_at":    img.CreatedAt,
 	}

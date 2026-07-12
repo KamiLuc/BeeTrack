@@ -1690,7 +1690,7 @@ Listings are public classifieds posted by users. Auth is optional on read routes
     {
       "id": 1,
       "listing_id": 1,
-      "image_url": "https://.../image.jpg",
+      "url": "/api/v1/listings/1/images/1/file",
       "display_order": 0,
       "created_at": "2026-07-01T10:00:00Z"
     }
@@ -1856,5 +1856,83 @@ Deletes a listing. Only the owner can delete. Images cascade.
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `NOT_OWNER` | 403 | Caller is not the listing owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Listing Images
+
+Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **10 MB**. Maximum **3 images per listing**.
+
+Images are cascade-deleted when the parent listing is deleted.
+
+**Image object**
+```json
+{
+  "id": 1,
+  "listing_id": 1,
+  "url": "/api/v1/listings/1/images/1/file",
+  "display_order": 0,
+  "created_at": "2026-07-01T10:00:00Z"
+}
+```
+
+- `url` — computed path to `GET /listings/{id}/images/{imageId}/file`, not stored directly
+
+---
+
+### POST /listings/{id}/images 🔒
+
+Uploads an image. Send as `multipart/form-data` with field name `image`. Only the listing owner can upload.
+
+**Response** `201 Created` — image object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `MISSING_FILE` | 400 | `image` field missing from form |
+| `INVALID_IMAGE_TYPE` | 400 | MIME type not allowed |
+| `IMAGE_TOO_LARGE` | 413 | File exceeds 10 MB |
+| `TOO_MANY_IMAGES` | 400 | Listing already has 3 images |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `NOT_OWNER` | 403 | Caller is not the listing owner |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /listings/{id}/images/{imageId}/file
+
+Serves the raw image bytes with the correct `Content-Type` header. Public — hidden-listing rules do not apply. Cached for 24 hours (`Cache-Control: public, max-age=86400`).
+
+**Response** `200 OK` — image binary
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` or `{imageId}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `IMAGE_NOT_FOUND` | 404 | Image does not exist for this listing |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /listings/{id}/images/{imageId} 🔒
+
+Deletes an image from the DB and from disk. Only the listing owner can delete.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{imageId}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `IMAGE_NOT_FOUND` | 404 | Image does not exist for this listing |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |

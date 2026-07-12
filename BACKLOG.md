@@ -142,7 +142,7 @@
 | MKT-BE-16 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}      | Update listing (auth + ownership required)                        |
 | MKT-BE-17 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}/hide | Hide listing (toggle is_hidden; auth + ownership)                 |
 | MKT-BE-18 | `BE`  | `[x]`  | Handler: DELETE /api/v1/listings/{id}     | Delete listing (auth + ownership required)                        |
-| MKT-BE-19 | `BE`  | `[ ]`  | Handler: Image upload endpoint            | Multipart POST, validate MIME type, store in S3/local, return URL |
+| MKT-BE-19 | `BE`  | `[x]`  | Handler: Image upload endpoint            | Multipart POST, validate MIME type, store in S3/local, return URL |
 
 ### 9.5 Frontend — Core Screens
 

@@ -144,6 +144,32 @@ func (r *ListingRepository) AddImages(ctx context.Context, images []model.Listin
 	return r.db.WithContext(ctx).Create(&images).Error
 }
 
+// CreateImage inserts a single listing image.
+func (r *ListingRepository) CreateImage(ctx context.Context, img *model.ListingImage) error {
+	return r.db.WithContext(ctx).Create(img).Error
+}
+
+// GetImageByID returns the image with the given id that belongs to listingID.
+func (r *ListingRepository) GetImageByID(ctx context.Context, imageID, listingID int64) (*model.ListingImage, error) {
+	var img model.ListingImage
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND listing_id = ?", imageID, listingID).
+		First(&img).Error
+	return &img, err
+}
+
+// ListImagesByListingID returns the images for listingID ordered by display_order.
+func (r *ListingRepository) ListImagesByListingID(ctx context.Context, listingID int64) ([]model.ListingImage, error) {
+	return r.listImages(ctx, listingID)
+}
+
+// DeleteImage removes the image with the given id.
+func (r *ListingRepository) DeleteImage(ctx context.Context, imageID int64) error {
+	return r.db.WithContext(ctx).
+		Where("id = ?", imageID).
+		Delete(&model.ListingImage{}).Error
+}
+
 // DeleteImages removes all images belonging to listingID.
 func (r *ListingRepository) DeleteImages(ctx context.Context, listingID int64) error {
 	return r.db.WithContext(ctx).

@@ -410,6 +410,9 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | PATCH | `/api/v1/listings/{id}` | Update listing (owner only) |
 | PATCH | `/api/v1/listings/{id}/hide` | Toggle listing visibility (owner only) |
 | DELETE | `/api/v1/listings/{id}` | Delete listing (owner only) |
+| POST | `/api/v1/listings/{id}/images` | Upload listing image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 3 per listing; owner only) |
+| GET | `/api/v1/listings/{id}/images/{imageId}/file` | Serve listing image bytes (public, `Cache-Control: public, max-age=86400`) |
+| DELETE | `/api/v1/listings/{id}/images/{imageId}` | Delete listing image (owner only) |
 
 ---
 
