@@ -19,11 +19,7 @@ class MarketplaceHomeScreen extends StatelessWidget {
   /// Called when an unauthenticated user taps "Log in" in the drawer.
   final VoidCallback? onLogin;
 
-  const MarketplaceHomeScreen({
-    super.key,
-    this.onSelectSection,
-    this.onLogin,
-  });
+  const MarketplaceHomeScreen({super.key, this.onSelectSection, this.onLogin});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +27,10 @@ class MarketplaceHomeScreen extends StatelessWidget {
       create: (_) => MarketplaceCubit(
         repo: ListingRepository(api: context.read<ApiClient>()),
       )..load(),
-      child: _MarketplaceView(onSelectSection: onSelectSection, onLogin: onLogin),
+      child: _MarketplaceView(
+        onSelectSection: onSelectSection,
+        onLogin: onLogin,
+      ),
     );
   }
 }
@@ -85,27 +84,35 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
             ],
           ),
           drawer: drawer,
-          body: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: l10n.marketplaceSearchHint,
-                    prefixIcon: const Icon(Icons.search),
-                    isDense: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: l10n.marketplaceSearchHint,
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (value) => context
+                          .read<MarketplaceCubit>()
+                          .setKeyword(value.trim()),
+                    ),
                   ),
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (value) =>
-                      context.read<MarketplaceCubit>().setKeyword(value.trim()),
-                ),
+                  const _CategoryDropdown(),
+                  const SizedBox(height: 4),
+                  Expanded(child: _ListingsFeed()),
+                ],
               ),
-              const _CategoryChips(),
-              const SizedBox(height: 4),
-              Expanded(child: _ListingsFeed()),
-            ],
+            ),
           ),
         );
       },
@@ -113,57 +120,74 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   }
 }
 
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips();
+class _CategoryDropdown extends StatefulWidget {
+  const _CategoryDropdown();
+
+  @override
+  State<_CategoryDropdown> createState() => _CategoryDropdownState();
+}
+
+class _CategoryDropdownState extends State<_CategoryDropdown> {
+  String? _lastSelectedCategory;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final state = context.watch<MarketplaceCubit>().state;
-    final selectedCategory = state is MarketplaceLoaded ? state.category : null;
 
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
+    String? selectedCategory;
+    if (state is MarketplaceLoaded) {
+      selectedCategory = state.category;
+      _lastSelectedCategory = selectedCategory;
+    } else {
+      selectedCategory = _lastSelectedCategory;
+    }
+
+    Widget categoryItem(String? category) {
+      return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          _CategoryChip(
-            label: l10n.marketplaceCategoryAll,
-            selected: selectedCategory == null,
-            onSelected: () => context.read<MarketplaceCubit>().setCategory(null),
-          ),
-          for (final category in listingCategories)
-            _CategoryChip(
-              label: listingCategoryLabel(l10n, category),
-              selected: selectedCategory == category,
-              onSelected: () => context.read<MarketplaceCubit>().setCategory(category),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(listingCategoryIcon(category), size: 20),
+            const SizedBox(width: 8),
+            Text(
+              category == null
+                  ? l10n.marketplaceCategoryAll
+                  : listingCategoryLabel(l10n, category),
             ),
-        ],
-      ),
-    );
-  }
-}
+          ],
+        ),
+      );
+    }
 
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  const _CategoryChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onSelected(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButton<String?>(
+          isExpanded: true,
+          value: selectedCategory,
+          underline: const SizedBox(),
+          onChanged: (category) {
+            FocusScope.of(context).unfocus();
+            context.read<MarketplaceCubit>().setCategory(category);
+          },
+          selectedItemBuilder: (BuildContext context) {
+            return [
+              categoryItem(null),
+              for (final category in listingCategories) categoryItem(category),
+            ];
+          },
+          items: [
+            DropdownMenuItem(value: null, child: categoryItem(null)),
+            for (final category in listingCategories)
+              DropdownMenuItem(value: category, child: categoryItem(category)),
+          ],
+        ),
       ),
     );
   }
@@ -183,7 +207,10 @@ class _ListingsFeed extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(l10n.generalError, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.generalError,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () => context.read<MarketplaceCubit>().load(),
@@ -215,7 +242,8 @@ class _ListingsFeed extends StatelessWidget {
                       child: state.loadingMore
                           ? const CircularProgressIndicator()
                           : OutlinedButton(
-                              onPressed: () => context.read<MarketplaceCubit>().loadMore(),
+                              onPressed: () =>
+                                  context.read<MarketplaceCubit>().loadMore(),
                               child: Text(l10n.generalLoadMore),
                             ),
                     ),
@@ -267,7 +295,9 @@ class _ListingCard extends StatelessWidget {
                   listing.price != null
                       ? '${listing.price!.toStringAsFixed(2)} zł'
                       : l10n.marketplacePriceOnRequest,
-                  style: textTheme.titleSmall?.copyWith(color: colorScheme.primary),
+                  style: textTheme.titleSmall?.copyWith(
+                    color: colorScheme.primary,
+                  ),
                 ),
               ],
             ),
@@ -277,18 +307,23 @@ class _ListingCard extends StatelessWidget {
               runSpacing: 4,
               children: [
                 _InfoChip(
-                  icon: Icons.sell_outlined,
+                  icon: listingCategoryIcon(listing.category),
                   label: listingCategoryLabel(l10n, listing.category),
                 ),
                 if (listing.address.isNotEmpty)
-                  _InfoChip(icon: Icons.location_on_outlined, label: listing.address),
+                  _InfoChip(
+                    icon: Icons.location_on_outlined,
+                    label: listing.address,
+                  ),
               ],
             ),
             if (listing.description.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 listing.description,
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -314,7 +349,10 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
       ],
     );
   }

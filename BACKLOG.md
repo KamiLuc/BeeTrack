@@ -169,7 +169,7 @@
 
 | ID        | Layer | Status | Title                    | Notes                                                        |
 | --------- | ----- | ------ | ------------------------ | ------------------------------------------------------------ |
-| MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI. Single-select chips landed with MKT-FE-01 (backend only supports one `category` param); multi-select still open |
+| MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI. Landed as a single-select dropdown with icons (per-category `IconData`) with MKT-FE-01 — backend only supports one `category` param; multi-select still open |
 | MKT-FE-08 | `FE`  | `[ ]`  | Price range slider       | Min/max inputs or slider widget                              |
 | MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
 | MKT-FE-10 | `FE`  | `[ ]`  | Date range filter        | Posted within last X days (or date picker)                   |

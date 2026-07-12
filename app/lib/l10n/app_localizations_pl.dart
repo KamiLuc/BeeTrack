@@ -276,9 +276,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceCategoryBeehives => 'Ule';
 
   @override
-  String get marketplaceCategoryPopulatedBeehives => 'Ule zasiedlone';
-
-  @override
   String get marketplaceCategoryEquipment => 'Sprzęt';
 
   @override
@@ -286,7 +283,7 @@ class AppLocalizationsPl extends AppLocalizations {
       'Sprzęt do wirowania miodu';
 
   @override
-  String get marketplaceCategoryFeed => 'Pasza';
+  String get marketplaceCategoryFeed => 'Pokarm dla pszczół';
 
   @override
   String get marketplaceCategorySupplies => 'Zaopatrzenie';

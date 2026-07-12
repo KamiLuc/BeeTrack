@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../../l10n/app_localizations.dart';
 
 const List<String> listingCategories = [
@@ -6,7 +8,6 @@ const List<String> listingCategories = [
   'BEE_COLONIES',
   'QUEEN_BEES',
   'BEEHIVES',
-  'POPULATED_BEEHIVES',
   'EQUIPMENT',
   'EXTRACTION_EQUIPMENT',
   'FEED',
@@ -25,7 +26,6 @@ String listingCategoryLabel(AppLocalizations l10n, String category) {
     'BEE_COLONIES' => l10n.marketplaceCategoryBeeColonies,
     'QUEEN_BEES' => l10n.marketplaceCategoryQueenBees,
     'BEEHIVES' => l10n.marketplaceCategoryBeehives,
-    'POPULATED_BEEHIVES' => l10n.marketplaceCategoryPopulatedBeehives,
     'EQUIPMENT' => l10n.marketplaceCategoryEquipment,
     'EXTRACTION_EQUIPMENT' => l10n.marketplaceCategoryExtractionEquipment,
     'FEED' => l10n.marketplaceCategoryFeed,
@@ -35,5 +35,25 @@ String listingCategoryLabel(AppLocalizations l10n, String category) {
     'PROPOLIS' => l10n.marketplaceCategoryPropolis,
     'SERVICES' => l10n.marketplaceCategoryServices,
     _ => l10n.marketplaceCategoryOther,
+  };
+}
+
+IconData listingCategoryIcon(String? category) {
+  return switch (category) {
+    'HONEY' => Icons.water_drop_outlined,
+    'POLLEN' => Icons.grain_outlined,
+    'BEE_COLONIES' => Icons.emoji_nature_outlined,
+    'QUEEN_BEES' => Icons.workspace_premium_outlined,
+    'BEEHIVES' => Icons.hive_outlined,
+    'EQUIPMENT' => Icons.construction_outlined,
+    'EXTRACTION_EQUIPMENT' => Icons.autorenew,
+    'FEED' => Icons.restaurant_outlined,
+    'SUPPLIES' => Icons.inventory_2_outlined,
+    'WAX_FOUNDATION' => Icons.grid_4x4_outlined,
+    'BEESWAX' => Icons.local_fire_department_outlined,
+    'PROPOLIS' => Icons.science_outlined,
+    'SERVICES' => Icons.handyman_outlined,
+    'OTHER' => Icons.more_horiz,
+    _ => Icons.apps_outlined,
   };
 }

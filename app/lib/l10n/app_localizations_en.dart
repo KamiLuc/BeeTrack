@@ -276,9 +276,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceCategoryBeehives => 'Beehives';
 
   @override
-  String get marketplaceCategoryPopulatedBeehives => 'Populated beehives';
-
-  @override
   String get marketplaceCategoryEquipment => 'Equipment';
 
   @override

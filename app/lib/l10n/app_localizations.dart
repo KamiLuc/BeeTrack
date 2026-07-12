@@ -608,12 +608,6 @@ abstract class AppLocalizations {
   /// **'Ule'**
   String get marketplaceCategoryBeehives;
 
-  /// No description provided for @marketplaceCategoryPopulatedBeehives.
-  ///
-  /// In pl, this message translates to:
-  /// **'Ule zasiedlone'**
-  String get marketplaceCategoryPopulatedBeehives;
-
   /// No description provided for @marketplaceCategoryEquipment.
   ///
   /// In pl, this message translates to:
@@ -629,7 +623,7 @@ abstract class AppLocalizations {
   /// No description provided for @marketplaceCategoryFeed.
   ///
   /// In pl, this message translates to:
-  /// **'Pasza'**
+  /// **'Pokarm dla pszczół'**
   String get marketplaceCategoryFeed;
 
   /// No description provided for @marketplaceCategorySupplies.
