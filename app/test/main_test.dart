@@ -135,8 +135,7 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
 
       authBloc.emit(AuthAuthenticated());
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byType(ApiariesScreen), findsOneWidget);
       expect(find.widgetWithText(AppBar, 'Apiaries'), findsOneWidget);
@@ -173,11 +172,11 @@ void main() {
         ..emit(AuthAuthenticated());
 
       await _pumpAuthWrapper(tester, apiClient: apiClient, authBloc: authBloc);
+      await tester.pumpAndSettle();
       expect(find.byType(ApiariesScreen), findsOneWidget);
 
       authBloc.emit(AuthUnauthenticated());
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.byType(MarketplaceHomeScreen), findsNothing);
@@ -194,8 +193,7 @@ void main() {
       final initialState = tester.state(find.byType(AuthWrapper));
 
       authBloc.emit(AuthAuthenticated());
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(tester.state(find.byType(AuthWrapper)), same(initialState));
 
       final apiariesScreen =
@@ -206,8 +204,7 @@ void main() {
       expect(find.byType(MarketplaceHomeScreen), findsOneWidget);
 
       authBloc.emit(AuthUnauthenticated());
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(tester.state(find.byType(AuthWrapper)), same(initialState));
       expect(find.byType(LoginScreen), findsOneWidget);
     });
