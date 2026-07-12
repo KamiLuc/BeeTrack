@@ -29,7 +29,7 @@ class HarvestFormFields extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final dateStr = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
-    ).format(harvestedAt);
+    ).add_Hm().format(harvestedAt);
 
     return Form(
       key: formKey,

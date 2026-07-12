@@ -164,17 +164,22 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (picked != null && mounted) {
-      setState(
-        () => _inspectedAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _inspectedAt.hour,
-          _inspectedAt.minute,
-        ),
-      );
-    }
+    if (picked == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_inspectedAt),
+    );
+    if (!mounted) return;
+    setState(
+      () => _inspectedAt = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        pickedTime?.hour ?? _inspectedAt.hour,
+        pickedTime?.minute ?? _inspectedAt.minute,
+      ),
+    );
   }
 
   Future<void> _submit(BuildContext ctx) async {
@@ -965,7 +970,7 @@ class _DateField extends StatelessWidget {
   Widget build(BuildContext context) {
     final formatted = DateFormat.yMd(
       Localizations.localeOf(context).toString(),
-    ).format(date);
+    ).add_Hm().format(date);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),

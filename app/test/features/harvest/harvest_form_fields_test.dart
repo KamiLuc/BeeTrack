@@ -64,7 +64,7 @@ void main() {
         kilogramsController: TextEditingController(),
       ));
 
-      expect(find.text('Jun 8, 2026'), findsOneWidget);
+      expect(find.textContaining('Jun 8, 2026'), findsOneWidget);
     });
 
     testWidgets('calls onDateTap when date field is tapped', (tester) async {
@@ -79,7 +79,7 @@ void main() {
         onDateTap: () => tapped = true,
       ));
 
-      await tester.tap(find.text('Jun 8, 2026'));
+      await tester.tap(find.textContaining('Jun 8, 2026'));
       expect(tapped, isTrue);
     });
 

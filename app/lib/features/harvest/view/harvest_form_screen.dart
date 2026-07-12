@@ -70,17 +70,22 @@ class _HarvestFormScreenState extends State<HarvestFormScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (picked != null && mounted) {
-      setState(
-        () => _harvestedAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _harvestedAt.hour,
-          _harvestedAt.minute,
-        ),
-      );
-    }
+    if (picked == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_harvestedAt),
+    );
+    if (!mounted) return;
+    setState(
+      () => _harvestedAt = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        pickedTime?.hour ?? _harvestedAt.hour,
+        pickedTime?.minute ?? _harvestedAt.minute,
+      ),
+    );
   }
 
   Future<void> _submit(BuildContext ctx) async {

@@ -60,17 +60,22 @@ class _BulkTreatmentFormScreenState extends State<BulkTreatmentFormScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (picked != null && mounted) {
-      setState(
-        () => _treatedAt = DateTime(
-          picked.year,
-          picked.month,
-          picked.day,
-          _treatedAt.hour,
-          _treatedAt.minute,
-        ),
-      );
-    }
+    if (picked == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_treatedAt),
+    );
+    if (!mounted) return;
+    setState(
+      () => _treatedAt = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        pickedTime?.hour ?? _treatedAt.hour,
+        pickedTime?.minute ?? _treatedAt.minute,
+      ),
+    );
   }
 
   Future<void> _submit(BuildContext ctx) async {
