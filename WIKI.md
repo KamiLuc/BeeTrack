@@ -30,6 +30,7 @@ app/               # Flutter app
       inspection/  # inspection CRUD + history — Cubit pattern
       treatment/   # treatment CRUD + history — Cubit pattern
       harvest/     # harvest CRUD + history — Cubit pattern
+      marketplace/ # marketplace listing — data model + stub MarketplaceHomeScreen
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -41,6 +42,7 @@ app/               # Flutter app
       inspection/  # inspections_cubit_test.dart
       treatment/   # treatments_cubit_test.dart, treatment_form_fields_test.dart
       harvest/     # harvests_cubit_test.dart, harvest_form_fields_test.dart
+      marketplace/ # listing_model_test.dart, marketplace_home_screen_test.dart
 
 docker/            # Docker Compose config
 ```
@@ -346,6 +348,10 @@ Treatment        id, hiveId, treatedAt, medicineName, dose (string, default "1")
                  notes, treatedByName? (populated via JOIN, not stored in table)
 Harvest          id, hiveId, harvestedAt, frames (int, default 1), halfFrames (int, default 0),
                  kilograms (double, 2dp), notes, harvestedByName? (populated via JOIN)
+Listing          id, userId, title, description, category, price?, quantity, address,
+                 apiaryId?, apiaryName?, contactPhone, contactEmail, isHidden,
+                 createdAt, updatedAt, images (List<ListingImage>)
+ListingImage     id, listingId, url, displayOrder, createdAt
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
