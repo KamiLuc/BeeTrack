@@ -53,7 +53,7 @@ class _RecordingAdapter implements HttpClientAdapter {
       );
     }
 
-    // Generic success for PATCH /frames, PATCH hive update, etc.
+    // Generic success for PATCH hive update, image upload, etc.
     return ResponseBody.fromString(
       jsonEncode({}),
       200,
@@ -93,7 +93,6 @@ const _hive = Hive(
   name: 'Alpha',
   type: 'langstroth',
   active: true,
-  frames: 10,
   queenless: false,
   readyForHarvest: false,
   gridRow: 0,
@@ -104,14 +103,6 @@ const _hive = Hive(
 // in the frames section (drawn, foundation, brood, feed).
 const _drawnField = 0;
 const _foundationField = 1;
-const _broodField = 2;
-
-Future<void> _enterFrames(WidgetTester tester, String label, String value) async {
-  final finder = find.widgetWithText(TextFormField, label);
-  await tester.ensureVisible(finder);
-  await tester.enterText(finder, value);
-  await tester.pump();
-}
 
 Future<void> _tapAdd(WidgetTester tester, int fieldIndex, {int times = 1}) async {
   final finder = find.byIcon(Icons.add).at(fieldIndex);
@@ -171,7 +162,7 @@ void main() {
       expect(find.text('+3'), findsOneWidget);
     });
 
-    testWidgets('net delta sent to addFrames reflects minus taps',
+    testWidgets('negative drawn taps are sent as frames_added_drawn',
         (tester) async {
       final (apiClient, adapter) = await _fakeApiClient();
 
@@ -186,13 +177,13 @@ void main() {
       await tester.tap(find.byIcon(Icons.check));
       await tester.pumpAndSettle();
 
-      final framesRequest = adapter.requests.firstWhere(
-        (r) => r.path.contains('/frames'),
+      final request = adapter.requests.firstWhere(
+        (r) => r.path.contains('/inspections') && r.method == 'POST',
       );
-      expect(framesRequest.data['delta'], -5);
+      expect(request.data['frames_added_drawn'], -5);
     });
 
-    testWidgets('net delta sums positive and negative signed fields',
+    testWidgets('signed frame fields are each sent in the inspection payload',
         (tester) async {
       final (apiClient, adapter) = await _fakeApiClient();
 
@@ -208,72 +199,11 @@ void main() {
       await tester.tap(find.byIcon(Icons.check));
       await tester.pumpAndSettle();
 
-      final framesRequest = adapter.requests.firstWhere(
-        (r) => r.path.contains('/frames'),
+      final request = adapter.requests.firstWhere(
+        (r) => r.path.contains('/inspections') && r.method == 'POST',
       );
-      expect(framesRequest.data['delta'], 3);
-    });
-
-    testWidgets('removed frames alone can trigger the over-capacity warning',
-        (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
-
-      await tester.pumpWidget(_wrap(
-        apiClient,
-        const InspectionFormScreen(apiaryId: 1, hive: _hive),
-      ));
-      await tester.pumpAndSettle();
-
-      await _enterFrames(tester, 'Brood frames', '8');
-      expect(find.text('Frame count in inspection exceeds hive capacity'),
-          findsNothing);
-
-      await _tapRemove(tester, _drawnField, times: 3);
-      expect(find.text('Frame count in inspection exceeds hive capacity'),
-          findsOneWidget);
-    });
-
-    testWidgets(
-        'added frames offset removed frames and clear the over-capacity warning',
-        (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
-
-      await tester.pumpWidget(_wrap(
-        apiClient,
-        const InspectionFormScreen(apiaryId: 1, hive: _hive),
-      ));
-      await tester.pumpAndSettle();
-
-      await _enterFrames(tester, 'Brood frames', '8');
-      await _tapRemove(tester, _broodField, times: 5);
-      expect(find.text('Frame count in inspection exceeds hive capacity'),
-          findsOneWidget);
-
-      await _tapAdd(tester, _drawnField, times: 5);
-      expect(find.text('Frame count in inspection exceeds hive capacity'),
-          findsNothing);
-    });
-
-    testWidgets(
-        'addFrames is not called when added and removed signed fields cancel out',
-        (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-
-      await tester.pumpWidget(_wrap(
-        apiClient,
-        const InspectionFormScreen(apiaryId: 1, hive: _hive),
-      ));
-      await tester.pumpAndSettle();
-
-      await _tapAdd(tester, _drawnField, times: 2);
-      await _tapRemove(tester, _foundationField, times: 2);
-
-      await tester.tap(find.byIcon(Icons.check));
-      await tester.pumpAndSettle();
-
-      final framesRequests =
-          adapter.requests.where((r) => r.path.contains('/frames'));
-      expect(framesRequests, isEmpty);
+      expect(request.data['frames_added_drawn'], 5);
+      expect(request.data['frames_added_foundation'], -2);
     });
   });
 }

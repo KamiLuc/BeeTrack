@@ -29,19 +29,6 @@ const _inactive = Hive(
   gridCol: 1,
 );
 
-const _withFrames = Hive(
-  id: 3,
-  apiaryId: 1,
-  name: 'Gamma',
-  type: 'wielkopolski',
-  active: true,
-  queenless: false,
-  readyForHarvest: false,
-  frames: 10,
-  gridRow: 0,
-  gridCol: 2,
-);
-
 const _queenless = Hive(
   id: 4,
   apiaryId: 1,
@@ -164,20 +151,6 @@ void main() {
         const HiveDetailScreen(hive: _active, apiaryId: 1),
       ));
       expect(find.text('View all', skipOffstage: false), findsNothing);
-    });
-
-    testWidgets('shows frames chip when frames > 0', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const HiveDetailScreen(hive: _withFrames, apiaryId: 1),
-      ));
-      expect(find.text('Frames: 10'), findsOneWidget);
-    });
-
-    testWidgets('hides frames chip when frames == 0', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const HiveDetailScreen(hive: _active, apiaryId: 1),
-      ));
-      expect(find.textContaining('Frames:'), findsNothing);
     });
 
     testWidgets('shows Queenless chip only when queenless is true', (tester) async {
