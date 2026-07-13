@@ -31,7 +31,7 @@ app/               # Flutter app
       inspection/  # inspection CRUD + history — Cubit pattern
       treatment/   # treatment CRUD + history — Cubit pattern
       harvest/     # harvest CRUD + history — Cubit pattern
-      marketplace/ # marketplace listing — data model + stub MarketplaceHomeScreen
+      marketplace/ # marketplace listings — search feed, create/edit, detail, my listings, favorites
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -540,9 +540,22 @@ ApiariesScreen (shown once logged in)
                           └── InspectionFormScreen (add button in banner)
 
 MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option)
-  │   Stub screen — "Coming soon" placeholder. Adapts to whether you're logged in:
-  │   shows the full drawer + profile icon when signed in, or a simpler drawer with a
-  │   "Log in" option when browsing as a visitor.
+  │   Search bar + category dropdown + paginated listing feed. Adapts to whether you're
+  │   logged in: shows the full drawer + profile icon + "My listings" AppBar icon when
+  │   signed in, or a simpler drawer with a "Log in" option when browsing as a visitor.
+  │   Bottom amber banner: + (add, signed-in only) → CreateListingScreen; map button
+  │   present but disabled (no handler wired up yet).
+  ├── CreateListingScreen (banner + button, or AppBar edit icon on a listing you own)
+  │   │   Same form doubles as create and edit: takes an optional `existingListing`;
+  │   │   when set, fields are prefilled and existing images can be deleted alongside
+  │   │   picking new ones.
+  ├── MyListingsScreen (AppBar list icon, signed-in only)
+  │   │   Lists all of the caller's own listings, including hidden ones. Each card has
+  │   │   a menu (edit / hide-show / delete); delete asks for confirmation first.
+  │   └── CreateListingScreen (edit, via card menu)
+  └── ListingDetailScreen (tap a card)
+      │   Images carousel, contact info, apiary summary (if attached), favorite button.
+      │   Shows an AppBar edit icon → CreateListingScreen when the viewer owns the listing.
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

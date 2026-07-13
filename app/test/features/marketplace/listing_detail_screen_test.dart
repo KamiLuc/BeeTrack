@@ -18,12 +18,25 @@ import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+/// Builds a minimal (unsigned) JWT carrying the given `sub` claim, so
+/// [TokenStorage.userId] can be exercised without a real auth flow.
+String _jwtWithSub(int sub) {
+  String segment(Object data) =>
+      base64Url.encode(utf8.encode(jsonEncode(data))).replaceAll('=', '');
+  return '${segment({
+        'alg': 'none'
+      })}.${segment({
+        'sub': sub
+      })}.signature';
+}
+
 /// Records requests and returns configurable responses so favorite
 /// add/remove/list calls can be asserted and success/failure controlled.
 class _RecordingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   List<Map<String, dynamic>> favoriteItems = [];
   bool failMutations = false;
+  Map<String, dynamic>? refetchedListingJson;
 
   @override
   Future<ResponseBody> fetch(
@@ -60,6 +73,32 @@ class _RecordingAdapter implements HttpClientAdapter {
       );
     }
 
+    if (RegExp(r'/listings/\d+$').hasMatch(options.path) &&
+        options.method == 'GET' &&
+        refetchedListingJson != null) {
+      return ResponseBody.fromString(
+        jsonEncode(refetchedListingJson),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (RegExp(r'/listings/\d+$').hasMatch(options.path) &&
+        options.method == 'PATCH') {
+      return ResponseBody.fromString(
+        jsonEncode({
+          ..._listingJson(_listing()),
+          ...(options.data as Map<String, dynamic>),
+        }),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
     return ResponseBody.fromString(
       jsonEncode({}),
       200,
@@ -73,11 +112,21 @@ class _RecordingAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-Future<(ApiClient, _RecordingAdapter)> _fakeApiClient() async {
+/// The [TokenStorage] backing the current test's [ApiClient], also handed to
+/// [_wrap] via a [RepositoryProvider] so `context.read<TokenStorage>()`
+/// resolves just like it does in the real widget tree (see main.dart).
+late TokenStorage _tokenStorage;
+
+/// [userId], when given, is embedded as the `sub` claim of a fake access
+/// token so ListingDetailScreen's "am I the owner" check can be exercised.
+Future<(ApiClient, _RecordingAdapter)> _fakeApiClient({int? userId}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient =
-      ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
+  _tokenStorage = TokenStorage(prefs);
+  if (userId != null) {
+    await _tokenStorage.save(access: _jwtWithSub(userId), refresh: 'refresh');
+  }
+  final apiClient = ApiClient(storage: _tokenStorage, baseUrl: 'http://test');
   final adapter = _RecordingAdapter();
   apiClient.dio.httpClientAdapter = adapter;
   return (apiClient, adapter);
@@ -90,13 +139,16 @@ Widget _wrap(
 }) =>
     RepositoryProvider<ApiClient>.value(
       value: apiClient,
-      child: BlocProvider<AuthBloc>.value(
-        value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: child,
+      child: RepositoryProvider<TokenStorage>.value(
+        value: _tokenStorage,
+        child: BlocProvider<AuthBloc>.value(
+          value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: child,
+          ),
         ),
       ),
     );
@@ -106,13 +158,14 @@ Listing _listing({
   String? apiaryName,
   List<ListingImage> images = const [],
   double? price = 42.5,
+  String category = 'honey',
 }) =>
     Listing(
       id: id,
       userId: 5,
       title: 'Wildflower Honey',
       description: 'Fresh honey from the meadow.',
-      category: 'honey',
+      category: category,
       price: price,
       quantity: '10 jars',
       address: 'Krakow',
@@ -323,6 +376,52 @@ void main() {
 
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
       expect(find.byType(SnackBar), findsOneWidget);
+    });
+
+    testWidgets('non-owner: no edit icon shown in AppBar', (tester) async {
+      final (apiClient, _) = await _fakeApiClient(userId: 99);
+
+      await tester.pumpWidget(_wrap(
+        ListingDetailScreen(listing: _listing()),
+        apiClient: apiClient,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    });
+
+    testWidgets(
+        'owner: shows edit icon, opens CreateListingScreen prefilled, and '
+        'refetches the listing after a successful edit', (tester) async {
+      final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+      final listing = _listing(category: 'HONEY');
+      adapter.refetchedListingJson = _listingJson(listing).map(
+        (key, value) => MapEntry(
+          key,
+          key == 'title' ? 'Updated Title' : value,
+        ),
+      );
+
+      await tester.pumpWidget(_wrap(
+        ListingDetailScreen(listing: listing),
+        apiClient: apiClient,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit listing'), findsOneWidget);
+      expect(find.text('Wildflower Honey'), findsWidgets);
+
+      final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Updated Title'), findsWidgets);
     });
   });
 }

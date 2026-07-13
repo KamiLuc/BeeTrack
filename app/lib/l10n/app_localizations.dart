@@ -818,6 +818,54 @@ abstract class AppLocalizations {
   /// **'Zrób zdjęcie'**
   String get marketplacePhotoSourceCamera;
 
+  /// No description provided for @marketplaceEditScreenTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj ogłoszenie'**
+  String get marketplaceEditScreenTitle;
+
+  /// No description provided for @myListingsTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Moje ogłoszenia'**
+  String get myListingsTitle;
+
+  /// No description provided for @myListingsEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie masz jeszcze żadnych ogłoszeń'**
+  String get myListingsEmpty;
+
+  /// No description provided for @marketplaceHiddenBadge.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prywatne'**
+  String get marketplaceHiddenBadge;
+
+  /// No description provided for @marketplaceHideListing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ustaw jako prywatne'**
+  String get marketplaceHideListing;
+
+  /// No description provided for @marketplaceShowListing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ustaw jako publiczne'**
+  String get marketplaceShowListing;
+
+  /// No description provided for @marketplaceDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć to ogłoszenie?'**
+  String get marketplaceDeleteConfirm;
+
+  /// No description provided for @marketplaceDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tej operacji nie można cofnąć.'**
+  String get marketplaceDeleteWarning;
+
   /// No description provided for @apiaryMapTitle.
   ///
   /// In pl, this message translates to:

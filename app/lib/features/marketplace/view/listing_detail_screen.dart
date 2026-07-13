@@ -3,12 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/favorites_repository.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
 import '../data/listing_price.dart';
+import '../data/listing_repository.dart';
+import 'create_listing_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
   final Listing listing;
@@ -20,6 +23,7 @@ class ListingDetailScreen extends StatefulWidget {
 }
 
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
+  late Listing _listing;
   bool _isFavorite = false;
   bool _favoriteBusy = false;
   final _imagePageController = PageController();
@@ -28,8 +32,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _listing = widget.listing;
     if (context.read<AuthBloc>().state is AuthAuthenticated) {
       _loadFavoriteStatus();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ListingDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.listing, widget.listing)) {
+      _listing = widget.listing;
     }
   }
 
@@ -45,7 +58,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           .listFavorites();
       if (!mounted) return;
       setState(() {
-        _isFavorite = favorites.any((l) => l.id == widget.listing.id);
+        _isFavorite = favorites.any((l) => l.id == _listing.id);
       });
     } catch (_) {}
   }
@@ -60,9 +73,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     });
     try {
       if (next) {
-        await repo.addFavorite(widget.listing.id);
+        await repo.addFavorite(_listing.id);
       } else {
-        await repo.removeFavorite(widget.listing.id);
+        await repo.removeFavorite(_listing.id);
       }
     } catch (_) {
       if (mounted) {
@@ -76,15 +89,38 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     }
   }
 
+  Future<void> _openEdit() async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateListingScreen(existingListing: _listing),
+      ),
+    );
+    if ((updated ?? false) && mounted) {
+      try {
+        final fresh =
+            await ListingRepository(api: context.read<ApiClient>())
+                .getListing(_listing.id);
+        if (mounted) setState(() => _listing = fresh);
+      } catch (_) {}
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final listing = widget.listing;
+    final listing = _listing;
+    final isOwner = listing.userId == context.read<TokenStorage>().userId;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(listing.title, overflow: TextOverflow.ellipsis),
         actions: [
+          if (isOwner)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: l10n.generalEdit,
+              onPressed: _openEdit,
+            ),
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               if (authState is! AuthAuthenticated) return const SizedBox.shrink();

@@ -56,7 +56,7 @@
 > **Deferred — implement after core app is stable.**
 
 | ID       | Layer | Status | Title                                  | Notes                                               |
-| -------- | ----- | ------ | -------------------------------------- | --------------------------------------------------- |
+| -------- | ----- | ------ | --------------------------------------- | --------------------------------------------------- |
 | QR-01-FE | `FE`  | `[ ]`  | Camera capture screen                  | Live preview + capture button                       |
 | QR-02-BE | `BE`  | `[ ]`  | Upload photo endpoint                  | Multipart form POST                                 |
 | QR-02-FE | `FE`  | `[ ]`  | Upload photo from app                  |                                                     |
@@ -75,7 +75,7 @@
 > **Deferred — enables AI voice assistant integration.**
 
 | ID        | Layer | Status | Title                      | Notes                                       |
-| --------- | ----- | ------ | -------------------------- | ------------------------------------------- |
+| --------- | ----- | ------ | --------------------------- | ------------------------------------------- |
 | MCP-01-BE | `BE`  | `[ ]`  | MCP server endpoint        | HTTP+SSE transport, runs alongside REST API |
 | MCP-02-BE | `BE`  | `[ ]`  | Tool: `create_inspection`  |                                             |
 | MCP-03-BE | `BE`  | `[ ]`  | Tool: `log_treatment`      |                                             |
@@ -104,7 +104,7 @@
 ### 9.1 Database Schema
 
 | ID        | Layer | Status | Title                            | Notes                                                                                                                                                                      |
-| --------- | ----- | ------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --------- | ----- | ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | MKT-DB-01 | `DB`  | `[x]`  | Create `listings` table          | id, user_id, title, description, category, price, quantity, address, apiary_id, contact_phone, contact_email, is_hidden, created_at, updated_at                            |
 | MKT-DB-02 | `DB`  | `[x]`  | Create `listing_images` table    | id, listing_id, image_url, display_order, created_at                                                                                                                       |
 | MKT-DB-03 | `DB`  | `[x]`  | Create `listing_favorites` table | id, user_id, listing_id, created_at                                                                                                                                        |
@@ -126,7 +126,7 @@
 ### 9.3 Backend — Business Logic
 
 | ID        | Layer | Status | Title                           | Notes                                                                        |
-| --------- | ----- | ------ | ------------------------------- | ---------------------------------------------------------------------------- |
+| --------- | ----- | ------ | -------------------------------- | ---------------------------------------------------------------------------- |
 | MKT-BE-09 | `BE`  | `[x]`  | Service: Create listing         | Validate auth, images (max 3), required fields; return listing with images   |
 | MKT-BE-10 | `BE`  | `[x]`  | Service: Update listing         | Validate ownership, handle image updates                                     |
 | MKT-BE-11 | `BE`  | `[x]`  | Service: Get listing            | Check if hidden; allow owner or public view; include apiary info if attached |
@@ -162,8 +162,8 @@
 | MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
 | MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
 | MKT-FE-03 | `FE`  | `[x]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
-| MKT-FE-04 | `FE`  | `[ ]`  | Edit listing screen     | Reuse create form, pre-filled with existing data, image management                                                   |
-| MKT-FE-05 | `FE`  | `[ ]`  | My listings screen      | Show all user's listings (including hidden), edit/delete/hide actions                                                |
+| MKT-FE-04 | `FE`  | `[x]`  | Edit listing screen     | `CreateListingScreen` now takes an optional `existingListing` and reuses the create form (prefilled, existing-image delete + new-image add) |
+| MKT-FE-05 | `FE`  | `[x]`  | My listings screen      | `MyListingsScreen`: lists `mine=true` (incl. hidden), per-card edit/hide-show/delete only (tapping the card itself does nothing — edit is menu-only, per follow-up request); reached via icon in the bottom amber banner next to Add/Map. Edit button also added to listing detail screen when viewer is the owner (not in original scope, added per follow-up request) |
 | MKT-FE-06 | `FE`  | `[ ]`  | Favorites screen        | Saved listings, add to favorites from detail view                                                                    |
 
 ### 9.6 Frontend — Search & Filters
@@ -179,7 +179,7 @@
 ### 9.7 Frontend — Map Integration
 
 | ID        | Layer | Status | Title                | Notes                                                                      |
-| --------- | ----- | ------ | -------------------- | -------------------------------------------------------------------------- |
+| --------- | ----- | ------ | --------------------- | -------------------------------------------------------------------------- |
 | MKT-FE-12 | `FE`  | `[ ]`  | Map screen           | Show listings with apiary attached as pins; tap pin to view listing        |
 | MKT-FE-13 | `FE`  | `[ ]`  | Map filters          | Filter map pins by category, price range, same filters as feed             |
 | MKT-FE-14 | `FE`  | `[ ]`  | Distance calculation | Show distance from user to listing apiary (if location permission granted) |
@@ -187,8 +187,8 @@
 ### 9.8 Frontend — Image Management
 
 | ID        | Layer | Status | Title                      | Notes                                                               |
-| --------- | ----- | ------ | -------------------------- | ------------------------------------------------------------------- |
-| MKT-FE-15 | `FE`  | `[x]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload. Landed as part of MKT-FE-03's photo picker rather than as separate work — covers the create flow only, edit reuse still pending (MKT-FE-04 not yet started) |
+| --------- | ----- | ------ | --------------------------- | ------------------------------------------------------------------- |
+| MKT-FE-15 | `FE`  | `[x]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload. Landed as part of MKT-FE-03's photo picker; edit-mode reuse (existing-image thumbnails + delete) added alongside MKT-FE-04 |
 | MKT-FE-16 | `FE`  | `[x]`  | Image carousel on detail   | Swipeable carousel for multiple images. Landed as part of MKT-FE-02's detail screen (PageView + dot-indicator) rather than as separate work |
 | MKT-FE-17 | `FE`  | `[ ]`  | Image upload progress      | Show upload progress/loading state                                  |
 
@@ -203,7 +203,7 @@
 ### 9.10 Frontend — Navigation & State
 
 | ID        | Layer | Status | Title                             | Notes                                                 |
-| --------- | ----- | ------ | --------------------------------- | ----------------------------------------------------- |
+| --------- | ----- | ------ | ---------------------------------- | ----------------------------------------------------- |
 | MKT-FE-21 | `FE`  | `[x]`  | Marketplace nav entry (drawer)    | Top-left hamburger opens a navigation drawer with Apiaries + Marketplace (Ogłoszenia). Replaced the "bottom nav" idea: the bottom amber bar is per-screen actions, so a shared `AppDrawer` is used instead. Points at a stub `MarketplaceHomeScreen` until MKT-FE-01 lands. |
 | MKT-FE-22 | `FE`  | `[ ]`  | Marketplace BLoC/Cubit            | Manage listings, search state, filters                |
 | MKT-FE-23 | `FE`  | `[ ]`  | Handle public vs. auth views      | Show "Create Listing" button for logged-in users only |
@@ -211,7 +211,7 @@
 ### 9.11 Polish & Edge Cases
 
 | ID        | Layer   | Status | Title                        | Notes                                                                                   |
-| --------- | ------- | ------ | ---------------------------- | --------------------------------------------------------------------------------------- |
+| --------- | ------- | ------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
 | MKT-09-01 | `BE/FE` | `[ ]`  | Soft delete validation       | Ensure deleted listings don't appear in search; verify ownership on hide                |
 | MKT-09-02 | `FE`    | `[ ]`  | Empty states                 | "No listings yet", "No favorites yet" screens                                           |
 | MKT-09-03 | `FE`    | `[ ]`  | Pagination / infinite scroll | For search results (backend limit, frontend pagination)                                 |
@@ -231,14 +231,14 @@
 ### 10.1 Database Schema
 
 | ID       | Layer | Status | Title                               | Notes                                                                                                                                                                                                                                                                                                                        |
-| -------- | ----- | ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HC-DB-01 | `DB`  | `[ ]`  | Create `honey_batches` table        | id, user_id, apiary_id, gathering_date, amount (kg), processing_method (enum: raw/filtered/pasteurized), honey_type (text: wildflower/acacia/etc), lab_pdf_url, pdf_file_hash (SHA256), metadata_hash, blockchain_tx_hash, blockchain_contract_address, blockchain_status (pending/confirmed/failed), created_at, updated_at |
 | HC-DB-02 | `DB`  | `[ ]`  | Create `honey_batch_qr_codes` table | id, batch_id, qr_code_data (URL), created_at                                                                                                                                                                                                                                                                                 |
 
 ### 10.2 Backend — Blockchain Integration
 
 | ID       | Layer | Status | Title                      | Notes                                                                                                                 |
-| -------- | ----- | ------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | HC-BE-01 | `BE`  | `[ ]`  | Blockchain config          | Polygon RPC endpoint, contract address, private key management (env vars)                                             |
 | HC-BE-02 | `BE`  | `[ ]`  | Smart contract (Solidity)  | Simple registry: store (batch_id, pdf_hash, metadata_hash, timestamp, owner_address); emit CertificationCreated event |
 | HC-BE-03 | `BE`  | `[ ]`  | Deploy contract to Polygon | Testnet first (Mumbai), then mainnet                                                                                  |
@@ -249,7 +249,7 @@
 ### 10.3 Backend — Models & Persistence
 
 | ID       | Layer | Status | Title                                   | Notes                                                                       |
-| -------- | ----- | ------ | --------------------------------------- | --------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ----------------------------------------- | --------------------------------------------------------------------------- |
 | HC-BE-07 | `BE`  | `[ ]`  | Model: `HoneyBatch` struct              | Mirrors DB schema                                                           |
 | HC-BE-08 | `BE`  | `[ ]`  | Model: `ProcessingMethod` enum          | raw, filtered, pasteurized                                                  |
 | HC-BE-09 | `BE`  | `[ ]`  | Repository: Create batch                | Insert batch + store blockchain metadata (before tx)                        |
@@ -260,7 +260,7 @@
 ### 10.4 Backend — Business Logic
 
 | ID       | Layer | Status | Title                           | Notes                                                                                                    |
-| -------- | ----- | ------ | ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | HC-BE-13 | `BE`  | `[ ]`  | Service: Create honey batch     | Validate auth, apiary ownership, calculate PDF hash, trigger blockchain write, return batch with tx_hash |
 | HC-BE-14 | `BE`  | `[ ]`  | Service: Get batch + verify     | Fetch batch from DB, query blockchain for verification status, compare PDF hash                          |
 | HC-BE-15 | `BE`  | `[ ]`  | Service: Poll blockchain status | Background job: check pending txs, update status when confirmed                                          |
@@ -269,7 +269,7 @@
 ### 10.5 Backend — API Handlers
 
 | ID       | Layer | Status | Title                                           | Notes                                                                                 |
-| -------- | ----- | ------ | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | HC-BE-17 | `BE`  | `[ ]`  | Handler: POST /api/v1/honey-batches             | Create batch (auth required; multipart form: data + PDF file)                         |
 | HC-BE-18 | `BE`  | `[ ]`  | Handler: GET /api/v1/honey-batches/{id}         | Get batch + blockchain verification (public endpoint)                                 |
 | HC-BE-19 | `BE`  | `[ ]`  | Handler: GET /api/v1/honey-batches/{id}/verify  | Detailed verification: on-chain hash vs PDF hash, tx status                           |
@@ -282,7 +282,7 @@
 ### 10.6 Frontend — Core Screens
 
 | ID       | Layer | Status | Title                           | Notes                                                                                                             |
-| -------- | ----- | ------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | HC-FE-01 | `FE`  | `[ ]`  | Honey batches home screen       | Tab in hive detail or separate "Honey" section; list user's batches + create button                               |
 | HC-FE-02 | `FE`  | `[ ]`  | Create honey batch screen       | Form: gathering_date, amount (kg), processing_method (dropdown), honey_type (text), attach apiary, upload lab PDF |
 | HC-FE-03 | `FE`  | `[ ]`  | Honey batch detail screen       | Show: all batch info, PDF preview/download, QR code display, blockchain verification status                       |
@@ -294,7 +294,7 @@
 ### 10.7 Frontend — Data Models & Repositories
 
 | ID       | Layer | Status | Title                       | Notes                                          |
-| -------- | ----- | ------ | --------------------------- | ---------------------------------------------- |
+| -------- | ----- | ------ | ----------------------------- | ----------------------------------------------- |
 | HC-FE-08 | `FE`  | `[ ]`  | HoneyBatchModel (Dart)      | Mirrors HoneyBatch struct from backend         |
 | HC-FE-09 | `FE`  | `[ ]`  | ProcessingMethodEnum (Dart) | raw, filtered, pasteurized with display labels |
 | HC-FE-10 | `FE`  | `[ ]`  | HoneyBatchRepository        | CRUD + get verification status, download PDF   |
@@ -302,7 +302,7 @@
 ### 10.8 Frontend — QR Code & PDF Handling
 
 | ID       | Layer | Status | Title                  | Notes                                                                        |
-| -------- | ----- | ------ | ---------------------- | ---------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ------------------------- | ---------------------------------------------------------------------------- |
 | HC-FE-11 | `FE`  | `[ ]`  | QR code generation     | Generate QR from batch ID URL; display as image in UI                        |
 | HC-FE-12 | `FE`  | `[ ]`  | QR code scanner        | Use `qr_code_scanner` or `mobile_scanner` package; extract batch ID from URL |
 | HC-FE-13 | `FE`  | `[ ]`  | PDF preview / download | Embed PDF viewer or link to download; show in detail screen                  |
@@ -311,7 +311,7 @@
 ### 10.9 Frontend — Verification UI
 
 | ID       | Layer | Status | Title                       | Notes                                                                                       |
-| -------- | ----- | ------ | --------------------------- | ------------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ------------------------------ | ------------------------------------------------------------------------------------------- |
 | HC-FE-15 | `FE`  | `[ ]`  | Blockchain status indicator | Show "Pending", "✓ Verified", or "✗ Failed" with visual icon                                |
 | HC-FE-16 | `FE`  | `[ ]`  | Verification details modal  | Show: tx hash (clickable link to Polygonscan), confirmed timestamp, PDF hash, metadata hash |
 | HC-FE-17 | `FE`  | `[ ]`  | Hash comparison display     | Show "On-chain hash: xyz..." and "Current PDF hash: xyz..." side-by-side                    |
@@ -319,7 +319,7 @@
 ### 10.10 Frontend — Navigation & State
 
 | ID       | Layer | Status | Title                                    | Notes                                                              |
-| -------- | ----- | ------ | ---------------------------------------- | ------------------------------------------------------------------ |
+| -------- | ----- | ------ | -------------------------------------------- | ------------------------------------------------------------------ |
 | HC-FE-18 | `FE`  | `[ ]`  | Add Honey Batches section to hive detail | Tab or collapsible section with "Create Batch" button              |
 | HC-FE-19 | `FE`  | `[ ]`  | Honey BLoC/Cubit                         | Manage batches, verification state, QR scanner state               |
 | HC-FE-20 | `FE`  | `[ ]`  | Deep link for QR verification            | Support scanning external QR codes that link to /verify/batch/{id} |
@@ -327,7 +327,7 @@
 ### 10.11 Polish & Edge Cases
 
 | ID       | Layer | Status | Title                  | Notes                                                                                  |
-| -------- | ----- | ------ | ---------------------- | -------------------------------------------------------------------------------------- |
+| -------- | ----- | ------ | ------------------------- | ---------------------------------------------------------------------------------------- |
 | HC-10-01 | `BE`  | `[ ]`  | PDF file validation    | Check MIME type, max size (e.g., 10MB), scan for malware (optional)                    |
 | HC-10-02 | `BE`  | `[ ]`  | Blockchain retry logic | If tx fails, retry with exponential backoff; notify user if permanently failed         |
 | HC-10-03 | `BE`  | `[ ]`  | Storage for PDFs       | Use S3/cloud storage or local file system; secure access control                       |

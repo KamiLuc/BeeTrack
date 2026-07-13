@@ -383,6 +383,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplacePhotoSourceCamera => 'Take a photo';
 
   @override
+  String get marketplaceEditScreenTitle => 'Edit listing';
+
+  @override
+  String get myListingsTitle => 'My listings';
+
+  @override
+  String get myListingsEmpty => 'You haven\'t posted any listings yet';
+
+  @override
+  String get marketplaceHiddenBadge => 'Private';
+
+  @override
+  String get marketplaceHideListing => 'Make private';
+
+  @override
+  String get marketplaceShowListing => 'Make public';
+
+  @override
+  String get marketplaceDeleteConfirm => 'Delete this listing?';
+
+  @override
+  String get marketplaceDeleteWarning => 'This cannot be undone.';
+
+  @override
   String get apiaryMapTitle => 'Apiaries map';
 
   @override

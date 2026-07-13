@@ -13,12 +13,17 @@ import '../../../features/apiary/data/apiary_model.dart';
 import '../../../features/apiary/data/apiary_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/listing_category.dart';
+import '../data/listing_model.dart';
 import '../data/listing_repository.dart';
 
 const int _kMaxListingPhotos = 3;
 
 class CreateListingScreen extends StatefulWidget {
-  const CreateListingScreen({super.key});
+  final Listing? existingListing;
+
+  const CreateListingScreen({super.key, this.existingListing});
+
+  bool get isEditing => existingListing != null;
 
   @override
   State<CreateListingScreen> createState() => _CreateListingScreenState();
@@ -38,6 +43,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   int? _apiaryId;
   List<Apiary> _apiaries = [];
   final List<XFile> _pendingImages = [];
+  late List<ListingImage> _existingImages;
+  final Set<int> _deletingImageIds = {};
   bool _saving = false;
   String? _submitError;
 
@@ -45,6 +52,20 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   void initState() {
     super.initState();
     _loadApiaries();
+    final listing = widget.existingListing;
+    _existingImages = List.of(listing?.images ?? const []);
+    if (listing != null) {
+      _titleController.text = listing.title;
+      _descriptionController.text = listing.description;
+      _priceController.text =
+          listing.price != null ? listing.price!.toStringAsFixed(2) : '';
+      _quantityController.text = listing.quantity;
+      _addressController.text = listing.address;
+      _phoneController.text = listing.contactPhone;
+      _emailController.text = listing.contactEmail;
+      _category = listing.category;
+      _apiaryId = listing.apiaryId;
+    }
   }
 
   @override
@@ -86,8 +107,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     },
   );
 
+  int get _totalPhotoCount => _existingImages.length + _pendingImages.length;
+
   Future<void> _pickImage() async {
-    if (_pendingImages.length >= _kMaxListingPhotos) return;
+    if (_totalPhotoCount >= _kMaxListingPhotos) return;
     final l10n = AppLocalizations.of(context)!;
     final picker = ImagePicker();
     final ImageSource source;
@@ -125,6 +148,28 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => _pendingImages.remove(file));
   }
 
+  Future<void> _removeExistingImage(ListingImage image) async {
+    final l10n = AppLocalizations.of(context)!;
+    final repo = ListingRepository(api: context.read<ApiClient>());
+    setState(() => _deletingImageIds.add(image.id));
+    try {
+      await repo.deleteImage(widget.existingListing!.id, image.id);
+      if (mounted) {
+        setState(() {
+          _existingImages.remove(image);
+          _deletingImageIds.remove(image.id);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _deletingImageIds.remove(image.id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    }
+  }
+
   void _reviewContactError() {
     if (_submitError == null) return;
     if (_submitError != AppLocalizations.of(context)!.marketplaceContactRequired) {
@@ -153,19 +198,37 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     });
     final repo = ListingRepository(api: context.read<ApiClient>());
     try {
-      final listing = await repo.createListing(
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        category: _category!,
-        price: double.parse(_priceController.text.trim()),
-        quantity: _quantityController.text.trim(),
-        address: _addressController.text.trim(),
-        apiaryId: _apiaryId,
-        contactPhone: _phoneController.text.trim(),
-        contactEmail: _emailController.text.trim(),
-      );
+      final int listingId;
+      if (widget.isEditing) {
+        final listing = await repo.updateListing(
+          id: widget.existingListing!.id,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          category: _category!,
+          price: double.parse(_priceController.text.trim()),
+          quantity: _quantityController.text.trim(),
+          address: _addressController.text.trim(),
+          apiaryId: _apiaryId,
+          contactPhone: _phoneController.text.trim(),
+          contactEmail: _emailController.text.trim(),
+        );
+        listingId = listing.id;
+      } else {
+        final listing = await repo.createListing(
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          category: _category!,
+          price: double.parse(_priceController.text.trim()),
+          quantity: _quantityController.text.trim(),
+          address: _addressController.text.trim(),
+          apiaryId: _apiaryId,
+          contactPhone: _phoneController.text.trim(),
+          contactEmail: _emailController.text.trim(),
+        );
+        listingId = listing.id;
+      }
       for (final file in _pendingImages) {
-        await repo.uploadImage(listing.id, file);
+        await repo.uploadImage(listingId, file);
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -186,7 +249,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.marketplaceCreateScreenTitle),
+        title: Text(
+          widget.isEditing
+              ? l10n.marketplaceEditScreenTitle
+              : l10n.marketplaceCreateScreenTitle,
+        ),
         actions: const [ProfileIconButton()],
       ),
       body: Center(
@@ -348,9 +415,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   ],
                   const SizedBox(height: 24),
                   _PhotosSection(
+                    existingImages: _existingImages,
+                    deletingImageIds: _deletingImageIds,
                     pendingImages: _pendingImages,
+                    totalCount: _totalPhotoCount,
                     onAdd: _pickImage,
                     onRemove: _removeImage,
+                    onRemoveExisting: _removeExistingImage,
                   ),
                   const SizedBox(height: 24),
                   if (_submitError != null) ...[
@@ -390,20 +461,29 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 }
 
 class _PhotosSection extends StatelessWidget {
+  final List<ListingImage> existingImages;
+  final Set<int> deletingImageIds;
   final List<XFile> pendingImages;
+  final int totalCount;
   final VoidCallback onAdd;
   final ValueChanged<XFile> onRemove;
+  final ValueChanged<ListingImage> onRemoveExisting;
 
   const _PhotosSection({
+    required this.existingImages,
+    required this.deletingImageIds,
     required this.pendingImages,
+    required this.totalCount,
     required this.onAdd,
     required this.onRemove,
+    required this.onRemoveExisting,
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final atLimit = pendingImages.length >= _kMaxListingPhotos;
+    final atLimit = totalCount >= _kMaxListingPhotos;
+    final baseUrl = context.read<ApiClient>().baseUrl;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,7 +492,7 @@ class _PhotosSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${l10n.marketplacePhotosLabel}  ${pendingImages.length}/$_kMaxListingPhotos',
+              '${l10n.marketplacePhotosLabel}  $totalCount/$_kMaxListingPhotos',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -424,19 +504,98 @@ class _PhotosSection extends StatelessWidget {
             ),
           ],
         ),
-        if (pendingImages.isNotEmpty)
+        if (existingImages.isNotEmpty || pendingImages.isNotEmpty)
           SizedBox(
             height: 100,
             child: ListView(
               shrinkWrap: true,
               scrollDirection: Axis.horizontal,
               children: [
+                for (final image in existingImages)
+                  _ExistingThumbnail(
+                    image: image,
+                    baseUrl: baseUrl,
+                    deleting: deletingImageIds.contains(image.id),
+                    onRemove: () => onRemoveExisting(image),
+                  ),
                 for (final file in pendingImages)
                   _PendingThumbnail(file: file, onRemove: () => onRemove(file)),
               ],
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ExistingThumbnail extends StatelessWidget {
+  final ListingImage image;
+  final String baseUrl;
+  final bool deleting;
+  final VoidCallback onRemove;
+
+  const _ExistingThumbnail({
+    required this.image,
+    required this.baseUrl,
+    required this.deleting,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 4),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 90,
+              height: 90,
+              child: Image.network(
+                '$baseUrl${image.url}',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) => Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image_outlined, size: 24),
+                ),
+              ),
+            ),
+          ),
+          if (deleting)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black38,
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            Positioned(
+              top: 2,
+              right: 2,
+              child: GestureDetector(
+                onTap: onRemove,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

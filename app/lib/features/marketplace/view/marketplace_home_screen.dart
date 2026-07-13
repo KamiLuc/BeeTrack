@@ -16,6 +16,7 @@ import '../data/listing_price.dart';
 import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
 import 'listing_detail_screen.dart';
+import 'my_listings_screen.dart';
 
 class MarketplaceHomeScreen extends StatelessWidget {
   /// Called when an authenticated user picks a section from the drawer.
@@ -71,6 +72,13 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   Future<void> _openCreateListing(BuildContext context) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateListingScreen()),
+    );
+    if (context.mounted) context.read<MarketplaceCubit>().load();
+  }
+
+  Future<void> _openMyListings(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MyListingsScreen()),
     );
     if (context.mounted) context.read<MarketplaceCubit>().load();
   }
@@ -142,6 +150,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 l10n: l10n,
                 isAuthenticated: isAuthenticated,
                 onAdd: () => _openCreateListing(context),
+                onMyListings: () => _openMyListings(context),
                 onMap: null,
               ),
             ],
@@ -156,12 +165,14 @@ class _MarketplaceBanner extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isAuthenticated;
   final VoidCallback onAdd;
+  final VoidCallback onMyListings;
   final VoidCallback? onMap;
 
   const _MarketplaceBanner({
     required this.l10n,
     required this.isAuthenticated,
     required this.onAdd,
+    required this.onMyListings,
     required this.onMap,
   });
 
@@ -194,13 +205,20 @@ class _MarketplaceBanner extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  if (isAuthenticated)
+                  if (isAuthenticated) ...[
                     IconButton(
                       icon: const Icon(Icons.add),
                       iconSize: 28,
                       tooltip: l10n.marketplaceCreateScreenTitle,
                       onPressed: onAdd,
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.list_alt_outlined),
+                      iconSize: 28,
+                      tooltip: l10n.myListingsTitle,
+                      onPressed: onMyListings,
+                    ),
+                  ],
                   IconButton(
                     icon: const Icon(Icons.map_outlined),
                     iconSize: 28,

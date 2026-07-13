@@ -385,6 +385,30 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplacePhotoSourceCamera => 'Zrób zdjęcie';
 
   @override
+  String get marketplaceEditScreenTitle => 'Edytuj ogłoszenie';
+
+  @override
+  String get myListingsTitle => 'Moje ogłoszenia';
+
+  @override
+  String get myListingsEmpty => 'Nie masz jeszcze żadnych ogłoszeń';
+
+  @override
+  String get marketplaceHiddenBadge => 'Prywatne';
+
+  @override
+  String get marketplaceHideListing => 'Ustaw jako prywatne';
+
+  @override
+  String get marketplaceShowListing => 'Ustaw jako publiczne';
+
+  @override
+  String get marketplaceDeleteConfirm => 'Usunąć to ogłoszenie?';
+
+  @override
+  String get marketplaceDeleteWarning => 'Tej operacji nie można cofnąć.';
+
+  @override
   String get apiaryMapTitle => 'Mapa pasiek';
 
   @override

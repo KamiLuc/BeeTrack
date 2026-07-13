@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
@@ -14,6 +16,26 @@ class TokenStorage {
   String? get refreshToken => _prefs.getString(_refreshKey);
   String? get email => _prefs.getString(_emailKey);
   String? get name => _prefs.getString(_nameKey);
+
+  /// The `sub` claim of the access token, i.e. the logged-in user's id.
+  /// Decoded locally from the (already-verified-by-the-server) JWT payload.
+  int? get userId {
+    final token = accessToken;
+    if (token == null) return null;
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload =
+          utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final sub = (jsonDecode(payload) as Map<String, dynamic>)['sub'];
+      if (sub is int) return sub;
+      if (sub is double) return sub.toInt();
+      if (sub is String) return int.tryParse(sub);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> save({
     required String access,

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/core/api/api_client.dart';
 import 'package:app/core/storage/token_storage.dart';
+import 'package:app/features/marketplace/data/listing_model.dart';
 import 'package:app/features/marketplace/view/create_listing_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
@@ -97,6 +98,29 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
         'created_at': DateTime(2026, 1, 1).toIso8601String(),
       });
     }
+    if (options.path.contains('/images') && options.method == 'DELETE') {
+      return _json({});
+    }
+    if (RegExp(r'/listings/\d+$').hasMatch(options.path) &&
+        options.method == 'PATCH') {
+      final data = options.data as Map<String, dynamic>;
+      return _json({
+        'id': 99,
+        'user_id': 1,
+        'title': data['title'],
+        'description': data['description'],
+        'category': data['category'],
+        'price': data['price'],
+        'quantity': data['quantity'],
+        'address': data['address'],
+        'contact_phone': data['contact_phone'],
+        'contact_email': data['contact_email'],
+        'is_hidden': false,
+        'created_at': DateTime(2026, 1, 1).toIso8601String(),
+        'updated_at': DateTime(2026, 1, 1).toIso8601String(),
+        'images': [],
+      });
+    }
     return _json({});
   }
 
@@ -132,6 +156,7 @@ Widget _wrap(ApiClient apiClient, Widget child) => RepositoryProvider<ApiClient>
 Widget _wrapWithNavigator(
   ApiClient apiClient, {
   required ValueChanged<bool?> onResult,
+  Listing? existingListing,
 }) =>
     RepositoryProvider<ApiClient>.value(
       value: apiClient,
@@ -145,7 +170,11 @@ Widget _wrapWithNavigator(
               child: ElevatedButton(
                 onPressed: () async {
                   final result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(builder: (_) => const CreateListingScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => CreateListingScreen(
+                        existingListing: existingListing,
+                      ),
+                    ),
                   );
                   onResult(result);
                 },
@@ -155,6 +184,27 @@ Widget _wrapWithNavigator(
           ),
         ),
       ),
+    );
+
+Listing _existingListing({
+  int id = 5,
+  List<ListingImage> images = const [],
+}) =>
+    Listing(
+      id: id,
+      userId: 1,
+      title: 'Old Title',
+      description: 'Old description.',
+      category: 'HONEY',
+      price: 12.5,
+      quantity: '3 jars',
+      address: 'Krakow',
+      contactPhone: '123456789',
+      contactEmail: 'seller@example.com',
+      isHidden: false,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      images: images,
     );
 
 void main() {
@@ -586,6 +636,91 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(l10n.marketplaceContactRequired), findsOneWidget);
+    });
+  });
+
+  group('CreateListingScreen editing', () {
+    testWidgets('prefills fields and shows the edit title when editing',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+      final listing = _existingListing();
+
+      await tester.pumpWidget(
+        _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceEditScreenTitle), findsOneWidget);
+      expect(find.text('Old Title'), findsOneWidget);
+      expect(find.text('Old description.'), findsOneWidget);
+      expect(find.text('12.50'), findsOneWidget);
+      expect(find.text('3 jars'), findsOneWidget);
+    });
+
+    testWidgets('submits via PATCH and pops true without creating a listing',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+      final listing = _existingListing();
+      bool? result;
+
+      await tester.pumpWidget(_wrapWithNavigator(
+        apiClient,
+        existingListing: listing,
+        onResult: (r) => result = r,
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
+
+      expect(result, isTrue);
+      final patchRequests = adapter.requests.where(
+        (r) => r.path.endsWith('/listings/${listing.id}') && r.method == 'PATCH',
+      );
+      final createRequests = adapter.requests
+          .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
+      expect(patchRequests, hasLength(1));
+      expect(createRequests, isEmpty);
+    });
+
+    testWidgets(
+        'shows existing images and deletes one via the repository on tap',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+      final image = ListingImage(
+        id: 3,
+        listingId: 5,
+        url: '/uploads/a.jpg',
+        displayOrder: 0,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final listing = _existingListing(images: [image]);
+
+      await tester.pumpWidget(
+        _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('${l10n.marketplacePhotosLabel}  1/3'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await tester.ensureVisible(find.byIcon(Icons.close));
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('${l10n.marketplacePhotosLabel}  0/3'), findsOneWidget);
+      final deleteRequests = adapter.requests.where(
+        (r) =>
+            r.path.endsWith('/listings/${listing.id}/images/${image.id}') &&
+            r.method == 'DELETE',
+      );
+      expect(deleteRequests, hasLength(1));
     });
   });
 

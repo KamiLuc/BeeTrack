@@ -16,6 +16,7 @@ import 'package:app/features/auth/data/auth_repository.dart';
 import 'package:app/features/marketplace/view/create_listing_screen.dart';
 import 'package:app/features/marketplace/view/listing_detail_screen.dart';
 import 'package:app/features/marketplace/view/marketplace_home_screen.dart';
+import 'package:app/features/marketplace/view/my_listings_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -36,10 +37,16 @@ class _FailingHttpClientAdapter implements HttpClientAdapter {
   }
 }
 
+/// The [TokenStorage] backing the current test's [ApiClient], also handed to
+/// [_wrap] via a [RepositoryProvider] so `context.read<TokenStorage>()`
+/// resolves just like it does in the real widget tree (see main.dart).
+late TokenStorage _tokenStorage;
+
 Future<ApiClient> _fakeApiClient() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
+  _tokenStorage = TokenStorage(prefs);
+  final apiClient = ApiClient(storage: _tokenStorage, baseUrl: 'http://test');
   apiClient.dio.httpClientAdapter = _FailingHttpClientAdapter();
   return apiClient;
 }
@@ -108,7 +115,8 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
 Future<ApiClient> _fakeApiClientWithListings({_ListingsHttpClientAdapter? adapter}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
+  _tokenStorage = TokenStorage(prefs);
+  final apiClient = ApiClient(storage: _tokenStorage, baseUrl: 'http://test');
   apiClient.dio.httpClientAdapter = adapter ?? _ListingsHttpClientAdapter();
   return apiClient;
 }
@@ -120,13 +128,16 @@ Widget _wrap(
 }) =>
     RepositoryProvider<ApiClient>.value(
       value: apiClient,
-      child: BlocProvider<AuthBloc>.value(
-        value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: child,
+      child: RepositoryProvider<TokenStorage>.value(
+        value: _tokenStorage,
+        child: BlocProvider<AuthBloc>.value(
+          value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: child,
+          ),
         ),
       ),
     );
@@ -455,6 +466,54 @@ void main() {
       await tester.pump();
       expect(adapter.listingsRequestCount, 2);
       expect(adapter.listingsRequests.last.queryParameters['keyword'], 'honey');
+    });
+
+    testWidgets('unauthenticated: the "My listings" icon is not shown',
+        (tester) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.list_alt_outlined), findsNothing);
+    });
+
+    testWidgets(
+        'authenticated: tapping the "My listings" icon opens MyListingsScreen '
+        'and refreshes the feed on return', (tester) async {
+      final adapter = _ListingsHttpClientAdapter();
+      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(adapter.listingsRequestCount, 1);
+      expect(find.byIcon(Icons.list_alt_outlined), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.list_alt_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MyListingsScreen), findsOneWidget);
+      // MyListingsScreen fetches its own listings on open.
+      expect(adapter.listingsRequestCount, 2);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MyListingsScreen), findsNothing);
+      // MarketplaceHomeScreen reloads its feed when the pushed route returns.
+      expect(adapter.listingsRequestCount, 3);
     });
   });
 }
