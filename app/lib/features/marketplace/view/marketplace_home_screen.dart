@@ -11,6 +11,7 @@ import '../cubit/marketplace_cubit.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
 import '../data/listing_repository.dart';
+import 'listing_detail_screen.dart';
 
 class MarketplaceHomeScreen extends StatelessWidget {
   /// Called when an authenticated user picks a section from the drawer.
@@ -276,59 +277,67 @@ class _ListingCard extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    listing.title,
-                    style: textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ListingDetailScreen(listing: listing),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      listing.title,
+                      style: textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  listing.price != null
-                      ? '${listing.price!.toStringAsFixed(2)} zł'
-                      : l10n.marketplacePriceOnRequest,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: colorScheme.primary,
+                  const SizedBox(width: 8),
+                  Text(
+                    listing.price != null
+                        ? '${listing.price!.toStringAsFixed(2)} zł'
+                        : l10n.marketplacePriceOnRequest,
+                    style: textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 10,
-              runSpacing: 4,
-              children: [
-                _InfoChip(
-                  icon: listingCategoryIcon(listing.category),
-                  label: listingCategoryLabel(l10n, listing.category),
-                ),
-                if (listing.address.isNotEmpty)
-                  _InfoChip(
-                    icon: Icons.location_on_outlined,
-                    label: listing.address,
-                  ),
-              ],
-            ),
-            if (listing.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                listing.description,
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                ],
               ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 10,
+                runSpacing: 4,
+                children: [
+                  _InfoChip(
+                    icon: listingCategoryIcon(listing.category),
+                    label: listingCategoryLabel(l10n, listing.category),
+                  ),
+                  if (listing.address.isNotEmpty)
+                    _InfoChip(
+                      icon: Icons.location_on_outlined,
+                      label: listing.address,
+                    ),
+                ],
+              ),
+              if (listing.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  listing.description,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

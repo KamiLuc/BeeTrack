@@ -662,6 +662,48 @@ abstract class AppLocalizations {
   /// **'Inne'**
   String get marketplaceCategoryOther;
 
+  /// No description provided for @marketplaceFavoriteAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj do ulubionych'**
+  String get marketplaceFavoriteAdd;
+
+  /// No description provided for @marketplaceFavoriteRemove.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usuń z ulubionych'**
+  String get marketplaceFavoriteRemove;
+
+  /// No description provided for @marketplaceDescriptionLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Opis'**
+  String get marketplaceDescriptionLabel;
+
+  /// No description provided for @marketplaceContactLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kontakt'**
+  String get marketplaceContactLabel;
+
+  /// No description provided for @marketplaceApiaryLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pasieka powiązana z ogłoszeniem'**
+  String get marketplaceApiaryLabel;
+
+  /// No description provided for @marketplaceQuantityLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ilość'**
+  String get marketplaceQuantityLabel;
+
+  /// No description provided for @marketplacePostedOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodano {date}'**
+  String marketplacePostedOn(String date);
+
   /// No description provided for @apiaryMapTitle.
   ///
   /// In pl, this message translates to:

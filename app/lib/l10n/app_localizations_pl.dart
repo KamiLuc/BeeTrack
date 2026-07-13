@@ -304,6 +304,29 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceCategoryOther => 'Inne';
 
   @override
+  String get marketplaceFavoriteAdd => 'Dodaj do ulubionych';
+
+  @override
+  String get marketplaceFavoriteRemove => 'Usuń z ulubionych';
+
+  @override
+  String get marketplaceDescriptionLabel => 'Opis';
+
+  @override
+  String get marketplaceContactLabel => 'Kontakt';
+
+  @override
+  String get marketplaceApiaryLabel => 'Pasieka powiązana z ogłoszeniem';
+
+  @override
+  String get marketplaceQuantityLabel => 'Ilość';
+
+  @override
+  String marketplacePostedOn(String date) {
+    return 'Dodano $date';
+  }
+
+  @override
   String get apiaryMapTitle => 'Mapa pasiek';
 
   @override

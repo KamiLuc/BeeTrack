@@ -303,6 +303,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceCategoryOther => 'Other';
 
   @override
+  String get marketplaceFavoriteAdd => 'Add to favorites';
+
+  @override
+  String get marketplaceFavoriteRemove => 'Remove from favorites';
+
+  @override
+  String get marketplaceDescriptionLabel => 'Description';
+
+  @override
+  String get marketplaceContactLabel => 'Contact';
+
+  @override
+  String get marketplaceApiaryLabel => 'Listed from apiary';
+
+  @override
+  String get marketplaceQuantityLabel => 'Quantity';
+
+  @override
+  String marketplacePostedOn(String date) {
+    return 'Posted on $date';
+  }
+
+  @override
   String get apiaryMapTitle => 'Apiaries map';
 
   @override

@@ -153,13 +153,14 @@
 | MKT-BE-20 | `BE`  | `[x]`  | Favorites repository + service               | Add (idempotent via ON CONFLICT), remove, list favorited listings; hidden excluded for non-owner |
 | MKT-BE-21 | `BE`  | `[x]`  | Handler: POST/DELETE /api/v1/listings/{id}/favorite | Add/remove favorite (auth); verifies listing is visible to caller                      |
 | MKT-BE-22 | `BE`  | `[x]`  | Handler: GET /api/v1/favorites               | List caller's favorited listings (auth); returns `{items, total}`                             |
+| MKT-BE-23 | `BE`  | `[ ]`  | Handler: GET /api/v1/listings/{id}/favorite  | Check whether caller has favorited a single listing (auth); returns `{is_favorite}`. Needed because MKT-FE-02's detail screen currently determines favorite status by calling `listFavorites()` and checking membership client-side — fine for now, but won't scale once a user's favorites list grows large |
 
 ### 9.5 Frontend — Core Screens
 
 | ID        | Layer | Status | Title                   | Notes                                                                                                                |
 | --------- | ----- | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
-| MKT-FE-02 | `FE`  | `[ ]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
+| MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
 | MKT-FE-03 | `FE`  | `[ ]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
 | MKT-FE-04 | `FE`  | `[ ]`  | Edit listing screen     | Reuse create form, pre-filled with existing data, image management                                                   |
 | MKT-FE-05 | `FE`  | `[ ]`  | My listings screen      | Show all user's listings (including hidden), edit/delete/hide actions                                                |
@@ -188,7 +189,7 @@
 | ID        | Layer | Status | Title                      | Notes                                                               |
 | --------- | ----- | ------ | -------------------------- | ------------------------------------------------------------------- |
 | MKT-FE-15 | `FE`  | `[ ]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload |
-| MKT-FE-16 | `FE`  | `[ ]`  | Image carousel on detail   | Swipeable carousel for multiple images                              |
+| MKT-FE-16 | `FE`  | `[x]`  | Image carousel on detail   | Swipeable carousel for multiple images. Landed as part of MKT-FE-02's detail screen (PageView + dot-indicator) rather than as separate work |
 | MKT-FE-17 | `FE`  | `[ ]`  | Image upload progress      | Show upload progress/loading state                                  |
 
 ### 9.9 Frontend — Data Models & Repositories

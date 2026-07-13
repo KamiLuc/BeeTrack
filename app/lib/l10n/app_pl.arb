@@ -112,6 +112,20 @@
   "marketplaceCategoryPropolis": "Propolis",
   "marketplaceCategoryServices": "Usługi",
   "marketplaceCategoryOther": "Inne",
+  "marketplaceFavoriteAdd": "Dodaj do ulubionych",
+  "marketplaceFavoriteRemove": "Usuń z ulubionych",
+  "marketplaceDescriptionLabel": "Opis",
+  "marketplaceContactLabel": "Kontakt",
+  "marketplaceApiaryLabel": "Pasieka powiązana z ogłoszeniem",
+  "marketplaceQuantityLabel": "Ilość",
+  "marketplacePostedOn": "Dodano {date}",
+  "@marketplacePostedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "apiaryMapTitle": "Mapa pasiek",
   "apiaryMapTooltip": "Pokaż na mapie",
   "apiaryCopy": "Skopiuj pasiekę",

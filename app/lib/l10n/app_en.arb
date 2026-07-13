@@ -112,6 +112,20 @@
   "marketplaceCategoryPropolis": "Propolis",
   "marketplaceCategoryServices": "Services",
   "marketplaceCategoryOther": "Other",
+  "marketplaceFavoriteAdd": "Add to favorites",
+  "marketplaceFavoriteRemove": "Remove from favorites",
+  "marketplaceDescriptionLabel": "Description",
+  "marketplaceContactLabel": "Contact",
+  "marketplaceApiaryLabel": "Listed from apiary",
+  "marketplaceQuantityLabel": "Quantity",
+  "marketplacePostedOn": "Posted on {date}",
+  "@marketplacePostedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "apiaryMapTitle": "Apiaries map",
   "apiaryMapTooltip": "Show on map",
   "apiaryCopy": "Copy apiary",
