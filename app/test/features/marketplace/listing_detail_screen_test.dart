@@ -18,6 +18,23 @@ import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+/// Solves the delete-confirmation math puzzle (see `showDeleteDialog` /
+/// `withPuzzle: true`) by reading the displayed "a + b = " prompt, typing
+/// the sum, and tapping the confirm button.
+Future<void> _solveDeletePuzzle(
+  WidgetTester tester,
+  AppLocalizations l10n,
+) async {
+  final prompt = tester
+      .widgetList<Text>(find.byType(Text))
+      .firstWhere((t) => RegExp(r'^\d+ \+ \d+ = $').hasMatch(t.data ?? ''));
+  final match = RegExp(r'^(\d+) \+ (\d+) = $').firstMatch(prompt.data!)!;
+  final sum = int.parse(match.group(1)!) + int.parse(match.group(2)!);
+  await tester.enterText(find.byType(TextField), '$sum');
+  await tester.tap(find.text(l10n.generalDelete).last);
+  await tester.pumpAndSettle();
+}
+
 /// Builds a minimal (unsigned) JWT carrying the given `sub` claim, so
 /// [TokenStorage.userId] can be exercised without a real auth flow.
 String _jwtWithSub(int sub) {
@@ -74,6 +91,23 @@ class _RecordingAdapter implements HttpClientAdapter {
         refetchedListingJson != null) {
       return ResponseBody.fromString(
         jsonEncode(refetchedListingJson),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (RegExp(r'/listings/\d+$').hasMatch(options.path) &&
+        options.method == 'DELETE') {
+      if (failMutations) {
+        throw DioException(
+          requestOptions: options,
+          response: Response(requestOptions: options, statusCode: 500),
+        );
+      }
+      return ResponseBody.fromString(
+        jsonEncode({}),
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -420,7 +454,7 @@ void main() {
       },
     );
 
-    testWidgets('non-owner: no edit button shown', (tester) async {
+    testWidgets('non-owner: no edit or delete button shown', (tester) async {
       final (apiClient, _) = await _fakeApiClient(userId: 99);
 
       await tester.pumpWidget(
@@ -429,6 +463,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
     });
 
     testWidgets('owner: no favorite icon shown — cannot favorite own listing', (
@@ -511,6 +546,113 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Updated Title'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'owner: delete button requires solving the confirmation puzzle, then '
+      'pops back',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ListingDetailScreen(listing: listing),
+                      ),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        expect(find.byType(ListingDetailScreen), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.delete_outline));
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceDeleteConfirm), findsOneWidget);
+
+        // Cancelling must not delete anything.
+        await tester.tap(find.text(l10n.generalCancel));
+        await tester.pumpAndSettle();
+        expect(find.byType(ListingDetailScreen), findsOneWidget);
+        expect(adapter.requests.any((r) => r.method == 'DELETE'), isFalse);
+
+        await tester.tap(find.byIcon(Icons.delete_outline));
+        await tester.pumpAndSettle();
+        await _solveDeletePuzzle(tester, l10n);
+
+        expect(find.byType(ListingDetailScreen), findsNothing);
+        expect(
+          adapter.requests.any(
+            (r) =>
+                r.method == 'DELETE' &&
+                r.path.contains('/listings/${listing.id}'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'owner: wrong puzzle answer shows an error and does not delete',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.delete_outline));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), '-1');
+        await tester.tap(find.text(l10n.generalDelete).last);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.deletePuzzleWrong), findsOneWidget);
+        expect(find.byType(ListingDetailScreen), findsOneWidget);
+        expect(adapter.requests.any((r) => r.method == 'DELETE'), isFalse);
+      },
+    );
+
+    testWidgets(
+      'owner: delete failure shows an error snackbar and stays on screen',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        adapter.failMutations = true;
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.delete_outline));
+        await tester.pumpAndSettle();
+        await _solveDeletePuzzle(tester, l10n);
+
+        expect(find.byType(ListingDetailScreen), findsOneWidget);
+        expect(find.text(l10n.generalError), findsOneWidget);
       },
     );
   });

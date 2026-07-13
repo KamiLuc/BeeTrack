@@ -20,6 +20,23 @@ import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+/// Solves the delete-confirmation math puzzle (see `showDeleteDialog` /
+/// `withPuzzle: true`) by reading the displayed "a + b = " prompt, typing
+/// the sum, and tapping the confirm button.
+Future<void> _solveDeletePuzzle(
+  WidgetTester tester,
+  AppLocalizations l10n,
+) async {
+  final prompt = tester
+      .widgetList<Text>(find.byType(Text))
+      .firstWhere((t) => RegExp(r'^\d+ \+ \d+ = $').hasMatch(t.data ?? ''));
+  final match = RegExp(r'^(\d+) \+ (\d+) = $').firstMatch(prompt.data!)!;
+  final sum = int.parse(match.group(1)!) + int.parse(match.group(2)!);
+  await tester.enterText(find.byType(TextField), '$sum');
+  await tester.tap(find.text(l10n.generalDelete).last);
+  await tester.pumpAndSettle();
+}
+
 /// Records requests and serves configurable responses for the endpoints
 /// MyListingsScreen and its actions call.
 class _RecordingAdapter implements HttpClientAdapter {
@@ -325,8 +342,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.generalDelete));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.generalDelete).last);
-      await tester.pumpAndSettle();
+      await _solveDeletePuzzle(tester, l10n);
 
       expect(find.text('Wildflower Honey'), findsNothing);
       expect(find.text(l10n.myListingsEmpty), findsOneWidget);
@@ -349,13 +365,57 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text(l10n.generalDelete));
         await tester.pumpAndSettle();
-        await tester.tap(find.text(l10n.generalDelete).last);
-        await tester.pumpAndSettle();
+        await _solveDeletePuzzle(tester, l10n);
 
         final searchRequests = adapter.requests.where(
           (r) => r.path.endsWith('/listings') && r.method == 'GET',
         );
         expect(searchRequests.last.queryParameters['offset'], 0);
+      },
+    );
+
+    testWidgets(
+      'wrong puzzle answer shows an error and does not delete',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.generalDelete));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), '-1');
+        await tester.tap(find.text(l10n.generalDelete).last);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.deletePuzzleWrong), findsOneWidget);
+        expect(find.text('Wildflower Honey'), findsOneWidget);
+        expect(adapter.requests.any((r) => r.method == 'DELETE'), isFalse);
+      },
+    );
+
+    testWidgets(
+      'delete failure shows an error snackbar and keeps the card',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+        adapter.failMutations = true;
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.generalDelete));
+        await tester.pumpAndSettle();
+        await _solveDeletePuzzle(tester, l10n);
+
+        expect(find.text('Wildflower Honey'), findsOneWidget);
+        expect(find.text(l10n.generalError), findsOneWidget);
       },
     );
   });

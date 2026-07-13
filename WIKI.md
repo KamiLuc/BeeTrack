@@ -554,14 +554,16 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   ├── MyListingsScreen (AppBar list icon, signed-in only)
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card
-  │   │   has a menu (edit / hide-show / delete); delete asks for confirmation first.
+  │   │   has a menu (edit / hide-show / delete); delete uses the math-puzzle
+  │   │   confirmation dialog.
   │   └── CreateListingScreen (edit, via card menu)
   └── ListingDetailScreen (tap a card)
       │   Image carousel with prev/next arrows; tapping an image opens a fullscreen
       │   swipeable viewer. Contact phone/email are hidden behind Call/Write buttons
       │   that reveal the value on tap. Favorite heart sits inline in the details card
-      │   (hidden when viewing your own listing) instead of the AppBar. Owners get an
-      │   edit button in a bottom amber banner instead of an AppBar icon.
+      │   (hidden when viewing your own listing) instead of the AppBar. Owners get
+      │   edit and delete buttons in a bottom amber banner instead of an AppBar icon;
+      │   delete uses the math-puzzle confirmation dialog.
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

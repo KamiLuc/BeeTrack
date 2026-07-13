@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/favorites_repository.dart';
@@ -106,6 +107,30 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ).getListing(_listing.id);
         if (mounted) setState(() => _listing = fresh);
       } catch (_) {}
+    }
+  }
+
+  Future<void> _delete() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDeleteDialog(
+      context,
+      title: l10n.marketplaceDeleteConfirm,
+      warning: l10n.marketplaceDeleteWarning,
+      l10n: l10n,
+      withPuzzle: true,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await ListingRepository(
+        api: context.read<ApiClient>(),
+      ).deleteListing(_listing.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.generalError)));
+      }
     }
   }
 
@@ -318,7 +343,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               ),
             ),
           ),
-          if (isOwner) _EditBanner(onEdit: _openEdit),
+          if (isOwner) _EditBanner(onEdit: _openEdit, onDelete: _delete),
         ],
       ),
     );
@@ -327,8 +352,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
 class _EditBanner extends StatelessWidget {
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _EditBanner({required this.onEdit});
+  const _EditBanner({required this.onEdit, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +391,12 @@ class _EditBanner extends StatelessWidget {
                     iconSize: 28,
                     tooltip: l10n.generalEdit,
                     onPressed: onEdit,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    iconSize: 28,
+                    tooltip: l10n.generalDelete,
+                    onPressed: onDelete,
                   ),
                 ],
               ),
