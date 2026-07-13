@@ -326,8 +326,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       if (v == null || v.trim().isEmpty) {
                         return l10n.marketplaceFieldPriceRequired;
                       }
-                      return double.tryParse(v.trim()) == null
-                          ? l10n.marketplaceFieldPriceInvalid
+                      final parsed = double.tryParse(v.trim());
+                      if (parsed == null) {
+                        return l10n.marketplaceFieldPriceInvalid;
+                      }
+                      return parsed >= 100000000
+                          ? l10n.marketplaceFieldPriceTooLarge
                           : null;
                     },
                   ),
@@ -352,12 +356,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     l10n.marketplaceContactLabel,
                     style: textTheme.titleSmall
                         ?.copyWith(color: colorScheme.primary),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.marketplaceContactRequired,
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(

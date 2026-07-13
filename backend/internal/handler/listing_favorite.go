@@ -23,6 +23,8 @@ func listingFavoriteError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrListingNotFound):
 		respond.Error(w, http.StatusNotFound, "LISTING_NOT_FOUND", "listing not found")
+	case errors.Is(err, service.ErrCannotFavoriteOwnListing):
+		respond.Error(w, http.StatusForbidden, "CANNOT_FAVORITE_OWN_LISTING", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

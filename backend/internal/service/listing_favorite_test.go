@@ -105,8 +105,23 @@ func TestFavoriteAdd_HiddenOwner(t *testing.T) {
 	reader := &mockFavoriteListingReader{listing: &model.Listing{ID: 5, UserID: 3, IsHidden: true}}
 	svc := newFavoriteSvc(store, reader)
 
-	if err := svc.Add(context.Background(), 3, 5); err != nil {
-		t.Fatalf("owner should be able to favorite own hidden listing, got %v", err)
+	err := svc.Add(context.Background(), 3, 5)
+	if err != ErrCannotFavoriteOwnListing {
+		t.Errorf("expected ErrCannotFavoriteOwnListing, got %v", err)
+	}
+}
+
+func TestFavoriteAdd_OwnListing(t *testing.T) {
+	store := &mockFavoriteStore{}
+	reader := &mockFavoriteListingReader{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newFavoriteSvc(store, reader)
+
+	err := svc.Add(context.Background(), 3, 5)
+	if err != ErrCannotFavoriteOwnListing {
+		t.Errorf("expected ErrCannotFavoriteOwnListing, got %v", err)
+	}
+	if store.added != nil {
+		t.Error("expected no favorite to be added")
 	}
 }
 

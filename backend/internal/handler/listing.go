@@ -111,6 +111,8 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "TOO_MANY_IMAGES", err.Error())
 	case errors.Is(err, service.ErrListingDescriptionTooLong):
 		respond.Error(w, http.StatusBadRequest, "DESCRIPTION_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingPriceTooLarge):
+		respond.Error(w, http.StatusBadRequest, "PRICE_TOO_LARGE", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

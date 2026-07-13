@@ -23,11 +23,7 @@ class _MockAuthRepository extends Mock implements AuthRepository {}
 String _jwtWithSub(int sub) {
   String segment(Object data) =>
       base64Url.encode(utf8.encode(jsonEncode(data))).replaceAll('=', '');
-  return '${segment({
-        'alg': 'none'
-      })}.${segment({
-        'sub': sub
-      })}.signature';
+  return '${segment({'alg': 'none'})}.${segment({'sub': sub})}.signature';
 }
 
 /// Records requests and returns configurable responses so favorite
@@ -136,22 +132,21 @@ Widget _wrap(
   Widget child, {
   required ApiClient apiClient,
   AuthBloc? authBloc,
-}) =>
-    RepositoryProvider<ApiClient>.value(
-      value: apiClient,
-      child: RepositoryProvider<TokenStorage>.value(
-        value: _tokenStorage,
-        child: BlocProvider<AuthBloc>.value(
-          value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            locale: const Locale('en'),
-            home: child,
-          ),
-        ),
+}) => RepositoryProvider<ApiClient>.value(
+  value: apiClient,
+  child: RepositoryProvider<TokenStorage>.value(
+    value: _tokenStorage,
+    child: BlocProvider<AuthBloc>.value(
+      value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: child,
       ),
-    );
+    ),
+  ),
+);
 
 Listing _listing({
   int id = 1,
@@ -159,269 +154,364 @@ Listing _listing({
   List<ListingImage> images = const [],
   double? price = 42.5,
   String category = 'honey',
-}) =>
-    Listing(
-      id: id,
-      userId: 5,
-      title: 'Wildflower Honey',
-      description: 'Fresh honey from the meadow.',
-      category: category,
-      price: price,
-      quantity: '10 jars',
-      address: 'Krakow',
-      apiaryName: apiaryName,
-      contactPhone: '123456789',
-      contactEmail: 'seller@example.com',
-      isHidden: false,
-      createdAt: DateTime(2026, 5, 1),
-      updatedAt: DateTime(2026, 5, 1),
-      images: images,
-    );
+}) => Listing(
+  id: id,
+  userId: 5,
+  title: 'Wildflower Honey',
+  description: 'Fresh honey from the meadow.',
+  category: category,
+  price: price,
+  quantity: '10 jars',
+  address: 'Krakow',
+  apiaryName: apiaryName,
+  contactPhone: '123456789',
+  contactEmail: 'seller@example.com',
+  isHidden: false,
+  createdAt: DateTime(2026, 5, 1),
+  updatedAt: DateTime(2026, 5, 1),
+  images: images,
+);
 
 Map<String, dynamic> _listingJson(Listing listing) => {
-      'id': listing.id,
-      'user_id': listing.userId,
-      'title': listing.title,
-      'description': listing.description,
-      'category': listing.category,
-      'price': listing.price,
-      'quantity': listing.quantity,
-      'address': listing.address,
-      'apiary_name': listing.apiaryName,
-      'contact_phone': listing.contactPhone,
-      'contact_email': listing.contactEmail,
-      'is_hidden': listing.isHidden,
-      'created_at': listing.createdAt.toIso8601String(),
-      'updated_at': listing.updatedAt.toIso8601String(),
-      'images': const [],
-    };
+  'id': listing.id,
+  'user_id': listing.userId,
+  'title': listing.title,
+  'description': listing.description,
+  'category': listing.category,
+  'price': listing.price,
+  'quantity': listing.quantity,
+  'address': listing.address,
+  'apiary_name': listing.apiaryName,
+  'contact_phone': listing.contactPhone,
+  'contact_email': listing.contactEmail,
+  'is_hidden': listing.isHidden,
+  'created_at': listing.createdAt.toIso8601String(),
+  'updated_at': listing.updatedAt.toIso8601String(),
+  'images': const [],
+};
 
 void main() {
   group('ListingDetailScreen', () {
-    testWidgets('renders listing title, price, chips, description and contact',
-        (tester) async {
+    testWidgets(
+      'renders listing title, price, chips and description; contact is '
+      'revealed on tap',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient();
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Wildflower Honey'), findsWidgets);
+        expect(find.text('42.50'), findsOneWidget);
+        expect(find.text('Krakow'), findsOneWidget);
+        expect(find.textContaining('10 jars'), findsOneWidget);
+        expect(find.text('Fresh honey from the meadow.'), findsOneWidget);
+
+        expect(find.text('123456789'), findsNothing);
+        expect(find.text('seller@example.com'), findsNothing);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Call'));
+        await tester.pumpAndSettle();
+        expect(find.text('123456789'), findsOneWidget);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Write'));
+        await tester.pumpAndSettle();
+        expect(find.text('seller@example.com'), findsOneWidget);
+      },
+    );
+
+    testWidgets('shows "Free" instead of "0.00" when price is 0', (
+      tester,
+    ) async {
       final (apiClient, _) = await _fakeApiClient();
-      final listing = _listing();
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: listing),
-        apiClient: apiClient,
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Wildflower Honey'), findsWidgets);
-      expect(find.text('42.50'), findsOneWidget);
-      expect(find.text('Krakow'), findsOneWidget);
-      expect(find.textContaining('10 jars'), findsOneWidget);
-      expect(find.text('Fresh honey from the meadow.'), findsOneWidget);
-      expect(find.text('123456789'), findsOneWidget);
-      expect(find.text('seller@example.com'), findsOneWidget);
-    });
-
-    testWidgets('shows "Free" instead of "0.00" when price is 0', (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
-
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing(price: 0)),
-        apiClient: apiClient,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          ListingDetailScreen(listing: _listing(price: 0)),
+          apiClient: apiClient,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Free'), findsOneWidget);
       expect(find.text('0.00'), findsNothing);
     });
 
-    testWidgets('shows apiary section only when apiaryName is set',
-        (tester) async {
+    testWidgets('shows apiary section only when apiaryName is set', (
+      tester,
+    ) async {
       final (apiClient, _) = await _fakeApiClient();
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing(apiaryName: 'Sunny Meadow')),
-        apiClient: apiClient,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          ListingDetailScreen(listing: _listing(apiaryName: 'Sunny Meadow')),
+          apiClient: apiClient,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Sunny Meadow'), findsOneWidget);
 
       final (apiClient2, _) = await _fakeApiClient();
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient2,
-      ));
+      await tester.pumpWidget(
+        _wrap(ListingDetailScreen(listing: _listing()), apiClient: apiClient2),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Sunny Meadow'), findsNothing);
     });
 
-    testWidgets('shows placeholder icon when listing has no images',
-        (tester) async {
+    testWidgets('shows placeholder icon when listing has no images', (
+      tester,
+    ) async {
       final (apiClient, _) = await _fakeApiClient();
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient,
-      ));
+      await tester.pumpWidget(
+        _wrap(ListingDetailScreen(listing: _listing()), apiClient: apiClient),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
       expect(find.byType(PageView), findsNothing);
     });
 
-    testWidgets('shows carousel with dot indicators for multiple images',
-        (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
-      final images = [
-        ListingImage(
-          id: 1,
-          listingId: 1,
-          url: '/uploads/a.jpg',
-          displayOrder: 0,
-          createdAt: DateTime(2026, 1, 1),
-        ),
-        ListingImage(
-          id: 2,
-          listingId: 1,
-          url: '/uploads/b.jpg',
-          displayOrder: 1,
-          createdAt: DateTime(2026, 1, 1),
-        ),
-      ];
+    testWidgets(
+      'shows carousel with nav arrows and expand button for multiple images',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient();
+        final images = [
+          ListingImage(
+            id: 1,
+            listingId: 1,
+            url: '/uploads/a.jpg',
+            displayOrder: 0,
+            createdAt: DateTime(2026, 1, 1),
+          ),
+          ListingImage(
+            id: 2,
+            listingId: 1,
+            url: '/uploads/b.jpg',
+            displayOrder: 1,
+            createdAt: DateTime(2026, 1, 1),
+          ),
+        ];
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing(images: images)),
-        apiClient: apiClient,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing(images: images)),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(PageView), findsOneWidget);
-      expect(find.byIcon(Icons.image_not_supported_outlined), findsNothing);
-    });
+        expect(find.byType(PageView), findsOneWidget);
+        expect(find.byIcon(Icons.image_not_supported_outlined), findsNothing);
+        expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+        expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+        expect(find.byIcon(Icons.open_in_full), findsOneWidget);
 
-    testWidgets('unauthenticated: no favorite action shown in AppBar',
-        (tester) async {
+        await tester.tap(find.byIcon(Icons.open_in_full));
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets('unauthenticated: no favorite action shown in AppBar', (
+      tester,
+    ) async {
       final (apiClient, _) = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          ListingDetailScreen(listing: _listing()),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.favorite), findsNothing);
       expect(find.byIcon(Icons.favorite_border), findsNothing);
     });
 
-    testWidgets('authenticated: shows favorite icon and reflects existing favorite',
-        (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      final listing = _listing();
-      adapter.favoriteItems = [_listingJson(listing)];
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
+    testWidgets(
+      'authenticated: shows favorite icon and reflects existing favorite',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        final listing = _listing();
+        adapter.favoriteItems = [_listingJson(listing)];
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: listing),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: listing),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.favorite), findsOneWidget);
-    });
+        expect(find.byIcon(Icons.favorite), findsOneWidget);
+      },
+    );
 
-    testWidgets('authenticated: tapping favorite toggles icon and calls add endpoint',
-        (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
+    testWidgets(
+      'authenticated: tapping favorite toggles icon and calls add endpoint',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing()),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+        expect(find.byIcon(Icons.favorite_border), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.favorite_border));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.favorite_border));
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.favorite), findsOneWidget);
-      expect(
-        adapter.requests.any((r) =>
-            r.method == 'POST' && r.path.contains('/listings/1/favorite')),
-        isTrue,
-      );
-    });
+        expect(find.byIcon(Icons.favorite), findsOneWidget);
+        expect(
+          adapter.requests.any(
+            (r) =>
+                r.method == 'POST' && r.path.contains('/listings/1/favorite'),
+          ),
+          isTrue,
+        );
+      },
+    );
 
-    testWidgets('authenticated: failed toggle rolls back icon and shows snackbar',
-        (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      adapter.failMutations = true;
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
+    testWidgets(
+      'authenticated: failed toggle rolls back icon and shows snackbar',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.failMutations = true;
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing()),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.favorite_border));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.favorite_border));
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
-      expect(find.byType(SnackBar), findsOneWidget);
-    });
+        expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+        expect(find.byType(SnackBar), findsOneWidget);
+      },
+    );
 
-    testWidgets('non-owner: no edit icon shown in AppBar', (tester) async {
+    testWidgets('non-owner: no edit button shown', (tester) async {
       final (apiClient, _) = await _fakeApiClient(userId: 99);
 
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: _listing()),
-        apiClient: apiClient,
-      ));
+      await tester.pumpWidget(
+        _wrap(ListingDetailScreen(listing: _listing()), apiClient: apiClient),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
     });
 
-    testWidgets(
-        'owner: shows edit icon, opens CreateListingScreen prefilled, and '
-        'refetches the listing after a successful edit', (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient(userId: 5);
-      final listing = _listing(category: 'HONEY');
-      adapter.refetchedListingJson = _listingJson(listing).map(
-        (key, value) => MapEntry(
-          key,
-          key == 'title' ? 'Updated Title' : value,
+    testWidgets('owner: no favorite icon shown — cannot favorite own listing', (
+      tester,
+    ) async {
+      final (apiClient, _) = await _fakeApiClient(userId: 5);
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(
+        _wrap(
+          ListingDetailScreen(listing: _listing()),
+          apiClient: apiClient,
+          authBloc: authBloc,
         ),
       );
-
-      await tester.pumpWidget(_wrap(
-        ListingDetailScreen(listing: listing),
-        apiClient: apiClient,
-      ));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.edit_outlined));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Edit listing'), findsOneWidget);
-      expect(find.text('Wildflower Honey'), findsWidgets);
-
-      final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
-      await tester.ensureVisible(saveFinder);
-      await tester.tap(saveFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Updated Title'), findsWidgets);
+      expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(find.byIcon(Icons.favorite), findsNothing);
     });
+
+    testWidgets('non-owner: favorite icon is shown', (tester) async {
+      final (apiClient, _) = await _fakeApiClient(userId: 99);
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(
+        _wrap(
+          ListingDetailScreen(listing: _listing()),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+    });
+
+    testWidgets(
+      'owner: shows edit button at the bottom, opens CreateListingScreen '
+      'prefilled, and refetches the listing after a successful edit',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        final listing = _listing(category: 'HONEY');
+        adapter.refetchedListingJson = _listingJson(listing).map(
+          (key, value) =>
+              MapEntry(key, key == 'title' ? 'Updated Title' : value),
+        );
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byIcon(Icons.edit_outlined),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Scaffold && w.bottomNavigationBar != null,
+          ),
+          findsNothing,
+        );
+
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit listing'), findsOneWidget);
+        expect(find.text('Wildflower Honey'), findsWidgets);
+
+        final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Updated Title'), findsWidgets);
+      },
+    );
   });
 }

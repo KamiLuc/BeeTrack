@@ -21,6 +21,14 @@ import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+/// Builds a minimal (unsigned) JWT carrying the given `sub` claim, so
+/// [TokenStorage.userId] can be exercised without a real auth flow.
+String _jwtWithSub(int sub) {
+  String segment(Object data) =>
+      base64Url.encode(utf8.encode(jsonEncode(data))).replaceAll('=', '');
+  return '${segment({'alg': 'none'})}.${segment({'sub': sub})}.signature';
+}
+
 /// Fails every request synchronously so tests never leave a pending network
 /// timer behind when MarketplaceHomeScreen eagerly loads listings.
 class _FailingHttpClientAdapter implements HttpClientAdapter {
@@ -54,9 +62,10 @@ Future<ApiClient> _fakeApiClient() async {
 /// Returns a single listing for `/api/v1/listings` so tap-to-navigate can be
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
-  _ListingsHttpClientAdapter({this.price = 20.0});
+  _ListingsHttpClientAdapter({this.price = 20.0, this.total = 1});
 
   final double? price;
+  final int total;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -92,9 +101,9 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
               'created_at': DateTime(2026, 1, 1).toIso8601String(),
               'updated_at': DateTime(2026, 1, 1).toIso8601String(),
               'images': [],
-            }
+            },
           ],
-          'total': 1,
+          'total': total,
         }),
         200,
         headers: {
@@ -112,7 +121,9 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
   }
 }
 
-Future<ApiClient> _fakeApiClientWithListings({_ListingsHttpClientAdapter? adapter}) async {
+Future<ApiClient> _fakeApiClientWithListings({
+  _ListingsHttpClientAdapter? adapter,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   _tokenStorage = TokenStorage(prefs);
@@ -125,86 +136,97 @@ Widget _wrap(
   Widget child, {
   required ApiClient apiClient,
   AuthBloc? authBloc,
-}) =>
-    RepositoryProvider<ApiClient>.value(
-      value: apiClient,
-      child: RepositoryProvider<TokenStorage>.value(
-        value: _tokenStorage,
-        child: BlocProvider<AuthBloc>.value(
-          value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            locale: const Locale('en'),
-            home: child,
-          ),
-        ),
+}) => RepositoryProvider<ApiClient>.value(
+  value: apiClient,
+  child: RepositoryProvider<TokenStorage>.value(
+    value: _tokenStorage,
+    child: BlocProvider<AuthBloc>.value(
+      value: authBloc ?? AuthBloc(auth: _MockAuthRepository()),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: child,
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   group('MarketplaceHomeScreen', () {
-    testWidgets('unauthenticated: shows marketplace and drawer with login option',
-        (tester) async {
-      final apiClient = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository());
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'unauthenticated: shows marketplace and drawer with login option',
+      (tester) async {
+        final apiClient = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Marketplace'), findsOneWidget);
+        expect(find.text('Marketplace'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open navigation menu'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Open navigation menu'));
+        await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(ListTile, 'Log in'), findsOneWidget);
-      expect(find.widgetWithText(ListTile, 'Apiaries'), findsOneWidget);
-    });
+        expect(find.widgetWithText(ListTile, 'Log in'), findsOneWidget);
+        expect(find.widgetWithText(ListTile, 'Apiaries'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-        'unauthenticated: while browsing, Marketplace tile is selected and '
-        'locked Apiaries tile is not, and tapping Apiaries calls onLogin',
-        (tester) async {
+      'unauthenticated: while browsing, Marketplace tile is selected and '
+      'locked Apiaries tile is not, and tapping Apiaries calls onLogin',
+      (tester) async {
+        final apiClient = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+        var loginTapped = false;
+        await tester.pumpWidget(
+          _wrap(
+            MarketplaceHomeScreen(onLogin: () => loginTapped = true),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('Open navigation menu'));
+        await tester.pumpAndSettle();
+
+        final apiariesTile = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Apiaries'),
+        );
+        expect(apiariesTile.selected, isFalse);
+
+        final marketplaceTile = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Marketplace'),
+        );
+        expect(marketplaceTile.selected, isTrue);
+
+        await tester.tap(find.widgetWithText(ListTile, 'Apiaries'));
+        await tester.pumpAndSettle();
+
+        expect(loginTapped, isTrue);
+      },
+    );
+
+    testWidgets('unauthenticated: tapping Log in invokes onLogin callback', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
       var loginTapped = false;
-      await tester.pumpWidget(_wrap(
-        MarketplaceHomeScreen(onLogin: () => loginTapped = true),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byTooltip('Open navigation menu'));
-      await tester.pumpAndSettle();
-
-      final apiariesTile =
-          tester.widget<ListTile>(find.widgetWithText(ListTile, 'Apiaries'));
-      expect(apiariesTile.selected, isFalse);
-
-      final marketplaceTile = tester
-          .widget<ListTile>(find.widgetWithText(ListTile, 'Marketplace'));
-      expect(marketplaceTile.selected, isTrue);
-
-      await tester.tap(find.widgetWithText(ListTile, 'Apiaries'));
-      await tester.pumpAndSettle();
-
-      expect(loginTapped, isTrue);
-    });
-
-    testWidgets('unauthenticated: tapping Log in invokes onLogin callback',
-        (tester) async {
-      final apiClient = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository());
-      var loginTapped = false;
-      await tester.pumpWidget(_wrap(
-        MarketplaceHomeScreen(onLogin: () => loginTapped = true),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          MarketplaceHomeScreen(onLogin: () => loginTapped = true),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Open navigation menu'));
@@ -216,17 +238,20 @@ void main() {
       expect(loginTapped, isTrue);
     });
 
-    testWidgets('authenticated: shows marketplace with apiaries option',
-        (tester) async {
+    testWidgets('authenticated: shows marketplace with apiaries option', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository())
         ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Marketplace'), findsOneWidget);
@@ -238,18 +263,19 @@ void main() {
       expect(find.widgetWithText(ListTile, 'Log out'), findsOneWidget);
     });
 
-    testWidgets('re-selecting marketplace just closes drawer',
-        (tester) async {
+    testWidgets('re-selecting marketplace just closes drawer', (tester) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository())
         ..emit(AuthAuthenticated());
       var selected = <AppSection>[];
 
-      await tester.pumpWidget(_wrap(
-        MarketplaceHomeScreen(onSelectSection: selected.add),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          MarketplaceHomeScreen(onSelectSection: selected.add),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Open navigation menu'));
@@ -263,41 +289,47 @@ void main() {
     });
 
     testWidgets(
-        'authenticated: selecting apiaries from drawer invokes onSelectSection',
-        (tester) async {
-      final apiClient = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
-      var selected = <AppSection>[];
+      'authenticated: selecting apiaries from drawer invokes onSelectSection',
+      (tester) async {
+        final apiClient = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+        var selected = <AppSection>[];
 
-      await tester.pumpWidget(_wrap(
-        MarketplaceHomeScreen(onSelectSection: selected.add),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            MarketplaceHomeScreen(onSelectSection: selected.add),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Open navigation menu'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Open navigation menu'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(ListTile, 'Apiaries'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(ListTile, 'Apiaries'));
+        await tester.pumpAndSettle();
 
-      expect(selected, [AppSection.apiaries]);
-    });
+        expect(selected, [AppSection.apiaries]);
+      },
+    );
 
-    testWidgets('authenticated: tapping Log out dispatches LogoutRequested',
-        (tester) async {
+    testWidgets('authenticated: tapping Log out dispatches LogoutRequested', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final repo = _MockAuthRepository();
       when(() => repo.logout()).thenAnswer((_) async {});
       final authBloc = AuthBloc(auth: repo)..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Open navigation menu'));
@@ -309,31 +341,41 @@ void main() {
       expect(authBloc.state, isA<AuthUnauthenticated>());
     });
 
-    testWidgets('shows retry option when listings fail to load', (tester) async {
+    testWidgets('shows retry option when listings fail to load', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.text('Something went wrong. Please try again.'), findsOneWidget);
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsOneWidget,
+      );
       expect(find.widgetWithText(ElevatedButton, 'Retry'), findsOneWidget);
     });
 
-    testWidgets('tapping a listing card navigates to ListingDetailScreen',
-        (tester) async {
+    testWidgets('tapping a listing card navigates to ListingDetailScreen', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClientWithListings();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Wildflower Honey'), findsOneWidget);
@@ -344,10 +386,11 @@ void main() {
       expect(find.byType(ListingDetailScreen), findsOneWidget);
     });
 
-    testWidgets('listing card shows "Free" instead of "0.00" when price is 0',
-        (tester) async {
-      final apiClient =
-          await _fakeApiClientWithListings(adapter: _ListingsHttpClientAdapter(price: 0));
+    testWidgets(
+        'reloads the feed after returning from ListingDetailScreen (so an '
+        'edit is reflected)', (tester) async {
+      final adapter = _ListingsHttpClientAdapter();
+      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
       await tester.pumpWidget(_wrap(
@@ -355,165 +398,319 @@ void main() {
         apiClient: apiClient,
         authBloc: authBloc,
       ));
+      await tester.pumpAndSettle();
+
+      expect(adapter.listingsRequestCount, 1);
+
+      await tester.tap(find.text('Wildflower Honey'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ListingDetailScreen), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListingDetailScreen), findsNothing);
+      expect(adapter.listingsRequestCount, 2);
+    });
+
+    testWidgets('listing card shows "Free" instead of "0.00" when price is 0', (
+      tester,
+    ) async {
+      final apiClient = await _fakeApiClientWithListings(
+        adapter: _ListingsHttpClientAdapter(price: 0),
+      );
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Free'), findsOneWidget);
       expect(find.text('0.00'), findsNothing);
     });
 
-    testWidgets('unauthenticated: the create-listing "+" button is not shown',
-        (tester) async {
+    testWidgets('no pagination row when everything fits on one page', (
+      tester,
+    ) async {
+      final apiClient = await _fakeApiClientWithListings(
+        adapter: _ListingsHttpClientAdapter(total: 1),
+      );
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.chevron_left), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+    });
+
+    testWidgets(
+      'shows numbered pagination and requests the right offset when a page '
+      'is tapped',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter(total: 45);
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // total: 45, pageSize: 20 -> 3 pages.
+        expect(find.text('1'), findsOneWidget);
+        expect(find.text('2'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+
+        await tester.tap(find.text('2'));
+        await tester.pumpAndSettle();
+
+        final lastRequest = adapter.listingsRequests.last;
+        expect(lastRequest.queryParameters['offset'], 20);
+        expect(lastRequest.queryParameters['limit'], 20);
+      },
+    );
+
+    testWidgets('non-owner: favorite heart is shown on the listing card', (
+      tester,
+    ) async {
+      final apiClient = await _fakeApiClientWithListings();
+      await _tokenStorage.save(access: _jwtWithSub(99), refresh: 'refresh');
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+    });
+
+    testWidgets(
+      'owner: no favorite heart on the listing card — cannot favorite own '
+      'listing',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings();
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.favorite_border), findsNothing);
+        expect(find.byIcon(Icons.favorite), findsNothing);
+      },
+    );
+
+    testWidgets('unauthenticated: the create-listing "+" button is not shown', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.add), findsNothing);
     });
 
     testWidgets(
-        'authenticated: tapping the "+" button opens CreateListingScreen '
-        'and refreshes the feed on return', (tester) async {
-      final adapter = _ListingsHttpClientAdapter();
-      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
+      'authenticated: tapping the "+" button opens CreateListingScreen '
+      'and refreshes the feed on return',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(adapter.listingsRequestCount, 1);
+        expect(adapter.listingsRequestCount, 1);
 
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.add));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CreateListingScreen), findsOneWidget);
+        expect(find.byType(CreateListingScreen), findsOneWidget);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+        await tester.pageBack();
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CreateListingScreen), findsNothing);
-      expect(adapter.listingsRequestCount, 2);
-    });
+        expect(find.byType(CreateListingScreen), findsNothing);
+        expect(adapter.listingsRequestCount, 2);
+      },
+    );
 
     testWidgets(
-        'the map button is shown in the bottom banner regardless of auth '
-        'and stays disabled', (tester) async {
+      'the map button is shown in the bottom banner regardless of auth '
+      'and stays disabled',
+      (tester) async {
+        final apiClient = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final mapButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.map_outlined),
+        );
+        expect(mapButton.onPressed, isNull);
+      },
+    );
+
+    testWidgets(
+      'authenticated: the "+" button is shown next to the map button in '
+      'the bottom banner',
+      (tester) async {
+        final apiClient = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.add), findsOneWidget);
+        expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'typing in the search field debounces and calls setKeyword without '
+      'pressing enter',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(adapter.listingsRequestCount, 1);
+
+        await tester.enterText(find.byType(TextField), 'honey');
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(adapter.listingsRequestCount, 1);
+
+        await tester.pump(const Duration(milliseconds: 250));
+        await tester.pump();
+        expect(adapter.listingsRequestCount, 2);
+        expect(
+          adapter.listingsRequests.last.queryParameters['keyword'],
+          'honey',
+        );
+      },
+    );
+
+    testWidgets('unauthenticated: the "My listings" icon is not shown', (
+      tester,
+    ) async {
       final apiClient = await _fakeApiClient();
       final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
-
-      final mapButton = tester.widget<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.map_outlined),
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
       );
-      expect(mapButton.onPressed, isNull);
-    });
-
-    testWidgets(
-        'authenticated: the "+" button is shown next to the map button in '
-        'the bottom banner', (tester) async {
-      final apiClient = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
-
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(find.byIcon(Icons.map_outlined), findsOneWidget);
-    });
-
-    testWidgets(
-        'typing in the search field debounces and calls setKeyword without '
-        'pressing enter', (tester) async {
-      final adapter = _ListingsHttpClientAdapter();
-      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
-      final authBloc = AuthBloc(auth: _MockAuthRepository());
-
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
-
-      expect(adapter.listingsRequestCount, 1);
-
-      await tester.enterText(find.byType(TextField), 'honey');
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(adapter.listingsRequestCount, 1);
-
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pump();
-      expect(adapter.listingsRequestCount, 2);
-      expect(adapter.listingsRequests.last.queryParameters['keyword'], 'honey');
-    });
-
-    testWidgets('unauthenticated: the "My listings" icon is not shown',
-        (tester) async {
-      final apiClient = await _fakeApiClient();
-      final authBloc = AuthBloc(auth: _MockAuthRepository());
-
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.list_alt_outlined), findsNothing);
     });
 
     testWidgets(
-        'authenticated: tapping the "My listings" icon opens MyListingsScreen '
-        'and refreshes the feed on return', (tester) async {
-      final adapter = _ListingsHttpClientAdapter();
-      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
-      final authBloc = AuthBloc(auth: _MockAuthRepository())
-        ..emit(AuthAuthenticated());
+      'authenticated: tapping the "My listings" icon opens MyListingsScreen '
+      'and refreshes the feed on return',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
 
-      await tester.pumpWidget(_wrap(
-        const MarketplaceHomeScreen(),
-        apiClient: apiClient,
-        authBloc: authBloc,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(adapter.listingsRequestCount, 1);
-      expect(find.byIcon(Icons.list_alt_outlined), findsOneWidget);
+        expect(adapter.listingsRequestCount, 1);
+        expect(find.byIcon(Icons.list_alt_outlined), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.list_alt_outlined));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.list_alt_outlined));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(MyListingsScreen), findsOneWidget);
-      // MyListingsScreen fetches its own listings on open.
-      expect(adapter.listingsRequestCount, 2);
+        expect(find.byType(MyListingsScreen), findsOneWidget);
+        // MyListingsScreen fetches its own listings on open.
+        expect(adapter.listingsRequestCount, 2);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+        await tester.pageBack();
+        await tester.pumpAndSettle();
 
-      expect(find.byType(MyListingsScreen), findsNothing);
-      // MarketplaceHomeScreen reloads its feed when the pushed route returns.
-      expect(adapter.listingsRequestCount, 3);
-    });
+        expect(find.byType(MyListingsScreen), findsNothing);
+        // MarketplaceHomeScreen reloads its feed when the pushed route returns.
+        expect(adapter.listingsRequestCount, 3);
+      },
+    );
   });
 }

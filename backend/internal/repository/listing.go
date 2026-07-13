@@ -99,10 +99,19 @@ func (r *ListingRepository) List(ctx context.Context, f ListingFilter) ([]*model
 		return nil, err
 	}
 	listings := make([]*model.Listing, len(rows))
+	ids := make([]int64, len(rows))
 	for i, row := range rows {
 		l := row.Listing
 		l.ApiaryName = row.ApiaryName
 		listings[i] = &l
+		ids[i] = l.ID
+	}
+	imagesByListingID, err := r.listImagesForListingIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range listings {
+		l.Images = imagesByListingID[l.ID]
 	}
 	return listings, nil
 }
@@ -192,6 +201,26 @@ func (r *ListingRepository) listImages(ctx context.Context, listingID int64) ([]
 		Order("display_order ASC").
 		Find(&images).Error
 	return images, err
+}
+
+// listImagesForListingIDs returns the images for the given listing ids, grouped by listing id
+// and ordered by display_order, in a single query.
+func (r *ListingRepository) listImagesForListingIDs(ctx context.Context, listingIDs []int64) (map[int64][]model.ListingImage, error) {
+	result := make(map[int64][]model.ListingImage, len(listingIDs))
+	if len(listingIDs) == 0 {
+		return result, nil
+	}
+	var images []model.ListingImage
+	if err := r.db.WithContext(ctx).
+		Where("listing_id IN ?", listingIDs).
+		Order("display_order ASC").
+		Find(&images).Error; err != nil {
+		return nil, err
+	}
+	for _, img := range images {
+		result[img.ListingID] = append(result[img.ListingID], img)
+	}
+	return result, nil
 }
 
 // applyFilter adds the filter's WHERE clauses to an unaliased listings query.

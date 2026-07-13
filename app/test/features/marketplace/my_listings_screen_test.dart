@@ -25,6 +25,11 @@ class _MockAuthRepository extends Mock implements AuthRepository {}
 class _RecordingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   List<Map<String, dynamic>> listings = [];
+
+  /// When set, overrides the response's `total` (which otherwise defaults to
+  /// `listings.length`) so pagination can be exercised without needing 20+
+  /// fixture listings.
+  int? totalOverride;
   bool failSearch = false;
   bool failMutations = false;
 
@@ -40,14 +45,19 @@ class _RecordingAdapter implements HttpClientAdapter {
       if (failSearch) {
         throw DioException(requestOptions: options, message: 'search failed');
       }
-      return _json({'items': listings, 'total': listings.length});
+      return _json({
+        'items': listings,
+        'total': totalOverride ?? listings.length,
+      });
     }
 
     if (options.path.contains('/hide') && options.method == 'PATCH') {
       if (failMutations) {
         throw DioException(requestOptions: options, message: 'hide failed');
       }
-      final id = int.parse(RegExp(r'/listings/(\d+)/hide').firstMatch(options.path)!.group(1)!);
+      final id = int.parse(
+        RegExp(r'/listings/(\d+)/hide').firstMatch(options.path)!.group(1)!,
+      );
       final hidden = (options.data as Map<String, dynamic>)['hidden'] as bool;
       final listing = listings.firstWhere((l) => l['id'] == id);
       return _json({...listing, 'is_hidden': hidden});
@@ -58,6 +68,10 @@ class _RecordingAdapter implements HttpClientAdapter {
       if (failMutations) {
         throw DioException(requestOptions: options, message: 'delete failed');
       }
+      final id = int.parse(
+        RegExp(r'/listings/(\d+)$').firstMatch(options.path)!.group(1)!,
+      );
+      listings = listings.where((l) => l['id'] != id).toList();
       return _json({});
     }
 
@@ -70,12 +84,12 @@ class _RecordingAdapter implements HttpClientAdapter {
   }
 
   ResponseBody _json(Object? data) => ResponseBody.fromString(
-        jsonEncode(data),
-        200,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
-      );
+    jsonEncode(data),
+    200,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 
   @override
   void close({bool force = false}) {}
@@ -97,42 +111,41 @@ Future<(ApiClient, _RecordingAdapter)> _fakeApiClient() async {
 }
 
 Widget _wrap(ApiClient apiClient) => RepositoryProvider<ApiClient>.value(
-      value: apiClient,
-      child: RepositoryProvider<TokenStorage>.value(
-        value: _tokenStorage,
-        child: BlocProvider<AuthBloc>(
-          create: (_) => AuthBloc(auth: _MockAuthRepository()),
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            locale: const Locale('en'),
-            home: const MyListingsScreen(),
-          ),
-        ),
+  value: apiClient,
+  child: RepositoryProvider<TokenStorage>.value(
+    value: _tokenStorage,
+    child: BlocProvider<AuthBloc>(
+      create: (_) => AuthBloc(auth: _MockAuthRepository()),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: const MyListingsScreen(),
       ),
-    );
+    ),
+  ),
+);
 
 Map<String, dynamic> _listingJson({
   int id = 1,
   String title = 'Wildflower Honey',
   bool isHidden = false,
-}) =>
-    {
-      'id': id,
-      'user_id': 1,
-      'title': title,
-      'description': 'Fresh honey.',
-      'category': 'HONEY',
-      'price': 20.0,
-      'quantity': '5 jars',
-      'address': 'Krakow',
-      'contact_phone': '123456789',
-      'contact_email': 'seller@example.com',
-      'is_hidden': isHidden,
-      'created_at': DateTime(2026, 1, 1).toIso8601String(),
-      'updated_at': DateTime(2026, 1, 1).toIso8601String(),
-      'images': [],
-    };
+}) => {
+  'id': id,
+  'user_id': 1,
+  'title': title,
+  'description': 'Fresh honey.',
+  'category': 'HONEY',
+  'price': 20.0,
+  'quantity': '5 jars',
+  'address': 'Krakow',
+  'contact_phone': '123456789',
+  'contact_email': 'seller@example.com',
+  'is_hidden': isHidden,
+  'created_at': DateTime(2026, 1, 1).toIso8601String(),
+  'updated_at': DateTime(2026, 1, 1).toIso8601String(),
+  'images': [],
+};
 
 void main() {
   late AppLocalizations l10n;
@@ -141,8 +154,9 @@ void main() {
   });
 
   group('MyListingsScreen', () {
-    testWidgets('shows the empty state when the user has no listings',
-        (tester) async {
+    testWidgets('shows the empty state when the user has no listings', (
+      tester,
+    ) async {
       final (apiClient, _) = await _fakeApiClient();
 
       await tester.pumpWidget(_wrap(apiClient));
@@ -152,26 +166,30 @@ void main() {
     });
 
     testWidgets(
-        'shows a retry button on load failure, and retrying reloads the list',
-        (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      adapter.failSearch = true;
+      'shows a retry button on load failure, and retrying reloads the list',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.failSearch = true;
 
-      await tester.pumpWidget(_wrap(apiClient));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
 
-      expect(find.text(l10n.generalError), findsOneWidget);
+        expect(find.text(l10n.generalError), findsOneWidget);
 
-      adapter.failSearch = false;
-      adapter.listings = [_listingJson()];
-      await tester.tap(find.widgetWithText(ElevatedButton, l10n.generalRetry));
-      await tester.pumpAndSettle();
+        adapter.failSearch = false;
+        adapter.listings = [_listingJson()];
+        await tester.tap(
+          find.widgetWithText(ElevatedButton, l10n.generalRetry),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Wildflower Honey'), findsOneWidget);
-    });
+        expect(find.text('Wildflower Honey'), findsOneWidget);
+      },
+    );
 
-    testWidgets('renders a listing with the hidden badge when hidden',
-        (tester) async {
+    testWidgets('renders a listing with the hidden badge when hidden', (
+      tester,
+    ) async {
       final (apiClient, adapter) = await _fakeApiClient();
       adapter.listings = [_listingJson(isHidden: true)];
 
@@ -182,8 +200,49 @@ void main() {
       expect(find.text(l10n.marketplaceHiddenBadge), findsOneWidget);
     });
 
-    testWidgets('tapping a card does nothing — edit is only via the menu',
-        (tester) async {
+    testWidgets('no pagination banner when everything fits on one page', (
+      tester,
+    ) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      adapter.listings = [_listingJson()];
+
+      await tester.pumpWidget(_wrap(apiClient));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.chevron_left), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+    });
+
+    testWidgets(
+      'shows numbered pagination and requests the right offset when a '
+      'page is tapped',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+        adapter.totalOverride = 45;
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        // total: 45, pageSize: 20 -> 3 pages.
+        expect(find.text('1'), findsOneWidget);
+        expect(find.text('2'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+
+        await tester.tap(find.text('2'));
+        await tester.pumpAndSettle();
+
+        final lastRequest = adapter.requests
+            .where((r) => r.path.endsWith('/listings') && r.method == 'GET')
+            .last;
+        expect(lastRequest.queryParameters['offset'], 20);
+        expect(lastRequest.queryParameters['limit'], 20);
+      },
+    );
+
+    testWidgets('tapping a card does nothing — edit is only via the menu', (
+      tester,
+    ) async {
       final (apiClient, adapter) = await _fakeApiClient();
       adapter.listings = [_listingJson()];
 
@@ -199,22 +258,24 @@ void main() {
     });
 
     testWidgets(
-        'edit action opens CreateListingScreen prefilled and reloads on '
-        'successful edit', (tester) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      adapter.listings = [_listingJson()];
+      'edit action opens CreateListingScreen prefilled and reloads on '
+      'successful edit',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
 
-      await tester.pumpWidget(_wrap(apiClient));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.generalEdit));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.generalEdit));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CreateListingScreen), findsOneWidget);
-      expect(find.text(l10n.marketplaceEditScreenTitle), findsOneWidget);
-    });
+        expect(find.byType(CreateListingScreen), findsOneWidget);
+        expect(find.text(l10n.marketplaceEditScreenTitle), findsOneWidget);
+      },
+    );
 
     testWidgets('hide action toggles the hidden badge', (tester) async {
       final (apiClient, adapter) = await _fakeApiClient();
@@ -239,8 +300,9 @@ void main() {
       );
     });
 
-    testWidgets('delete action removes the card only after confirming',
-        (tester) async {
+    testWidgets('delete action removes the card only after confirming', (
+      tester,
+    ) async {
       final (apiClient, adapter) = await _fakeApiClient();
       adapter.listings = [_listingJson()];
 
@@ -269,5 +331,32 @@ void main() {
       expect(find.text('Wildflower Honey'), findsNothing);
       expect(find.text(l10n.myListingsEmpty), findsOneWidget);
     });
+
+    testWidgets(
+      'deleting the last item on a non-first page navigates back a page',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+        adapter.totalOverride = 21;
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('2'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.generalDelete));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.generalDelete).last);
+        await tester.pumpAndSettle();
+
+        final searchRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'GET',
+        );
+        expect(searchRequests.last.queryParameters['offset'], 0);
+      },
+    );
   });
 }

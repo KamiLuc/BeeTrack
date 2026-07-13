@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// ErrCannotFavoriteOwnListing is returned when a user tries to favorite their own listing.
+var ErrCannotFavoriteOwnListing = errors.New("cannot favorite your own listing")
+
 // FavoriteListingReader fetches listings for favorite visibility checks.
 type FavoriteListingReader interface {
 	GetByID(ctx context.Context, id int64) (*model.Listing, error)
@@ -43,6 +46,9 @@ func (s *ListingFavoriteService) Add(ctx context.Context, userID, listingID int6
 	}
 	if l.IsHidden && l.UserID != userID {
 		return ErrListingNotFound
+	}
+	if l.UserID == userID {
+		return ErrCannotFavoriteOwnListing
 	}
 	if err := s.favorites.Add(ctx, &model.ListingFavorite{UserID: userID, ListingID: listingID}); err != nil {
 		return fmt.Errorf("add favorite: %w", err)

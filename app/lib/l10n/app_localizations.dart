@@ -692,6 +692,18 @@ abstract class AppLocalizations {
   /// **'Kontakt'**
   String get marketplaceContactLabel;
 
+  /// No description provided for @marketplaceCallButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zadzwoń'**
+  String get marketplaceCallButton;
+
+  /// No description provided for @marketplaceWriteButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'Napisz'**
+  String get marketplaceWriteButton;
+
   /// No description provided for @marketplaceApiaryLabel.
   ///
   /// In pl, this message translates to:
@@ -757,6 +769,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Cena jest wymagana'**
   String get marketplaceFieldPriceRequired;
+
+  /// No description provided for @marketplaceFieldPriceTooLarge.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena musi być mniejsza niż 100 000 000'**
+  String get marketplaceFieldPriceTooLarge;
 
   /// No description provided for @marketplaceFieldAddress.
   ///

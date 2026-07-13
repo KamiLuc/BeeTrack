@@ -318,6 +318,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceContactLabel => 'Contact';
 
   @override
+  String get marketplaceCallButton => 'Call';
+
+  @override
+  String get marketplaceWriteButton => 'Write';
+
+  @override
   String get marketplaceApiaryLabel => 'Listed from apiary';
 
   @override
@@ -351,6 +357,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get marketplaceFieldPriceRequired => 'Price is required';
+
+  @override
+  String get marketplaceFieldPriceTooLarge =>
+      'Price must be less than 100,000,000';
 
   @override
   String get marketplaceFieldAddress => 'Address';

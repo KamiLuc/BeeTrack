@@ -1739,6 +1739,7 @@ Creates a listing owned by the authenticated user.
 | `TITLE_REQUIRED` | 400 | Title field is empty |
 | `CATEGORY_INVALID` | 400 | Category not in allowed set |
 | `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -1812,6 +1813,7 @@ Updates a listing. Only the owner can edit. Same body as create; when `image_url
 | `TITLE_REQUIRED` | 400 | Title field is empty |
 | `CATEGORY_INVALID` | 400 | Category not in allowed set |
 | `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |
@@ -1958,6 +1960,7 @@ Saves the listing to the caller's favorites. Idempotent — favoriting an alread
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist, or is hidden and caller is not the owner |
+| `CANNOT_FAVORITE_OWN_LISTING` | 403 | Caller is the listing's owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

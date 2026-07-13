@@ -125,23 +125,27 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
   }
 
   ResponseBody _json(Object? data) => ResponseBody.fromString(
-        jsonEncode(data),
-        200,
-        headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        },
-      );
+    jsonEncode(data),
+    200,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 }
 
 Future<ApiClient> _fakeApiClient(_RecordingHttpClientAdapter adapter) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
+  final apiClient = ApiClient(
+    storage: TokenStorage(prefs),
+    baseUrl: 'http://test',
+  );
   apiClient.dio.httpClientAdapter = adapter;
   return apiClient;
 }
 
-Widget _wrap(ApiClient apiClient, Widget child) => RepositoryProvider<ApiClient>.value(
+Widget _wrap(ApiClient apiClient, Widget child) =>
+    RepositoryProvider<ApiClient>.value(
       value: apiClient,
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -157,39 +161,34 @@ Widget _wrapWithNavigator(
   ApiClient apiClient, {
   required ValueChanged<bool?> onResult,
   Listing? existingListing,
-}) =>
-    RepositoryProvider<ApiClient>.value(
-      value: apiClient,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en'),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  final result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => CreateListingScreen(
-                        existingListing: existingListing,
-                      ),
-                    ),
-                  );
-                  onResult(result);
-                },
-                child: const Text('open'),
-              ),
-            ),
+}) => RepositoryProvider<ApiClient>.value(
+  value: apiClient,
+  child: MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    locale: const Locale('en'),
+    home: Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CreateListingScreen(existingListing: existingListing),
+                ),
+              );
+              onResult(result);
+            },
+            child: const Text('open'),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
-Listing _existingListing({
-  int id = 5,
-  List<ListingImage> images = const [],
-}) =>
+Listing _existingListing({int id = 5, List<ListingImage> images = const []}) =>
     Listing(
       id: id,
       userId: 1,
@@ -214,8 +213,9 @@ void main() {
   });
 
   group('CreateListingScreen validation', () {
-    testWidgets('shows title required error when title is left empty',
-        (tester) async {
+    testWidgets('shows title required error when title is left empty', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -228,8 +228,9 @@ void main() {
       expect(find.text(l10n.marketplaceFieldTitleRequired), findsOneWidget);
     });
 
-    testWidgets('shows category required error when category is not selected',
-        (tester) async {
+    testWidgets('shows category required error when category is not selected', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -249,8 +250,9 @@ void main() {
       expect(find.byType(SnackBar), findsNothing);
     });
 
-    testWidgets('truncates description input at 500 characters',
-        (tester) async {
+    testWidgets('truncates description input at 500 characters', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -270,8 +272,9 @@ void main() {
       expect(find.text('500/500'), findsOneWidget);
     });
 
-    testWidgets('shows price invalid error for non-numeric price',
-        (tester) async {
+    testWidgets('shows price invalid error for non-numeric price', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -290,8 +293,29 @@ void main() {
       expect(find.text(l10n.marketplaceFieldPriceInvalid), findsOneWidget);
     });
 
-    testWidgets('price input formatter rejects non-numeric characters',
-        (tester) async {
+    testWidgets(
+      'shows price too large error for a price at or above 100,000,000',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+          '883154044',
+        );
+        tester.state<FormState>(find.byType(Form)).validate();
+        await tester.pump();
+
+        expect(find.text(l10n.marketplaceFieldPriceTooLarge), findsOneWidget);
+      },
+    );
+
+    testWidgets('price input formatter rejects non-numeric characters', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -310,8 +334,9 @@ void main() {
       expect(field.controller!.text, isEmpty);
     });
 
-    testWidgets('price input formatter accepts a valid two-decimal price',
-        (tester) async {
+    testWidgets('price input formatter accepts a valid two-decimal price', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -330,16 +355,19 @@ void main() {
       expect(field.controller!.text, '12.50');
     });
 
-    testWidgets('price input formatter rejects a third decimal digit',
-        (tester) async {
+    testWidgets('price input formatter rejects a third decimal digit', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
       await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
       await tester.pumpAndSettle();
 
-      final priceFinder =
-          find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice);
+      final priceFinder = find.widgetWithText(
+        TextFormField,
+        l10n.marketplaceFieldPrice,
+      );
 
       await tester.enterText(priceFinder, '12.99');
       await tester.pump();
@@ -352,8 +380,9 @@ void main() {
       expect(field.controller!.text, '12.99');
     });
 
-    testWidgets('shows price required error when price is left empty',
-        (tester) async {
+    testWidgets('shows price required error when price is left empty', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -367,8 +396,9 @@ void main() {
       expect(find.text(l10n.marketplaceFieldPriceInvalid), findsNothing);
     });
 
-    testWidgets('shows phone invalid error for malformed phone number',
-        (tester) async {
+    testWidgets('shows phone invalid error for malformed phone number', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -385,8 +415,9 @@ void main() {
       expect(find.text(l10n.marketplaceFieldPhoneInvalid), findsOneWidget);
     });
 
-    testWidgets('does not flag phone invalid when phone is left empty',
-        (tester) async {
+    testWidgets('does not flag phone invalid when phone is left empty', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -399,8 +430,9 @@ void main() {
       expect(find.text(l10n.marketplaceFieldPhoneInvalid), findsNothing);
     });
 
-    testWidgets('shows invalid email error for malformed email',
-        (tester) async {
+    testWidgets('shows invalid email error for malformed email', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
 
@@ -418,53 +450,60 @@ void main() {
     });
 
     testWidgets(
-        'typing garbage into the email field alone does not flag untouched '
-        'fields above it', (tester) async {
-      final adapter = _RecordingHttpClientAdapter();
-      final apiClient = await _fakeApiClient(adapter);
+      'typing garbage into the email field alone does not flag untouched '
+      'fields above it',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
 
-      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldEmail),
-        'not-an-email',
-      );
-      await tester.pump();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldEmail),
+          'not-an-email',
+        );
+        await tester.pump();
 
-      expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
-      expect(find.text(l10n.marketplaceFieldCategoryRequired), findsNothing);
-      expect(find.text(l10n.marketplaceFieldPriceRequired), findsNothing);
-      // The email field itself autovalidates on its own interaction, so its
-      // own error is expected to show; only the OTHER fields must stay
-      // untouched.
-      expect(find.text(l10n.authInvalidEmail), findsOneWidget);
-    });
+        expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
+        expect(find.text(l10n.marketplaceFieldCategoryRequired), findsNothing);
+        expect(find.text(l10n.marketplaceFieldPriceRequired), findsNothing);
+        // The email field itself autovalidates on its own interaction, so its
+        // own error is expected to show; only the OTHER fields must stay
+        // untouched.
+        expect(find.text(l10n.authInvalidEmail), findsOneWidget);
+      },
+    );
 
     testWidgets(
-        'clears the title error live once a valid title is typed, without '
-        'pressing save again', (tester) async {
-      final adapter = _RecordingHttpClientAdapter();
-      final apiClient = await _fakeApiClient(adapter);
+      'clears the title error live once a valid title is typed, without '
+      'pressing save again',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
 
-      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
 
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
-      await tester.ensureVisible(saveFinder);
-      await tester.tap(saveFinder);
-      await tester.pumpAndSettle();
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
 
-      expect(find.text(l10n.marketplaceFieldTitleRequired), findsOneWidget);
+        expect(find.text(l10n.marketplaceFieldTitleRequired), findsOneWidget);
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
-        'Wildflower Honey',
-      );
-      await tester.pump();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+          'Wildflower Honey',
+        );
+        await tester.pump();
 
-      expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
-    });
+        expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
+      },
+    );
   });
 
   group('CreateListingScreen apiary dropdown', () {
@@ -479,8 +518,9 @@ void main() {
       expect(find.byType(DropdownButtonFormField<int?>), findsNothing);
     });
 
-    testWidgets('is shown with the apiary options when apiaries exist',
-        (tester) async {
+    testWidgets('is shown with the apiary options when apiaries exist', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter()
         ..apiaries = [
           {
@@ -525,123 +565,142 @@ void main() {
     }
 
     testWidgets(
-        'creates the listing, uploads each picked photo, then pops true',
-        (tester) async {
-      final adapter = _RecordingHttpClientAdapter();
-      final apiClient = await _fakeApiClient(adapter);
-      final imagePicker = _FakeImagePickerPlatform();
-      ImagePickerPlatform.instance = imagePicker;
-      bool? result;
+      'creates the listing, uploads each picked photo, then pops true',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+        bool? result;
 
-      await tester.pumpWidget(
-        _wrapWithNavigator(apiClient, onResult: (r) => result = r),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrapWithNavigator(apiClient, onResult: (r) => result = r),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      await _fillRequiredFields(tester);
+        await _fillRequiredFields(tester);
 
-      final addPhotoFinder =
-          find.widgetWithText(TextButton, l10n.marketplaceAddPhoto);
-      await tester.ensureVisible(addPhotoFinder);
-      await tester.tap(addPhotoFinder);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
-      await tester.pumpAndSettle();
+        final addPhotoFinder = find.widgetWithText(
+          TextButton,
+          l10n.marketplaceAddPhoto,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
 
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
-      await tester.ensureVisible(saveFinder);
-      await tester.tap(saveFinder);
-      await tester.pumpAndSettle();
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
 
-      expect(result, isTrue);
-      expect(find.byType(CreateListingScreen), findsNothing);
+        expect(result, isTrue);
+        expect(find.byType(CreateListingScreen), findsNothing);
 
-      final createRequests = adapter.requests
-          .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
-      final uploadRequests = adapter.requests
-          .where((r) => r.path.contains('/images') && r.method == 'POST');
-      expect(createRequests, hasLength(1));
-      expect(uploadRequests, hasLength(1));
-    });
-
-    testWidgets(
-        'shows an inline error and re-enables the form when creation fails',
-        (tester) async {
-      final adapter = _RecordingHttpClientAdapter()..failCreate = true;
-      final apiClient = await _fakeApiClient(adapter);
-      bool? result;
-
-      await tester.pumpWidget(
-        _wrapWithNavigator(apiClient, onResult: (r) => result = r),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-
-      await _fillRequiredFields(tester);
-
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
-      await tester.ensureVisible(saveFinder);
-      await tester.tap(saveFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.text(l10n.generalError), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
-      expect(find.byType(CreateListingScreen), findsOneWidget);
-      expect(result, isNull);
-
-      final saveButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, l10n.generalSave),
-      );
-      expect(saveButton.onPressed, isNotNull);
-    });
+        final createRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'POST',
+        );
+        final uploadRequests = adapter.requests.where(
+          (r) => r.path.contains('/images') && r.method == 'POST',
+        );
+        expect(createRequests, hasLength(1));
+        expect(uploadRequests, hasLength(1));
+      },
+    );
 
     testWidgets(
-        'blocks submission and shows an error when neither phone nor email '
-        'is provided', (tester) async {
-      final adapter = _RecordingHttpClientAdapter();
-      final apiClient = await _fakeApiClient(adapter);
+      'shows an inline error and re-enables the form when creation fails',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter()..failCreate = true;
+        final apiClient = await _fakeApiClient(adapter);
+        bool? result;
 
-      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrapWithNavigator(apiClient, onResult: (r) => result = r),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
-        'Wildflower Honey',
-      );
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
-        '42.50',
-      );
+        await _fillRequiredFields(tester);
 
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
-      await tester.ensureVisible(saveFinder);
-      await tester.tap(saveFinder);
-      await tester.pumpAndSettle();
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
 
-      expect(find.text(l10n.marketplaceContactRequired), findsWidgets);
-      expect(find.byType(SnackBar), findsNothing);
-      final createRequests = adapter.requests
-          .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
-      expect(createRequests, isEmpty);
+        expect(find.text(l10n.generalError), findsOneWidget);
+        expect(find.byType(SnackBar), findsNothing);
+        expect(find.byType(CreateListingScreen), findsOneWidget);
+        expect(result, isNull);
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
-        '+15551234567',
-      );
-      await tester.pumpAndSettle();
+        final saveButton = tester.widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, l10n.generalSave),
+        );
+        expect(saveButton.onPressed, isNotNull);
+      },
+    );
 
-      expect(find.text(l10n.marketplaceContactRequired), findsOneWidget);
-    });
+    testWidgets(
+      'blocks submission and shows an error when neither phone nor email '
+      'is provided',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+          'Wildflower Honey',
+        );
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+          '42.50',
+        );
+
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceContactRequired), findsOneWidget);
+        expect(find.byType(SnackBar), findsNothing);
+        final createRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'POST',
+        );
+        expect(createRequests, isEmpty);
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+          '+15551234567',
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceContactRequired), findsNothing);
+      },
+    );
   });
 
   group('CreateListingScreen editing', () {
-    testWidgets('prefills fields and shows the edit title when editing',
-        (tester) async {
+    testWidgets('prefills fields and shows the edit title when editing', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
       final listing = _existingListing();
@@ -658,18 +717,21 @@ void main() {
       expect(find.text('3 jars'), findsOneWidget);
     });
 
-    testWidgets('submits via PATCH and pops true without creating a listing',
-        (tester) async {
+    testWidgets('submits via PATCH and pops true without creating a listing', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
       final listing = _existingListing();
       bool? result;
 
-      await tester.pumpWidget(_wrapWithNavigator(
-        apiClient,
-        existingListing: listing,
-        onResult: (r) => result = r,
-      ));
+      await tester.pumpWidget(
+        _wrapWithNavigator(
+          apiClient,
+          existingListing: listing,
+          onResult: (r) => result = r,
+        ),
+      );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
@@ -680,53 +742,63 @@ void main() {
 
       expect(result, isTrue);
       final patchRequests = adapter.requests.where(
-        (r) => r.path.endsWith('/listings/${listing.id}') && r.method == 'PATCH',
+        (r) =>
+            r.path.endsWith('/listings/${listing.id}') && r.method == 'PATCH',
       );
-      final createRequests = adapter.requests
-          .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
+      final createRequests = adapter.requests.where(
+        (r) => r.path.endsWith('/listings') && r.method == 'POST',
+      );
       expect(patchRequests, hasLength(1));
       expect(createRequests, isEmpty);
     });
 
     testWidgets(
-        'shows existing images and deletes one via the repository on tap',
-        (tester) async {
-      final adapter = _RecordingHttpClientAdapter();
-      final apiClient = await _fakeApiClient(adapter);
-      final image = ListingImage(
-        id: 3,
-        listingId: 5,
-        url: '/uploads/a.jpg',
-        displayOrder: 0,
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final listing = _existingListing(images: [image]);
+      'shows existing images and deletes one via the repository on tap',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image]);
 
-      await tester.pumpWidget(
-        _wrap(apiClient, CreateListingScreen(existingListing: listing)),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('${l10n.marketplacePhotosLabel}  1/3'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(
+          find.text('${l10n.marketplacePhotosLabel}  1/3'),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.close), findsOneWidget);
 
-      await tester.ensureVisible(find.byIcon(Icons.close));
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byIcon(Icons.close));
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
 
-      expect(find.text('${l10n.marketplacePhotosLabel}  0/3'), findsOneWidget);
-      final deleteRequests = adapter.requests.where(
-        (r) =>
-            r.path.endsWith('/listings/${listing.id}/images/${image.id}') &&
-            r.method == 'DELETE',
-      );
-      expect(deleteRequests, hasLength(1));
-    });
+        expect(
+          find.text('${l10n.marketplacePhotosLabel}  0/3'),
+          findsOneWidget,
+        );
+        final deleteRequests = adapter.requests.where(
+          (r) =>
+              r.path.endsWith('/listings/${listing.id}/images/${image.id}') &&
+              r.method == 'DELETE',
+        );
+        expect(deleteRequests, hasLength(1));
+      },
+    );
   });
 
   group('CreateListingScreen photo picker', () {
-    testWidgets('caps picked photos at three and disables adding more',
-        (tester) async {
+    testWidgets('caps picked photos at three and disables adding more', (
+      tester,
+    ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
       final imagePicker = _FakeImagePickerPlatform();
@@ -735,8 +807,10 @@ void main() {
       await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
       await tester.pumpAndSettle();
 
-      final addPhotoFinder =
-          find.widgetWithText(TextButton, l10n.marketplaceAddPhoto);
+      final addPhotoFinder = find.widgetWithText(
+        TextButton,
+        l10n.marketplaceAddPhoto,
+      );
       for (var i = 0; i < 3; i++) {
         await tester.ensureVisible(addPhotoFinder);
         await tester.tap(addPhotoFinder);

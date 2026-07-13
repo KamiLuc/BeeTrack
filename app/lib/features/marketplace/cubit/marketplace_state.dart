@@ -10,30 +10,29 @@ final class MarketplaceError extends MarketplaceState {}
 
 final class MarketplaceLoaded extends MarketplaceState {
   final List<Listing> items;
-  final int total;
+  final int currentPage;
+  final int totalPages;
   final String? category;
   final String keyword;
-  final bool loadingMore;
+  final Set<int> favoriteIds;
 
   MarketplaceLoaded({
     required this.items,
-    required this.total,
+    required this.currentPage,
+    required this.totalPages,
     required this.category,
     required this.keyword,
-    this.loadingMore = false,
+    this.favoriteIds = const {},
   });
 
-  MarketplaceLoaded copyWith({
-    List<Listing>? items,
-    int? total,
-    bool? loadingMore,
-  }) {
+  MarketplaceLoaded copyWith({List<Listing>? items, Set<int>? favoriteIds}) {
     return MarketplaceLoaded(
       items: items ?? this.items,
-      total: total ?? this.total,
+      currentPage: currentPage,
+      totalPages: totalPages,
       category: category,
       keyword: keyword,
-      loadingMore: loadingMore ?? this.loadingMore,
+      favoriteIds: favoriteIds ?? this.favoriteIds,
     );
   }
 }

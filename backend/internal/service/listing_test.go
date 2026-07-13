@@ -162,6 +162,43 @@ func TestListingCreate_DescriptionTooLongMultiByteRunes(t *testing.T) {
 	}
 }
 
+func TestListingCreate_PriceAtMax(t *testing.T) {
+	store := &mockListingStore{}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	price := 99_999_999.99
+	params.Price = &price
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestListingCreate_PriceTooLarge(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	price := 883_154_044.0
+	params.Price = &price
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingPriceTooLarge {
+		t.Errorf("expected ErrListingPriceTooLarge, got %v", err)
+	}
+}
+
+func TestListingCreate_PriceTooNegative(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	price := -883_154_044.0
+	params.Price = &price
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingPriceTooLarge {
+		t.Errorf("expected ErrListingPriceTooLarge, got %v", err)
+	}
+}
+
 func TestListingCreate_WithImages(t *testing.T) {
 	store := &mockListingStore{}
 	svc := newListingSvc(store)

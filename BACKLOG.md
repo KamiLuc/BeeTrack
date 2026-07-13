@@ -214,7 +214,7 @@
 | --------- | ------- | ------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
 | MKT-09-01 | `BE/FE` | `[ ]`  | Soft delete validation       | Ensure deleted listings don't appear in search; verify ownership on hide                |
 | MKT-09-02 | `FE`    | `[ ]`  | Empty states                 | "No listings yet", "No favorites yet" screens                                           |
-| MKT-09-03 | `FE`    | `[ ]`  | Pagination / infinite scroll | For search results (backend limit, frontend pagination)                                 |
+| MKT-09-03 | `FE`    | `[x]`  | Pagination / infinite scroll | Replaced with numbered-page pagination (20/page), same pattern as Inspections: `MarketplaceCubit.goToPage`/`MyListingsScreen._goToPage` + amber-banner page-number row, on both the Marketplace feed and My Listings |
 | MKT-09-04 | `BE`    | `[ ]`  | Add index on listings table  | category, user_id, created_at, is_hidden for query performance                          |
 | MKT-09-05 | `FE`    | `[ ]`  | Confirmation dialogs         | Before delete/hide listing                                                              |
 | MKT-09-06 | `BE/FE` | `[ ]`  | Prevent self-contact         | If listing has apiary, show apiary owner info (not user contact) if viewing own listing |

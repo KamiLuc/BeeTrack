@@ -16,12 +16,17 @@ const maxListingImages = 3
 // maxListingDescriptionLength is the maximum number of characters allowed in a listing description.
 const maxListingDescriptionLength = 500
 
+// maxListingPrice is the largest price the `price NUMERIC(10,2)` column can store
+// (precision 10, scale 2 — an absolute value below 10^8).
+const maxListingPrice = 100_000_000
+
 var (
 	ErrListingNotFound           = errors.New("listing not found")
 	ErrListingTitleRequired      = errors.New("title is required")
 	ErrListingCategoryInvalid    = errors.New("category is invalid")
 	ErrListingTooManyImages      = errors.New("a listing may have at most 3 images")
 	ErrListingDescriptionTooLong = errors.New("description must be at most 500 characters")
+	ErrListingPriceTooLarge      = errors.New("price must be less than 100,000,000")
 	ErrNotListingOwner           = errors.New("not the listing owner")
 )
 
@@ -84,6 +89,9 @@ func validateListingParams(p ListingParams) error {
 	}
 	if len([]rune(p.Description)) > maxListingDescriptionLength {
 		return ErrListingDescriptionTooLong
+	}
+	if p.Price != nil && (*p.Price >= maxListingPrice || *p.Price <= -maxListingPrice) {
+		return ErrListingPriceTooLarge
 	}
 	return nil
 }
