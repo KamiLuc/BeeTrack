@@ -52,6 +52,24 @@ abstract final class AppTheme {
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         errorStyle: const TextStyle(color: AppColors.error),
+        labelStyle: WidgetStateTextStyle.resolveWith((states) {
+          if (states.contains(WidgetState.error)) {
+            return const TextStyle(color: AppColors.error);
+          }
+          if (states.contains(WidgetState.focused)) {
+            return const TextStyle(color: AppColors.primary);
+          }
+          return const TextStyle(color: AppColors.onSurfaceVariant);
+        }),
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
+          if (states.contains(WidgetState.error)) {
+            return const TextStyle(color: AppColors.error);
+          }
+          if (states.contains(WidgetState.focused)) {
+            return const TextStyle(color: AppColors.primary);
+          }
+          return const TextStyle(color: AppColors.onSurfaceVariant);
+        }),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

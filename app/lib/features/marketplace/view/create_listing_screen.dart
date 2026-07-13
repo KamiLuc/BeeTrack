@@ -125,6 +125,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => _pendingImages.remove(file));
   }
 
+  void _reviewContactError() {
+    if (_submitError == null) return;
+    if (_submitError != AppLocalizations.of(context)!.marketplaceContactRequired) {
+      return;
+    }
+    final hasContact = _phoneController.text.trim().isNotEmpty ||
+        _emailController.text.trim().isNotEmpty;
+    if (hasContact) setState(() => _submitError = null);
+  }
+
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     final formValid = _formKey.currentState?.validate() ?? false;
@@ -290,6 +300,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
+                    onChanged: (_) => _reviewContactError(),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       return _isValidPhone(v)
@@ -305,6 +316,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
+                    onChanged: (_) => _reviewContactError(),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       return _isValidEmail(v) ? null : l10n.authInvalidEmail;

@@ -578,6 +578,14 @@ void main() {
       final createRequests = adapter.requests
           .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
       expect(createRequests, isEmpty);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+        '+15551234567',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceContactRequired), findsOneWidget);
     });
   });
 
