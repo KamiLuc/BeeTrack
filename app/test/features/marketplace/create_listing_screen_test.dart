@@ -228,14 +228,78 @@ void main() {
       await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
       await tester.pumpAndSettle();
 
+      // '.' alone passes the price input formatter (digits, optional dot,
+      // up to 2 decimals) but is not a parseable double.
       await tester.enterText(
         find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
-        'not-a-number',
+        '.',
       );
       tester.state<FormState>(find.byType(Form)).validate();
       await tester.pump();
 
       expect(find.text(l10n.marketplaceFieldPriceInvalid), findsOneWidget);
+    });
+
+    testWidgets('price input formatter rejects non-numeric characters',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+        'not-a-number',
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+      );
+      expect(field.controller!.text, isEmpty);
+    });
+
+    testWidgets('price input formatter accepts a valid two-decimal price',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+        '12.50',
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+      );
+      expect(field.controller!.text, '12.50');
+    });
+
+    testWidgets('price input formatter rejects a third decimal digit',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      final priceFinder =
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice);
+
+      await tester.enterText(priceFinder, '12.99');
+      await tester.pump();
+      // Appending a third decimal digit to the already-valid '12.99' is
+      // rejected, leaving the field unchanged.
+      await tester.enterText(priceFinder, '12.999');
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(priceFinder);
+      expect(field.controller!.text, '12.99');
     });
 
     testWidgets('shows price required error when price is left empty',
@@ -321,7 +385,35 @@ void main() {
       expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
       expect(find.text(l10n.marketplaceFieldCategoryRequired), findsNothing);
       expect(find.text(l10n.marketplaceFieldPriceRequired), findsNothing);
-      expect(find.text(l10n.authInvalidEmail), findsNothing);
+      // The email field itself autovalidates on its own interaction, so its
+      // own error is expected to show; only the OTHER fields must stay
+      // untouched.
+      expect(find.text(l10n.authInvalidEmail), findsOneWidget);
+    });
+
+    testWidgets(
+        'clears the title error live once a valid title is typed, without '
+        'pressing save again', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceFieldTitleRequired), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+        'Wildflower Honey',
+      );
+      await tester.pump();
+
+      expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
     });
   });
 

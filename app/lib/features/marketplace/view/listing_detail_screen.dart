@@ -129,7 +129,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           const SizedBox(width: 8),
                           Text(
                             listing.price != null
-                                ? '${listing.price!.toStringAsFixed(2)} zł'
+                                ? listing.price!.toStringAsFixed(2)
                                 : l10n.marketplacePriceOnRequest,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,

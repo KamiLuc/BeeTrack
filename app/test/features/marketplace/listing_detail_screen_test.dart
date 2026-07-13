@@ -157,7 +157,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Wildflower Honey'), findsWidgets);
-      expect(find.text('42.50 zł'), findsOneWidget);
+      expect(find.text('42.50'), findsOneWidget);
       expect(find.text('Krakow'), findsOneWidget);
       expect(find.textContaining('10 jars'), findsOneWidget);
       expect(find.text('Fresh honey from the meadow.'), findsOneWidget);

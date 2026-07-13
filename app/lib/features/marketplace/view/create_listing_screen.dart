@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -75,6 +76,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
     return digits.length >= 9;
   }
+
+  static final _priceInputFormatter = TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      if (newValue.text.isEmpty) return newValue;
+      return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
+          ? newValue
+          : oldValue;
+    },
+  );
 
   Future<void> _pickImage() async {
     if (_pendingImages.length >= _kMaxListingPhotos) return;
@@ -184,6 +194,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     decoration:
                         InputDecoration(labelText: l10n.marketplaceFieldTitle),
                     textInputAction: TextInputAction.next,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? l10n.marketplaceFieldTitleRequired
                         : null,
@@ -193,6 +204,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     initialValue: _category,
                     decoration:
                         InputDecoration(labelText: l10n.marketplaceFieldCategory),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     items: [
                       for (final category in listingCategories)
                         DropdownMenuItem(
@@ -231,6 +243,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     keyboardType:
                         TextInputType.numberWithOptions(decimal: true),
                     textInputAction: TextInputAction.next,
+                    inputFormatters: [_priceInputFormatter],
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return l10n.marketplaceFieldPriceRequired;
@@ -275,6 +289,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         InputDecoration(labelText: l10n.marketplaceFieldPhone),
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       return _isValidPhone(v)
@@ -289,6 +304,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         InputDecoration(labelText: l10n.marketplaceFieldEmail),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       return _isValidEmail(v) ? null : l10n.authInvalidEmail;

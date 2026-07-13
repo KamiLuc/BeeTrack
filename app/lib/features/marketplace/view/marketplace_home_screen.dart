@@ -396,7 +396,7 @@ class _ListingCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     listing.price != null
-                        ? '${listing.price!.toStringAsFixed(2)} zł'
+                        ? listing.price!.toStringAsFixed(2)
                         : l10n.marketplacePriceOnRequest,
                     style: textTheme.titleSmall?.copyWith(
                       color: colorScheme.primary,
