@@ -12,6 +12,7 @@ import '../../../l10n/app_localizations.dart';
 import '../cubit/marketplace_cubit.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
+import '../data/listing_price.dart';
 import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
 import 'listing_detail_screen.dart';
@@ -395,9 +396,7 @@ class _ListingCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    listing.price != null
-                        ? listing.price!.toStringAsFixed(2)
-                        : l10n.marketplacePriceOnRequest,
+                    listingPriceLabel(l10n, listing.price),
                     style: textTheme.titleSmall?.copyWith(
                       color: colorScheme.primary,
                     ),

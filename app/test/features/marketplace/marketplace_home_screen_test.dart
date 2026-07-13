@@ -47,6 +47,9 @@ Future<ApiClient> _fakeApiClient() async {
 /// Returns a single listing for `/api/v1/listings` so tap-to-navigate can be
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
+  _ListingsHttpClientAdapter({this.price = 20.0});
+
+  final double? price;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -73,7 +76,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
               'title': 'Wildflower Honey',
               'description': 'Fresh honey.',
               'category': 'honey',
-              'price': 20.0,
+              'price': price,
               'quantity': '5 jars',
               'address': 'Krakow',
               'contact_phone': '123456789',
@@ -328,6 +331,23 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ListingDetailScreen), findsOneWidget);
+    });
+
+    testWidgets('listing card shows "Free" instead of "0.00" when price is 0',
+        (tester) async {
+      final apiClient =
+          await _fakeApiClientWithListings(adapter: _ListingsHttpClientAdapter(price: 0));
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Free'), findsOneWidget);
+      expect(find.text('0.00'), findsNothing);
     });
 
     testWidgets('unauthenticated: the create-listing "+" button is not shown',

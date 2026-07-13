@@ -258,6 +258,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplacePriceOnRequest => 'Cena do negocjacji';
 
   @override
+  String get marketplacePriceFree => 'Za darmo';
+
+  @override
   String get marketplaceCategoryAll => 'Wszystkie';
 
   @override

@@ -88,6 +88,15 @@ func validateListingParams(p ListingParams) error {
 	return nil
 }
 
+// defaultPrice returns price, or a pointer to 0 if price is unset — a listing with no price is free.
+func defaultPrice(price *float64) *float64 {
+	if price != nil {
+		return price
+	}
+	zero := 0.0
+	return &zero
+}
+
 func imagesFromURLs(urls []string) []model.ListingImage {
 	images := make([]model.ListingImage, len(urls))
 	for i, url := range urls {
@@ -123,7 +132,7 @@ func (s *ListingService) Create(ctx context.Context, userID int64, params Listin
 		Title:        params.Title,
 		Description:  params.Description,
 		Category:     params.Category,
-		Price:        params.Price,
+		Price:        defaultPrice(params.Price),
 		Quantity:     params.Quantity,
 		Address:      params.Address,
 		ApiaryID:     params.ApiaryID,
@@ -181,7 +190,7 @@ func (s *ListingService) Update(ctx context.Context, userID, listingID int64, pa
 	l.Title = params.Title
 	l.Description = params.Description
 	l.Category = params.Category
-	l.Price = params.Price
+	l.Price = defaultPrice(params.Price)
 	l.Quantity = params.Quantity
 	l.Address = params.Address
 	l.ApiaryID = params.ApiaryID

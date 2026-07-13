@@ -165,6 +165,19 @@ void main() {
       expect(find.text('seller@example.com'), findsOneWidget);
     });
 
+    testWidgets('shows "Free" instead of "0.00" when price is 0', (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        ListingDetailScreen(listing: _listing(price: 0)),
+        apiClient: apiClient,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Free'), findsOneWidget);
+      expect(find.text('0.00'), findsNothing);
+    });
+
     testWidgets('shows apiary section only when apiaryName is set',
         (tester) async {
       final (apiClient, _) = await _fakeApiClient();

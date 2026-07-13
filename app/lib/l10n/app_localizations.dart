@@ -572,6 +572,12 @@ abstract class AppLocalizations {
   /// **'Cena do negocjacji'**
   String get marketplacePriceOnRequest;
 
+  /// No description provided for @marketplacePriceFree.
+  ///
+  /// In pl, this message translates to:
+  /// **'Za darmo'**
+  String get marketplacePriceFree;
+
   /// No description provided for @marketplaceCategoryAll.
   ///
   /// In pl, this message translates to:

@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../data/favorites_repository.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
+import '../data/listing_price.dart';
 
 class ListingDetailScreen extends StatefulWidget {
   final Listing listing;
@@ -128,9 +129,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            listing.price != null
-                                ? listing.price!.toStringAsFixed(2)
-                                : l10n.marketplacePriceOnRequest,
+                            listingPriceLabel(l10n, listing.price),
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,
                                 ),

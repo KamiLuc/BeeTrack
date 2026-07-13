@@ -180,6 +180,35 @@ func TestListingCreate_WithImages(t *testing.T) {
 	}
 }
 
+func TestListingCreate_DefaultsMissingPriceToZero(t *testing.T) {
+	store := &mockListingStore{}
+	svc := newListingSvc(store)
+
+	l, err := svc.Create(context.Background(), 1, validListingParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Price == nil || *l.Price != 0 {
+		t.Errorf("expected price defaulted to 0, got %v", l.Price)
+	}
+}
+
+func TestListingCreate_KeepsExplicitPrice(t *testing.T) {
+	store := &mockListingStore{}
+	svc := newListingSvc(store)
+
+	price := 12.5
+	params := validListingParams()
+	params.Price = &price
+	l, err := svc.Create(context.Background(), 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Price == nil || *l.Price != 12.5 {
+		t.Errorf("expected price 12.5, got %v", l.Price)
+	}
+}
+
 func TestListingCreate_UnknownApiary(t *testing.T) {
 	store := &mockListingStore{}
 	// mockApiaryRepo returns NotFound when apiary id doesn't match the seeded one (id 1).
@@ -267,6 +296,36 @@ func TestListingUpdate(t *testing.T) {
 	}
 	if store.updated == nil {
 		t.Error("expected update to be persisted")
+	}
+}
+
+func TestListingUpdate_DefaultsMissingPriceToZero(t *testing.T) {
+	price := 9.0
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3, Price: &price}}
+	svc := newListingSvc(store)
+
+	l, err := svc.Update(context.Background(), 3, 5, validListingParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Price == nil || *l.Price != 0 {
+		t.Errorf("expected price defaulted to 0, got %v", l.Price)
+	}
+}
+
+func TestListingUpdate_KeepsExplicitPrice(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newListingSvc(store)
+
+	price := 30.0
+	params := validListingParams()
+	params.Price = &price
+	l, err := svc.Update(context.Background(), 3, 5, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Price == nil || *l.Price != 30.0 {
+		t.Errorf("expected price 30.0, got %v", l.Price)
 	}
 }
 

@@ -258,6 +258,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplacePriceOnRequest => 'Price on request';
 
   @override
+  String get marketplacePriceFree => 'Free';
+
+  @override
   String get marketplaceCategoryAll => 'All';
 
   @override
