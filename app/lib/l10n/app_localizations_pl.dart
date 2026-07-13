@@ -348,13 +348,23 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceFieldPriceInvalid => 'Podaj prawidłową cenę';
 
   @override
+  String get marketplaceFieldPriceRequired => 'Cena jest wymagana';
+
+  @override
   String get marketplaceFieldAddress => 'Adres';
 
   @override
   String get marketplaceFieldPhone => 'Telefon';
 
   @override
+  String get marketplaceFieldPhoneInvalid => 'Podaj prawidłowy numer telefonu';
+
+  @override
   String get marketplaceFieldEmail => 'E-mail';
+
+  @override
+  String get marketplaceContactRequired =>
+      'Podaj numer telefonu lub adres e-mail';
 
   @override
   String get marketplaceApiaryNone => 'Brak';

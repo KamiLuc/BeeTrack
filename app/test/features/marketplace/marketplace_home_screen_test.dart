@@ -48,6 +48,7 @@ Future<ApiClient> _fakeApiClient() async {
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
   int listingsRequestCount = 0;
+  final List<RequestOptions> listingsRequests = [];
 
   @override
   void close({bool force = false}) {}
@@ -60,6 +61,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
   ) async {
     if (options.path.contains('/listings') && options.method == 'GET') {
       listingsRequestCount++;
+      listingsRequests.add(options);
     }
     if (options.path.contains('/listings')) {
       return ResponseBody.fromString(
@@ -370,6 +372,69 @@ void main() {
 
       expect(find.byType(CreateListingScreen), findsNothing);
       expect(adapter.listingsRequestCount, 2);
+    });
+
+    testWidgets(
+        'the map button is shown in the bottom banner regardless of auth '
+        'and stays disabled', (tester) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      final mapButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.map_outlined),
+      );
+      expect(mapButton.onPressed, isNull);
+    });
+
+    testWidgets(
+        'authenticated: the "+" button is shown next to the map button in '
+        'the bottom banner', (tester) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+    });
+
+    testWidgets(
+        'typing in the search field debounces and calls setKeyword without '
+        'pressing enter', (tester) async {
+      final adapter = _ListingsHttpClientAdapter();
+      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(adapter.listingsRequestCount, 1);
+
+      await tester.enterText(find.byType(TextField), 'honey');
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(adapter.listingsRequestCount, 1);
+
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      expect(adapter.listingsRequestCount, 2);
+      expect(adapter.listingsRequests.last.queryParameters['keyword'], 'honey');
     });
   });
 }

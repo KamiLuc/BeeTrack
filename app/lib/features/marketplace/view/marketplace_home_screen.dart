@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -49,11 +51,20 @@ class _MarketplaceView extends StatefulWidget {
 
 class _MarketplaceViewState extends State<_MarketplaceView> {
   final _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      context.read<MarketplaceCubit>().setKeyword(value.trim());
+    });
   }
 
   Future<void> _openCreateListing(BuildContext context) async {
@@ -84,53 +95,123 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           appBar: AppBar(
             title: Text(l10n.marketplaceTitle),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.map_outlined),
-                tooltip: l10n.marketplaceMapTooltip,
-                onPressed: null,
-              ),
-              if (isAuthenticated)
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  tooltip: l10n.marketplaceCreateScreenTitle,
-                  onPressed: () => _openCreateListing(context),
-                ),
               if (isAuthenticated) const ProfileIconButton(),
             ],
           ),
           drawer: drawer,
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: l10n.marketplaceSearchHint,
-                        prefixIcon: const Icon(Icons.search),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+          body: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: l10n.marketplaceSearchHint,
+                              prefixIcon: const Icon(Icons.search),
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            textInputAction: TextInputAction.search,
+                            onChanged: _onSearchChanged,
+                            onSubmitted: (value) {
+                              _debounce?.cancel();
+                              context
+                                  .read<MarketplaceCubit>()
+                                  .setKeyword(value.trim());
+                            },
+                          ),
                         ),
-                      ),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (value) => context
-                          .read<MarketplaceCubit>()
-                          .setKeyword(value.trim()),
+                        const _CategoryDropdown(),
+                        const SizedBox(height: 4),
+                        Expanded(child: _ListingsFeed()),
+                      ],
                     ),
                   ),
-                  const _CategoryDropdown(),
-                  const SizedBox(height: 4),
-                  Expanded(child: _ListingsFeed()),
+                ),
+              ),
+              _MarketplaceBanner(
+                l10n: l10n,
+                isAuthenticated: isAuthenticated,
+                onAdd: () => _openCreateListing(context),
+                onMap: null,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MarketplaceBanner extends StatelessWidget {
+  final AppLocalizations l10n;
+  final bool isAuthenticated;
+  final VoidCallback onAdd;
+  final VoidCallback? onMap;
+
+  const _MarketplaceBanner({
+    required this.l10n,
+    required this.isAuthenticated,
+    required this.onAdd,
+    required this.onMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bannerWidth = AppLayout.bannerWidth(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Center(
+          child: SizedBox(
+            width: bannerWidth,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  if (isAuthenticated)
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      iconSize: 28,
+                      tooltip: l10n.marketplaceCreateScreenTitle,
+                      onPressed: onAdd,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.map_outlined),
+                    iconSize: 28,
+                    tooltip: l10n.marketplaceMapTooltip,
+                    onPressed: onMap,
+                  ),
                 ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

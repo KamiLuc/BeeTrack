@@ -70,6 +70,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         .hasMatch(v.trim());
   }
 
+  bool _isValidPhone(String v) {
+    final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.length >= 9;
+  }
+
   Future<void> _pickImage() async {
     if (_pendingImages.length >= _kMaxListingPhotos) return;
     final l10n = AppLocalizations.of(context)!;
@@ -119,20 +124,25 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     final formValid = _formKey.currentState?.validate() ?? false;
-    if (!formValid || _category == null) {
-      if (_category == null) _showError(l10n.marketplaceFieldCategoryRequired);
+    final hasContact = _phoneController.text.trim().isNotEmpty ||
+        _emailController.text.trim().isNotEmpty;
+    if (!formValid || _category == null || !hasContact) {
+      if (_category == null) {
+        _showError(l10n.marketplaceFieldCategoryRequired);
+      } else if (!hasContact) {
+        _showError(l10n.marketplaceContactRequired);
+      }
       return;
     }
 
     setState(() => _saving = true);
     final repo = ListingRepository(api: context.read<ApiClient>());
     try {
-      final priceText = _priceController.text.trim();
       final listing = await repo.createListing(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         category: _category!,
-        price: priceText.isEmpty ? null : double.parse(priceText),
+        price: double.parse(_priceController.text.trim()),
         quantity: _quantityController.text.trim(),
         address: _addressController.text.trim(),
         apiaryId: _apiaryId,
@@ -220,13 +230,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     controller: _priceController,
                     decoration: InputDecoration(
                       labelText: l10n.marketplaceFieldPrice,
-                      suffixText: 'zł',
                     ),
                     keyboardType:
                         TextInputType.numberWithOptions(decimal: true),
                     textInputAction: TextInputAction.next,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
+                      if (v == null || v.trim().isEmpty) {
+                        return l10n.marketplaceFieldPriceRequired;
+                      }
                       return double.tryParse(v.trim()) == null
                           ? l10n.marketplaceFieldPriceInvalid
                           : null;
@@ -254,6 +265,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     style: textTheme.titleSmall
                         ?.copyWith(color: colorScheme.primary),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.marketplaceContactRequired,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                  ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _phoneController,
@@ -261,6 +278,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         InputDecoration(labelText: l10n.marketplaceFieldPhone),
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      return _isValidPhone(v)
+                          ? null
+                          : l10n.marketplaceFieldPhoneInvalid;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

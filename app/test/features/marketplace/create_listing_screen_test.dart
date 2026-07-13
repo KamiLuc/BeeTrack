@@ -214,7 +214,7 @@ void main() {
       expect(find.text(l10n.marketplaceFieldPriceInvalid), findsOneWidget);
     });
 
-    testWidgets('does not flag price invalid when price is left empty',
+    testWidgets('shows price required error when price is left empty',
         (tester) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
@@ -225,7 +225,40 @@ void main() {
       tester.state<FormState>(find.byType(Form)).validate();
       await tester.pump();
 
+      expect(find.text(l10n.marketplaceFieldPriceRequired), findsOneWidget);
       expect(find.text(l10n.marketplaceFieldPriceInvalid), findsNothing);
+    });
+
+    testWidgets('shows phone invalid error for malformed phone number',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+        '12345',
+      );
+      tester.state<FormState>(find.byType(Form)).validate();
+      await tester.pump();
+
+      expect(find.text(l10n.marketplaceFieldPhoneInvalid), findsOneWidget);
+    });
+
+    testWidgets('does not flag phone invalid when phone is left empty',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      tester.state<FormState>(find.byType(Form)).validate();
+      await tester.pump();
+
+      expect(find.text(l10n.marketplaceFieldPhoneInvalid), findsNothing);
     });
 
     testWidgets('shows invalid email error for malformed email',
@@ -294,6 +327,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+        '42.50',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+        '123456789',
+      );
     }
 
     testWidgets(
@@ -365,6 +406,39 @@ void main() {
         find.widgetWithText(ElevatedButton, l10n.generalSave),
       );
       expect(saveButton.onPressed, isNotNull);
+    });
+
+    testWidgets(
+        'blocks submission and shows an error when neither phone nor email '
+        'is provided', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+        'Wildflower Honey',
+      );
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+        '42.50',
+      );
+
+      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceContactRequired), findsWidgets);
+      final createRequests = adapter.requests
+          .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
+      expect(createRequests, isEmpty);
     });
   });
 

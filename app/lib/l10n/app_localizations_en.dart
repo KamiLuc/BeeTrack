@@ -347,13 +347,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceFieldPriceInvalid => 'Enter a valid price';
 
   @override
+  String get marketplaceFieldPriceRequired => 'Price is required';
+
+  @override
   String get marketplaceFieldAddress => 'Address';
 
   @override
   String get marketplaceFieldPhone => 'Phone';
 
   @override
+  String get marketplaceFieldPhoneInvalid => 'Enter a valid phone number';
+
+  @override
   String get marketplaceFieldEmail => 'Email';
+
+  @override
+  String get marketplaceContactRequired => 'Provide a phone number or email';
 
   @override
   String get marketplaceApiaryNone => 'None';

@@ -746,6 +746,12 @@ abstract class AppLocalizations {
   /// **'Podaj prawidłową cenę'**
   String get marketplaceFieldPriceInvalid;
 
+  /// No description provided for @marketplaceFieldPriceRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena jest wymagana'**
+  String get marketplaceFieldPriceRequired;
+
   /// No description provided for @marketplaceFieldAddress.
   ///
   /// In pl, this message translates to:
@@ -758,11 +764,23 @@ abstract class AppLocalizations {
   /// **'Telefon'**
   String get marketplaceFieldPhone;
 
+  /// No description provided for @marketplaceFieldPhoneInvalid.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podaj prawidłowy numer telefonu'**
+  String get marketplaceFieldPhoneInvalid;
+
   /// No description provided for @marketplaceFieldEmail.
   ///
   /// In pl, this message translates to:
   /// **'E-mail'**
   String get marketplaceFieldEmail;
+
+  /// No description provided for @marketplaceContactRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podaj numer telefonu lub adres e-mail'**
+  String get marketplaceContactRequired;
 
   /// No description provided for @marketplaceApiaryNone.
   ///
