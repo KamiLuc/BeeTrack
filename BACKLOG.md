@@ -161,7 +161,7 @@
 | --------- | ----- | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
 | MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
-| MKT-FE-03 | `FE`  | `[ ]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
+| MKT-FE-03 | `FE`  | `[x]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
 | MKT-FE-04 | `FE`  | `[ ]`  | Edit listing screen     | Reuse create form, pre-filled with existing data, image management                                                   |
 | MKT-FE-05 | `FE`  | `[ ]`  | My listings screen      | Show all user's listings (including hidden), edit/delete/hide actions                                                |
 | MKT-FE-06 | `FE`  | `[ ]`  | Favorites screen        | Saved listings, add to favorites from detail view                                                                    |
@@ -188,7 +188,7 @@
 
 | ID        | Layer | Status | Title                      | Notes                                                               |
 | --------- | ----- | ------ | -------------------------- | ------------------------------------------------------------------- |
-| MKT-FE-15 | `FE`  | `[ ]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload |
+| MKT-FE-15 | `FE`  | `[x]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload. Landed as part of MKT-FE-03's photo picker rather than as separate work — covers the create flow only, edit reuse still pending (MKT-FE-04 not yet started) |
 | MKT-FE-16 | `FE`  | `[x]`  | Image carousel on detail   | Swipeable carousel for multiple images. Landed as part of MKT-FE-02's detail screen (PageView + dot-indicator) rather than as separate work |
 | MKT-FE-17 | `FE`  | `[ ]`  | Image upload progress      | Show upload progress/loading state                                  |
 

@@ -327,6 +327,51 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get marketplaceCreateScreenTitle => 'Nowe ogłoszenie';
+
+  @override
+  String get marketplaceFieldTitle => 'Tytuł';
+
+  @override
+  String get marketplaceFieldTitleRequired => 'Tytuł jest wymagany';
+
+  @override
+  String get marketplaceFieldCategory => 'Kategoria';
+
+  @override
+  String get marketplaceFieldCategoryRequired => 'Wybierz kategorię';
+
+  @override
+  String get marketplaceFieldPrice => 'Cena';
+
+  @override
+  String get marketplaceFieldPriceInvalid => 'Podaj prawidłową cenę';
+
+  @override
+  String get marketplaceFieldAddress => 'Adres';
+
+  @override
+  String get marketplaceFieldPhone => 'Telefon';
+
+  @override
+  String get marketplaceFieldEmail => 'E-mail';
+
+  @override
+  String get marketplaceApiaryNone => 'Brak';
+
+  @override
+  String get marketplacePhotosLabel => 'Zdjęcia';
+
+  @override
+  String get marketplaceAddPhoto => 'Dodaj zdjęcie';
+
+  @override
+  String get marketplacePhotoSourceGallery => 'Wybierz z galerii';
+
+  @override
+  String get marketplacePhotoSourceCamera => 'Zrób zdjęcie';
+
+  @override
   String get apiaryMapTitle => 'Mapa pasiek';
 
   @override

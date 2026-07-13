@@ -13,6 +13,7 @@ import 'package:app/core/storage/token_storage.dart';
 import 'package:app/core/widgets/app_drawer.dart';
 import 'package:app/features/auth/bloc/auth_bloc.dart';
 import 'package:app/features/auth/data/auth_repository.dart';
+import 'package:app/features/marketplace/view/create_listing_screen.dart';
 import 'package:app/features/marketplace/view/listing_detail_screen.dart';
 import 'package:app/features/marketplace/view/marketplace_home_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
@@ -46,6 +47,8 @@ Future<ApiClient> _fakeApiClient() async {
 /// Returns a single listing for `/api/v1/listings` so tap-to-navigate can be
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
+  int listingsRequestCount = 0;
+
   @override
   void close({bool force = false}) {}
 
@@ -55,6 +58,9 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    if (options.path.contains('/listings') && options.method == 'GET') {
+      listingsRequestCount++;
+    }
     if (options.path.contains('/listings')) {
       return ResponseBody.fromString(
         jsonEncode({
@@ -94,11 +100,11 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
   }
 }
 
-Future<ApiClient> _fakeApiClientWithListings() async {
+Future<ApiClient> _fakeApiClientWithListings({_ListingsHttpClientAdapter? adapter}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
-  apiClient.dio.httpClientAdapter = _ListingsHttpClientAdapter();
+  apiClient.dio.httpClientAdapter = adapter ?? _ListingsHttpClientAdapter();
   return apiClient;
 }
 
@@ -320,6 +326,50 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ListingDetailScreen), findsOneWidget);
+    });
+
+    testWidgets('unauthenticated: the create-listing "+" button is not shown',
+        (tester) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add), findsNothing);
+    });
+
+    testWidgets(
+        'authenticated: tapping the "+" button opens CreateListingScreen '
+        'and refreshes the feed on return', (tester) async {
+      final adapter = _ListingsHttpClientAdapter();
+      final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await tester.pumpWidget(_wrap(
+        const MarketplaceHomeScreen(),
+        apiClient: apiClient,
+        authBloc: authBloc,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(adapter.listingsRequestCount, 1);
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CreateListingScreen), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CreateListingScreen), findsNothing);
+      expect(adapter.listingsRequestCount, 2);
     });
   });
 }

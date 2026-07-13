@@ -326,6 +326,51 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get marketplaceCreateScreenTitle => 'New listing';
+
+  @override
+  String get marketplaceFieldTitle => 'Title';
+
+  @override
+  String get marketplaceFieldTitleRequired => 'Title is required';
+
+  @override
+  String get marketplaceFieldCategory => 'Category';
+
+  @override
+  String get marketplaceFieldCategoryRequired => 'Select a category';
+
+  @override
+  String get marketplaceFieldPrice => 'Price';
+
+  @override
+  String get marketplaceFieldPriceInvalid => 'Enter a valid price';
+
+  @override
+  String get marketplaceFieldAddress => 'Address';
+
+  @override
+  String get marketplaceFieldPhone => 'Phone';
+
+  @override
+  String get marketplaceFieldEmail => 'Email';
+
+  @override
+  String get marketplaceApiaryNone => 'None';
+
+  @override
+  String get marketplacePhotosLabel => 'Photos';
+
+  @override
+  String get marketplaceAddPhoto => 'Add photo';
+
+  @override
+  String get marketplacePhotoSourceGallery => 'Choose from gallery';
+
+  @override
+  String get marketplacePhotoSourceCamera => 'Take a photo';
+
+  @override
   String get apiaryMapTitle => 'Apiaries map';
 
   @override

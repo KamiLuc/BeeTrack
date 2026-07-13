@@ -704,6 +704,96 @@ abstract class AppLocalizations {
   /// **'Dodano {date}'**
   String marketplacePostedOn(String date);
 
+  /// No description provided for @marketplaceCreateScreenTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowe ogłoszenie'**
+  String get marketplaceCreateScreenTitle;
+
+  /// No description provided for @marketplaceFieldTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tytuł'**
+  String get marketplaceFieldTitle;
+
+  /// No description provided for @marketplaceFieldTitleRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tytuł jest wymagany'**
+  String get marketplaceFieldTitleRequired;
+
+  /// No description provided for @marketplaceFieldCategory.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kategoria'**
+  String get marketplaceFieldCategory;
+
+  /// No description provided for @marketplaceFieldCategoryRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz kategorię'**
+  String get marketplaceFieldCategoryRequired;
+
+  /// No description provided for @marketplaceFieldPrice.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena'**
+  String get marketplaceFieldPrice;
+
+  /// No description provided for @marketplaceFieldPriceInvalid.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podaj prawidłową cenę'**
+  String get marketplaceFieldPriceInvalid;
+
+  /// No description provided for @marketplaceFieldAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres'**
+  String get marketplaceFieldAddress;
+
+  /// No description provided for @marketplaceFieldPhone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Telefon'**
+  String get marketplaceFieldPhone;
+
+  /// No description provided for @marketplaceFieldEmail.
+  ///
+  /// In pl, this message translates to:
+  /// **'E-mail'**
+  String get marketplaceFieldEmail;
+
+  /// No description provided for @marketplaceApiaryNone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak'**
+  String get marketplaceApiaryNone;
+
+  /// No description provided for @marketplacePhotosLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zdjęcia'**
+  String get marketplacePhotosLabel;
+
+  /// No description provided for @marketplaceAddPhoto.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zdjęcie'**
+  String get marketplaceAddPhoto;
+
+  /// No description provided for @marketplacePhotoSourceGallery.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz z galerii'**
+  String get marketplacePhotoSourceGallery;
+
+  /// No description provided for @marketplacePhotoSourceCamera.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zrób zdjęcie'**
+  String get marketplacePhotoSourceCamera;
+
   /// No description provided for @apiaryMapTitle.
   ///
   /// In pl, this message translates to:

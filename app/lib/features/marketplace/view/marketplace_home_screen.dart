@@ -11,6 +11,7 @@ import '../cubit/marketplace_cubit.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
 import '../data/listing_repository.dart';
+import 'create_listing_screen.dart';
 import 'listing_detail_screen.dart';
 
 class MarketplaceHomeScreen extends StatelessWidget {
@@ -55,6 +56,13 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     super.dispose();
   }
 
+  Future<void> _openCreateListing(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreateListingScreen()),
+    );
+    if (context.mounted) context.read<MarketplaceCubit>().load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -81,6 +89,12 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 tooltip: l10n.marketplaceMapTooltip,
                 onPressed: null,
               ),
+              if (isAuthenticated)
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: l10n.marketplaceCreateScreenTitle,
+                  onPressed: () => _openCreateListing(context),
+                ),
               if (isAuthenticated) const ProfileIconButton(),
             ],
           ),
