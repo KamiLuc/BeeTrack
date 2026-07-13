@@ -13,12 +13,16 @@ import (
 // maxListingImages is the maximum number of images allowed per listing.
 const maxListingImages = 3
 
+// maxListingDescriptionLength is the maximum number of characters allowed in a listing description.
+const maxListingDescriptionLength = 500
+
 var (
-	ErrListingNotFound        = errors.New("listing not found")
-	ErrListingTitleRequired   = errors.New("title is required")
-	ErrListingCategoryInvalid = errors.New("category is invalid")
-	ErrListingTooManyImages   = errors.New("a listing may have at most 3 images")
-	ErrNotListingOwner        = errors.New("not the listing owner")
+	ErrListingNotFound           = errors.New("listing not found")
+	ErrListingTitleRequired      = errors.New("title is required")
+	ErrListingCategoryInvalid    = errors.New("category is invalid")
+	ErrListingTooManyImages      = errors.New("a listing may have at most 3 images")
+	ErrListingDescriptionTooLong = errors.New("description must be at most 500 characters")
+	ErrNotListingOwner           = errors.New("not the listing owner")
 )
 
 // validListingCategories is the set of accepted listing categories.
@@ -77,6 +81,9 @@ func validateListingParams(p ListingParams) error {
 	}
 	if len(p.ImageURLs) > maxListingImages {
 		return ErrListingTooManyImages
+	}
+	if len([]rune(p.Description)) > maxListingDescriptionLength {
+		return ErrListingDescriptionTooLong
 	}
 	return nil
 }

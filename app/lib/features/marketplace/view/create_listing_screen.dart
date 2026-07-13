@@ -38,6 +38,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   List<Apiary> _apiaries = [];
   final List<XFile> _pendingImages = [];
   bool _saving = false;
+  String? _submitError;
 
   @override
   void initState() {
@@ -114,28 +115,22 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => _pendingImages.remove(file));
   }
 
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     final formValid = _formKey.currentState?.validate() ?? false;
     final hasContact = _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
     if (!formValid || _category == null || !hasContact) {
-      if (_category == null) {
-        _showError(l10n.marketplaceFieldCategoryRequired);
-      } else if (!hasContact) {
-        _showError(l10n.marketplaceContactRequired);
-      }
+      setState(() {
+        _submitError = !hasContact ? l10n.marketplaceContactRequired : null;
+      });
       return;
     }
 
-    setState(() => _saving = true);
+    setState(() {
+      _submitError = null;
+      _saving = true;
+    });
     final repo = ListingRepository(api: context.read<ApiClient>());
     try {
       final listing = await repo.createListing(
@@ -155,8 +150,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
-        _showError(l10n.generalError);
-        setState(() => _saving = false);
+        setState(() {
+          _submitError = l10n.generalError;
+          _saving = false;
+        });
       }
     }
   }
@@ -179,7 +176,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             constraints: AppLayout.formConstraints(context),
             child: Form(
               key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -223,6 +219,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     ),
                     minLines: 3,
                     maxLines: 6,
+                    maxLength: 500,
                     textInputAction: TextInputAction.newline,
                   ),
                   const SizedBox(height: 16),
@@ -328,6 +325,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     onRemove: _removeImage,
                   ),
                   const SizedBox(height: 24),
+                  if (_submitError != null) ...[
+                    Text(
+                      _submitError!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Center(
                     child: SizedBox(
                       width: 200,

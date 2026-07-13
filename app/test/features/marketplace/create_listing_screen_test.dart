@@ -190,10 +190,34 @@ void main() {
         find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
         'Wildflower Honey',
       );
-      tester.state<FormState>(find.byType(Form)).validate();
-      await tester.pump();
+      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
 
       expect(find.text(l10n.marketplaceFieldCategoryRequired), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('truncates description input at 500 characters',
+        (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceDescriptionLabel),
+        'a' * 510,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceDescriptionLabel),
+      );
+      expect(field.controller!.text.length, 500);
+      expect(find.text('500/500'), findsOneWidget);
     });
 
     testWidgets('shows price invalid error for non-numeric price',
@@ -277,6 +301,27 @@ void main() {
       await tester.pump();
 
       expect(find.text(l10n.authInvalidEmail), findsOneWidget);
+    });
+
+    testWidgets(
+        'typing garbage into the email field alone does not flag untouched '
+        'fields above it', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldEmail),
+        'not-an-email',
+      );
+      await tester.pump();
+
+      expect(find.text(l10n.marketplaceFieldTitleRequired), findsNothing);
+      expect(find.text(l10n.marketplaceFieldCategoryRequired), findsNothing);
+      expect(find.text(l10n.marketplaceFieldPriceRequired), findsNothing);
+      expect(find.text(l10n.authInvalidEmail), findsNothing);
     });
   });
 
@@ -379,7 +424,7 @@ void main() {
     });
 
     testWidgets(
-        'shows an error snackbar and re-enables the form when creation fails',
+        'shows an inline error and re-enables the form when creation fails',
         (tester) async {
       final adapter = _RecordingHttpClientAdapter()..failCreate = true;
       final apiClient = await _fakeApiClient(adapter);
@@ -399,6 +444,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(l10n.generalError), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
       expect(find.byType(CreateListingScreen), findsOneWidget);
       expect(result, isNull);
 
@@ -436,6 +482,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(l10n.marketplaceContactRequired), findsWidgets);
+      expect(find.byType(SnackBar), findsNothing);
       final createRequests = adapter.requests
           .where((r) => r.path.endsWith('/listings') && r.method == 'POST');
       expect(createRequests, isEmpty);

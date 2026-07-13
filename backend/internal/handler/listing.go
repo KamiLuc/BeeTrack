@@ -109,6 +109,8 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "CATEGORY_INVALID", err.Error())
 	case errors.Is(err, service.ErrListingTooManyImages):
 		respond.Error(w, http.StatusBadRequest, "TOO_MANY_IMAGES", err.Error())
+	case errors.Is(err, service.ErrListingDescriptionTooLong):
+		respond.Error(w, http.StatusBadRequest, "DESCRIPTION_TOO_LONG", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

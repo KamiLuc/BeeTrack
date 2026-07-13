@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
@@ -124,6 +125,40 @@ func TestListingCreate_TooManyImages(t *testing.T) {
 	_, err := svc.Create(context.Background(), 1, params)
 	if err != ErrListingTooManyImages {
 		t.Errorf("expected ErrListingTooManyImages, got %v", err)
+	}
+}
+
+func TestListingCreate_DescriptionAtMaxLength(t *testing.T) {
+	store := &mockListingStore{}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.Description = strings.Repeat("a", 500)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestListingCreate_DescriptionTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Description = strings.Repeat("a", 501)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingDescriptionTooLong {
+		t.Errorf("expected ErrListingDescriptionTooLong, got %v", err)
+	}
+}
+
+func TestListingCreate_DescriptionTooLongMultiByteRunes(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Description = strings.Repeat("蜂", 501)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingDescriptionTooLong {
+		t.Errorf("expected ErrListingDescriptionTooLong, got %v", err)
 	}
 }
 
@@ -305,6 +340,30 @@ func TestListingUpdate_NotOwner(t *testing.T) {
 	_, err := svc.Update(context.Background(), 99, 5, validListingParams())
 	if err != ErrNotListingOwner {
 		t.Errorf("expected ErrNotListingOwner, got %v", err)
+	}
+}
+
+func TestListingUpdate_DescriptionAtMaxLength(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.Description = strings.Repeat("a", 500)
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestListingUpdate_DescriptionTooLong(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.Description = strings.Repeat("a", 501)
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrListingDescriptionTooLong {
+		t.Errorf("expected ErrListingDescriptionTooLong, got %v", err)
 	}
 }
 
