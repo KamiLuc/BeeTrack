@@ -43,6 +43,41 @@ Widget _wrapTypeDropdown({
       ),
     );
 
+/// Mirrors how add/edit hive screens wire up [HiveTypeDropdown]: `value` is
+/// fed from parent state that is itself updated by the field's own
+/// `onChanged`, so every keystroke triggers a parent rebuild with a new
+/// `value`.
+class _HiveTypeHost extends StatefulWidget {
+  const _HiveTypeHost();
+
+  @override
+  State<_HiveTypeHost> createState() => _HiveTypeHostState();
+}
+
+class _HiveTypeHostState extends State<_HiveTypeHost> {
+  String _type = 'dadant';
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('en'),
+      home: Scaffold(
+        body: Column(
+          children: [
+            const TextField(),
+            HiveTypeDropdown(
+              value: _type,
+              onChanged: (v) => setState(() => _type = v ?? _type),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 void main() {
   group('HiveNameField', () {
     testWidgets('validate shows Required when name is empty', (tester) async {
@@ -213,6 +248,33 @@ void main() {
       ));
 
       expect(formKey.currentState!.validate(), isTrue);
+    });
+
+    testWidgets(
+        'typing does not lose focus or recreate the field '
+        '(regression for keyed-Autocomplete rebuild bug)', (tester) async {
+      await tester.pumpWidget(const _HiveTypeHost());
+
+      final editableTextFinder = find.descendant(
+        of: find.byType(HiveTypeDropdown),
+        matching: find.byType(EditableText),
+      );
+
+      await tester.tap(editableTextFinder);
+      await tester.pump();
+
+      final focusNodeBefore =
+          tester.widget<EditableText>(editableTextFinder).focusNode;
+      expect(focusNodeBefore.hasFocus, isTrue);
+
+      await tester.enterText(editableTextFinder, 'Dadan');
+      await tester.pump();
+
+      final focusNodeAfter =
+          tester.widget<EditableText>(editableTextFinder).focusNode;
+
+      expect(focusNodeAfter, same(focusNodeBefore));
+      expect(focusNodeAfter.hasFocus, isTrue);
     });
   });
 }

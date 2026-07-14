@@ -229,7 +229,6 @@ class _HiveTypeDropdownState extends State<HiveTypeDropdown> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Autocomplete<String>(
-      key: ValueKey(widget.value),
       initialValue: TextEditingValue(
         text: hiveTypeLabels[widget.value] ?? widget.value,
       ),
