@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/storage/token_storage.dart';
 import '../data/favorites_repository.dart';
 import '../data/listing_model.dart';
 import '../data/listing_repository.dart';
@@ -11,6 +12,7 @@ const int _pageSize = 20;
 class MarketplaceCubit extends Cubit<MarketplaceState> {
   final ListingRepository _repo;
   final FavoritesRepository _favoritesRepo;
+  final TokenStorage _tokenStorage;
 
   String? _category;
   String _keyword = '';
@@ -18,8 +20,10 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
   MarketplaceCubit({
     required ListingRepository repo,
     required FavoritesRepository favoritesRepo,
+    required TokenStorage tokenStorage,
   }) : _repo = repo,
        _favoritesRepo = favoritesRepo,
+       _tokenStorage = tokenStorage,
        super(MarketplaceInitial());
 
   Future<Set<int>> _loadFavoriteIds() async {
@@ -28,6 +32,16 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
       return favorites.map((l) => l.id).toSet();
     } catch (_) {
       return {};
+    }
+  }
+
+  Future<bool> _loadHasOwnListings() async {
+    if (_tokenStorage.accessToken == null) return false;
+    try {
+      final result = await _repo.searchListings(mine: true, limit: 1);
+      return result.total > 0;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -45,6 +59,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         offset: (page - 1) * _pageSize,
       );
       final favoriteIds = await _loadFavoriteIds();
+      final hasOwnListings = await _loadHasOwnListings();
       final totalPages = (result.total / _pageSize).ceil().clamp(1, 999999);
       emit(
         MarketplaceLoaded(
@@ -54,6 +69,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
           category: _category,
           keyword: _keyword,
           favoriteIds: favoriteIds,
+          hasOwnListings: hasOwnListings,
         ),
       );
     } catch (_) {

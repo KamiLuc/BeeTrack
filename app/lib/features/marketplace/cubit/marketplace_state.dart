@@ -15,6 +15,7 @@ final class MarketplaceLoaded extends MarketplaceState {
   final String? category;
   final String keyword;
   final Set<int> favoriteIds;
+  final bool hasOwnListings;
 
   MarketplaceLoaded({
     required this.items,
@@ -23,6 +24,7 @@ final class MarketplaceLoaded extends MarketplaceState {
     required this.category,
     required this.keyword,
     this.favoriteIds = const {},
+    this.hasOwnListings = false,
   });
 
   MarketplaceLoaded copyWith({List<Listing>? items, Set<int>? favoriteIds}) {
@@ -33,6 +35,7 @@ final class MarketplaceLoaded extends MarketplaceState {
       category: category,
       keyword: keyword,
       favoriteIds: favoriteIds ?? this.favoriteIds,
+      hasOwnListings: hasOwnListings,
     );
   }
 }

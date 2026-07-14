@@ -37,6 +37,7 @@ class MarketplaceHomeScreen extends StatelessWidget {
       create: (_) => MarketplaceCubit(
         repo: ListingRepository(api: context.read<ApiClient>()),
         favoritesRepo: FavoritesRepository(api: context.read<ApiClient>()),
+        tokenStorage: context.read<TokenStorage>(),
       )..load(),
       child: _MarketplaceView(
         onSelectSection: onSelectSection,
@@ -155,6 +156,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                   return _MarketplaceBanner(
                     l10n: l10n,
                     isAuthenticated: isAuthenticated,
+                    hasOwnListings: loaded?.hasOwnListings ?? false,
                     onAdd: () => _openCreateListing(context),
                     onMyListings: () => _openMyListings(context),
                     onMap: null,
@@ -175,6 +177,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 class _MarketplaceBanner extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isAuthenticated;
+  final bool hasOwnListings;
   final VoidCallback onAdd;
   final VoidCallback onMyListings;
   final VoidCallback? onMap;
@@ -185,6 +188,7 @@ class _MarketplaceBanner extends StatelessWidget {
   const _MarketplaceBanner({
     required this.l10n,
     required this.isAuthenticated,
+    required this.hasOwnListings,
     required this.onAdd,
     required this.onMyListings,
     required this.onMap,
@@ -232,12 +236,13 @@ class _MarketplaceBanner extends StatelessWidget {
                           tooltip: l10n.marketplaceCreateScreenTitle,
                           onPressed: onAdd,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.list_alt_outlined),
-                          iconSize: 28,
-                          tooltip: l10n.myListingsTitle,
-                          onPressed: onMyListings,
-                        ),
+                        if (hasOwnListings)
+                          IconButton(
+                            icon: const Icon(Icons.list_alt_outlined),
+                            iconSize: 28,
+                            tooltip: l10n.myListingsTitle,
+                            onPressed: onMyListings,
+                          ),
                       ],
                       IconButton(
                         icon: const Icon(Icons.map_outlined),

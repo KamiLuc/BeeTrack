@@ -62,10 +62,12 @@ Future<ApiClient> _fakeApiClient() async {
 /// Returns a single listing for `/api/v1/listings` so tap-to-navigate can be
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
-  _ListingsHttpClientAdapter({this.price = 20.0, this.total = 1});
+  _ListingsHttpClientAdapter({this.price = 20.0, this.total = 1, int? mineTotal})
+      : mineTotal = mineTotal ?? total;
 
   final double? price;
   final int total;
+  final int mineTotal;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -78,6 +80,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    final isMine = options.queryParameters['mine'] == true;
     if (options.path.contains('/listings') && options.method == 'GET') {
       listingsRequestCount++;
       listingsRequests.add(options);
@@ -103,7 +106,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
               'images': [],
             },
           ],
-          'total': total,
+          'total': isMine ? mineTotal : total,
         }),
         200,
         headers: {
@@ -400,6 +403,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      // Anonymous, so no mine=true request is fired alongside the feed load.
       expect(adapter.listingsRequestCount, 1);
 
       await tester.tap(find.text('Wildflower Honey'));
@@ -480,7 +484,9 @@ void main() {
         await tester.tap(find.text('2'));
         await tester.pumpAndSettle();
 
-        final lastRequest = adapter.listingsRequests.last;
+        final lastRequest = adapter.listingsRequests.lastWhere(
+          (r) => r.queryParameters['mine'] != true,
+        );
         expect(lastRequest.queryParameters['offset'], 20);
         expect(lastRequest.queryParameters['limit'], 20);
       },
@@ -553,6 +559,7 @@ void main() {
       (tester) async {
         final adapter = _ListingsHttpClientAdapter();
         final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
         final authBloc = AuthBloc(auth: _MockAuthRepository())
           ..emit(AuthAuthenticated());
 
@@ -565,7 +572,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(adapter.listingsRequestCount, 1);
+        expect(adapter.listingsRequestCount, 2);
 
         await tester.tap(find.byIcon(Icons.add));
         await tester.pumpAndSettle();
@@ -576,7 +583,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(CreateListingScreen), findsNothing);
-        expect(adapter.listingsRequestCount, 2);
+        expect(adapter.listingsRequestCount, 4);
       },
     );
 
@@ -642,6 +649,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        // Anonymous, so no mine=true request is fired alongside the feed load.
         expect(adapter.listingsRequestCount, 1);
 
         await tester.enterText(find.byType(TextField), 'honey');
@@ -652,7 +660,9 @@ void main() {
         await tester.pump();
         expect(adapter.listingsRequestCount, 2);
         expect(
-          adapter.listingsRequests.last.queryParameters['keyword'],
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['keyword'],
           'honey',
         );
       },
@@ -682,6 +692,7 @@ void main() {
       (tester) async {
         final adapter = _ListingsHttpClientAdapter();
         final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
         final authBloc = AuthBloc(auth: _MockAuthRepository())
           ..emit(AuthAuthenticated());
 
@@ -694,7 +705,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(adapter.listingsRequestCount, 1);
+        expect(adapter.listingsRequestCount, 2);
         expect(find.byIcon(Icons.list_alt_outlined), findsOneWidget);
 
         await tester.tap(find.byIcon(Icons.list_alt_outlined));
@@ -702,14 +713,38 @@ void main() {
 
         expect(find.byType(MyListingsScreen), findsOneWidget);
         // MyListingsScreen fetches its own listings on open.
-        expect(adapter.listingsRequestCount, 2);
+        expect(adapter.listingsRequestCount, 3);
 
         await tester.pageBack();
         await tester.pumpAndSettle();
 
         expect(find.byType(MyListingsScreen), findsNothing);
         // MarketplaceHomeScreen reloads its feed when the pushed route returns.
-        expect(adapter.listingsRequestCount, 3);
+        expect(adapter.listingsRequestCount, 5);
+      },
+    );
+
+    testWidgets(
+      'authenticated but with no own listings: the "My listings" icon is '
+      'not shown',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings(
+          adapter: _ListingsHttpClientAdapter(mineTotal: 0),
+        );
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.list_alt_outlined), findsNothing);
       },
     );
   });

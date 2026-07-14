@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/marketplace/cubit/marketplace_cubit.dart';
 import 'package:app/features/marketplace/data/favorites_repository.dart';
 import 'package:app/features/marketplace/data/listing_model.dart';
@@ -10,6 +12,16 @@ import 'package:app/features/marketplace/data/listing_repository.dart';
 class MockListingRepository extends Mock implements ListingRepository {}
 
 class MockFavoritesRepository extends Mock implements FavoritesRepository {}
+
+/// Builds a [TokenStorage] backed by mock [SharedPreferences], optionally
+/// pre-populated with an access token so `accessToken` returns non-null.
+Future<TokenStorage> _tokenStorageWithToken({bool loggedIn = true}) async {
+  SharedPreferences.setMockInitialValues(
+    loggedIn ? {'access_token': 'fake.jwt.token'} : {},
+  );
+  final prefs = await SharedPreferences.getInstance();
+  return TokenStorage(prefs);
+}
 
 Listing _listing(int id) => Listing(
   id: id,
@@ -30,13 +42,22 @@ Listing _listing(int id) => Listing(
 void main() {
   late MockListingRepository repo;
   late MockFavoritesRepository favoritesRepo;
+  late TokenStorage tokenStorage;
   late MarketplaceCubit cubit;
 
-  setUp(() {
+  setUp(() async {
     repo = MockListingRepository();
     favoritesRepo = MockFavoritesRepository();
+    tokenStorage = await _tokenStorageWithToken();
     when(() => favoritesRepo.listFavorites()).thenAnswer((_) async => []);
-    cubit = MarketplaceCubit(repo: repo, favoritesRepo: favoritesRepo);
+    when(
+      () => repo.searchListings(mine: true, limit: any(named: 'limit')),
+    ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+    cubit = MarketplaceCubit(
+      repo: repo,
+      favoritesRepo: favoritesRepo,
+      tokenStorage: tokenStorage,
+    );
   });
 
   tearDown(() => cubit.close());
@@ -329,6 +350,133 @@ void main() {
             offset: 20,
           ),
         ).called(1);
+      },
+    );
+  });
+
+  group('load hasOwnListings', () {
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'is true when the mine=true search returns a positive total',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 1),
+        );
+        when(
+          () => repo.searchListings(mine: true, limit: any(named: 'limit')),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 3),
+        );
+        return cubit;
+      },
+      act: (c) => c.load(),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.hasOwnListings,
+          'hasOwnListings',
+          true,
+        ),
+      ],
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'is false when the mine=true search returns a zero total',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 1),
+        );
+        when(
+          () => repo.searchListings(mine: true, limit: any(named: 'limit')),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.load(),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.hasOwnListings,
+          'hasOwnListings',
+          false,
+        ),
+      ],
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'is false when the mine=true search throws',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 1),
+        );
+        when(
+          () => repo.searchListings(mine: true, limit: any(named: 'limit')),
+        ).thenThrow(Exception('network error'));
+        return cubit;
+      },
+      act: (c) => c.load(),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.hasOwnListings,
+          'hasOwnListings',
+          false,
+        ),
+      ],
+    );
+
+    late TokenStorage loggedOutStorage;
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'skips the mine=true search entirely when logged out',
+      setUp: () async {
+        loggedOutStorage = await _tokenStorageWithToken(loggedIn: false);
+      },
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 1),
+        );
+        return MarketplaceCubit(
+          repo: repo,
+          favoritesRepo: favoritesRepo,
+          tokenStorage: loggedOutStorage,
+        );
+      },
+      act: (c) => c.load(),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.hasOwnListings,
+          'hasOwnListings',
+          false,
+        ),
+      ],
+      verify: (_) {
+        verifyNever(
+          () => repo.searchListings(mine: true, limit: any(named: 'limit')),
+        );
       },
     );
   });

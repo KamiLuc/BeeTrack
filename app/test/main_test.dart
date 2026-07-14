@@ -36,10 +36,16 @@ class _FailingHttpClientAdapter implements HttpClientAdapter {
   }
 }
 
+/// The [TokenStorage] backing the current test's [ApiClient], also handed to
+/// [_pumpAuthWrapper] via a [RepositoryProvider] so `context.read<TokenStorage>()`
+/// resolves just like it does in the real widget tree (see main.dart).
+late TokenStorage _tokenStorage;
+
 Future<ApiClient> _fakeApiClient() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
+  _tokenStorage = TokenStorage(prefs);
+  final apiClient = ApiClient(storage: _tokenStorage, baseUrl: 'http://test');
   apiClient.dio.httpClientAdapter = _FailingHttpClientAdapter();
   return apiClient;
 }
@@ -52,13 +58,16 @@ Future<AuthBloc> _pumpAuthWrapper(
   await tester.pumpWidget(
     RepositoryProvider<ApiClient>.value(
       value: apiClient,
-      child: BlocProvider<AuthBloc>.value(
-        value: authBloc,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: const AuthWrapper(),
+      child: RepositoryProvider<TokenStorage>.value(
+        value: _tokenStorage,
+        child: BlocProvider<AuthBloc>.value(
+          value: authBloc,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: const AuthWrapper(),
+          ),
         ),
       ),
     ),
