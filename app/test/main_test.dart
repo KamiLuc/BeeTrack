@@ -216,5 +216,33 @@ void main() {
       expect(tester.state(find.byType(AuthWrapper)), same(initialState));
       expect(find.byType(LoginScreen), findsOneWidget);
     });
+
+    testWidgets(
+        'logout from a pushed route (e.g. hive detail) still returns to the '
+        'login gate', (tester) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository())
+        ..emit(AuthAuthenticated());
+
+      await _pumpAuthWrapper(tester, apiClient: apiClient, authBloc: authBloc);
+      await tester.pumpAndSettle();
+      expect(find.byType(ApiariesScreen), findsOneWidget);
+
+      final context = tester.element(find.byType(ApiariesScreen));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const Scaffold(body: Text('Nested detail screen')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Nested detail screen'), findsOneWidget);
+
+      authBloc.emit(AuthUnauthenticated());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('Nested detail screen'), findsNothing);
+      expect(find.byType(ApiariesScreen), findsNothing);
+    });
   });
 }

@@ -94,6 +94,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _showLogin = false;
           });
         } else if (state is AuthUnauthenticated) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
           setState(() => _showLogin = true);
         }
       },
