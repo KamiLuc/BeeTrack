@@ -95,46 +95,46 @@ class _ApiariesView extends StatelessWidget {
             );
           }
           if (state is ApiariesLoaded) {
-            if (state.apiaries.isEmpty) {
-              return Center(
-                child: SizedBox(
-                  width: 200,
-                  child: ElevatedButton(
-                    onPressed: () => _openCreate(context),
-                    child: Text(l10n.apiaryAdd),
-                  ),
-                ),
-              );
-            }
             final hasGps =
                 state.apiaries.any((a) => a.lat != null && a.lng != null);
             return Column(
               children: [
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () => context.read<ApiariesCubit>().load(),
-                    child: Center(
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: ConstrainedBox(
-                          constraints: AppLayout.formConstraints(context),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (final apiary in state.apiaries) ...[
-                                _ApiaryCard(apiary: apiary),
-                                const SizedBox(height: 8),
-                              ],
-                            ],
+                  child: state.apiaries.isEmpty
+                      ? Center(child: Text(l10n.apiaryEmpty))
+                      : RefreshIndicator(
+                          onRefresh: () =>
+                              context.read<ApiariesCubit>().load(),
+                          child: Center(
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                16,
+                                16,
+                                8,
+                              ),
+                              child: ConstrainedBox(
+                                constraints: AppLayout.formConstraints(
+                                  context,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (final apiary in state.apiaries) ...[
+                                      _ApiaryCard(apiary: apiary),
+                                      const SizedBox(height: 8),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
                 ),
                 _ApiariesBanner(
                   l10n: l10n,
+                  hasApiaries: state.apiaries.isNotEmpty,
                   hasGps: hasGps,
                   onAdd: () => _openCreate(context),
                   onMap: () => _openMap(context, state.apiaries),
@@ -151,12 +151,14 @@ class _ApiariesView extends StatelessWidget {
 
 class _ApiariesBanner extends StatelessWidget {
   final AppLocalizations l10n;
+  final bool hasApiaries;
   final bool hasGps;
   final VoidCallback onAdd;
   final VoidCallback onMap;
 
   const _ApiariesBanner({
     required this.l10n,
+    required this.hasApiaries,
     required this.hasGps,
     required this.onAdd,
     required this.onMap,
@@ -197,12 +199,13 @@ class _ApiariesBanner extends StatelessWidget {
                     tooltip: l10n.apiaryAdd,
                     onPressed: onAdd,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.map_outlined),
-                    iconSize: 28,
-                    tooltip: l10n.apiaryMapTooltip,
-                    onPressed: hasGps ? onMap : null,
-                  ),
+                  if (hasApiaries)
+                    IconButton(
+                      icon: const Icon(Icons.map_outlined),
+                      iconSize: 28,
+                      tooltip: l10n.apiaryMapTooltip,
+                      onPressed: hasGps ? onMap : null,
+                    ),
                 ],
               ),
             ),
