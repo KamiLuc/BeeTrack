@@ -150,6 +150,8 @@
   "marketplaceEditScreenTitle": "Edit listing",
   "myListingsTitle": "My listings",
   "myListingsEmpty": "You haven't posted any listings yet",
+  "favoritesTitle": "Favorites",
+  "favoritesEmpty": "You haven't saved any favorites yet",
   "marketplaceHiddenBadge": "Private",
   "marketplaceHideListing": "Make private",
   "marketplaceShowListing": "Make public",

@@ -62,10 +62,19 @@ func (r *ListingFavoriteRepository) ListListingsByUserID(ctx context.Context, us
 		return nil, err
 	}
 	listings := make([]*model.Listing, len(rows))
+	ids := make([]int64, len(rows))
 	for i, row := range rows {
 		l := row.Listing
 		l.ApiaryName = row.ApiaryName
 		listings[i] = &l
+		ids[i] = l.ID
+	}
+	imagesByListingID, err := fetchImagesForListingIDs(ctx, r.db, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range listings {
+		l.Images = imagesByListingID[l.ID]
 	}
 	return listings, nil
 }

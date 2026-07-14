@@ -543,21 +543,27 @@ ApiariesScreen (shown once logged in)
 MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option)
   │   Search bar + category dropdown + page-based listing feed (20 per page, same
   │   pagination pattern as InspectionHistoryScreen). Adapts to whether you're logged
-  │   in: shows the full drawer + profile icon + "My listings" AppBar icon when signed
-  │   in, or a simpler drawer with a "Log in" option when browsing as a visitor. Cards
-  │   for your own listings never show the favorite heart.
-  │   Bottom amber banner: + (add, signed-in only) → CreateListingScreen; map button
-  │   present but disabled (no handler wired up yet).
+  │   in: shows the full drawer + profile icon when signed in, or a simpler drawer
+  │   with a "Log in" option when browsing as a visitor. Cards for your own listings
+  │   never show the favorite heart.
+  │   Bottom amber banner (signed-in only): + (add) → CreateListingScreen; list icon
+  │   → MyListingsScreen (only shown once you have listings); bookmark icon →
+  │   FavoritesScreen; map button present but disabled (no handler wired up yet).
   ├── CreateListingScreen (banner + button, or edit button on a listing you own)
   │   │   Same form doubles as create and edit: takes an optional `existingListing`;
   │   │   when set, fields are prefilled and existing images can be deleted alongside
   │   │   picking new ones.
-  ├── MyListingsScreen (AppBar list icon, signed-in only)
+  ├── MyListingsScreen (list icon in bottom banner, signed-in only)
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card
   │   │   has a menu (edit / hide-show / delete); delete uses the math-puzzle
   │   │   confirmation dialog.
   │   └── CreateListingScreen (edit, via card menu)
+  ├── FavoritesScreen (bookmark icon in bottom banner, signed-in only)
+  │   │   Lists the caller's favorited listings. Tapping the heart on a card toggles
+  │   │   it in place (rather than removing the card immediately) to guard against
+  │   │   accidental taps; the list re-fetches on return to pick up the actual change.
+  │   └── ListingDetailScreen (tap a card)
   └── ListingDetailScreen (tap a card)
       │   Image carousel with prev/next arrows; tapping an image opens a fullscreen
       │   swipeable viewer. Contact phone/email are hidden behind Call/Write buttons

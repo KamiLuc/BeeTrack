@@ -848,6 +848,18 @@ abstract class AppLocalizations {
   /// **'Nie masz jeszcze żadnych ogłoszeń'**
   String get myListingsEmpty;
 
+  /// No description provided for @favoritesTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ulubione'**
+  String get favoritesTitle;
+
+  /// No description provided for @favoritesEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie masz jeszcze żadnych ulubionych ogłoszeń'**
+  String get favoritesEmpty;
+
   /// No description provided for @marketplaceHiddenBadge.
   ///
   /// In pl, this message translates to:

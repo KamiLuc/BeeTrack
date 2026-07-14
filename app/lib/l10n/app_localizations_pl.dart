@@ -401,6 +401,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get myListingsEmpty => 'Nie masz jeszcze żadnych ogłoszeń';
 
   @override
+  String get favoritesTitle => 'Ulubione';
+
+  @override
+  String get favoritesEmpty => 'Nie masz jeszcze żadnych ulubionych ogłoszeń';
+
+  @override
   String get marketplaceHiddenBadge => 'Prywatne';
 
   @override

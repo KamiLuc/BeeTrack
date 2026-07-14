@@ -206,12 +206,19 @@ func (r *ListingRepository) listImages(ctx context.Context, listingID int64) ([]
 // listImagesForListingIDs returns the images for the given listing ids, grouped by listing id
 // and ordered by display_order, in a single query.
 func (r *ListingRepository) listImagesForListingIDs(ctx context.Context, listingIDs []int64) (map[int64][]model.ListingImage, error) {
+	return fetchImagesForListingIDs(ctx, r.db, listingIDs)
+}
+
+// fetchImagesForListingIDs returns the images for the given listing ids, grouped by listing id
+// and ordered by display_order, in a single query. Shared across repositories in this package
+// that need to batch-populate model.Listing.Images (which gorm never scans automatically).
+func fetchImagesForListingIDs(ctx context.Context, db *gorm.DB, listingIDs []int64) (map[int64][]model.ListingImage, error) {
 	result := make(map[int64][]model.ListingImage, len(listingIDs))
 	if len(listingIDs) == 0 {
 		return result, nil
 	}
 	var images []model.ListingImage
-	if err := r.db.WithContext(ctx).
+	if err := db.WithContext(ctx).
 		Where("listing_id IN ?", listingIDs).
 		Order("display_order ASC").
 		Find(&images).Error; err != nil {

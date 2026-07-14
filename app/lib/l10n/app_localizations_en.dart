@@ -399,6 +399,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myListingsEmpty => 'You haven\'t posted any listings yet';
 
   @override
+  String get favoritesTitle => 'Favorites';
+
+  @override
+  String get favoritesEmpty => 'You haven\'t saved any favorites yet';
+
+  @override
   String get marketplaceHiddenBadge => 'Private';
 
   @override

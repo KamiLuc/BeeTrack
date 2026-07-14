@@ -14,6 +14,7 @@ import 'package:app/core/widgets/app_drawer.dart';
 import 'package:app/features/auth/bloc/auth_bloc.dart';
 import 'package:app/features/auth/data/auth_repository.dart';
 import 'package:app/features/marketplace/view/create_listing_screen.dart';
+import 'package:app/features/marketplace/view/favorites_screen.dart';
 import 'package:app/features/marketplace/view/listing_detail_screen.dart';
 import 'package:app/features/marketplace/view/marketplace_home_screen.dart';
 import 'package:app/features/marketplace/view/my_listings_screen.dart';
@@ -67,12 +68,14 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
     this.total = 1,
     int? mineTotal,
     this.itemsPerPage = 1,
+    this.favoritesCount = 0,
   }) : mineTotal = mineTotal ?? total;
 
   final double? price;
   final int total;
   final int mineTotal;
   final int itemsPerPage;
+  final int favoritesCount;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -119,6 +122,36 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
               },
           ],
           'total': pageTotal,
+        }),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+    if (options.path.contains('/favorites') && options.method == 'GET') {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'items': [
+            for (var i = 0; i < favoritesCount; i++)
+              {
+                'id': 100 + i,
+                'user_id': 2,
+                'title': 'Favorited Listing',
+                'description': 'Fresh honey.',
+                'category': 'honey',
+                'price': price,
+                'quantity': '5 jars',
+                'address': 'Krakow',
+                'contact_phone': '123456789',
+                'contact_email': 'seller@example.com',
+                'is_hidden': false,
+                'created_at': DateTime(2026, 1, 1).toIso8601String(),
+                'updated_at': DateTime(2026, 1, 1).toIso8601String(),
+                'images': [],
+              },
+          ],
+          'total': favoritesCount,
         }),
         200,
         headers: {
@@ -787,6 +820,84 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byIcon(Icons.list_alt_outlined), findsNothing);
+      },
+    );
+
+    testWidgets('unauthenticated: the "Favorites" icon is not shown', (
+      tester,
+    ) async {
+      final apiClient = await _fakeApiClient();
+      final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+      await tester.pumpWidget(
+        _wrap(
+          const MarketplaceHomeScreen(),
+          apiClient: apiClient,
+          authBloc: authBloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.bookmark_border), findsNothing);
+    });
+
+    testWidgets(
+      'authenticated but with no favorites: the "Favorites" icon is not '
+      'shown',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings(
+          adapter: _ListingsHttpClientAdapter(favoritesCount: 0),
+        );
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.bookmark_border), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'authenticated: tapping the "Favorites" icon opens FavoritesScreen '
+      'and refreshes the feed on return',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter(favoritesCount: 1);
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        await _tokenStorage.save(access: _jwtWithSub(1), refresh: 'refresh');
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(adapter.listingsRequestCount, 2);
+        expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.bookmark_border));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(FavoritesScreen), findsOneWidget);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(FavoritesScreen), findsNothing);
+        // MarketplaceHomeScreen reloads its feed when the pushed route returns.
+        expect(adapter.listingsRequestCount, 4);
       },
     );
   });

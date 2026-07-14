@@ -150,6 +150,8 @@
   "marketplaceEditScreenTitle": "Edytuj ogłoszenie",
   "myListingsTitle": "Moje ogłoszenia",
   "myListingsEmpty": "Nie masz jeszcze żadnych ogłoszeń",
+  "favoritesTitle": "Ulubione",
+  "favoritesEmpty": "Nie masz jeszcze żadnych ulubionych ogłoszeń",
   "marketplaceHiddenBadge": "Prywatne",
   "marketplaceHideListing": "Ustaw jako prywatne",
   "marketplaceShowListing": "Ustaw jako publiczne",

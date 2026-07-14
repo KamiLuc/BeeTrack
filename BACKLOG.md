@@ -164,7 +164,7 @@
 | MKT-FE-03 | `FE`  | `[x]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
 | MKT-FE-04 | `FE`  | `[x]`  | Edit listing screen     | `CreateListingScreen` now takes an optional `existingListing` and reuses the create form (prefilled, existing-image delete + new-image add) |
 | MKT-FE-05 | `FE`  | `[x]`  | My listings screen      | `MyListingsScreen`: lists `mine=true` (incl. hidden), per-card edit/hide-show/delete only (tapping the card itself does nothing — edit is menu-only, per follow-up request); reached via icon in the bottom amber banner next to Add/Map. Edit button also added to listing detail screen when viewer is the owner (not in original scope, added per follow-up request) |
-| MKT-FE-06 | `FE`  | `[ ]`  | Favorites screen        | Saved listings, add to favorites from detail view                                                                    |
+| MKT-FE-06 | `FE`  | `[x]`  | Favorites screen        | `FavoritesScreen`, reached via bookmark icon in the marketplace bottom banner; lists the caller's favorited listings. Unfavoriting toggles the heart in place rather than removing the card immediately, to guard against accidental taps — actual removal happens on next refresh/reload |
 
 ### 9.6 Frontend — Search & Filters
 

@@ -18,6 +18,7 @@ import '../data/listing_model.dart';
 import '../data/listing_price.dart';
 import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
+import 'favorites_screen.dart';
 import 'listing_detail_screen.dart';
 import 'my_listings_screen.dart';
 
@@ -85,6 +86,13 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const MyListingsScreen()));
+    if (context.mounted) context.read<MarketplaceCubit>().load();
+  }
+
+  Future<void> _openFavorites(BuildContext context) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
     if (context.mounted) context.read<MarketplaceCubit>().load();
   }
 
@@ -156,8 +164,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     l10n: l10n,
                     isAuthenticated: isAuthenticated,
                     hasOwnListings: loaded?.hasOwnListings ?? false,
+                    hasFavorites: loaded?.favoriteIds.isNotEmpty ?? false,
                     onAdd: () => _openCreateListing(context),
                     onMyListings: () => _openMyListings(context),
+                    onFavorites: () => _openFavorites(context),
                     onMap: null,
                   );
                 },
@@ -174,16 +184,20 @@ class _MarketplaceBanner extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isAuthenticated;
   final bool hasOwnListings;
+  final bool hasFavorites;
   final VoidCallback onAdd;
   final VoidCallback onMyListings;
+  final VoidCallback onFavorites;
   final VoidCallback? onMap;
 
   const _MarketplaceBanner({
     required this.l10n,
     required this.isAuthenticated,
     required this.hasOwnListings,
+    required this.hasFavorites,
     required this.onAdd,
     required this.onMyListings,
+    required this.onFavorites,
     required this.onMap,
   });
 
@@ -232,6 +246,13 @@ class _MarketplaceBanner extends StatelessWidget {
                             iconSize: 28,
                             tooltip: l10n.myListingsTitle,
                             onPressed: onMyListings,
+                          ),
+                        if (hasFavorites)
+                          IconButton(
+                            icon: const Icon(Icons.bookmark_border),
+                            iconSize: 28,
+                            tooltip: l10n.favoritesTitle,
+                            onPressed: onFavorites,
                           ),
                       ],
                       IconButton(
