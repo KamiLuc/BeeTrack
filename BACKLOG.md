@@ -171,9 +171,9 @@
 | ID        | Layer | Status | Title                    | Notes                                                        |
 | --------- | ----- | ------ | ------------------------ | ------------------------------------------------------------ |
 | MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI. Landed as a single-select dropdown with icons (per-category `IconData`) with MKT-FE-01 — backend only supports one `category` param; multi-select still open |
-| MKT-FE-08 | `FE`  | `[x]`  | Price range filter       | Landed as two debounced min/max text inputs (positive numbers only) below the category dropdown, not a slider |
+| MKT-FE-08 | `FE`  | `[x]`  | Price range filter       | Landed as two min/max text inputs (positive numbers only), not a slider; moved into a "Filters" bottom sheet (tune-icon button next to the category dropdown) so it doesn't clutter the home screen |
 | MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
-| MKT-FE-10 | `FE`  | `[ ]`  | Date range filter        | Posted within last X days (or date picker)                   |
+| MKT-FE-10 | `FE`  | `[x]`  | Date range filter        | Landed as a "posted within" dropdown (Any time/Today/7/14/30 days), not a date picker; lives in the same Filters bottom sheet as the price filter. Filters apply once when the sheet closes, not per keystroke/selection |
 | MKT-FE-11 | `FE`  | `[ ]`  | Distance/location filter | If user location available, show radius filter; else disable |
 
 ### 9.7 Frontend — Map Integration

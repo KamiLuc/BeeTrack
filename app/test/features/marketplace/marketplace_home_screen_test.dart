@@ -900,5 +900,272 @@ void main() {
         expect(adapter.listingsRequestCount, 4);
       },
     );
+
+    testWidgets(
+      'tapping the Filters button opens a bottom sheet with price fields '
+      'and the posted-within dropdown',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.tune), findsOneWidget);
+        expect(find.text('Min price'), findsNothing);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Min price'), findsOneWidget);
+        expect(find.text('Max price'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Clear filters'), findsOneWidget);
+        expect(find.text('Any time'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Filters sheet pre-fills the price fields from the current filter '
+      'state',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextField, 'Min price'), '5');
+        await tester.enterText(find.widgetWithText(TextField, 'Max price'), '50');
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
+
+        // Close the sheet, then reopen it to check the fields are pre-filled.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<TextField>(find.widgetWithText(TextField, '5'))
+              .controller
+              ?.text,
+          '5',
+        );
+        expect(
+          tester
+              .widget<TextField>(find.widgetWithText(TextField, '50'))
+              .controller
+              ?.text,
+          '50',
+        );
+      },
+    );
+
+    testWidgets(
+      'editing the price range in the Filters sheet does not reload the '
+      'feed while the sheet stays open, and applies once it is closed',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final requestCountBefore = adapter.listingsRequestCount;
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.widgetWithText(TextField, 'Min price'), '10');
+        // No debounce timer exists anymore; give plenty of time to prove no
+        // reload happens while the sheet is still open.
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
+        expect(adapter.listingsRequestCount, requestCountBefore);
+
+        // Close the sheet by tapping the scrim outside it.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequestCount,
+          greaterThan(requestCountBefore),
+        );
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['price_min'],
+          10.0,
+        );
+
+        // The Filters button now shows the "active filters" badge.
+        expect(find.byIcon(Icons.tune), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '"Clear filters" resets the sheet\'s pending state, and closing the '
+      'sheet afterwards applies the cleared filters to the cubit',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Apply an initial price + posted-within filter first.
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.widgetWithText(TextField, 'Min price'), '10');
+        await tester.tap(find.byType(DropdownButton<int?>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Last 7 days').last);
+        await tester.pumpAndSettle();
+
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['price_min'],
+          10.0,
+        );
+        final requestCountAfterApply = adapter.listingsRequestCount;
+
+        // Reopen, clear, and confirm the sheet's own fields reset immediately
+        // even though the sheet stays open (no reload yet).
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(TextButton, 'Clear filters'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Min price'), findsOneWidget);
+        expect(find.text('Max price'), findsOneWidget);
+        expect(find.text('Any time'), findsOneWidget);
+        expect(adapter.listingsRequestCount, requestCountAfterApply);
+
+        // Closing the sheet now applies the cleared filters.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequestCount,
+          greaterThan(requestCountAfterApply),
+        );
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters
+              .containsKey('price_min'),
+          isFalse,
+        );
+        expect(find.byIcon(Icons.tune), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'closing the Filters sheet without changing anything does not reload',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final requestCountBefore = adapter.listingsRequestCount;
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        // Close the sheet immediately without touching any field.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(adapter.listingsRequestCount, requestCountBefore);
+        expect(find.byIcon(Icons.tune), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'changing both price and posted-within-days in one sheet session '
+      'triggers exactly one reload on close',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final requestCountBefore = adapter.listingsRequestCount;
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.widgetWithText(TextField, 'Min price'), '10');
+        await tester.enterText(find.widgetWithText(TextField, 'Max price'), '50');
+        await tester.tap(find.byType(DropdownButton<int?>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Last 7 days').last);
+        await tester.pumpAndSettle();
+
+        expect(adapter.listingsRequestCount, requestCountBefore);
+
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(adapter.listingsRequestCount, requestCountBefore + 1);
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['price_min'],
+          10.0,
+        );
+      },
+    );
   });
 }

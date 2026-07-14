@@ -258,6 +258,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplacePriceMaxHint => 'Max price';
 
   @override
+  String get marketplaceFiltersButton => 'Filters';
+
+  @override
+  String get marketplaceClearFilters => 'Clear filters';
+
+  @override
+  String get marketplacePostedWithinAny => 'Any time';
+
+  @override
+  String get marketplacePostedWithinToday => 'Today';
+
+  @override
+  String get marketplacePostedWithin7Days => 'Last 7 days';
+
+  @override
+  String get marketplacePostedWithin14Days => 'Last 14 days';
+
+  @override
+  String get marketplacePostedWithin30Days => 'Last 30 days';
+
+  @override
   String get marketplacePriceOnRequest => 'Price on request';
 
   @override

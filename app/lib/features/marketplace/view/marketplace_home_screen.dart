@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../../core/widgets/profile_icon_button.dart';
@@ -150,8 +151,12 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                             },
                           ),
                         ),
-                        const _CategoryDropdown(),
-                        const _PriceRangeFilter(),
+                        Row(
+                          children: [
+                            const Expanded(child: _CategoryDropdown()),
+                            const _FiltersButton(),
+                          ],
+                        ),
                         const SizedBox(height: 4),
                         Expanded(child: _ListingsFeed()),
                       ],
@@ -320,7 +325,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          border: Border.all(color: AppColors.outline),
           borderRadius: BorderRadius.circular(12),
         ),
         child: DropdownButton<String?>(
@@ -348,33 +353,141 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
   }
 }
 
-class _PriceRangeFilter extends StatefulWidget {
-  const _PriceRangeFilter();
-
-  @override
-  State<_PriceRangeFilter> createState() => _PriceRangeFilterState();
+/// Mutable holder for filter edits made inside [_FiltersSheet]. Applied to
+/// [MarketplaceCubit] only once the sheet closes, rather than per keystroke.
+class _PendingFilters {
+  double? min;
+  double? max;
+  int? days;
 }
 
-class _PriceRangeFilterState extends State<_PriceRangeFilter> {
-  static final _priceInputFormatter = TextInputFormatter.withFunction(
-    (oldValue, newValue) {
-      if (newValue.text.isEmpty) return newValue;
-      return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
-          ? newValue
-          : oldValue;
-    },
-  );
+class _FiltersButton extends StatelessWidget {
+  const _FiltersButton();
 
-  final _minController = TextEditingController();
-  final _maxController = TextEditingController();
-  Timer? _debounce;
+  Future<void> _openFilters(BuildContext context) async {
+    final cubit = context.read<MarketplaceCubit>();
+    final current = cubit.state;
+    final initialMin = current is MarketplaceLoaded ? current.priceMin : null;
+    final initialMax = current is MarketplaceLoaded ? current.priceMax : null;
+    final initialDays = current is MarketplaceLoaded
+        ? current.postedWithinDays
+        : null;
+    final pending = _PendingFilters()
+      ..min = initialMin
+      ..max = initialMax
+      ..days = initialDays;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FiltersSheet(pending: pending),
+    );
+
+    final changed =
+        pending.min != initialMin ||
+        pending.max != initialMax ||
+        pending.days != initialDays;
+    if (changed) {
+      cubit.applyFilters(
+        priceMin: pending.min,
+        priceMax: pending.max,
+        postedWithinDays: pending.days,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final state = context.watch<MarketplaceCubit>().state;
+    final active =
+        state is MarketplaceLoaded &&
+        (state.priceMin != null ||
+            state.priceMax != null ||
+            state.postedWithinDays != null);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.outline),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => _openFilters(context),
+              icon: const Icon(Icons.tune, size: 18),
+              label: Text(l10n.marketplaceFiltersButton),
+            ),
+          ),
+          if (active)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.surface,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FiltersSheet extends StatefulWidget {
+  final _PendingFilters pending;
+
+  const _FiltersSheet({required this.pending});
+
+  @override
+  State<_FiltersSheet> createState() => _FiltersSheetState();
+}
+
+class _FiltersSheetState extends State<_FiltersSheet> {
+  static final _priceInputFormatter = TextInputFormatter.withFunction((
+    oldValue,
+    newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
+        ? newValue
+        : oldValue;
+  });
+
+  late final _minController = TextEditingController(
+    text: _formatPrice(widget.pending.min),
+  );
+  late final _maxController = TextEditingController(
+    text: _formatPrice(widget.pending.max),
+  );
+  late int? _days = widget.pending.days;
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _minController.dispose();
     _maxController.dispose();
     super.dispose();
+  }
+
+  String _formatPrice(double? value) {
+    if (value == null) return '';
+    return value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(2);
   }
 
   double? _parse(String value) {
@@ -382,62 +495,166 @@ class _PriceRangeFilterState extends State<_PriceRangeFilter> {
     return trimmed.isEmpty ? null : double.tryParse(trimmed);
   }
 
-  void _onChanged() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
-      context.read<MarketplaceCubit>().setPriceRange(
-        _parse(_minController.text),
-        _parse(_maxController.text),
-      );
+  void _onPriceChanged() {
+    widget.pending.min = _parse(_minController.text);
+    widget.pending.max = _parse(_maxController.text);
+  }
+
+  void _onDaysChanged(int? days) {
+    setState(() => _days = days);
+    widget.pending.days = days;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _minController.clear();
+      _maxController.clear();
+      _days = null;
     });
+    widget.pending.min = null;
+    widget.pending.max = null;
+    widget.pending.days = null;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.marketplaceFiltersButton,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  TextButton(
+                    onPressed: _clearFilters,
+                    child: Text(l10n.marketplaceClearFilters),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [_priceInputFormatter],
+                      decoration: InputDecoration(
+                        hintText: l10n.marketplacePriceMinHint,
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (_) => _onPriceChanged(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('–'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [_priceInputFormatter],
+                      decoration: InputDecoration(
+                        hintText: l10n.marketplacePriceMaxHint,
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (_) => _onPriceChanged(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _PostedWithinDropdown(value: _days, onChanged: _onDaysChanged),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PostedWithinDropdown extends StatelessWidget {
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  const _PostedWithinDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    String label(int? days) {
+      return switch (days) {
+        null => l10n.marketplacePostedWithinAny,
+        1 => l10n.marketplacePostedWithinToday,
+        7 => l10n.marketplacePostedWithin7Days,
+        14 => l10n.marketplacePostedWithin14Days,
+        30 => l10n.marketplacePostedWithin30Days,
+        _ => l10n.marketplacePostedWithinAny,
+      };
+    }
+
+    Widget postedWithinItem(int? days) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [Text(label(days))],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _minController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [_priceInputFormatter],
-              decoration: InputDecoration(
-                hintText: l10n.marketplacePriceMinHint,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onChanged: (_) => _onChanged(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text('–'),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _maxController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [_priceInputFormatter],
-              decoration: InputDecoration(
-                hintText: l10n.marketplacePriceMaxHint,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onChanged: (_) => _onChanged(),
-            ),
-          ),
-        ],
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.outline),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButton<int?>(
+          isExpanded: true,
+          value: value,
+          underline: const SizedBox(),
+          onChanged: (days) {
+            FocusScope.of(context).unfocus();
+            onChanged(days);
+          },
+          selectedItemBuilder: (BuildContext context) {
+            return [
+              for (final days in const [null, 1, 7, 14, 30])
+                postedWithinItem(days),
+            ];
+          },
+          items: [
+            for (final days in const [null, 1, 7, 14, 30])
+              DropdownMenuItem(value: days, child: postedWithinItem(days)),
+          ],
+        ),
       ),
     );
   }

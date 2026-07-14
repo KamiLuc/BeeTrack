@@ -215,6 +215,120 @@ void main() {
     );
   });
 
+  group('applyFilters', () {
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'sets price range and posted-within-days and reloads exactly once',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            postedAfter: any(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) =>
+          c.applyFilters(priceMin: 10, priceMax: 50, postedWithinDays: 7),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.priceMin, 'priceMin', 10)
+            .having((s) => s.priceMax, 'priceMax', 50)
+            .having((s) => s.postedWithinDays, 'postedWithinDays', 7),
+      ],
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: 10,
+            priceMax: 50,
+            postedAfter: any(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).called(1);
+      },
+    );
+  });
+
+  group('setPostedWithinDays', () {
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'reloads with a posted_after date pinned to today for days: 1',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            postedAfter: any(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.setPostedWithinDays(1),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.postedWithinDays,
+          'postedWithinDays',
+          1,
+        ),
+      ],
+      verify: (_) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final captured = verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: null,
+            priceMax: null,
+            postedAfter: captureAny(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).captured;
+        final postedAfter = DateTime.parse(captured.single as String);
+        expect(postedAfter, today);
+      },
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'clears the filter when called with null',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            postedAfter: any(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.setPostedWithinDays(null),
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: null,
+            priceMax: null,
+            postedAfter: null,
+            limit: any(named: 'limit'),
+          ),
+        ).called(1);
+      },
+    );
+  });
+
   group('load favorites', () {
     blocTest<MarketplaceCubit, MarketplaceState>(
       'populates favoriteIds from the favorites repository',

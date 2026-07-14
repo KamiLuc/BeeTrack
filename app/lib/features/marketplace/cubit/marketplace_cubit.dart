@@ -18,6 +18,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
   String _keyword = '';
   double? _priceMin;
   double? _priceMax;
+  int? _postedWithinDays;
 
   MarketplaceCubit({
     required ListingRepository repo,
@@ -35,6 +36,14 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
     } catch (_) {
       return {};
     }
+  }
+
+  String? get _postedAfter {
+    final days = _postedWithinDays;
+    if (days == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: days - 1)).toIso8601String();
   }
 
   Future<bool> _loadHasOwnListings() async {
@@ -55,6 +64,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         keyword: _keyword.isEmpty ? null : _keyword,
         priceMin: _priceMin,
         priceMax: _priceMax,
+        postedAfter: _postedAfter,
         limit: _pageSize,
         offset: 0,
       );
@@ -69,6 +79,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
           keyword: _keyword,
           priceMin: _priceMin,
           priceMax: _priceMax,
+          postedWithinDays: _postedWithinDays,
           favoriteIds: favoriteIds,
           hasOwnListings: hasOwnListings,
         ),
@@ -92,6 +103,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         keyword: _keyword.isEmpty ? null : _keyword,
         priceMin: _priceMin,
         priceMax: _priceMax,
+        postedAfter: _postedAfter,
         limit: _pageSize,
         offset: current.items.length,
       );
@@ -122,6 +134,22 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
   void setPriceRange(double? min, double? max) {
     _priceMin = min;
     _priceMax = max;
+    load();
+  }
+
+  void setPostedWithinDays(int? days) {
+    _postedWithinDays = days;
+    load();
+  }
+
+  void applyFilters({
+    double? priceMin,
+    double? priceMax,
+    int? postedWithinDays,
+  }) {
+    _priceMin = priceMin;
+    _priceMax = priceMax;
+    _postedWithinDays = postedWithinDays;
     load();
   }
 

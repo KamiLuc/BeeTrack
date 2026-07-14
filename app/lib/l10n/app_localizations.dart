@@ -572,6 +572,48 @@ abstract class AppLocalizations {
   /// **'Cena do'**
   String get marketplacePriceMaxHint;
 
+  /// No description provided for @marketplaceFiltersButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'Filtry'**
+  String get marketplaceFiltersButton;
+
+  /// No description provided for @marketplaceClearFilters.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyść filtry'**
+  String get marketplaceClearFilters;
+
+  /// No description provided for @marketplacePostedWithinAny.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dowolny czas'**
+  String get marketplacePostedWithinAny;
+
+  /// No description provided for @marketplacePostedWithinToday.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dzisiaj'**
+  String get marketplacePostedWithinToday;
+
+  /// No description provided for @marketplacePostedWithin7Days.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostatnie 7 dni'**
+  String get marketplacePostedWithin7Days;
+
+  /// No description provided for @marketplacePostedWithin14Days.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostatnie 14 dni'**
+  String get marketplacePostedWithin14Days;
+
+  /// No description provided for @marketplacePostedWithin30Days.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostatnie 30 dni'**
+  String get marketplacePostedWithin30Days;
+
   /// No description provided for @marketplacePriceOnRequest.
   ///
   /// In pl, this message translates to:

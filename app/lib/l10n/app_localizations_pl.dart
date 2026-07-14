@@ -258,6 +258,27 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplacePriceMaxHint => 'Cena do';
 
   @override
+  String get marketplaceFiltersButton => 'Filtry';
+
+  @override
+  String get marketplaceClearFilters => 'Wyczyść filtry';
+
+  @override
+  String get marketplacePostedWithinAny => 'Dowolny czas';
+
+  @override
+  String get marketplacePostedWithinToday => 'Dzisiaj';
+
+  @override
+  String get marketplacePostedWithin7Days => 'Ostatnie 7 dni';
+
+  @override
+  String get marketplacePostedWithin14Days => 'Ostatnie 14 dni';
+
+  @override
+  String get marketplacePostedWithin30Days => 'Ostatnie 30 dni';
+
+  @override
   String get marketplacePriceOnRequest => 'Cena do negocjacji';
 
   @override

@@ -17,6 +17,7 @@ final class MarketplaceLoaded extends MarketplaceState {
   final String keyword;
   final double? priceMin;
   final double? priceMax;
+  final int? postedWithinDays;
   final Set<int> favoriteIds;
   final bool hasOwnListings;
 
@@ -29,6 +30,7 @@ final class MarketplaceLoaded extends MarketplaceState {
     required this.keyword,
     this.priceMin,
     this.priceMax,
+    this.postedWithinDays,
     this.favoriteIds = const {},
     this.hasOwnListings = false,
   });
@@ -49,6 +51,7 @@ final class MarketplaceLoaded extends MarketplaceState {
       keyword: keyword,
       priceMin: priceMin,
       priceMax: priceMax,
+      postedWithinDays: postedWithinDays,
       favoriteIds: favoriteIds ?? this.favoriteIds,
       hasOwnListings: hasOwnListings,
     );
