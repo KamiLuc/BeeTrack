@@ -286,9 +286,9 @@ void main() {
     );
   });
 
-  group('goToPage', () {
+  group('load / loadMore pagination', () {
     blocTest<MarketplaceCubit, MarketplaceState>(
-      'load() fetches page 1 with offset 0 and computes totalPages',
+      'load() fetches offset 0 and computes hasMore from total',
       build: () {
         when(
           () => repo.searchListings(
@@ -306,8 +306,9 @@ void main() {
       expect: () => [
         isA<MarketplaceLoading>(),
         isA<MarketplaceLoaded>()
-            .having((s) => s.currentPage, 'currentPage', 1)
-            .having((s) => s.totalPages, 'totalPages', 3),
+            .having((s) => s.items.length, 'items.length', 1)
+            .having((s) => s.total, 'total', 45)
+            .having((s) => s.hasMore, 'hasMore', true),
       ],
       verify: (_) {
         verify(
@@ -322,7 +323,68 @@ void main() {
     );
 
     blocTest<MarketplaceCubit, MarketplaceState>(
-      'goToPage(2) requests offset 20',
+      'loadMore() requests the next offset and appends results without '
+      'losing or duplicating existing items',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 0,
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(
+            items: [_listing(1), _listing(2)],
+            total: 3,
+          ),
+        );
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 2,
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(3)], total: 3),
+        );
+        return cubit;
+      },
+      act: (c) async {
+        await c.load();
+        await c.loadMore();
+      },
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.items.map((i) => i.id), 'ids', [1, 2])
+            .having((s) => s.hasMore, 'hasMore', true),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.isLoadingMore,
+          'isLoadingMore',
+          true,
+        ),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.items.map((i) => i.id), 'ids', [1, 2, 3])
+            .having((s) => s.total, 'total', 3)
+            .having((s) => s.hasMore, 'hasMore', false)
+            .having((s) => s.isLoadingMore, 'isLoadingMore', false),
+      ],
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: 20,
+            offset: 2,
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'loadMore() is a no-op when hasMore is false',
       build: () {
         when(
           () => repo.searchListings(
@@ -332,25 +394,115 @@ void main() {
             offset: any(named: 'offset'),
           ),
         ).thenAnswer(
-          (_) async => ListingSearchResult(items: [_listing(21)], total: 45),
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 1),
         );
         return cubit;
       },
-      act: (c) => c.goToPage(2),
+      act: (c) async {
+        await c.load();
+        await c.loadMore();
+      },
       expect: () => [
         isA<MarketplaceLoading>(),
-        isA<MarketplaceLoaded>().having((s) => s.currentPage, 'currentPage', 2),
+        isA<MarketplaceLoaded>().having((s) => s.hasMore, 'hasMore', false),
       ],
       verify: (_) {
         verify(
           () => repo.searchListings(
             category: any(named: 'category'),
             keyword: any(named: 'keyword'),
-            limit: 20,
-            offset: 20,
+            limit: any(named: 'limit'),
+            offset: any(named: 'offset'),
           ),
         ).called(1);
       },
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'loadMore() is a no-op when already isLoadingMore',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 0,
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 2),
+        );
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 1,
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(2)], total: 2),
+        );
+        return cubit;
+      },
+      act: (c) async {
+        await c.load();
+        final first = c.loadMore();
+        final second = c.loadMore();
+        await Future.wait([first, second]);
+      },
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 1,
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'loadMore() failure keeps existing items and does not emit '
+      'MarketplaceError',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 0,
+          ),
+        ).thenAnswer(
+          (_) async => ListingSearchResult(items: [_listing(1)], total: 2),
+        );
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            limit: any(named: 'limit'),
+            offset: 1,
+          ),
+        ).thenThrow(Exception('network error'));
+        return cubit;
+      },
+      act: (c) async {
+        await c.load();
+        await c.loadMore();
+      },
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.items.length, 'items.length', 1)
+            .having((s) => s.hasMore, 'hasMore', true),
+        isA<MarketplaceLoaded>().having(
+          (s) => s.isLoadingMore,
+          'isLoadingMore',
+          true,
+        ),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.items.length, 'items.length', 1)
+            .having((s) => s.isLoadingMore, 'isLoadingMore', false),
+      ],
     );
   });
 

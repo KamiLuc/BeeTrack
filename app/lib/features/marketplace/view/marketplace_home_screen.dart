@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -160,9 +159,6 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     onAdd: () => _openCreateListing(context),
                     onMyListings: () => _openMyListings(context),
                     onMap: null,
-                    currentPage: loaded?.currentPage ?? 1,
-                    totalPages: loaded?.totalPages ?? 1,
-                    onPage: (p) => context.read<MarketplaceCubit>().goToPage(p),
                   );
                 },
               ),
@@ -181,9 +177,6 @@ class _MarketplaceBanner extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onMyListings;
   final VoidCallback? onMap;
-  final int currentPage;
-  final int totalPages;
-  final ValueChanged<int> onPage;
 
   const _MarketplaceBanner({
     required this.l10n,
@@ -192,9 +185,6 @@ class _MarketplaceBanner extends StatelessWidget {
     required this.onAdd,
     required this.onMyListings,
     required this.onMap,
-    required this.currentPage,
-    required this.totalPages,
-    required this.onPage,
   });
 
   @override
@@ -252,132 +242,9 @@ class _MarketplaceBanner extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (totalPages > 1)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _PaginationRow(
-                        currentPage: currentPage,
-                        totalPages: totalPages,
-                        onPage: onPage,
-                      ),
-                    ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PaginationRow extends StatelessWidget {
-  final int currentPage;
-  final int totalPages;
-  final ValueChanged<int> onPage;
-
-  const _PaginationRow({
-    required this.currentPage,
-    required this.totalPages,
-    required this.onPage,
-  });
-
-  List<_PageItem> _buildPageItems() {
-    final cur = currentPage;
-    final last = totalPages;
-    final items = <_PageItem>[];
-
-    void addPage(int p) => items.add(_PageItem.page(p));
-    void addEllipsis() => items.add(_PageItem.ellipsis());
-
-    if (last <= 5) {
-      for (var i = 1; i <= last; i++) addPage(i);
-    } else {
-      addPage(1);
-      if (cur > 3) addEllipsis();
-      for (var i = max(2, cur - 1); i <= min(last - 1, cur + 1); i++) {
-        addPage(i);
-      }
-      if (cur < last - 2) addEllipsis();
-      addPage(last);
-    }
-    return items;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pageItems = _buildPageItems();
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left),
-          iconSize: 24,
-          onPressed: currentPage > 1 ? () => onPage(currentPage - 1) : null,
-        ),
-        for (final item in pageItems)
-          item.isEllipsis
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2),
-                  child: Text('…', style: TextStyle(fontSize: 16)),
-                )
-              : _PageButton(
-                  page: item.page!,
-                  isCurrent: item.page == currentPage,
-                  onTap: () => onPage(item.page!),
-                ),
-        IconButton(
-          icon: const Icon(Icons.chevron_right),
-          iconSize: 24,
-          onPressed: currentPage < totalPages
-              ? () => onPage(currentPage + 1)
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-class _PageItem {
-  final int? page;
-  final bool isEllipsis;
-
-  const _PageItem.page(this.page) : isEllipsis = false;
-  const _PageItem.ellipsis() : page = null, isEllipsis = true;
-}
-
-class _PageButton extends StatelessWidget {
-  final int page;
-  final bool isCurrent;
-  final VoidCallback onTap;
-
-  const _PageButton({
-    required this.page,
-    required this.isCurrent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: isCurrent ? null : onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: isCurrent
-            ? BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(16),
-              )
-            : null,
-        alignment: Alignment.center,
-        child: Text(
-          '$page',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
@@ -458,7 +325,35 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
   }
 }
 
-class _ListingsFeed extends StatelessWidget {
+class _ListingsFeed extends StatefulWidget {
+  @override
+  State<_ListingsFeed> createState() => _ListingsFeedState();
+}
+
+class _ListingsFeedState extends State<_ListingsFeed> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    const threshold = 300.0;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - threshold) {
+      context.read<MarketplaceCubit>().loadMore();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -490,16 +385,22 @@ class _ListingsFeed extends StatelessWidget {
         return Center(child: Text(l10n.marketplaceEmpty));
       }
       return RefreshIndicator(
-        onRefresh: () =>
-            context.read<MarketplaceCubit>().goToPage(state.currentPage),
+        onRefresh: () => context.read<MarketplaceCubit>().load(),
         child: Center(
           child: ConstrainedBox(
             constraints: AppLayout.formConstraints(context),
             child: ListView.builder(
+              controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              itemCount: state.items.length,
+              itemCount: state.items.length + (state.hasMore ? 1 : 0),
               itemBuilder: (context, index) {
+                if (index >= state.items.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
                 final listing = state.items[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -544,9 +445,7 @@ class _ListingCard extends StatelessWidget {
             ),
           );
           if (context.mounted) {
-            final cubit = context.read<MarketplaceCubit>();
-            final state = cubit.state;
-            cubit.goToPage(state is MarketplaceLoaded ? state.currentPage : 1);
+            context.read<MarketplaceCubit>().load();
           }
         },
         child: Stack(

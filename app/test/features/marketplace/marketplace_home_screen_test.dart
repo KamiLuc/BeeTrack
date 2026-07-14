@@ -62,12 +62,17 @@ Future<ApiClient> _fakeApiClient() async {
 /// Returns a single listing for `/api/v1/listings` so tap-to-navigate can be
 /// exercised without a real backend.
 class _ListingsHttpClientAdapter implements HttpClientAdapter {
-  _ListingsHttpClientAdapter({this.price = 20.0, this.total = 1, int? mineTotal})
-      : mineTotal = mineTotal ?? total;
+  _ListingsHttpClientAdapter({
+    this.price = 20.0,
+    this.total = 1,
+    int? mineTotal,
+    this.itemsPerPage = 1,
+  }) : mineTotal = mineTotal ?? total;
 
   final double? price;
   final int total;
   final int mineTotal;
+  final int itemsPerPage;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -86,27 +91,34 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
       listingsRequests.add(options);
     }
     if (options.path.contains('/listings')) {
+      final offset = int.tryParse(
+            '${options.queryParameters['offset'] ?? 0}',
+          ) ??
+          0;
+      final pageTotal = isMine ? mineTotal : total;
+      final count = isMine ? 1 : itemsPerPage;
       return ResponseBody.fromString(
         jsonEncode({
           'items': [
-            {
-              'id': 7,
-              'user_id': 1,
-              'title': 'Wildflower Honey',
-              'description': 'Fresh honey.',
-              'category': 'honey',
-              'price': price,
-              'quantity': '5 jars',
-              'address': 'Krakow',
-              'contact_phone': '123456789',
-              'contact_email': 'seller@example.com',
-              'is_hidden': false,
-              'created_at': DateTime(2026, 1, 1).toIso8601String(),
-              'updated_at': DateTime(2026, 1, 1).toIso8601String(),
-              'images': [],
-            },
+            for (var i = 0; i < count; i++)
+              {
+                'id': 7 + offset + i,
+                'user_id': 1,
+                'title': 'Wildflower Honey',
+                'description': 'Fresh honey.',
+                'category': 'honey',
+                'price': price,
+                'quantity': '5 jars',
+                'address': 'Krakow',
+                'contact_phone': '123456789',
+                'contact_email': 'seller@example.com',
+                'is_hidden': false,
+                'created_at': DateTime(2026, 1, 1).toIso8601String(),
+                'updated_at': DateTime(2026, 1, 1).toIso8601String(),
+                'images': [],
+              },
           ],
-          'total': isMine ? mineTotal : total,
+          'total': pageTotal,
         }),
         200,
         headers: {
@@ -438,30 +450,29 @@ void main() {
       expect(find.text('0.00'), findsNothing);
     });
 
-    testWidgets('no pagination row when everything fits on one page', (
-      tester,
-    ) async {
-      final apiClient = await _fakeApiClientWithListings(
-        adapter: _ListingsHttpClientAdapter(total: 1),
-      );
-      final authBloc = AuthBloc(auth: _MockAuthRepository());
+    testWidgets(
+      'no bottom loading spinner when everything fits on one page',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings(
+          adapter: _ListingsHttpClientAdapter(total: 1),
+        );
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-      await tester.pumpWidget(
-        _wrap(
-          const MarketplaceHomeScreen(),
-          apiClient: apiClient,
-          authBloc: authBloc,
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.chevron_left), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsNothing);
-    });
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+      },
+    );
 
     testWidgets(
-      'shows numbered pagination and requests the right offset when a page '
-      'is tapped',
+      'shows a bottom loading spinner when there are more listings to load',
       (tester) async {
         final adapter = _ListingsHttpClientAdapter(total: 45);
         final apiClient = await _fakeApiClientWithListings(adapter: adapter);
@@ -474,21 +485,52 @@ void main() {
             authBloc: authBloc,
           ),
         );
-        await tester.pumpAndSettle();
+        // hasMore is true, so the trailing spinner animates forever and
+        // pumpAndSettle would never return; pump a bounded number of frames
+        // to let the initial load's futures resolve instead.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
 
-        // total: 45, pageSize: 20 -> 3 pages.
-        expect(find.text('1'), findsOneWidget);
-        expect(find.text('2'), findsOneWidget);
-        expect(find.text('3'), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      },
+    );
 
-        await tester.tap(find.text('2'));
-        await tester.pumpAndSettle();
+    testWidgets(
+      'scrolling near the bottom of the feed triggers loadMore and requests '
+      'the next offset',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter(total: 45, itemsPerPage: 20);
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
 
-        final lastRequest = adapter.listingsRequests.lastWhere(
-          (r) => r.queryParameters['mine'] != true,
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
         );
-        expect(lastRequest.queryParameters['offset'], 20);
-        expect(lastRequest.queryParameters['limit'], 20);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final requestCountBeforeScroll = adapter.listingsRequestCount;
+
+        await tester.drag(find.byType(ListView), const Offset(0, -100000));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final offsets = adapter.listingsRequests
+            .where((r) => r.queryParameters['mine'] != true)
+            .map((r) => r.queryParameters['offset'])
+            .toList();
+        expect(offsets, contains(20));
+        expect(
+          adapter.listingsRequestCount,
+          greaterThan(requestCountBeforeScroll),
+        );
       },
     );
 

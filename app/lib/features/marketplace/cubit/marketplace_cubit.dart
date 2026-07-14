@@ -45,27 +45,22 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
     }
   }
 
-  Future<void> load() => _goToPage(1);
-
-  Future<void> goToPage(int page) => _goToPage(page);
-
-  Future<void> _goToPage(int page) async {
+  Future<void> load() async {
     emit(MarketplaceLoading());
     try {
       final result = await _repo.searchListings(
         category: _category,
         keyword: _keyword.isEmpty ? null : _keyword,
         limit: _pageSize,
-        offset: (page - 1) * _pageSize,
+        offset: 0,
       );
       final favoriteIds = await _loadFavoriteIds();
       final hasOwnListings = await _loadHasOwnListings();
-      final totalPages = (result.total / _pageSize).ceil().clamp(1, 999999);
       emit(
         MarketplaceLoaded(
           items: result.items,
-          currentPage: page,
-          totalPages: totalPages,
+          total: result.total,
+          hasMore: result.items.length < result.total,
           category: _category,
           keyword: _keyword,
           favoriteIds: favoriteIds,
@@ -74,6 +69,35 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
       );
     } catch (_) {
       emit(MarketplaceError());
+    }
+  }
+
+  /// Fetches the next page of results and appends it to the current list.
+  /// No-ops if already loading more or if there's nothing left to fetch.
+  Future<void> loadMore() async {
+    final current = state;
+    if (current is! MarketplaceLoaded) return;
+    if (current.isLoadingMore || !current.hasMore) return;
+
+    emit(current.copyWith(isLoadingMore: true));
+    try {
+      final result = await _repo.searchListings(
+        category: _category,
+        keyword: _keyword.isEmpty ? null : _keyword,
+        limit: _pageSize,
+        offset: current.items.length,
+      );
+      final items = [...current.items, ...result.items];
+      emit(
+        current.copyWith(
+          items: items,
+          total: result.total,
+          hasMore: items.length < result.total,
+          isLoadingMore: false,
+        ),
+      );
+    } catch (_) {
+      emit(current.copyWith(isLoadingMore: false));
     }
   }
 
