@@ -36,4 +36,16 @@ class FavoritesRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<bool> checkFavorite(int listingId) async {
+    try {
+      final response = await _api.dio.get(
+        '/api/v1/listings/$listingId/favorite',
+      );
+      final data = response.data as Map<String, dynamic>;
+      return data['is_favorite'] as bool? ?? false;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

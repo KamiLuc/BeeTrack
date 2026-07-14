@@ -58,13 +58,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
   Future<void> _loadFavoriteStatus() async {
     try {
-      final favorites = await FavoritesRepository(
+      final isFavorite = await FavoritesRepository(
         api: context.read<ApiClient>(),
-      ).listFavorites();
+      ).checkFavorite(_listing.id);
       if (!mounted) return;
-      setState(() {
-        _isFavorite = favorites.any((l) => l.id == _listing.id);
-      });
+      setState(() => _isFavorite = isFavorite);
     } catch (_) {}
   }
 

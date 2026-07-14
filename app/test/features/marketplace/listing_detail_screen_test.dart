@@ -69,6 +69,17 @@ class _RecordingAdapter implements HttpClientAdapter {
       );
     }
 
+    if (RegExp(r'/listings/\d+/favorite$').hasMatch(options.path) &&
+        options.method == 'GET') {
+      return ResponseBody.fromString(
+        jsonEncode({'is_favorite': favoriteItems.isNotEmpty}),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
     if (options.path.contains('/favorite') &&
         (options.method == 'POST' || options.method == 'DELETE')) {
       if (failMutations) {
