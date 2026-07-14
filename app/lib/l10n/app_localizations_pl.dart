@@ -252,6 +252,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceMapTooltip => 'Widok mapy (wkrótce)';
 
   @override
+  String get marketplacePriceMinHint => 'Cena od';
+
+  @override
+  String get marketplacePriceMaxHint => 'Cena do';
+
+  @override
   String get marketplacePriceOnRequest => 'Cena do negocjacji';
 
   @override

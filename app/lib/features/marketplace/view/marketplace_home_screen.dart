@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -150,6 +151,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                           ),
                         ),
                         const _CategoryDropdown(),
+                        const _PriceRangeFilter(),
                         const SizedBox(height: 4),
                         Expanded(child: _ListingsFeed()),
                       ],
@@ -341,6 +343,101 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
               DropdownMenuItem(value: category, child: categoryItem(category)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PriceRangeFilter extends StatefulWidget {
+  const _PriceRangeFilter();
+
+  @override
+  State<_PriceRangeFilter> createState() => _PriceRangeFilterState();
+}
+
+class _PriceRangeFilterState extends State<_PriceRangeFilter> {
+  static final _priceInputFormatter = TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      if (newValue.text.isEmpty) return newValue;
+      return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
+          ? newValue
+          : oldValue;
+    },
+  );
+
+  final _minController = TextEditingController();
+  final _maxController = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _minController.dispose();
+    _maxController.dispose();
+    super.dispose();
+  }
+
+  double? _parse(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : double.tryParse(trimmed);
+  }
+
+  void _onChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      context.read<MarketplaceCubit>().setPriceRange(
+        _parse(_minController.text),
+        _parse(_maxController.text),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _minController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [_priceInputFormatter],
+              decoration: InputDecoration(
+                hintText: l10n.marketplacePriceMinHint,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (_) => _onChanged(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text('–'),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _maxController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [_priceInputFormatter],
+              decoration: InputDecoration(
+                hintText: l10n.marketplacePriceMaxHint,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (_) => _onChanged(),
+            ),
+          ),
+        ],
       ),
     );
   }

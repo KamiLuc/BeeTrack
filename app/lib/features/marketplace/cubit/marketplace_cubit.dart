@@ -16,6 +16,8 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
 
   String? _category;
   String _keyword = '';
+  double? _priceMin;
+  double? _priceMax;
 
   MarketplaceCubit({
     required ListingRepository repo,
@@ -51,6 +53,8 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
       final result = await _repo.searchListings(
         category: _category,
         keyword: _keyword.isEmpty ? null : _keyword,
+        priceMin: _priceMin,
+        priceMax: _priceMax,
         limit: _pageSize,
         offset: 0,
       );
@@ -63,6 +67,8 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
           hasMore: result.items.length < result.total,
           category: _category,
           keyword: _keyword,
+          priceMin: _priceMin,
+          priceMax: _priceMax,
           favoriteIds: favoriteIds,
           hasOwnListings: hasOwnListings,
         ),
@@ -84,6 +90,8 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
       final result = await _repo.searchListings(
         category: _category,
         keyword: _keyword.isEmpty ? null : _keyword,
+        priceMin: _priceMin,
+        priceMax: _priceMax,
         limit: _pageSize,
         offset: current.items.length,
       );
@@ -108,6 +116,12 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
 
   void setKeyword(String keyword) {
     _keyword = keyword;
+    load();
+  }
+
+  void setPriceRange(double? min, double? max) {
+    _priceMin = min;
+    _priceMax = max;
     load();
   }
 

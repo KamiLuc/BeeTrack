@@ -151,6 +151,70 @@ void main() {
     );
   });
 
+  group('setPriceRange', () {
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'reloads with the chosen price range',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.setPriceRange(10, 50),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.priceMin, 'priceMin', 10)
+            .having((s) => s.priceMax, 'priceMax', 50),
+      ],
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: 10,
+            priceMax: 50,
+            limit: any(named: 'limit'),
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'clears the price range when called with nulls',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.setPriceRange(null, null),
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: null,
+            priceMax: null,
+            limit: any(named: 'limit'),
+          ),
+        ).called(1);
+      },
+    );
+  });
+
   group('load favorites', () {
     blocTest<MarketplaceCubit, MarketplaceState>(
       'populates favoriteIds from the favorites repository',

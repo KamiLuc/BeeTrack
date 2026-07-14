@@ -95,6 +95,8 @@
   "marketplaceSearchHint": "Search listings",
   "marketplaceEmpty": "No listings yet",
   "marketplaceMapTooltip": "Map view (coming soon)",
+  "marketplacePriceMinHint": "Min price",
+  "marketplacePriceMaxHint": "Max price",
   "marketplacePriceOnRequest": "Price on request",
   "marketplacePriceFree": "Free",
   "marketplaceCategoryAll": "All",

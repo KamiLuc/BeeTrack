@@ -560,6 +560,18 @@ abstract class AppLocalizations {
   /// **'Widok mapy (wkrótce)'**
   String get marketplaceMapTooltip;
 
+  /// No description provided for @marketplacePriceMinHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena od'**
+  String get marketplacePriceMinHint;
+
+  /// No description provided for @marketplacePriceMaxHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cena do'**
+  String get marketplacePriceMaxHint;
+
   /// No description provided for @marketplacePriceOnRequest.
   ///
   /// In pl, this message translates to:

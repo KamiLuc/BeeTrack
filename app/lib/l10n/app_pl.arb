@@ -95,6 +95,8 @@
   "marketplaceSearchHint": "Szukaj ogłoszeń",
   "marketplaceEmpty": "Brak ogłoszeń",
   "marketplaceMapTooltip": "Widok mapy (wkrótce)",
+  "marketplacePriceMinHint": "Cena od",
+  "marketplacePriceMaxHint": "Cena do",
   "marketplacePriceOnRequest": "Cena do negocjacji",
   "marketplacePriceFree": "Za darmo",
   "marketplaceCategoryAll": "Wszystkie",

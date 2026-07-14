@@ -15,6 +15,8 @@ final class MarketplaceLoaded extends MarketplaceState {
   final bool isLoadingMore;
   final String? category;
   final String keyword;
+  final double? priceMin;
+  final double? priceMax;
   final Set<int> favoriteIds;
   final bool hasOwnListings;
 
@@ -25,6 +27,8 @@ final class MarketplaceLoaded extends MarketplaceState {
     this.isLoadingMore = false,
     required this.category,
     required this.keyword,
+    this.priceMin,
+    this.priceMax,
     this.favoriteIds = const {},
     this.hasOwnListings = false,
   });
@@ -43,6 +47,8 @@ final class MarketplaceLoaded extends MarketplaceState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       category: category,
       keyword: keyword,
+      priceMin: priceMin,
+      priceMax: priceMax,
       favoriteIds: favoriteIds ?? this.favoriteIds,
       hasOwnListings: hasOwnListings,
     );

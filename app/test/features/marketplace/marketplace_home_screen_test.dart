@@ -727,7 +727,7 @@ void main() {
         // Anonymous, so no mine=true request is fired alongside the feed load.
         expect(adapter.listingsRequestCount, 1);
 
-        await tester.enterText(find.byType(TextField), 'honey');
+        await tester.enterText(find.byType(TextField).first, 'honey');
         await tester.pump(const Duration(milliseconds: 200));
         expect(adapter.listingsRequestCount, 1);
 
