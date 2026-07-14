@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,6 +133,99 @@ func TestCreateInspection_InspectedAtRequired(t *testing.T) {
 	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{})
 	if !errors.Is(err, ErrInspectedAtRequired) {
 		t.Errorf("expected ErrInspectedAtRequired, got %v", err)
+	}
+}
+
+func TestCreateInspection_NotesTooLong(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt: time.Now(),
+		Notes:       strings.Repeat("a", 5001),
+	})
+	if !errors.Is(err, ErrInspectionNotesTooLong) {
+		t.Errorf("expected ErrInspectionNotesTooLong, got %v", err)
+	}
+}
+
+func TestCreateInspection_NotesAtMaxLength(t *testing.T) {
+	svc, apiaryMock, hiveMock, _ := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt: time.Now(),
+		Notes:       strings.Repeat("a", 5000),
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestCreateInspection_FrameCountTooLarge(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	tooMany := 100
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt: time.Now(),
+		FramesBrood: &tooMany,
+	})
+	if !errors.Is(err, ErrInspectionFrameCountInvalid) {
+		t.Errorf("expected ErrInspectionFrameCountInvalid, got %v", err)
+	}
+}
+
+func TestCreateInspection_FrameCountAtMax(t *testing.T) {
+	svc, apiaryMock, hiveMock, _ := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	max := 99
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:     time.Now(),
+		QueenCellsCount: &max,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCreateInspection_FrameCountNegative(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	negative := -1
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:  time.Now(),
+		FramesPollen: &negative,
+	})
+	if !errors.Is(err, ErrInspectionFrameCountInvalid) {
+		t.Errorf("expected ErrInspectionFrameCountInvalid, got %v", err)
+	}
+}
+
+func TestCreateInspection_FramesAddedDeltaTooLarge(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	tooMuch := 100
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:      time.Now(),
+		FramesAddedDrawn: &tooMuch,
+	})
+	if !errors.Is(err, ErrInspectionFramesAddedInvalid) {
+		t.Errorf("expected ErrInspectionFramesAddedInvalid, got %v", err)
+	}
+}
+
+func TestCreateInspection_FramesAddedDeltaTooNegative(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	tooMuch := -100
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:      time.Now(),
+		FramesAddedBrood: &tooMuch,
+	})
+	if !errors.Is(err, ErrInspectionFramesAddedInvalid) {
+		t.Errorf("expected ErrInspectionFramesAddedInvalid, got %v", err)
 	}
 }
 

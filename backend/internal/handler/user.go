@@ -37,6 +37,8 @@ func (h *UserHandler) UpdateName(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
 			respond.Error(w, http.StatusBadRequest, "NAME_REQUIRED", err.Error())
+		case errors.Is(err, service.ErrNameTooLong):
+			respond.Error(w, http.StatusBadRequest, "NAME_TOO_LONG", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}

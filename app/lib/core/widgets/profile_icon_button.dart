@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../api/api_client.dart';
 import '../locale/locale_controller.dart';
 import '../storage/token_storage.dart';
+import '../validation/size_tiers.dart';
 import '../../features/apiary/data/invitation_model.dart';
 import '../../features/apiary/data/invitation_repository.dart';
 import '../../features/auth/bloc/auth_bloc.dart';
@@ -167,6 +168,16 @@ class _ProfileDialogState extends State<_ProfileDialog> {
       setState(() => _nameError = l10n.generalRequired);
       return;
     }
+    final tooLong = validateSizeTier(
+      name,
+      SizeTier.small,
+      l10n.profileDisplayName,
+      l10n,
+    );
+    if (tooLong != null) {
+      setState(() => _nameError = tooLong);
+      return;
+    }
     setState(() {
       _nameError = null;
       _savingName = true;
@@ -182,9 +193,6 @@ class _ProfileDialogState extends State<_ProfileDialog> {
           _editingName = false;
           _savingName = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.profileNameUpdated)),
-        );
       }
     } on DioException {
       if (mounted) {
@@ -282,11 +290,20 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                         border: const OutlineInputBorder(),
                         isDense: true,
                         errorText: _nameError,
+                        counterText: SizeTier.small.counterText,
                       ),
                       autofocus: true,
+                      maxLength: SizeTier.small.maxLength,
                       textInputAction: TextInputAction.done,
-                      onChanged: (_) {
-                        if (_nameError != null) setState(() => _nameError = null);
+                      onChanged: (v) {
+                        setState(() {
+                          _nameError = validateSizeTier(
+                            v,
+                            SizeTier.small,
+                            l10n.profileDisplayName,
+                            l10n,
+                          );
+                        });
                       },
                       onSubmitted: (_) => _saveName(l10n),
                     ),

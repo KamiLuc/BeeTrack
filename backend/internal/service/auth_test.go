@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -227,6 +228,43 @@ func TestRegister_WeakPassword(t *testing.T) {
 	}
 }
 
+func TestRegister_EmailTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	longEmail := strings.Repeat("a", 151) + "@example.com"
+	_, err := svc.Register(context.Background(), longEmail, "John", "password123", "en")
+	if !errors.Is(err, ErrEmailTooLong) {
+		t.Errorf("expected ErrEmailTooLong, got %v", err)
+	}
+}
+
+func TestRegister_NameTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	_, err := svc.Register(context.Background(), "user@example.com", strings.Repeat("a", 51), "password123", "en")
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+}
+
+func TestRegister_PasswordTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	_, err := svc.Register(context.Background(), "user@example.com", "John", strings.Repeat("a", 73), "en")
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("expected ErrPasswordTooLong, got %v", err)
+	}
+}
+
+func TestRegister_InvalidLang(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	_, err := svc.Register(context.Background(), "user@example.com", "John", "password123", "de")
+	if !errors.Is(err, ErrInvalidLang) {
+		t.Errorf("expected ErrInvalidLang, got %v", err)
+	}
+}
+
 func TestRegister_EmailTaken(t *testing.T) {
 	svc, _, _, _, _ := newTestService()
 
@@ -303,6 +341,21 @@ func TestLogin_WrongPassword(t *testing.T) {
 	}
 }
 
+func TestLogin_OversizedInputRejected(t *testing.T) {
+	svc, users, _, _, _ := newTestService()
+	users.users["user@example.com"] = &model.User{
+		ID:           1,
+		Email:        "user@example.com",
+		PasswordHash: hashPassword(t, "password123"),
+		Verified:     true,
+	}
+
+	_, _, _, err := svc.Login(context.Background(), "user@example.com", strings.Repeat("a", 501))
+	if !errors.Is(err, ErrInvalidPassword) {
+		t.Errorf("expected ErrInvalidPassword, got %v", err)
+	}
+}
+
 // -- Refresh tests --
 
 func TestRefresh_Success(t *testing.T) {
@@ -351,6 +404,15 @@ func TestRefresh_ExpiredToken(t *testing.T) {
 	}
 }
 
+func TestRefresh_TokenTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	_, _, err := svc.Refresh(context.Background(), strings.Repeat("a", 501))
+	if !errors.Is(err, ErrTokenTooLong) {
+		t.Errorf("expected ErrTokenTooLong, got %v", err)
+	}
+}
+
 // -- Logout tests --
 
 func TestLogout_Success(t *testing.T) {
@@ -362,6 +424,15 @@ func TestLogout_Success(t *testing.T) {
 	}
 	if _, exists := tokens.tokens["valid-token"]; exists {
 		t.Error("expected token to be deleted after logout")
+	}
+}
+
+func TestLogout_TokenTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	err := svc.Logout(context.Background(), strings.Repeat("a", 501))
+	if !errors.Is(err, ErrTokenTooLong) {
+		t.Errorf("expected ErrTokenTooLong, got %v", err)
 	}
 }
 
@@ -384,6 +455,15 @@ func TestVerifyEmail_Success(t *testing.T) {
 	}
 	if _, exists := emailTokens.verificationTokens["valid-token"]; exists {
 		t.Error("expected verification token to be deleted")
+	}
+}
+
+func TestVerifyEmail_TokenTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	err := svc.VerifyEmail(context.Background(), strings.Repeat("a", 501))
+	if !errors.Is(err, ErrTokenTooLong) {
+		t.Errorf("expected ErrTokenTooLong, got %v", err)
 	}
 }
 
@@ -424,6 +504,26 @@ func TestForgotPassword_Success(t *testing.T) {
 	}
 	if len(mailer.resetsSent) != 1 {
 		t.Errorf("expected 1 reset email, got %d", len(mailer.resetsSent))
+	}
+}
+
+func TestForgotPassword_InvalidLang(t *testing.T) {
+	svc, users, _, _, _ := newTestService()
+	users.users["user@example.com"] = &model.User{ID: 1, Email: "user@example.com", Verified: true}
+
+	err := svc.ForgotPassword(context.Background(), "user@example.com", "de")
+	if !errors.Is(err, ErrInvalidLang) {
+		t.Errorf("expected ErrInvalidLang, got %v", err)
+	}
+}
+
+func TestForgotPassword_EmailTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	longEmail := strings.Repeat("a", 151) + "@example.com"
+	err := svc.ForgotPassword(context.Background(), longEmail, "en")
+	if !errors.Is(err, ErrEmailTooLong) {
+		t.Errorf("expected ErrEmailTooLong, got %v", err)
 	}
 }
 
@@ -480,6 +580,29 @@ func TestResetPassword_ExpiredToken(t *testing.T) {
 	err := svc.ResetPassword(context.Background(), "expired-token", "newpassword123")
 	if !errors.Is(err, ErrInvalidResetToken) {
 		t.Errorf("expected ErrInvalidResetToken, got %v", err)
+	}
+}
+
+func TestResetPassword_TokenTooLong(t *testing.T) {
+	svc, _, _, _, _ := newTestService()
+
+	err := svc.ResetPassword(context.Background(), strings.Repeat("a", 501), "newpassword123")
+	if !errors.Is(err, ErrTokenTooLong) {
+		t.Errorf("expected ErrTokenTooLong, got %v", err)
+	}
+}
+
+func TestResetPassword_PasswordTooLong(t *testing.T) {
+	svc, _, _, emailTokens, _ := newTestService()
+	emailTokens.resetTokens["valid-token"] = &model.PasswordResetToken{
+		UserID:    1,
+		Token:     "valid-token",
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}
+
+	err := svc.ResetPassword(context.Background(), "valid-token", strings.Repeat("a", 73))
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("expected ErrPasswordTooLong, got %v", err)
 	}
 }
 

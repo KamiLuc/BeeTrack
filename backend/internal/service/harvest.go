@@ -7,14 +7,25 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
+// maxHarvestFrameCount is the largest number of frames or half-frames a single harvest may record.
+const maxHarvestFrameCount = 99
+
+// maxHarvestKilograms is the largest amount of honey a single harvest record may claim.
+const maxHarvestKilograms = 1000.0
+
 var (
-	ErrHarvestNotFound        = errors.New("harvest not found")
-	ErrHarvestedAtRequired    = errors.New("harvested_at is required")
-	ErrHarvestFramesRequired  = errors.New("frames or half_frames must be greater than zero")
+	ErrHarvestNotFound          = errors.New("harvest not found")
+	ErrHarvestedAtRequired      = errors.New("harvested_at is required")
+	ErrHarvestFramesRequired    = errors.New("frames or half_frames must be greater than zero")
+	ErrHarvestFramesInvalid     = fmt.Errorf("frames must be between 0 and %d", maxHarvestFrameCount)
+	ErrHarvestHalfFramesInvalid = fmt.Errorf("half_frames must be between 0 and %d", maxHarvestFrameCount)
 	ErrHarvestKilogramsRequired = errors.New("kilograms must be greater than zero")
+	ErrHarvestKilogramsTooLarge = fmt.Errorf("kilograms must be at most %v", maxHarvestKilograms)
+	ErrHarvestNotesTooLong      = fmt.Errorf("notes must be at most %d characters", validation.ExtraLarge.MaxLength())
 )
 
 // HarvestRepository is the persistence interface for harvests.
@@ -52,11 +63,23 @@ func validateHarvestParams(p HarvestParams) error {
 	if p.HarvestedAt.IsZero() {
 		return ErrHarvestedAtRequired
 	}
+	if p.Frames < 0 || p.Frames > maxHarvestFrameCount {
+		return ErrHarvestFramesInvalid
+	}
+	if p.HalfFrames < 0 || p.HalfFrames > maxHarvestFrameCount {
+		return ErrHarvestHalfFramesInvalid
+	}
 	if p.Frames == 0 && p.HalfFrames == 0 {
 		return ErrHarvestFramesRequired
 	}
 	if p.Kilograms <= 0 {
 		return ErrHarvestKilogramsRequired
+	}
+	if p.Kilograms > maxHarvestKilograms {
+		return ErrHarvestKilogramsTooLarge
+	}
+	if validation.TooLong(p.Notes, validation.ExtraLarge) {
+		return ErrHarvestNotesTooLong
 	}
 	return nil
 }

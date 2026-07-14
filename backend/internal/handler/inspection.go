@@ -131,6 +131,12 @@ func inspectionError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusNotFound, "INSPECTION_NOT_FOUND", "inspection not found")
 	case errors.Is(err, service.ErrInspectedAtRequired):
 		respond.Error(w, http.StatusBadRequest, "INSPECTED_AT_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrInspectionNotesTooLong):
+		respond.Error(w, http.StatusBadRequest, "NOTES_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrInspectionFrameCountInvalid):
+		respond.Error(w, http.StatusBadRequest, "FRAME_COUNT_INVALID", err.Error())
+	case errors.Is(err, service.ErrInspectionFramesAddedInvalid):
+		respond.Error(w, http.StatusBadRequest, "FRAMES_ADDED_INVALID", err.Error())
 	case errors.Is(err, service.ErrInvalidAggressiveness):
 		respond.Error(w, http.StatusBadRequest, "INVALID_AGGRESSIVENESS", err.Error())
 	case errors.Is(err, service.ErrInvalidBroodPattern):

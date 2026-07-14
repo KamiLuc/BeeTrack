@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,12 +12,12 @@ import (
 )
 
 type mockTreatmentRepo struct {
-	treatment    *model.Treatment
-	treatments   []*model.Treatment
-	bulkCreated  []*model.Treatment
-	created      *model.Treatment
-	updated      *model.Treatment
-	deletedID    int64
+	treatment   *model.Treatment
+	treatments  []*model.Treatment
+	bulkCreated []*model.Treatment
+	created     *model.Treatment
+	updated     *model.Treatment
+	deletedID   int64
 }
 
 func (m *mockTreatmentRepo) BulkCreate(ctx context.Context, treatments []*model.Treatment) error {
@@ -81,6 +83,39 @@ func validTreatmentParams() TreatmentParams {
 		MedicineName: "Apiwarol",
 		Dose:         "2",
 		Notes:        "applied evenly",
+	}
+}
+
+func TestTreatmentCreate_MedicineNameTooLong(t *testing.T) {
+	svc := newTreatmentSvc(&mockTreatmentRepo{})
+
+	params := validTreatmentParams()
+	params.MedicineName = strings.Repeat("a", 51)
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrMedicineNameTooLong) {
+		t.Errorf("expected ErrMedicineNameTooLong, got %v", err)
+	}
+}
+
+func TestTreatmentCreate_DoseTooLong(t *testing.T) {
+	svc := newTreatmentSvc(&mockTreatmentRepo{})
+
+	params := validTreatmentParams()
+	params.Dose = strings.Repeat("1", 21)
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrDoseTooLong) {
+		t.Errorf("expected ErrDoseTooLong, got %v", err)
+	}
+}
+
+func TestTreatmentCreate_NotesTooLong(t *testing.T) {
+	svc := newTreatmentSvc(&mockTreatmentRepo{})
+
+	params := validTreatmentParams()
+	params.Notes = strings.Repeat("a", 5001)
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrTreatmentNotesTooLong) {
+		t.Errorf("expected ErrTreatmentNotesTooLong, got %v", err)
 	}
 }
 

@@ -162,6 +162,72 @@ func TestListingCreate_DescriptionTooLongMultiByteRunes(t *testing.T) {
 	}
 }
 
+func TestListingCreate_TitleTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Title = strings.Repeat("a", 151)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingTitleTooLong {
+		t.Errorf("expected ErrListingTitleTooLong, got %v", err)
+	}
+}
+
+func TestListingCreate_TitleAtMaxLength(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Title = strings.Repeat("a", 150)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestListingCreate_QuantityTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Quantity = strings.Repeat("a", 51)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingQuantityTooLong {
+		t.Errorf("expected ErrListingQuantityTooLong, got %v", err)
+	}
+}
+
+func TestListingCreate_AddressTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Address = strings.Repeat("a", 151)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingAddressTooLong {
+		t.Errorf("expected ErrListingAddressTooLong, got %v", err)
+	}
+}
+
+func TestListingCreate_ContactPhoneTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.ContactPhone = strings.Repeat("1", 21)
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingContactPhoneTooLong {
+		t.Errorf("expected ErrListingContactPhoneTooLong, got %v", err)
+	}
+}
+
+func TestListingCreate_ContactEmailTooLong(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.ContactEmail = strings.Repeat("a", 151) + "@example.com"
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingContactEmailTooLong {
+		t.Errorf("expected ErrListingContactEmailTooLong, got %v", err)
+	}
+}
+
 func TestListingCreate_PriceAtMax(t *testing.T) {
 	store := &mockListingStore{}
 	svc := newListingSvc(store)

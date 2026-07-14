@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/invitation_model.dart';
 import '../data/invitation_repository.dart';
@@ -133,9 +134,11 @@ class _ApiaryMembersModalState extends State<ApiaryMembersModal> {
                   labelText: l10n.invitationEmailHint,
                   border: const OutlineInputBorder(),
                   isDense: true,
+                  counterText: SizeTier.medium.counterText,
                 ),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.send,
+                maxLength: SizeTier.medium.maxLength,
                 onSubmitted: (_) => _send(),
                 onChanged: (_) => setState(() => _errorMessage = null),
               ),

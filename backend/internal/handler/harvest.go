@@ -77,8 +77,16 @@ func harvestError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "HARVESTED_AT_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrHarvestFramesRequired):
 		respond.Error(w, http.StatusBadRequest, "HARVEST_FRAMES_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrHarvestFramesInvalid):
+		respond.Error(w, http.StatusBadRequest, "HARVEST_FRAMES_INVALID", err.Error())
+	case errors.Is(err, service.ErrHarvestHalfFramesInvalid):
+		respond.Error(w, http.StatusBadRequest, "HARVEST_HALF_FRAMES_INVALID", err.Error())
 	case errors.Is(err, service.ErrHarvestKilogramsRequired):
 		respond.Error(w, http.StatusBadRequest, "HARVEST_KILOGRAMS_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrHarvestKilogramsTooLarge):
+		respond.Error(w, http.StatusBadRequest, "HARVEST_KILOGRAMS_TOO_LARGE", err.Error())
+	case errors.Is(err, service.ErrHarvestNotesTooLong):
+		respond.Error(w, http.StatusBadRequest, "NOTES_TOO_LONG", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

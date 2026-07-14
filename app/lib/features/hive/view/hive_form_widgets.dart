@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/hive_model.dart';
 
@@ -72,15 +73,19 @@ class HiveNameField extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(labelText: l10n.hiveName),
+      decoration: InputDecoration(
+        labelText: l10n.hiveName,
+        counterText: SizeTier.small.counterText,
+      ),
       textInputAction: TextInputAction.next,
+      maxLength: SizeTier.small.maxLength,
       validator: (v) {
         final trimmed = v?.trim() ?? '';
         if (trimmed.isEmpty) return l10n.generalRequired;
         if (existingNames.contains(trimmed.toLowerCase())) {
           return l10n.hiveDuplicateName;
         }
-        return null;
+        return validateSizeTier(trimmed, SizeTier.small, l10n.hiveName, l10n);
       },
     );
   }
@@ -244,10 +249,16 @@ class _HiveTypeDropdownState extends State<HiveTypeDropdown> {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          decoration: InputDecoration(labelText: l10n.hiveType),
+          decoration: InputDecoration(
+            labelText: l10n.hiveType,
+            counterText: SizeTier.small.counterText,
+          ),
+          maxLength: SizeTier.small.maxLength,
           onChanged: (v) => widget.onChanged(_keyFor(v)),
-          validator: (v) =>
-              (v == null || v.trim().isEmpty) ? l10n.hiveTypeRequired : null,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return l10n.hiveTypeRequired;
+            return validateSizeTier(v, SizeTier.small, l10n.hiveType, l10n);
+          },
         );
       },
     );

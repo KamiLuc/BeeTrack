@@ -24,9 +24,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get profileDisplayName => 'Nazwa wyświetlana';
 
   @override
-  String get profileNameUpdated => 'Nazwa zaktualizowana';
-
-  @override
   String get generalSave => 'Zapisz';
 
   @override
@@ -615,6 +612,16 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get generalLoadMore => 'Załaduj więcej';
+
+  @override
+  String generalFieldTooLong(String field, int max) {
+    return '$field może mieć maksymalnie $max znaków';
+  }
+
+  @override
+  String generalValueTooLarge(String field, String max) {
+    return '$field musi być mniejsze lub równe $max';
+  }
 
   @override
   String get inspectionTitle => 'Inspekcje';

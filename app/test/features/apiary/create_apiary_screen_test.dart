@@ -85,5 +85,20 @@ void main() {
 
       expect(find.text('Apiary name cannot be empty'), findsOneWidget);
     });
+
+    testWidgets('truncates apiary name input at 50 characters',
+        (tester) async {
+      final apiClient = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateApiaryScreen()));
+
+      await tester.enterText(find.byType(TextFormField).first, 'a' * 60);
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.byType(TextFormField).first,
+      );
+      expect(field.controller!.text.length, 50);
+    });
   });
 }

@@ -282,7 +282,7 @@ Creates a new apiary. The authenticated user becomes the owner.
 ```
 
 - `lat` and `lng` are optional
-- `grid_rows` and `grid_cols` must be ≥ 1
+- `grid_rows` and `grid_cols` must be between 1 and 25
 
 **Response** `201 Created`
 ```json
@@ -305,7 +305,9 @@ Creates a new apiary. The authenticated user becomes the owner.
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `NAME_TOO_LONG` | 400 | `name` exceeds 50 characters |
 | `INVALID_GRID_SIZE` | 400 | grid_rows or grid_cols < 1 |
+| `GRID_SIZE_TOO_LARGE` | 400 | grid_rows or grid_cols > 25 |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -360,7 +362,7 @@ Updates an apiary. Only the owner can edit.
 ```
 
 - `lat` and `lng` are optional (omit or pass `null` to clear)
-- `grid_rows` and `grid_cols` must be ≥ 1
+- `grid_rows` and `grid_cols` must be between 1 and 25
 
 **Response** `200 OK`
 ```json
@@ -384,7 +386,9 @@ Updates an apiary. Only the owner can edit.
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `NAME_TOO_LONG` | 400 | `name` exceeds 50 characters |
 | `INVALID_GRID_SIZE` | 400 | grid_rows or grid_cols < 1 |
+| `GRID_SIZE_TOO_LARGE` | 400 | grid_rows or grid_cols > 25 |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `FORBIDDEN` | 403 | Caller is a member, not the owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -541,6 +545,8 @@ Adds a hive to an apiary. Both owners and members can add hives.
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `NAME_TOO_LONG` | 400 | `name` exceeds 50 characters |
+| `TYPE_TOO_LONG` | 400 | `type` exceeds 50 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `INVALID_GRID_POSITION` | 400 | Position is outside apiary grid bounds |
 | `POSITION_OCCUPIED` | 409 | Another hive already occupies that position |
@@ -631,6 +637,8 @@ Updates a hive's name, type, and active status. Both owners and members can edit
 | `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `NAME_TOO_LONG` | 400 | `name` exceeds 50 characters |
+| `TYPE_TOO_LONG` | 400 | `type` exceeds 50 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `DUPLICATE_HIVE_NAME` | 409 | A hive with this name already exists in this apiary |
@@ -842,6 +850,7 @@ Updates the authenticated user's display name.
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `NAME_REQUIRED` | 400 | Name field is empty |
+| `NAME_TOO_LONG` | 400 | `name` exceeds 50 characters |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -927,6 +936,7 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
 | `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
 | `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
 | `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -1002,6 +1012,7 @@ Overwrites all mutable fields of an inspection. Send the complete desired state.
 | `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
 | `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
 | `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
@@ -1435,6 +1446,9 @@ Creates one treatment record per hive in the apiary, all inside a single transac
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `TREATED_AT_REQUIRED` | 400 | `treated_at` missing or zero |
 | `MEDICINE_NAME_REQUIRED` | 400 | `medicine_name` empty |
+| `MEDICINE_NAME_TOO_LONG` | 400 | `medicine_name` exceeds 50 characters |
+| `DOSE_TOO_LONG` | 400 | `dose` exceeds 20 characters |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 
 ---
 
@@ -1503,6 +1517,9 @@ Creates a new treatment record. Caller must be a member of the apiary.
 |------|--------|-------------|
 | `TREATED_AT_REQUIRED` | 400 | `treated_at` is missing or zero |
 | `MEDICINE_NAME_REQUIRED` | 400 | `medicine_name` is empty |
+| `MEDICINE_NAME_TOO_LONG` | 400 | `medicine_name` exceeds 50 characters |
+| `DOSE_TOO_LONG` | 400 | `dose` exceeds 20 characters |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -1619,6 +1636,7 @@ Creates a new harvest record. Caller must be a member of the apiary. `harvested_
 | `HARVESTED_AT_REQUIRED` | 400 | `harvested_at` is missing or zero |
 | `HARVEST_FRAMES_REQUIRED` | 400 | Both `frames` and `half_frames` are zero |
 | `HARVEST_KILOGRAMS_REQUIRED` | 400 | `kilograms` is zero or negative |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -1739,6 +1757,12 @@ Creates a listing owned by the authenticated user.
 | `TITLE_REQUIRED` | 400 | Title field is empty |
 | `CATEGORY_INVALID` | 400 | Category not in allowed set |
 | `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `TITLE_TOO_LONG` | 400 | `title` exceeds 150 characters |
+| `DESCRIPTION_TOO_LONG` | 400 | `description` exceeds 500 characters |
+| `QUANTITY_TOO_LONG` | 400 | `quantity` exceeds 50 characters |
+| `ADDRESS_TOO_LONG` | 400 | `address` exceeds 150 characters |
+| `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
+| `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -1813,6 +1837,12 @@ Updates a listing. Only the owner can edit. Same body as create; when `image_url
 | `TITLE_REQUIRED` | 400 | Title field is empty |
 | `CATEGORY_INVALID` | 400 | Category not in allowed set |
 | `TOO_MANY_IMAGES` | 400 | More than 3 `image_urls` given |
+| `TITLE_TOO_LONG` | 400 | `title` exceeds 150 characters |
+| `DESCRIPTION_TOO_LONG` | 400 | `description` exceeds 500 characters |
+| `QUANTITY_TOO_LONG` | 400 | `quantity` exceeds 50 characters |
+| `ADDRESS_TOO_LONG` | 400 | `address` exceeds 150 characters |
+| `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
+| `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |

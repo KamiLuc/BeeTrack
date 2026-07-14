@@ -202,6 +202,10 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
 			respond.Error(w, http.StatusBadRequest, "NAME_REQUIRED", err.Error())
+		case errors.Is(err, service.ErrNameTooLong):
+			respond.Error(w, http.StatusBadRequest, "NAME_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrHiveTypeTooLong):
+			respond.Error(w, http.StatusBadRequest, "TYPE_TOO_LONG", err.Error())
 		case errors.Is(err, service.ErrApiaryNotFound):
 			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 		case errors.Is(err, service.ErrHiveNotFound):
@@ -337,6 +341,10 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
 			respond.Error(w, http.StatusBadRequest, "NAME_REQUIRED", err.Error())
+		case errors.Is(err, service.ErrNameTooLong):
+			respond.Error(w, http.StatusBadRequest, "NAME_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrHiveTypeTooLong):
+			respond.Error(w, http.StatusBadRequest, "TYPE_TOO_LONG", err.Error())
 		case errors.Is(err, service.ErrApiaryNotFound):
 			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 		case errors.Is(err, service.ErrInvalidGridPosition):

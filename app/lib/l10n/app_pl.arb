@@ -7,7 +7,6 @@
   "profileLanguageEn": "Angielski",
   "profileLanguagePl": "Polski",
   "profileDisplayName": "Nazwa wyświetlana",
-  "profileNameUpdated": "Nazwa zaktualizowana",
 
   "generalSave": "Zapisz",
   "generalCancel": "Anuluj",
@@ -229,6 +228,20 @@
   "hiveDuplicateName": "Ul o tej nazwie już istnieje w tej pasiece",
   "generalRequired": "Wymagane",
   "generalLoadMore": "Załaduj więcej",
+  "generalFieldTooLong": "{field} może mieć maksymalnie {max} znaków",
+  "@generalFieldTooLong": {
+    "placeholders": {
+      "field": { "type": "String" },
+      "max": { "type": "int" }
+    }
+  },
+  "generalValueTooLarge": "{field} musi być mniejsze lub równe {max}",
+  "@generalValueTooLarge": {
+    "placeholders": {
+      "field": { "type": "String" },
+      "max": { "type": "String" }
+    }
+  },
 
   "inspectionTitle": "Inspekcje",
   "inspectionAdd": "Dodaj inspekcję",

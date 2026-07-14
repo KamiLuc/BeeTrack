@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
@@ -238,6 +239,26 @@ func TestAddHive_NoName(t *testing.T) {
 	}
 }
 
+func TestAddHive_NameTooLong(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	name := strings.Repeat("a", 51)
+	_, err := svc.Add(context.Background(), 1, 1, name, "langstroth", true, false, false, 0, 0)
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+}
+
+func TestAddHive_TypeTooLong(t *testing.T) {
+	svc, _, _ := newTestHiveService()
+
+	hiveType := strings.Repeat("a", 51)
+	_, err := svc.Add(context.Background(), 1, 1, "Hive A", hiveType, true, false, false, 0, 0)
+	if !errors.Is(err, ErrHiveTypeTooLong) {
+		t.Errorf("expected ErrHiveTypeTooLong, got %v", err)
+	}
+}
+
 func TestAddHive_ApiaryNotFound(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
@@ -288,6 +309,28 @@ func TestUpdateHive_NoName(t *testing.T) {
 	_, err := svc.Update(context.Background(), 1, 1, 10, "", "langstroth", true, false, false)
 	if !errors.Is(err, ErrNameRequired) {
 		t.Errorf("expected ErrNameRequired, got %v", err)
+	}
+}
+
+func TestUpdateHive_NameTooLong(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	name := strings.Repeat("a", 51)
+	_, err := svc.Update(context.Background(), 1, 1, 10, name, "langstroth", true, false, false)
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+}
+
+func TestUpdateHive_TypeTooLong(t *testing.T) {
+	svc, apiaryMock, _ := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+
+	hiveType := strings.Repeat("a", 51)
+	_, err := svc.Update(context.Background(), 1, 1, 10, "Name", hiveType, true, false, false)
+	if !errors.Is(err, ErrHiveTypeTooLong) {
+		t.Errorf("expected ErrHiveTypeTooLong, got %v", err)
 	}
 }
 
@@ -476,7 +519,6 @@ func TestAddHive_DuplicateName(t *testing.T) {
 		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
 	}
 }
-
 
 func newChangeApiaryService() (*HiveService, *mockMultiApiaryReader, *mockHiveRepo) {
 	apiaryMock := &mockMultiApiaryReader{

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -419,7 +420,14 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                               alignLabelWithHint: true,
                             ),
                             maxLines: 4,
+                            maxLength: SizeTier.extraLarge.maxLength,
                             textInputAction: TextInputAction.newline,
+                            validator: (v) => validateSizeTier(
+                              v,
+                              SizeTier.extraLarge,
+                              l10n.inspectionNotes,
+                              l10n,
+                            ),
                           ),
                           const SizedBox(height: 20),
                           _SectionTitle(l10n.inspectionSectionHiveState),
@@ -1090,14 +1098,18 @@ class _NumericField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
+        counterText: SizeTier.tiny.counterText,
       ),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      maxLength: SizeTier.tiny.maxLength,
+      validator: (v) => validateSizeTier(v, SizeTier.tiny, label, l10n),
     );
   }
 }

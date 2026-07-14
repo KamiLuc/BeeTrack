@@ -126,6 +126,63 @@ void main() {
       expect(formKey.currentState!.validate(), isTrue);
     });
 
+    testWidgets('validate shows error when medicine is over 50 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        treatedAt: date,
+        medicineController: TextEditingController(text: 'a' * 51),
+        doseController: TextEditingController(text: '2'),
+        notesController: TextEditingController(),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Medicine must be at most 50 characters'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate shows error when dose is over 20 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        treatedAt: date,
+        medicineController: TextEditingController(text: 'Apivar'),
+        doseController: TextEditingController(text: '1' * 21),
+        notesController: TextEditingController(),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Dose must be at most 20 characters'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate shows error when notes are over 5000 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        treatedAt: date,
+        medicineController: TextEditingController(text: 'Apivar'),
+        doseController: TextEditingController(text: '2'),
+        notesController: TextEditingController(text: 'a' * 5001),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Note must be at most 5000 characters'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('pre-fills fields from controllers', (tester) async {
       final formKey = GlobalKey<FormState>();
       await tester.pumpWidget(_wrap(

@@ -105,12 +105,22 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusForbidden, "NOT_OWNER", "not the listing owner")
 	case errors.Is(err, service.ErrListingTitleRequired):
 		respond.Error(w, http.StatusBadRequest, "TITLE_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrListingTitleTooLong):
+		respond.Error(w, http.StatusBadRequest, "TITLE_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingCategoryInvalid):
 		respond.Error(w, http.StatusBadRequest, "CATEGORY_INVALID", err.Error())
 	case errors.Is(err, service.ErrListingTooManyImages):
 		respond.Error(w, http.StatusBadRequest, "TOO_MANY_IMAGES", err.Error())
 	case errors.Is(err, service.ErrListingDescriptionTooLong):
 		respond.Error(w, http.StatusBadRequest, "DESCRIPTION_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingQuantityTooLong):
+		respond.Error(w, http.StatusBadRequest, "QUANTITY_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingAddressTooLong):
+		respond.Error(w, http.StatusBadRequest, "ADDRESS_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingContactPhoneTooLong):
+		respond.Error(w, http.StatusBadRequest, "CONTACT_PHONE_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingContactEmailTooLong):
+		respond.Error(w, http.StatusBadRequest, "CONTACT_EMAIL_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingPriceTooLarge):
 		respond.Error(w, http.StatusBadRequest, "PRICE_TOO_LARGE", err.Error())
 	default:

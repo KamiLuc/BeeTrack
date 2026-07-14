@@ -142,6 +142,121 @@ void main() {
       expect(formKey.currentState!.validate(), isTrue);
     });
 
+    testWidgets('truncates frames input at 2 characters', (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(),
+        halfFramesController: TextEditingController(text: '0'),
+        kilogramsController: TextEditingController(text: '5.00'),
+      ));
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Frames'), '1' * 10);
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Frames'),
+      );
+      expect(field.controller!.text.length, 2);
+    });
+
+    testWidgets('truncates half frames input at 2 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(text: '0'),
+        halfFramesController: TextEditingController(),
+        kilogramsController: TextEditingController(text: '5.00'),
+      ));
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Half frames'),
+        '1' * 10,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Half frames'),
+      );
+      expect(field.controller!.text.length, 2);
+    });
+
+    testWidgets(
+        'validate shows error when kilograms text is over 50 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(text: '5'),
+        halfFramesController: TextEditingController(text: '2'),
+        kilogramsController: TextEditingController(text: '1' * 51),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Kilograms (kg) must be at most 50 characters'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate shows error when kilograms is over 1000',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(text: '5'),
+        halfFramesController: TextEditingController(text: '2'),
+        kilogramsController: TextEditingController(text: '1000.01'),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Kilograms (kg) must be at most 1000'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate passes when kilograms is exactly 1000',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(text: '5'),
+        halfFramesController: TextEditingController(text: '2'),
+        kilogramsController: TextEditingController(text: '1000'),
+      ));
+
+      expect(formKey.currentState!.validate(), isTrue);
+    });
+
+    testWidgets('validate shows error when notes are over 5000 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        harvestedAt: date,
+        framesController: TextEditingController(text: '5'),
+        halfFramesController: TextEditingController(text: '2'),
+        kilogramsController: TextEditingController(text: '12.50'),
+        notesController: TextEditingController(text: 'a' * 5001),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Note must be at most 5000 characters'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('pre-fills fields from controllers', (tester) async {
       final formKey = GlobalKey<FormState>();
       await tester.pumpWidget(_wrap(

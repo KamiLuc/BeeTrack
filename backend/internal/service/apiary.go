@@ -6,16 +6,34 @@ import (
 	"fmt"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
+// maxApiaryGridDimension is the largest number of rows or columns an apiary grid may have.
+const maxApiaryGridDimension = 25
+
 var (
-	ErrApiaryNotFound  = errors.New("apiary not found")
-	ErrForbidden       = errors.New("forbidden")
-	ErrGridTooSmall    = errors.New("grid is too small to fit all existing hives")
-	ErrInvalidGridSize = errors.New("grid rows and cols must be at least 1")
-	ErrNameRequired    = errors.New("name is required")
+	ErrApiaryNotFound   = errors.New("apiary not found")
+	ErrForbidden        = errors.New("forbidden")
+	ErrGridTooSmall     = errors.New("grid is too small to fit all existing hives")
+	ErrInvalidGPS       = errors.New("lat must be between -90 and 90, lng must be between -180 and 180")
+	ErrInvalidGridSize  = errors.New("grid rows and cols must be at least 1")
+	ErrGridSizeTooLarge = fmt.Errorf("grid rows and cols must be at most %d", maxApiaryGridDimension)
+	ErrNameRequired     = errors.New("name is required")
+	ErrNameTooLong      = fmt.Errorf("name must be at most %d characters", validation.Small.MaxLength())
 )
+
+// validGPS reports whether lat/lng are unset or within valid GPS coordinate bounds.
+func validGPS(lat, lng *float64) bool {
+	if lat != nil && (*lat < -90 || *lat > 90) {
+		return false
+	}
+	if lng != nil && (*lng < -180 || *lng > 180) {
+		return false
+	}
+	return true
+}
 
 type ApiaryRepository interface {
 	Create(ctx context.Context, a *model.Apiary, ownerRole string) error
@@ -45,8 +63,17 @@ func (s *ApiaryService) Create(ctx context.Context, ownerID int64, name string, 
 	if name == "" {
 		return nil, ErrNameRequired
 	}
+	if validation.TooLong(name, validation.Small) {
+		return nil, ErrNameTooLong
+	}
 	if gridRows < 1 || gridCols < 1 {
 		return nil, ErrInvalidGridSize
+	}
+	if gridRows > maxApiaryGridDimension || gridCols > maxApiaryGridDimension {
+		return nil, ErrGridSizeTooLarge
+	}
+	if !validGPS(lat, lng) {
+		return nil, ErrInvalidGPS
 	}
 
 	a := &model.Apiary{
@@ -81,8 +108,17 @@ func (s *ApiaryService) Update(ctx context.Context, userID, apiaryID int64, name
 	if name == "" {
 		return nil, ErrNameRequired
 	}
+	if validation.TooLong(name, validation.Small) {
+		return nil, ErrNameTooLong
+	}
 	if gridRows < 1 || gridCols < 1 {
 		return nil, ErrInvalidGridSize
+	}
+	if gridRows > maxApiaryGridDimension || gridCols > maxApiaryGridDimension {
+		return nil, ErrGridSizeTooLarge
+	}
+	if !validGPS(lat, lng) {
+		return nil, ErrInvalidGPS
 	}
 
 	apiary, role, err := s.apiaries.GetMembership(ctx, apiaryID, userID)
@@ -159,6 +195,9 @@ func (s *ApiaryService) Copy(ctx context.Context, userID, apiaryID int64, newNam
 		return nil, fmt.Errorf("get apiary: %w", err)
 	}
 
+	if newName != "" && validation.TooLong(newName, validation.Small) {
+		return nil, ErrNameTooLong
+	}
 	if newName == "" {
 		newName = apiary.Name + " (copy)"
 	}

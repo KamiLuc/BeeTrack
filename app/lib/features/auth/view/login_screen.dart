@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 import 'forgot_password_screen.dart';
@@ -115,25 +116,40 @@ class _LoginViewState extends State<_LoginView> {
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: _emailController,
-                        decoration: InputDecoration(labelText: l10n.authEmail),
+                        decoration: InputDecoration(
+                          labelText: l10n.authEmail,
+                          counterText: SizeTier.medium.counterText,
+                        ),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
-                        validator: (v) => _isValidEmail(v)
-                            ? null
-                            : l10n.authInvalidEmail,
+                        maxLength: SizeTier.medium.maxLength,
+                        validator: (v) {
+                          if (!_isValidEmail(v)) return l10n.authInvalidEmail;
+                          return validateSizeTier(
+                            v,
+                            SizeTier.medium,
+                            l10n.authEmail,
+                            l10n,
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
                           labelText: l10n.authPassword,
+                          counterText: '',
                         ),
                         obscureText: true,
                         textInputAction: TextInputAction.done,
+                        maxLength: maxPasswordLength,
                         onFieldSubmitted: (_) => _submit(context),
-                        validator: (v) => (v == null || v.length < 8)
-                            ? l10n.authWeakPassword
-                            : null,
+                        validator: (v) {
+                          if (v == null || v.length < 8) {
+                            return l10n.authWeakPassword;
+                          }
+                          return validatePasswordLength(v, l10n);
+                        },
                       ),
                       if (_errorCode != null) ...[
                         const SizedBox(height: 12),

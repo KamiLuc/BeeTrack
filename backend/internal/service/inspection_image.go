@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	ErrImageNotFound      = errors.New("image not found")
-	ErrInvalidImageType   = errors.New("unsupported image type; allowed: image/jpeg, image/png, image/webp")
-	ErrImageTooLarge      = errors.New("image exceeds 10 MB limit")
-	ErrMaxImagesReached   = errors.New("inspection already has the maximum of 6 images")
+	ErrImageNotFound    = errors.New("image not found")
+	ErrInvalidImageType = errors.New("unsupported image type; allowed: image/jpeg, image/png, image/webp")
+	ErrImageTooLarge    = errors.New("image exceeds 10 MB limit")
+	ErrMaxImagesReached = errors.New("inspection already has the maximum of 6 images")
 )
 
 const maxImageBytes = 10 * 1024 * 1024

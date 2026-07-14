@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
@@ -13,6 +14,7 @@ var (
 	ErrDuplicateHiveName   = errors.New("a hive with this name already exists in this apiary")
 	ErrHiveDiseaseNotFound = errors.New("hive disease not found")
 	ErrHiveNotFound        = errors.New("hive not found")
+	ErrHiveTypeTooLong     = fmt.Errorf("type must be at most %d characters", validation.Small.MaxLength())
 	ErrInvalidGridPosition = errors.New("grid position out of apiary bounds")
 	ErrPositionOccupied    = errors.New("grid position already occupied")
 	ErrSameApiary          = errors.New("source and target apiary are the same")
@@ -75,6 +77,12 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
+	}
+	if validation.TooLong(name, validation.Small) {
+		return nil, ErrNameTooLong
+	}
+	if validation.TooLong(hiveType, validation.Small) {
+		return nil, ErrHiveTypeTooLong
 	}
 
 	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
@@ -343,6 +351,12 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
+	}
+	if validation.TooLong(name, validation.Small) {
+		return nil, ErrNameTooLong
+	}
+	if validation.TooLong(hiveType, validation.Small) {
+		return nil, ErrHiveTypeTooLong
 	}
 
 	apiary, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID)

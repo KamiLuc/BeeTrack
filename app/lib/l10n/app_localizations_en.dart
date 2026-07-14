@@ -24,9 +24,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDisplayName => 'Display name';
 
   @override
-  String get profileNameUpdated => 'Name updated';
-
-  @override
   String get generalSave => 'Save';
 
   @override
@@ -607,6 +604,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generalLoadMore => 'Load more';
+
+  @override
+  String generalFieldTooLong(String field, int max) {
+    return '$field must be at most $max characters';
+  }
+
+  @override
+  String generalValueTooLarge(String field, String max) {
+    return '$field must be at most $max';
+  }
 
   @override
   String get inspectionTitle => 'Inspections';

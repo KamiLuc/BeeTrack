@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ApiaryGridSection extends StatelessWidget {
@@ -118,13 +119,25 @@ class ApiaryLocationSection extends StatelessWidget {
         TextFormField(
           controller: latController,
           enabled: false,
-          decoration: InputDecoration(labelText: l10n.apiaryLatitude),
+          decoration: InputDecoration(
+            labelText: l10n.apiaryLatitude,
+            counterText: SizeTier.small.counterText,
+          ),
+          maxLength: SizeTier.small.maxLength,
+          validator: (v) =>
+              validateSizeTier(v, SizeTier.small, l10n.apiaryLatitude, l10n),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: lngController,
           enabled: false,
-          decoration: InputDecoration(labelText: l10n.apiaryLongitude),
+          decoration: InputDecoration(
+            labelText: l10n.apiaryLongitude,
+            counterText: SizeTier.small.counterText,
+          ),
+          maxLength: SizeTier.small.maxLength,
+          validator: (v) =>
+              validateSizeTier(v, SizeTier.small, l10n.apiaryLongitude, l10n),
         ),
         const SizedBox(height: 12),
         Row(

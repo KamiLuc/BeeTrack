@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +89,61 @@ func TestHarvestCreate(t *testing.T) {
 	}
 }
 
+func TestHarvestCreate_NotesTooLong(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Notes = strings.Repeat("a", 5001)
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrHarvestNotesTooLong) {
+		t.Errorf("expected ErrHarvestNotesTooLong, got %v", err)
+	}
+}
+
+func TestHarvestCreate_FramesTooLarge(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Frames = 100
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrHarvestFramesInvalid) {
+		t.Errorf("expected ErrHarvestFramesInvalid, got %v", err)
+	}
+}
+
+func TestHarvestCreate_FramesAtMax(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Frames = 99
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHarvestCreate_FramesNegative(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Frames = -1
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrHarvestFramesInvalid) {
+		t.Errorf("expected ErrHarvestFramesInvalid, got %v", err)
+	}
+}
+
+func TestHarvestCreate_HalfFramesTooLarge(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.HalfFrames = 100
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrHarvestHalfFramesInvalid) {
+		t.Errorf("expected ErrHarvestHalfFramesInvalid, got %v", err)
+	}
+}
+
 func TestHarvestCreate_MissingDate(t *testing.T) {
 	repo := &mockHarvestRepo{}
 	svc := newHarvestSvc(repo)
@@ -124,6 +181,28 @@ func TestHarvestCreate_ZeroKilograms(t *testing.T) {
 	})
 	if err != ErrHarvestKilogramsRequired {
 		t.Errorf("expected ErrHarvestKilogramsRequired, got %v", err)
+	}
+}
+
+func TestHarvestCreate_KilogramsTooLarge(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Kilograms = 1001
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if !errors.Is(err, ErrHarvestKilogramsTooLarge) {
+		t.Errorf("expected ErrHarvestKilogramsTooLarge, got %v", err)
+	}
+}
+
+func TestHarvestCreate_KilogramsAtMax(t *testing.T) {
+	svc := newHarvestSvc(&mockHarvestRepo{})
+
+	params := validHarvestParams()
+	params.Kilograms = 1000
+	_, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

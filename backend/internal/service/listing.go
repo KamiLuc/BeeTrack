@@ -7,27 +7,30 @@ import (
 
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/repository"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
 // maxListingImages is the maximum number of images allowed per listing.
 const maxListingImages = 3
 
-// maxListingDescriptionLength is the maximum number of characters allowed in a listing description.
-const maxListingDescriptionLength = 500
-
 // maxListingPrice is the largest price the `price NUMERIC(10,2)` column can store
 // (precision 10, scale 2 — an absolute value below 10^8).
 const maxListingPrice = 100_000_000
 
 var (
-	ErrListingNotFound           = errors.New("listing not found")
-	ErrListingTitleRequired      = errors.New("title is required")
-	ErrListingCategoryInvalid    = errors.New("category is invalid")
-	ErrListingTooManyImages      = errors.New("a listing may have at most 3 images")
-	ErrListingDescriptionTooLong = errors.New("description must be at most 500 characters")
-	ErrListingPriceTooLarge      = errors.New("price must be less than 100,000,000")
-	ErrNotListingOwner           = errors.New("not the listing owner")
+	ErrListingNotFound            = errors.New("listing not found")
+	ErrListingTitleRequired       = errors.New("title is required")
+	ErrListingCategoryInvalid     = errors.New("category is invalid")
+	ErrListingTooManyImages       = errors.New("a listing may have at most 3 images")
+	ErrListingTitleTooLong        = fmt.Errorf("title must be at most %d characters", validation.Medium.MaxLength())
+	ErrListingDescriptionTooLong  = fmt.Errorf("description must be at most %d characters", validation.Large.MaxLength())
+	ErrListingQuantityTooLong     = fmt.Errorf("quantity must be at most %d characters", validation.Small.MaxLength())
+	ErrListingAddressTooLong      = fmt.Errorf("address must be at most %d characters", validation.Medium.MaxLength())
+	ErrListingContactPhoneTooLong = fmt.Errorf("contact phone must be at most %d characters", validation.SuperSmall.MaxLength())
+	ErrListingContactEmailTooLong = fmt.Errorf("contact email must be at most %d characters", validation.Medium.MaxLength())
+	ErrListingPriceTooLarge       = errors.New("price must be less than 100,000,000")
+	ErrNotListingOwner            = errors.New("not the listing owner")
 )
 
 // validListingCategories is the set of accepted listing categories.
@@ -81,14 +84,29 @@ func validateListingParams(p ListingParams) error {
 	if p.Title == "" {
 		return ErrListingTitleRequired
 	}
+	if validation.TooLong(p.Title, validation.Medium) {
+		return ErrListingTitleTooLong
+	}
 	if !validListingCategories[p.Category] {
 		return ErrListingCategoryInvalid
 	}
 	if len(p.ImageURLs) > maxListingImages {
 		return ErrListingTooManyImages
 	}
-	if len([]rune(p.Description)) > maxListingDescriptionLength {
+	if validation.TooLong(p.Description, validation.Large) {
 		return ErrListingDescriptionTooLong
+	}
+	if validation.TooLong(p.Quantity, validation.Small) {
+		return ErrListingQuantityTooLong
+	}
+	if validation.TooLong(p.Address, validation.Medium) {
+		return ErrListingAddressTooLong
+	}
+	if validation.TooLong(p.ContactPhone, validation.SuperSmall) {
+		return ErrListingContactPhoneTooLong
+	}
+	if validation.TooLong(p.ContactEmail, validation.Medium) {
+		return ErrListingContactEmailTooLong
 	}
 	if p.Price != nil && (*p.Price >= maxListingPrice || *p.Price <= -maxListingPrice) {
 		return ErrListingPriceTooLarge

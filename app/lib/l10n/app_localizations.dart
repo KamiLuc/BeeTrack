@@ -128,12 +128,6 @@ abstract class AppLocalizations {
   /// **'Nazwa wyświetlana'**
   String get profileDisplayName;
 
-  /// No description provided for @profileNameUpdated.
-  ///
-  /// In pl, this message translates to:
-  /// **'Nazwa zaktualizowana'**
-  String get profileNameUpdated;
-
   /// No description provided for @generalSave.
   ///
   /// In pl, this message translates to:
@@ -1225,6 +1219,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Załaduj więcej'**
   String get generalLoadMore;
+
+  /// No description provided for @generalFieldTooLong.
+  ///
+  /// In pl, this message translates to:
+  /// **'{field} może mieć maksymalnie {max} znaków'**
+  String generalFieldTooLong(String field, int max);
+
+  /// No description provided for @generalValueTooLarge.
+  ///
+  /// In pl, this message translates to:
+  /// **'{field} musi być mniejsze lub równe {max}'**
+  String generalValueTooLarge(String field, String max);
 
   /// No description provided for @inspectionTitle.
   ///

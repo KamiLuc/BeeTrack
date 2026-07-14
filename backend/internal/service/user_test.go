@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
@@ -17,7 +18,7 @@ func (m *mockUpdateNameRepo) Create(ctx context.Context, u *model.User) error { 
 func (m *mockUpdateNameRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	return nil, nil
 }
-func (m *mockUpdateNameRepo) SetVerified(ctx context.Context, userID int64) error   { return nil }
+func (m *mockUpdateNameRepo) SetVerified(ctx context.Context, userID int64) error { return nil }
 func (m *mockUpdateNameRepo) UpdateName(ctx context.Context, userID int64, name string) error {
 	m.updatedID = userID
 	m.updatedName = name
@@ -53,5 +54,14 @@ func TestUpdateName_EmptyName(t *testing.T) {
 	err := svc.UpdateName(context.Background(), 1, "")
 	if !errors.Is(err, ErrNameRequired) {
 		t.Errorf("expected ErrNameRequired, got %v", err)
+	}
+}
+
+func TestUpdateName_TooLong(t *testing.T) {
+	svc, _ := newTestUserService()
+
+	err := svc.UpdateName(context.Background(), 1, strings.Repeat("a", 51))
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
 	}
 }

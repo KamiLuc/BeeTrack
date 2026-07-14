@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -151,13 +152,18 @@ class _FormView extends StatelessWidget {
           const SizedBox(height: 24),
           TextFormField(
             controller: emailController,
-            decoration: InputDecoration(labelText: l10n.authEmail),
+            decoration: InputDecoration(
+              labelText: l10n.authEmail,
+              counterText: SizeTier.medium.counterText,
+            ),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
+            maxLength: SizeTier.medium.maxLength,
             onFieldSubmitted: (_) => onSubmit(),
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? l10n.authInvalidEmail
-                : null,
+            validator: (v) {
+              if (!_isValidEmail(v)) return l10n.authInvalidEmail;
+              return validateSizeTier(v, SizeTier.medium, l10n.authEmail, l10n);
+            },
           ),
           if (errorMessage != null) ...[
             const SizedBox(height: 12),
@@ -189,5 +195,12 @@ class _FormView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _isValidEmail(String? v) {
+    if (v == null) return false;
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(v.trim());
   }
 }

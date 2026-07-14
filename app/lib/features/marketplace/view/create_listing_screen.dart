@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/apiary/data/apiary_model.dart';
 import '../../../features/apiary/data/apiary_repository.dart';
@@ -268,13 +269,24 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 children: [
                   TextFormField(
                     controller: _titleController,
-                    decoration:
-                        InputDecoration(labelText: l10n.marketplaceFieldTitle),
+                    decoration: InputDecoration(
+                      labelText: l10n.marketplaceFieldTitle,
+                      counterText: SizeTier.medium.counterText,
+                    ),
                     textInputAction: TextInputAction.next,
+                    maxLength: SizeTier.medium.maxLength,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? l10n.marketplaceFieldTitleRequired
-                        : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return l10n.marketplaceFieldTitleRequired;
+                      }
+                      return validateSizeTier(
+                        v,
+                        SizeTier.medium,
+                        l10n.marketplaceFieldTitle,
+                        l10n,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -308,19 +320,28 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     ),
                     minLines: 3,
                     maxLines: 6,
-                    maxLength: 500,
+                    maxLength: SizeTier.large.maxLength,
                     textInputAction: TextInputAction.newline,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (v) => validateSizeTier(
+                      v,
+                      SizeTier.large,
+                      l10n.marketplaceDescriptionLabel,
+                      l10n,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _priceController,
                     decoration: InputDecoration(
                       labelText: l10n.marketplaceFieldPrice,
+                      counterText: SizeTier.small.counterText,
                     ),
                     keyboardType:
                         TextInputType.numberWithOptions(decimal: true),
                     textInputAction: TextInputAction.next,
                     inputFormatters: [_priceInputFormatter],
+                    maxLength: SizeTier.small.maxLength,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
@@ -330,9 +351,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       if (parsed == null) {
                         return l10n.marketplaceFieldPriceInvalid;
                       }
-                      return parsed >= 100000000
-                          ? l10n.marketplaceFieldPriceTooLarge
-                          : null;
+                      if (parsed >= 100000000) {
+                        return l10n.marketplaceFieldPriceTooLarge;
+                      }
+                      return validateSizeTier(
+                        v,
+                        SizeTier.small,
+                        l10n.marketplaceFieldPrice,
+                        l10n,
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
@@ -340,16 +367,34 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     controller: _quantityController,
                     decoration: InputDecoration(
                       labelText: l10n.marketplaceQuantityLabel,
+                      counterText: SizeTier.small.counterText,
                     ),
                     textInputAction: TextInputAction.next,
+                    maxLength: SizeTier.small.maxLength,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (v) => validateSizeTier(
+                      v,
+                      SizeTier.small,
+                      l10n.marketplaceQuantityLabel,
+                      l10n,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _addressController,
                     decoration: InputDecoration(
                       labelText: l10n.marketplaceFieldAddress,
+                      counterText: SizeTier.medium.counterText,
                     ),
                     textInputAction: TextInputAction.next,
+                    maxLength: SizeTier.medium.maxLength,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (v) => validateSizeTier(
+                      v,
+                      SizeTier.medium,
+                      l10n.marketplaceFieldAddress,
+                      l10n,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -360,31 +405,49 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _phoneController,
-                    decoration:
-                        InputDecoration(labelText: l10n.marketplaceFieldPhone),
+                    decoration: InputDecoration(
+                      labelText: l10n.marketplaceFieldPhone,
+                      counterText: SizeTier.superSmall.counterText,
+                    ),
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    maxLength: SizeTier.superSmall.maxLength,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     onChanged: (_) => _reviewContactError(),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
-                      return _isValidPhone(v)
-                          ? null
-                          : l10n.marketplaceFieldPhoneInvalid;
+                      if (!_isValidPhone(v)) {
+                        return l10n.marketplaceFieldPhoneInvalid;
+                      }
+                      return validateSizeTier(
+                        v,
+                        SizeTier.superSmall,
+                        l10n.marketplaceFieldPhone,
+                        l10n,
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
-                    decoration:
-                        InputDecoration(labelText: l10n.marketplaceFieldEmail),
+                    decoration: InputDecoration(
+                      labelText: l10n.marketplaceFieldEmail,
+                      counterText: SizeTier.medium.counterText,
+                    ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    maxLength: SizeTier.medium.maxLength,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     onChanged: (_) => _reviewContactError(),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
-                      return _isValidEmail(v) ? null : l10n.authInvalidEmail;
+                      if (!_isValidEmail(v)) return l10n.authInvalidEmail;
+                      return validateSizeTier(
+                        v,
+                        SizeTier.medium,
+                        l10n.marketplaceFieldEmail,
+                        l10n,
+                      );
                     },
                   ),
                   if (_apiaries.isNotEmpty) ...[

@@ -24,6 +24,25 @@ Widget _wrap({
       ),
     );
 
+Widget _wrapTypeDropdown({
+  required GlobalKey<FormState> formKey,
+  required String value,
+}) =>
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('en'),
+      home: Scaffold(
+        body: Form(
+          key: formKey,
+          child: HiveTypeDropdown(
+            value: value,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
 void main() {
   group('HiveNameField', () {
     testWidgets('validate shows Required when name is empty', (tester) async {
@@ -136,6 +155,61 @@ void main() {
       await tester.pumpWidget(_wrap(
         formKey: formKey,
         controller: TextEditingController(text: 'Anything'),
+      ));
+
+      expect(formKey.currentState!.validate(), isTrue);
+    });
+
+    testWidgets('validate shows too-long error for a name over 50 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        controller: TextEditingController(text: 'a' * 51),
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Hive name must be at most 50 characters'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate passes for a name at exactly 50 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        controller: TextEditingController(text: 'a' * 50),
+      ));
+
+      expect(formKey.currentState!.validate(), isTrue);
+    });
+  });
+
+  group('HiveTypeDropdown', () {
+    testWidgets('validate shows too-long error for a type over 50 characters',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrapTypeDropdown(
+        formKey: formKey,
+        value: 'a' * 51,
+      ));
+
+      expect(formKey.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(
+        find.text('Hive type must be at most 50 characters'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('validate passes for the preset type value', (tester) async {
+      final formKey = GlobalKey<FormState>();
+      await tester.pumpWidget(_wrapTypeDropdown(
+        formKey: formKey,
+        value: 'dadant',
       ));
 
       expect(formKey.currentState!.validate(), isTrue);

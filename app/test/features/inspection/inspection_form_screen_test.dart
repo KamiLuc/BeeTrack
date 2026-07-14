@@ -206,4 +206,49 @@ void main() {
       expect(request.data['frames_added_foundation'], -2);
     });
   });
+
+  group('InspectionFormScreen size validation', () {
+    testWidgets('truncates notes input at 5000 characters', (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        const InspectionFormScreen(apiaryId: 1, hive: _hive),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Notes'),
+        'a' * 5010,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Notes'),
+      );
+      expect(field.controller!.text.length, 5000);
+    });
+
+    testWidgets('truncates queen cells count input at 2 characters',
+        (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        const InspectionFormScreen(apiaryId: 1, hive: _hive),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Queen cells'),
+        '1' * 10,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Queen cells'),
+      );
+      expect(field.controller!.text.length, 2);
+    });
+  });
 }

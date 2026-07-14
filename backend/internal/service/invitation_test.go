@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
@@ -11,18 +13,18 @@ import (
 // -- mocks --
 
 type mockInvitationRepo struct {
-	pending      *model.ApiaryInvitation
-	byID         *model.ApiaryInvitation
-	members      []model.ApiaryMemberInfo
-	invitations  []model.ApiaryInvitation
-	isMember     bool
-	createdInv   *model.ApiaryInvitation
-	updatedID    int64
+	pending       *model.ApiaryInvitation
+	byID          *model.ApiaryInvitation
+	members       []model.ApiaryMemberInfo
+	invitations   []model.ApiaryInvitation
+	isMember      bool
+	createdInv    *model.ApiaryInvitation
+	updatedID     int64
 	updatedStatus string
-	deletedID    int64
-	addedApiary  int64
-	addedUser    int64
-	removedUser  int64
+	deletedID     int64
+	addedApiary   int64
+	addedUser     int64
+	removedUser   int64
 }
 
 func (m *mockInvitationRepo) Create(_ context.Context, inv *model.ApiaryInvitation) error {
@@ -103,6 +105,31 @@ func TestInvite_Success(t *testing.T) {
 	}
 	if inv.createdInv == nil {
 		t.Error("expected invitation to be created")
+	}
+}
+
+func TestInvite_InvalidEmail(t *testing.T) {
+	apiary := &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "owner"}
+	inv := &mockInvitationRepo{}
+	users := &mockUserLookup{byID: &model.User{ID: 1, Email: "owner@example.com"}}
+	svc := newInvSvc(apiary, inv, users)
+
+	_, err := svc.Invite(context.Background(), 1, 1, "not-an-email")
+	if !errors.Is(err, ErrInvalidEmail) {
+		t.Errorf("expected ErrInvalidEmail, got %v", err)
+	}
+}
+
+func TestInvite_EmailTooLong(t *testing.T) {
+	apiary := &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "owner"}
+	inv := &mockInvitationRepo{}
+	users := &mockUserLookup{byID: &model.User{ID: 1, Email: "owner@example.com"}}
+	svc := newInvSvc(apiary, inv, users)
+
+	longEmail := strings.Repeat("a", 151) + "@example.com"
+	_, err := svc.Invite(context.Background(), 1, 1, longEmail)
+	if !errors.Is(err, ErrEmailTooLong) {
+		t.Errorf("expected ErrEmailTooLong, got %v", err)
 	}
 }
 

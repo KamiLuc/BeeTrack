@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 
@@ -167,20 +168,33 @@ class _FormView extends StatelessWidget {
           const SizedBox(height: 24),
           TextFormField(
             controller: emailController,
-            decoration: InputDecoration(labelText: l10n.authEmail),
+            decoration: InputDecoration(
+              labelText: l10n.authEmail,
+              counterText: SizeTier.medium.counterText,
+            ),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
-            validator: (v) => _isValidEmail(v) ? null : l10n.authInvalidEmail,
+            maxLength: SizeTier.medium.maxLength,
+            validator: (v) {
+              if (!_isValidEmail(v)) return l10n.authInvalidEmail;
+              return validateSizeTier(v, SizeTier.medium, l10n.authEmail, l10n);
+            },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: passwordController,
-            decoration: InputDecoration(labelText: l10n.authPassword),
+            decoration: InputDecoration(
+              labelText: l10n.authPassword,
+              counterText: '',
+            ),
             obscureText: true,
             textInputAction: TextInputAction.done,
+            maxLength: maxPasswordLength,
             onFieldSubmitted: (_) => onSubmit(context),
-            validator: (v) =>
-                (v == null || v.length < 8) ? l10n.authWeakPassword : null,
+            validator: (v) {
+              if (v == null || v.length < 8) return l10n.authWeakPassword;
+              return validatePasswordLength(v, l10n);
+            },
           ),
           if (errorMessage != null) ...[
             const SizedBox(height: 12),

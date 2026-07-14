@@ -7,17 +7,27 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
+// maxInspectionFrameCount is the largest frame count (frames_brood/feed/pollen, queen_cells_count) an inspection may record.
+const maxInspectionFrameCount = 99
+
+// maxFramesAddedDelta is the largest magnitude allowed for a frames_added_* signed delta.
+const maxFramesAddedDelta = 99
+
 var (
-	ErrDiseaseNotFound       = errors.New("disease not found")
-	ErrInspectionNotFound    = errors.New("inspection not found")
-	ErrInspectedAtRequired   = errors.New("inspected_at is required")
-	ErrInvalidAggressiveness = errors.New("invalid aggressiveness value")
-	ErrInvalidBroodPattern   = errors.New("invalid brood_pattern value")
-	ErrInvalidDisease        = errors.New("invalid disease value")
-	ErrInvalidQueenStatus    = errors.New("invalid queen_status value")
+	ErrDiseaseNotFound              = errors.New("disease not found")
+	ErrInspectionFrameCountInvalid  = fmt.Errorf("frame counts must be between 0 and %d", maxInspectionFrameCount)
+	ErrInspectionFramesAddedInvalid = fmt.Errorf("frames added/removed must be between -%d and %d", maxFramesAddedDelta, maxFramesAddedDelta)
+	ErrInspectionNotFound           = errors.New("inspection not found")
+	ErrInspectedAtRequired          = errors.New("inspected_at is required")
+	ErrInspectionNotesTooLong       = fmt.Errorf("notes must be at most %d characters", validation.ExtraLarge.MaxLength())
+	ErrInvalidAggressiveness        = errors.New("invalid aggressiveness value")
+	ErrInvalidBroodPattern          = errors.New("invalid brood_pattern value")
+	ErrInvalidDisease               = errors.New("invalid disease value")
+	ErrInvalidQueenStatus           = errors.New("invalid queen_status value")
 )
 
 var validDiseases = map[string]bool{
@@ -102,7 +112,28 @@ func validateInspectionParams(p InspectionParams) error {
 	if p.QueenStatus != "" && !validQueenStatus[p.QueenStatus] {
 		return ErrInvalidQueenStatus
 	}
+	if !validFrameCount(p.FramesBrood) || !validFrameCount(p.FramesFeed) ||
+		!validFrameCount(p.FramesPollen) || !validFrameCount(p.QueenCellsCount) {
+		return ErrInspectionFrameCountInvalid
+	}
+	if !validFramesAddedDelta(p.FramesAddedFoundation) || !validFramesAddedDelta(p.FramesAddedDrawn) ||
+		!validFramesAddedDelta(p.FramesAddedBrood) || !validFramesAddedDelta(p.FramesAddedFeed) {
+		return ErrInspectionFramesAddedInvalid
+	}
+	if validation.TooLong(p.Notes, validation.ExtraLarge) {
+		return ErrInspectionNotesTooLong
+	}
 	return nil
+}
+
+// validFrameCount reports whether v is unset or within [0, maxInspectionFrameCount].
+func validFrameCount(v *int) bool {
+	return v == nil || (*v >= 0 && *v <= maxInspectionFrameCount)
+}
+
+// validFramesAddedDelta reports whether v is unset or within [-maxFramesAddedDelta, maxFramesAddedDelta].
+func validFramesAddedDelta(v *int) bool {
+	return v == nil || (*v >= -maxFramesAddedDelta && *v <= maxFramesAddedDelta)
 }
 
 func (s *InspectionService) checkAccess(ctx context.Context, apiaryID, userID, hiveID int64) error {

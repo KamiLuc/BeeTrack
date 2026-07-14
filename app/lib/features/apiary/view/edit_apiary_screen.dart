@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/gps_bounds.dart';
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -81,8 +83,8 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
   }
 
   void _setLocation(LatLng loc) {
-    _latController.text = loc.latitude.toStringAsFixed(6);
-    _lngController.text = loc.longitude.toStringAsFixed(6);
+    _latController.text = clampLatitude(loc.latitude).toStringAsFixed(6);
+    _lngController.text = clampLongitude(loc.longitude).toStringAsFixed(6);
   }
 
   Future<void> _useGps(AppLocalizations l10n) async {
@@ -190,11 +192,23 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                       children: [
                         TextFormField(
                           controller: _nameController,
-                          decoration: InputDecoration(labelText: l10n.apiaryName),
+                          decoration: InputDecoration(
+                            labelText: l10n.apiaryName,
+                            counterText: SizeTier.small.counterText,
+                          ),
                           textInputAction: TextInputAction.done,
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? l10n.apiaryNameRequired
-                              : null,
+                          maxLength: SizeTier.small.maxLength,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return l10n.apiaryNameRequired;
+                            }
+                            return validateSizeTier(
+                              v,
+                              SizeTier.small,
+                              l10n.apiaryName,
+                              l10n,
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
                         ApiaryGridSection(

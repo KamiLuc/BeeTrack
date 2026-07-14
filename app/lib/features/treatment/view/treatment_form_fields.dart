@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 
 class TreatmentFormFields extends StatelessWidget {
@@ -64,25 +65,49 @@ class TreatmentFormFields extends StatelessWidget {
               return TextFormField(
                 controller: controller,
                 focusNode: focusNode,
-                decoration: InputDecoration(labelText: l10n.treatmentMedicine),
+                decoration: InputDecoration(
+                  labelText: l10n.treatmentMedicine,
+                  counterText: SizeTier.small.counterText,
+                ),
+                maxLength: SizeTier.small.maxLength,
                 onChanged: (v) => medicineController.text = v,
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? l10n.treatmentMedicineRequired
-                    : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return l10n.treatmentMedicineRequired;
+                  }
+                  return validateSizeTier(
+                    v,
+                    SizeTier.small,
+                    l10n.treatmentMedicine,
+                    l10n,
+                  );
+                },
               );
             },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: doseController,
-            decoration: InputDecoration(labelText: l10n.treatmentDose),
+            decoration: InputDecoration(
+              labelText: l10n.treatmentDose,
+              counterText: SizeTier.superSmall.counterText,
+            ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? l10n.treatmentDoseRequired
-                : null,
+            maxLength: SizeTier.superSmall.maxLength,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return l10n.treatmentDoseRequired;
+              }
+              return validateSizeTier(
+                v,
+                SizeTier.superSmall,
+                l10n.treatmentDose,
+                l10n,
+              );
+            },
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -90,6 +115,13 @@ class TreatmentFormFields extends StatelessWidget {
             decoration: InputDecoration(labelText: l10n.treatmentNote),
             maxLines: 3,
             minLines: 1,
+            maxLength: SizeTier.extraLarge.maxLength,
+            validator: (v) => validateSizeTier(
+              v,
+              SizeTier.extraLarge,
+              l10n.treatmentNote,
+              l10n,
+            ),
           ),
         ],
       ),

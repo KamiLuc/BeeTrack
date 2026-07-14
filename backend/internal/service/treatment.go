@@ -7,13 +7,17 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrTreatmentNotFound    = errors.New("treatment not found")
-	ErrTreatedAtRequired    = errors.New("treated_at is required")
-	ErrMedicineNameRequired = errors.New("medicine_name is required")
+	ErrTreatmentNotFound     = errors.New("treatment not found")
+	ErrTreatedAtRequired     = errors.New("treated_at is required")
+	ErrMedicineNameRequired  = errors.New("medicine_name is required")
+	ErrMedicineNameTooLong   = fmt.Errorf("medicine_name must be at most %d characters", validation.Small.MaxLength())
+	ErrDoseTooLong           = fmt.Errorf("dose must be at most %d characters", validation.SuperSmall.MaxLength())
+	ErrTreatmentNotesTooLong = fmt.Errorf("notes must be at most %d characters", validation.ExtraLarge.MaxLength())
 )
 
 // TreatmentRepository is the persistence interface for treatments.
@@ -59,6 +63,15 @@ func validateTreatmentParams(p TreatmentParams) error {
 	}
 	if p.MedicineName == "" {
 		return ErrMedicineNameRequired
+	}
+	if validation.TooLong(p.MedicineName, validation.Small) {
+		return ErrMedicineNameTooLong
+	}
+	if validation.TooLong(p.Dose, validation.SuperSmall) {
+		return ErrDoseTooLong
+	}
+	if validation.TooLong(p.Notes, validation.ExtraLarge) {
+		return ErrTreatmentNotesTooLong
 	}
 	return nil
 }

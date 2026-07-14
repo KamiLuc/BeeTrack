@@ -7,7 +7,6 @@
   "profileLanguageEn": "English",
   "profileLanguagePl": "Polish",
   "profileDisplayName": "Display name",
-  "profileNameUpdated": "Name updated",
 
   "generalSave": "Save",
   "generalCancel": "Cancel",
@@ -229,6 +228,8 @@
   "hiveDuplicateName": "A hive with this name already exists in this apiary",
   "generalRequired": "Required",
   "generalLoadMore": "Load more",
+  "generalFieldTooLong": "{field} must be at most {max} characters",
+  "generalValueTooLarge": "{field} must be at most {max}",
 
   "inspectionTitle": "Inspections",
   "inspectionAdd": "Add inspection",

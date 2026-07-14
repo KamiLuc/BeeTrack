@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,13 +12,13 @@ import (
 )
 
 type mockApiaryRepo struct {
-	created      *model.Apiary
-	apiary       *model.Apiary
-	memberships  []model.ApiaryMembership
-	role         string
-	updated      *model.Apiary
-	deletedID    int64
-	deepCopied   *model.Apiary
+	created     *model.Apiary
+	apiary      *model.Apiary
+	memberships []model.ApiaryMembership
+	role        string
+	updated     *model.Apiary
+	deletedID   int64
+	deepCopied  *model.Apiary
 }
 
 func (m *mockApiaryRepo) Create(ctx context.Context, a *model.Apiary, ownerRole string) error {
@@ -53,8 +54,8 @@ func (m *mockApiaryRepo) Delete(ctx context.Context, apiaryID int64) error {
 }
 
 type mockHiveRelocator struct {
-	hives  []*model.Hive
-	moved  [][3]int // [hiveID, row, col]
+	hives []*model.Hive
+	moved [][3]int // [hiveID, row, col]
 }
 
 func (m *mockHiveRelocator) ListByApiaryID(_ context.Context, _ int64) ([]*model.Hive, error) {
@@ -112,6 +113,39 @@ func TestCreateApiary_InvalidGridSize(t *testing.T) {
 	}
 }
 
+func TestCreateApiary_NameTooLong(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	name := strings.Repeat("a", 51)
+	_, err := svc.Create(context.Background(), 1, name, nil, nil, 3, 4)
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+}
+
+func TestCreateApiary_GridSizeTooLarge(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	_, err := svc.Create(context.Background(), 1, "My Apiary", nil, nil, 26, 4)
+	if !errors.Is(err, ErrGridSizeTooLarge) {
+		t.Errorf("expected ErrGridSizeTooLarge, got %v", err)
+	}
+
+	_, err = svc.Create(context.Background(), 1, "My Apiary", nil, nil, 3, 26)
+	if !errors.Is(err, ErrGridSizeTooLarge) {
+		t.Errorf("expected ErrGridSizeTooLarge, got %v", err)
+	}
+}
+
+func TestCreateApiary_GridSizeAtMax(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	_, err := svc.Create(context.Background(), 1, "My Apiary", nil, nil, 25, 25)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestCreateApiary_WithoutGPS(t *testing.T) {
 	svc, _, _ := newTestApiaryService()
 
@@ -121,6 +155,36 @@ func TestCreateApiary_WithoutGPS(t *testing.T) {
 	}
 	if apiary.Lat != nil || apiary.Lng != nil {
 		t.Error("expected nil GPS coords")
+	}
+}
+
+func TestCreateApiary_InvalidGPS(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	badLat := 91.0
+	_, err := svc.Create(context.Background(), 1, "My Apiary", &badLat, nil, 3, 4)
+	if !errors.Is(err, ErrInvalidGPS) {
+		t.Errorf("expected ErrInvalidGPS for lat=91, got %v", err)
+	}
+
+	badLng := -181.0
+	okLat := 0.0
+	_, err = svc.Create(context.Background(), 1, "My Apiary", &okLat, &badLng, 3, 4)
+	if !errors.Is(err, ErrInvalidGPS) {
+		t.Errorf("expected ErrInvalidGPS for lng=-181, got %v", err)
+	}
+}
+
+func TestCreateApiary_GPSAtBounds(t *testing.T) {
+	svc, _, _ := newTestApiaryService()
+
+	lat, lng := 90.0, -180.0
+	apiary, err := svc.Create(context.Background(), 1, "My Apiary", &lat, &lng, 3, 4)
+	if err != nil {
+		t.Fatalf("expected no error at GPS bounds, got %v", err)
+	}
+	if *apiary.Lat != 90.0 || *apiary.Lng != -180.0 {
+		t.Errorf("unexpected GPS coords: %v, %v", apiary.Lat, apiary.Lng)
 	}
 }
 
@@ -174,6 +238,23 @@ func TestUpdateApiary_ValidationErrors(t *testing.T) {
 	_, err = svc.Update(context.Background(), 1, 10, "Name", nil, nil, 0, 2)
 	if !errors.Is(err, ErrInvalidGridSize) {
 		t.Errorf("expected ErrInvalidGridSize, got %v", err)
+	}
+
+	nameTooLong := strings.Repeat("a", 51)
+	_, err = svc.Update(context.Background(), 1, 10, nameTooLong, nil, nil, 2, 2)
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+
+	_, err = svc.Update(context.Background(), 1, 10, "Name", nil, nil, 26, 2)
+	if !errors.Is(err, ErrGridSizeTooLarge) {
+		t.Errorf("expected ErrGridSizeTooLarge, got %v", err)
+	}
+
+	badLat := 91.0
+	_, err = svc.Update(context.Background(), 1, 10, "Name", &badLat, nil, 2, 2)
+	if !errors.Is(err, ErrInvalidGPS) {
+		t.Errorf("expected ErrInvalidGPS, got %v", err)
 	}
 }
 
@@ -332,6 +413,28 @@ func TestCopyApiary_MemberCanCopy(t *testing.T) {
 	}
 	if result.OwnerUserID != 2 {
 		t.Errorf("expected copy owned by user 2, got %d", result.OwnerUserID)
+	}
+}
+
+func TestCopyApiary_NewNameTooLong(t *testing.T) {
+	svc, repo, _ := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, Name: "My Apiary"}
+	repo.role = "member"
+
+	_, err := svc.Copy(context.Background(), 1, 10, strings.Repeat("a", 51))
+	if !errors.Is(err, ErrNameTooLong) {
+		t.Errorf("expected ErrNameTooLong, got %v", err)
+	}
+}
+
+func TestCopyApiary_DefaultNameBypassesLengthCheck(t *testing.T) {
+	svc, repo, _ := newTestApiaryService()
+	repo.apiary = &model.Apiary{ID: 10, Name: strings.Repeat("a", 50)}
+	repo.role = "member"
+
+	_, err := svc.Copy(context.Background(), 1, 10, "")
+	if err != nil {
+		t.Fatalf("expected no error for auto-generated name, got %v", err)
 	}
 }
 

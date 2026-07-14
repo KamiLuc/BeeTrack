@@ -9,21 +9,38 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"github.com/beetrack/backend/pkg/token"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// maxPasswordLength matches bcrypt's effective input limit (72 bytes) — bcrypt silently
+// truncates and ignores anything past that, so a longer password would look "accepted"
+// while its excess characters do nothing for security.
+const maxPasswordLength = 72
+
+// maxAuthTokenLength is a defensive cap on opaque token strings (refresh/reset/verification
+// tokens); they're internally generated (see pkg/token) and normally well under this.
+const maxAuthTokenLength = 500
+
 var (
-	ErrEmailNotVerified        = errors.New("email address not verified")
-	ErrEmailTaken              = errors.New("email already registered")
-	ErrInvalidEmail            = errors.New("invalid email address")
-	ErrInvalidPassword         = errors.New("invalid email or password")
-	ErrInvalidRefreshToken     = errors.New("invalid refresh token")
-	ErrInvalidResetToken       = errors.New("invalid or expired password reset token")
+	ErrEmailNotVerified         = errors.New("email address not verified")
+	ErrEmailTaken               = errors.New("email already registered")
+	ErrEmailTooLong             = fmt.Errorf("email must be at most %d characters", validation.Medium.MaxLength())
+	ErrInvalidEmail             = errors.New("invalid email address")
+	ErrInvalidLang              = errors.New("invalid lang value")
+	ErrInvalidPassword          = errors.New("invalid email or password")
+	ErrInvalidRefreshToken      = errors.New("invalid refresh token")
+	ErrInvalidResetToken        = errors.New("invalid or expired password reset token")
 	ErrInvalidVerificationToken = errors.New("invalid or expired verification token")
-	ErrTokenExpired            = errors.New("refresh token expired")
-	ErrWeakPassword            = errors.New("password must be at least 8 characters")
+	ErrPasswordTooLong          = fmt.Errorf("password must be at most %d characters", maxPasswordLength)
+	ErrTokenExpired             = errors.New("refresh token expired")
+	ErrTokenTooLong             = fmt.Errorf("token must be at most %d characters", maxAuthTokenLength)
+	ErrWeakPassword             = errors.New("password must be at least 8 characters")
 )
+
+// validLangs is the set of accepted locale codes for user-facing emails/links.
+var validLangs = map[string]bool{"en": true, "pl": true}
 
 type EmailTokenRepository interface {
 	CreateVerificationToken(ctx context.Context, t *model.EmailVerificationToken) error
@@ -91,9 +108,44 @@ func NewAuthService(
 	}
 }
 
+// validateEmail checks email is a well-formed address within the length limit.
+func validateEmail(email string) error {
+	if _, err := mail.ParseAddress(email); err != nil {
+		return ErrInvalidEmail
+	}
+	if validation.TooLong(email, validation.Medium) {
+		return ErrEmailTooLong
+	}
+	return nil
+}
+
+// validateLang checks lang is one of the supported locale codes.
+func validateLang(lang string) error {
+	if !validLangs[lang] {
+		return ErrInvalidLang
+	}
+	return nil
+}
+
+// validateAuthToken checks an opaque token string (refresh/reset/verification) doesn't
+// exceed the defensive length cap.
+func validateAuthToken(t string) error {
+	if validation.TooLong(t, validation.Large) {
+		return ErrTokenTooLong
+	}
+	return nil
+}
+
 // ForgotPassword initiates a password reset for the given email. Always returns nil to
 // avoid leaking whether the email is registered.
 func (s *AuthService) ForgotPassword(ctx context.Context, email, lang string) error {
+	if err := validateEmail(email); err != nil {
+		return err
+	}
+	if err := validateLang(lang); err != nil {
+		return err
+	}
+
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("forgot password: %w", err)
@@ -131,6 +183,12 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email, lang string) er
 // Login authenticates a user and returns a token pair and the user's display name.
 // Returns ErrEmailNotVerified if the account has not been verified yet.
 func (s *AuthService) Login(ctx context.Context, email, password string) (accessToken, refreshToken, name string, err error) {
+	// Oversized inputs can't match a real account or password hash, so they're rejected
+	// with the same generic error as any other bad credential — no new information leaked.
+	if validation.TooLong(email, validation.Medium) || validation.TooLong(password, validation.Large) {
+		return "", "", "", ErrInvalidPassword
+	}
+
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		return "", "", "", fmt.Errorf("login: %w", err)
@@ -171,11 +229,18 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (access
 
 // Logout revokes the refresh token.
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	if err := validateAuthToken(refreshToken); err != nil {
+		return err
+	}
 	return s.tokens.DeleteByToken(ctx, refreshToken)
 }
 
 // Refresh exchanges a refresh token for a new token pair.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
+	if err := validateAuthToken(refreshToken); err != nil {
+		return "", "", err
+	}
+
 	rt, err := s.tokens.GetByToken(ctx, refreshToken)
 	if err != nil {
 		return "", "", fmt.Errorf("refresh: %w", err)
@@ -216,11 +281,20 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (accessT
 // Register creates a new unverified user account and sends a verification email in the
 // requested language.
 func (s *AuthService) Register(ctx context.Context, email, name, password, lang string) (*model.User, error) {
-	if _, err := mail.ParseAddress(email); err != nil {
-		return nil, ErrInvalidEmail
+	if err := validateEmail(email); err != nil {
+		return nil, err
+	}
+	if validation.TooLong(name, validation.Small) {
+		return nil, ErrNameTooLong
 	}
 	if len(password) < 8 {
 		return nil, ErrWeakPassword
+	}
+	if len(password) > maxPasswordLength {
+		return nil, ErrPasswordTooLong
+	}
+	if err := validateLang(lang); err != nil {
+		return nil, err
 	}
 
 	existing, err := s.users.GetByEmail(ctx, email)
@@ -256,6 +330,13 @@ func (s *AuthService) Register(ctx context.Context, email, name, password, lang 
 // ResendVerification sends a new verification email. Always returns nil to avoid
 // leaking whether the email is registered or already verified.
 func (s *AuthService) ResendVerification(ctx context.Context, email, lang string) error {
+	if err := validateEmail(email); err != nil {
+		return err
+	}
+	if err := validateLang(lang); err != nil {
+		return err
+	}
+
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("resend verification: %w", err)
@@ -273,8 +354,14 @@ func (s *AuthService) ResendVerification(ctx context.Context, email, lang string
 
 // ResetPassword validates the reset token and updates the user's password.
 func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	if err := validateAuthToken(rawToken); err != nil {
+		return err
+	}
 	if len(newPassword) < 8 {
 		return ErrWeakPassword
+	}
+	if len(newPassword) > maxPasswordLength {
+		return ErrPasswordTooLong
 	}
 
 	rt, err := s.emailTokens.GetPasswordResetToken(ctx, rawToken)
@@ -303,6 +390,10 @@ func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword s
 
 // VerifyEmail validates the verification token and marks the user's account as verified.
 func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {
+	if err := validateAuthToken(rawToken); err != nil {
+		return err
+	}
+
 	vt, err := s.emailTokens.GetVerificationToken(ctx, rawToken)
 	if err != nil {
 		return fmt.Errorf("verify email: %w", err)

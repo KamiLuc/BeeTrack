@@ -59,6 +59,10 @@ func (h *InvitationHandler) Invite(w http.ResponseWriter, r *http.Request) {
 	inv, err := h.svc.Invite(r.Context(), userID, apiaryID, req.Email)
 	if err != nil {
 		switch {
+		case errors.Is(err, service.ErrInvalidEmail):
+			respond.Error(w, http.StatusBadRequest, "INVALID_EMAIL", err.Error())
+		case errors.Is(err, service.ErrEmailTooLong):
+			respond.Error(w, http.StatusBadRequest, "EMAIL_TOO_LONG", err.Error())
 		case errors.Is(err, service.ErrApiaryNotFound):
 			respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 		case errors.Is(err, service.ErrForbidden):
@@ -78,11 +82,11 @@ func (h *InvitationHandler) Invite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusCreated, map[string]any{
-		"id":             inv.ID,
-		"apiary_id":      inv.ApiaryID,
-		"invited_email":  inv.InvitedEmail,
-		"status":         inv.Status,
-		"created_at":     inv.CreatedAt,
+		"id":            inv.ID,
+		"apiary_id":     inv.ApiaryID,
+		"invited_email": inv.InvitedEmail,
+		"status":        inv.Status,
+		"created_at":    inv.CreatedAt,
 	})
 }
 

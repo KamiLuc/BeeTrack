@@ -92,6 +92,12 @@ func treatmentError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "TREATED_AT_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrMedicineNameRequired):
 		respond.Error(w, http.StatusBadRequest, "MEDICINE_NAME_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrMedicineNameTooLong):
+		respond.Error(w, http.StatusBadRequest, "MEDICINE_NAME_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrDoseTooLong):
+		respond.Error(w, http.StatusBadRequest, "DOSE_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrTreatmentNotesTooLong):
+		respond.Error(w, http.StatusBadRequest, "NOTES_TOO_LONG", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

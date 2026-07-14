@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	ErrInvitationNotFound  = errors.New("invitation not found")
-	ErrInvitationPending   = errors.New("invitation already pending")
-	ErrAlreadyMember       = errors.New("user is already a member of this apiary")
-	ErrCannotInviteSelf    = errors.New("cannot invite yourself")
-	ErrCannotRemoveOwner   = errors.New("cannot remove the owner")
-	ErrInvitationMismatch  = errors.New("invitation does not belong to you")
-	ErrUserNotFound        = errors.New("user with that email not found")
+	ErrInvitationNotFound = errors.New("invitation not found")
+	ErrInvitationPending  = errors.New("invitation already pending")
+	ErrAlreadyMember      = errors.New("user is already a member of this apiary")
+	ErrCannotInviteSelf   = errors.New("cannot invite yourself")
+	ErrCannotRemoveOwner  = errors.New("cannot remove the owner")
+	ErrInvitationMismatch = errors.New("invitation does not belong to you")
+	ErrUserNotFound       = errors.New("user with that email not found")
 )
 
 type InvitationRepo interface {
@@ -49,6 +49,10 @@ func NewInvitationService(apiaries ApiaryRepository, invitations InvitationRepo,
 
 // Invite sends an invitation for apiaryID to email; only the owner may invite.
 func (s *InvitationService) Invite(ctx context.Context, ownerUserID, apiaryID int64, email string) (*model.ApiaryInvitation, error) {
+	if err := validateEmail(email); err != nil {
+		return nil, err
+	}
+
 	_, role, err := s.apiaries.GetMembership(ctx, apiaryID, ownerUserID)
 	if err != nil {
 		return nil, ErrApiaryNotFound

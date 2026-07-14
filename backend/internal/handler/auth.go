@@ -111,7 +111,7 @@ var resetFormTmpl = template.Must(template.New("resetForm").Parse(`<!DOCTYPE htm
       <input type="hidden" name="token" value="{{.Token}}">
       <input type="hidden" name="lang" value="{{.Lang}}">
       {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-      <input type="password" name="password" placeholder="{{.PasswordLabel}}" required minlength="8" autofocus>
+      <input type="password" name="password" placeholder="{{.PasswordLabel}}" required minlength="8" maxlength="72" autofocus>
       <button type="submit">{{.SubmitLabel}}</button>
     </form>
   </div>
@@ -153,7 +153,16 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.auth.ForgotPassword(r.Context(), req.Email, req.Lang); err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		switch {
+		case errors.Is(err, service.ErrInvalidEmail):
+			respond.Error(w, http.StatusBadRequest, "INVALID_EMAIL", err.Error())
+		case errors.Is(err, service.ErrEmailTooLong):
+			respond.Error(w, http.StatusBadRequest, "EMAIL_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrInvalidLang):
+			respond.Error(w, http.StatusBadRequest, "INVALID_LANG", err.Error())
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
 		return
 	}
 
@@ -202,7 +211,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.auth.Logout(r.Context(), req.RefreshToken); err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		switch {
+		case errors.Is(err, service.ErrTokenTooLong):
+			respond.Error(w, http.StatusBadRequest, "TOKEN_TOO_LONG", err.Error())
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
 		return
 	}
 
@@ -226,6 +240,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusUnauthorized, "INVALID_REFRESH_TOKEN", err.Error())
 		case errors.Is(err, service.ErrTokenExpired):
 			respond.Error(w, http.StatusUnauthorized, "TOKEN_EXPIRED", err.Error())
+		case errors.Is(err, service.ErrTokenTooLong):
+			respond.Error(w, http.StatusBadRequest, "TOKEN_TOO_LONG", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}
@@ -259,8 +275,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, http.StatusConflict, "EMAIL_TAKEN", err.Error())
 		case errors.Is(err, service.ErrInvalidEmail):
 			respond.Error(w, http.StatusBadRequest, "INVALID_EMAIL", err.Error())
+		case errors.Is(err, service.ErrEmailTooLong):
+			respond.Error(w, http.StatusBadRequest, "EMAIL_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrNameTooLong):
+			respond.Error(w, http.StatusBadRequest, "NAME_TOO_LONG", err.Error())
 		case errors.Is(err, service.ErrWeakPassword):
 			respond.Error(w, http.StatusBadRequest, "WEAK_PASSWORD", err.Error())
+		case errors.Is(err, service.ErrPasswordTooLong):
+			respond.Error(w, http.StatusBadRequest, "PASSWORD_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrInvalidLang):
+			respond.Error(w, http.StatusBadRequest, "INVALID_LANG", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}
@@ -288,7 +312,16 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.auth.ResendVerification(r.Context(), req.Email, req.Lang); err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		switch {
+		case errors.Is(err, service.ErrInvalidEmail):
+			respond.Error(w, http.StatusBadRequest, "INVALID_EMAIL", err.Error())
+		case errors.Is(err, service.ErrEmailTooLong):
+			respond.Error(w, http.StatusBadRequest, "EMAIL_TOO_LONG", err.Error())
+		case errors.Is(err, service.ErrInvalidLang):
+			respond.Error(w, http.StatusBadRequest, "INVALID_LANG", err.Error())
+		default:
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
 		return
 	}
 
@@ -311,8 +344,12 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrInvalidResetToken):
 			respond.Error(w, http.StatusBadRequest, "INVALID_RESET_TOKEN", err.Error())
+		case errors.Is(err, service.ErrTokenTooLong):
+			respond.Error(w, http.StatusBadRequest, "TOKEN_TOO_LONG", err.Error())
 		case errors.Is(err, service.ErrWeakPassword):
 			respond.Error(w, http.StatusBadRequest, "WEAK_PASSWORD", err.Error())
+		case errors.Is(err, service.ErrPasswordTooLong):
+			respond.Error(w, http.StatusBadRequest, "PASSWORD_TOO_LONG", err.Error())
 		default:
 			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		}

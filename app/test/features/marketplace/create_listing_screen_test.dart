@@ -272,6 +272,101 @@ void main() {
       expect(find.text('500/500'), findsOneWidget);
     });
 
+    testWidgets('truncates title input at 150 characters', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+        'a' * 160,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+      );
+      expect(field.controller!.text.length, 150);
+    });
+
+    testWidgets('truncates quantity input at 50 characters', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceQuantityLabel),
+        'a' * 60,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceQuantityLabel),
+      );
+      expect(field.controller!.text.length, 50);
+    });
+
+    testWidgets('truncates address input at 150 characters', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldAddress),
+        'a' * 160,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldAddress),
+      );
+      expect(field.controller!.text.length, 150);
+    });
+
+    testWidgets('truncates phone input at 20 characters', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+        '1' * 30,
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+      );
+      expect(field.controller!.text.length, 20);
+    });
+
+    testWidgets('truncates email input at 150 characters', (tester) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldEmail),
+        '${'a' * 150}@example.com',
+      );
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldEmail),
+      );
+      expect(field.controller!.text.length, 150);
+    });
+
     testWidgets('shows price invalid error for non-numeric price', (
       tester,
     ) async {
