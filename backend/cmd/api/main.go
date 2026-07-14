@@ -156,6 +156,7 @@ func main() {
 	mux.Handle("GET /api/v1/favorites", auth(http.HandlerFunc(listingFavoriteHandler.List)))
 	mux.Handle("POST /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Add)))
 	mux.Handle("DELETE /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Remove)))
+	mux.Handle("GET /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Check)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

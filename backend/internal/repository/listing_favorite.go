@@ -32,6 +32,16 @@ func (r *ListingFavoriteRepository) Remove(ctx context.Context, userID, listingI
 		Delete(&model.ListingFavorite{}).Error
 }
 
+// Exists reports whether userID has favorited listingID.
+func (r *ListingFavoriteRepository) Exists(ctx context.Context, userID, listingID int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.ListingFavorite{}).
+		Where("user_id = ? AND listing_id = ?", userID, listingID).
+		Count(&count).Error
+	return count > 0, err
+}
+
 // ListListingsByUserID returns the listings favorited by userID, most recently favorited first.
 // Hidden listings are excluded unless the user owns them.
 func (r *ListingFavoriteRepository) ListListingsByUserID(ctx context.Context, userID int64) ([]*model.Listing, error) {

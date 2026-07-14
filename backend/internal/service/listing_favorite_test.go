@@ -13,9 +13,11 @@ type mockFavoriteStore struct {
 	added     *model.ListingFavorite
 	removed   [2]int64
 	listings  []*model.Listing
+	exists    bool
 	removeHit bool
 	addErr    error
 	removeErr error
+	existsErr error
 	listErr   error
 }
 
@@ -34,6 +36,13 @@ func (m *mockFavoriteStore) Remove(ctx context.Context, userID, listingID int64)
 	m.removed = [2]int64{userID, listingID}
 	m.removeHit = true
 	return nil
+}
+
+func (m *mockFavoriteStore) Exists(ctx context.Context, userID, listingID int64) (bool, error) {
+	if m.existsErr != nil {
+		return false, m.existsErr
+	}
+	return m.exists, nil
 }
 
 func (m *mockFavoriteStore) ListListingsByUserID(ctx context.Context, userID int64) ([]*model.Listing, error) {
@@ -166,6 +175,41 @@ func TestFavoriteRemove_StoreError(t *testing.T) {
 
 	if err := svc.Remove(context.Background(), 3, 5); err == nil {
 		t.Error("expected error from store.Remove to propagate")
+	}
+}
+
+func TestFavoriteIsFavorite(t *testing.T) {
+	store := &mockFavoriteStore{exists: true}
+	svc := newFavoriteSvc(store, &mockFavoriteListingReader{})
+
+	isFavorite, err := svc.IsFavorite(context.Background(), 3, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isFavorite {
+		t.Error("expected IsFavorite to return true")
+	}
+}
+
+func TestFavoriteIsFavorite_NotFavorited(t *testing.T) {
+	store := &mockFavoriteStore{exists: false}
+	svc := newFavoriteSvc(store, &mockFavoriteListingReader{})
+
+	isFavorite, err := svc.IsFavorite(context.Background(), 3, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if isFavorite {
+		t.Error("expected IsFavorite to return false")
+	}
+}
+
+func TestFavoriteIsFavorite_StoreError(t *testing.T) {
+	store := &mockFavoriteStore{existsErr: errors.New("query failed")}
+	svc := newFavoriteSvc(store, &mockFavoriteListingReader{})
+
+	if _, err := svc.IsFavorite(context.Background(), 3, 5); err == nil {
+		t.Error("expected error from store.Exists to propagate")
 	}
 }
 

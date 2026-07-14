@@ -21,6 +21,7 @@ type FavoriteListingReader interface {
 type ListingFavoriteStore interface {
 	Add(ctx context.Context, f *model.ListingFavorite) error
 	Remove(ctx context.Context, userID, listingID int64) error
+	Exists(ctx context.Context, userID, listingID int64) (bool, error)
 	ListListingsByUserID(ctx context.Context, userID int64) ([]*model.Listing, error)
 }
 
@@ -62,6 +63,15 @@ func (s *ListingFavoriteService) Remove(ctx context.Context, userID, listingID i
 		return fmt.Errorf("remove favorite: %w", err)
 	}
 	return nil
+}
+
+// IsFavorite reports whether the user has favorited the given listing.
+func (s *ListingFavoriteService) IsFavorite(ctx context.Context, userID, listingID int64) (bool, error) {
+	exists, err := s.favorites.Exists(ctx, userID, listingID)
+	if err != nil {
+		return false, fmt.Errorf("check favorite: %w", err)
+	}
+	return exists, nil
 }
 
 // List returns the listings the user has favorited, most recently favorited first.

@@ -2011,6 +2011,27 @@ Removes the listing from the caller's favorites. No-op if it wasn't favorited.
 
 ---
 
+### GET /listings/{id}/favorite 🔒
+
+Reports whether the caller has favorited the listing.
+
+**Response** `200 OK`
+```json
+{
+  "is_favorite": true
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /favorites 🔒
 
 Returns the caller's favorited listings, most recently favorited first. Hidden listings are excluded unless the caller owns them.

@@ -426,6 +426,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | DELETE | `/api/v1/listings/{id}/images/{imageId}` | Delete listing image (owner only) |
 | POST | `/api/v1/listings/{id}/favorite` | Favorite a listing (auth; idempotent) |
 | DELETE | `/api/v1/listings/{id}/favorite` | Unfavorite a listing (auth; no-op if not favorited) |
+| GET | `/api/v1/listings/{id}/favorite` | Check whether caller has favorited a listing (auth) |
 | GET | `/api/v1/favorites` | List caller's favorited listings, most recently favorited first (auth) |
 
 ---

@@ -74,6 +74,29 @@ func (h *ListingFavoriteHandler) Remove(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// Check handles GET /api/v1/listings/{id}/favorite — reports whether the caller has favorited the listing.
+func (h *ListingFavoriteHandler) Check(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	id, err := parseListingID(r)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid listing id")
+		return
+	}
+
+	isFavorite, err := h.favorites.IsFavorite(r.Context(), userID, id)
+	if err != nil {
+		listingFavoriteError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, map[string]any{"is_favorite": isFavorite})
+}
+
 // List handles GET /api/v1/favorites — returns the caller's favorited listings.
 func (h *ListingFavoriteHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

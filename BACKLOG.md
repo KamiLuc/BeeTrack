@@ -153,7 +153,7 @@
 | MKT-BE-20 | `BE`  | `[x]`  | Favorites repository + service               | Add (idempotent via ON CONFLICT), remove, list favorited listings; hidden excluded for non-owner |
 | MKT-BE-21 | `BE`  | `[x]`  | Handler: POST/DELETE /api/v1/listings/{id}/favorite | Add/remove favorite (auth); verifies listing is visible to caller                      |
 | MKT-BE-22 | `BE`  | `[x]`  | Handler: GET /api/v1/favorites               | List caller's favorited listings (auth); returns `{items, total}`                             |
-| MKT-BE-23 | `BE`  | `[ ]`  | Handler: GET /api/v1/listings/{id}/favorite  | Check whether caller has favorited a single listing (auth); returns `{is_favorite}`. Needed because MKT-FE-02's detail screen currently determines favorite status by calling `listFavorites()` and checking membership client-side — fine for now, but won't scale once a user's favorites list grows large |
+| MKT-BE-23 | `BE`  | `[x]`  | Handler: GET /api/v1/listings/{id}/favorite  | Checks whether caller has favorited a single listing (auth); returns `{is_favorite}`. Frontend (MKT-FE-02) still needs to switch from `listFavorites()` membership-checking to this endpoint |
 
 ### 9.5 Frontend — Core Screens
 
