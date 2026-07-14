@@ -42,8 +42,9 @@ class InspectionImageRepository {
     int apiaryId,
     int hiveId,
     int inspectionId,
-    XFile file,
-  ) async {
+    XFile file, {
+    ProgressCallback? onSendProgress,
+  }) async {
     try {
       final bytes = await file.readAsBytes();
       final mimeType = file.mimeType ?? _mimeFromPath(file.path);
@@ -57,6 +58,7 @@ class InspectionImageRepository {
       final response = await _api.dio.post(
         '/api/v1/apiaries/$apiaryId/hives/$hiveId/inspections/$inspectionId/images',
         data: formData,
+        onSendProgress: onSendProgress,
       );
       return InspectionImage.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

@@ -28,16 +28,19 @@ class ListingRepository {
     int offset = 0,
   }) async {
     try {
-      final response = await _api.dio.get('/api/v1/listings', queryParameters: {
-        if (category != null) 'category': category,
-        if (keyword != null) 'keyword': keyword,
-        if (priceMin != null) 'price_min': priceMin,
-        if (priceMax != null) 'price_max': priceMax,
-        if (postedAfter != null) 'posted_after': postedAfter,
-        if (mine) 'mine': true,
-        'limit': limit,
-        'offset': offset,
-      });
+      final response = await _api.dio.get(
+        '/api/v1/listings',
+        queryParameters: {
+          if (category != null) 'category': category,
+          if (keyword != null) 'keyword': keyword,
+          if (priceMin != null) 'price_min': priceMin,
+          if (priceMax != null) 'price_max': priceMax,
+          if (postedAfter != null) 'posted_after': postedAfter,
+          if (mine) 'mine': true,
+          'limit': limit,
+          'offset': offset,
+        },
+      );
       final data = response.data as Map<String, dynamic>;
       final items = (data['items'] as List<dynamic>? ?? [])
           .map((e) => Listing.fromJson(e as Map<String, dynamic>))
@@ -72,17 +75,20 @@ class ListingRepository {
     required String contactEmail,
   }) async {
     try {
-      final response = await _api.dio.post('/api/v1/listings', data: {
-        'title': title,
-        'description': description,
-        'category': category,
-        'price': price,
-        'quantity': quantity,
-        'address': address,
-        'apiary_id': apiaryId,
-        'contact_phone': contactPhone,
-        'contact_email': contactEmail,
-      });
+      final response = await _api.dio.post(
+        '/api/v1/listings',
+        data: {
+          'title': title,
+          'description': description,
+          'category': category,
+          'price': price,
+          'quantity': quantity,
+          'address': address,
+          'apiary_id': apiaryId,
+          'contact_phone': contactPhone,
+          'contact_email': contactEmail,
+        },
+      );
       return Listing.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -102,17 +108,20 @@ class ListingRepository {
     required String contactEmail,
   }) async {
     try {
-      final response = await _api.dio.patch('/api/v1/listings/$id', data: {
-        'title': title,
-        'description': description,
-        'category': category,
-        'price': price,
-        'quantity': quantity,
-        'address': address,
-        'apiary_id': apiaryId,
-        'contact_phone': contactPhone,
-        'contact_email': contactEmail,
-      });
+      final response = await _api.dio.patch(
+        '/api/v1/listings/$id',
+        data: {
+          'title': title,
+          'description': description,
+          'category': category,
+          'price': price,
+          'quantity': quantity,
+          'address': address,
+          'apiary_id': apiaryId,
+          'contact_phone': contactPhone,
+          'contact_email': contactEmail,
+        },
+      );
       return Listing.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -121,8 +130,10 @@ class ListingRepository {
 
   Future<Listing> hideListing(int id, {required bool hidden}) async {
     try {
-      final response = await _api.dio
-          .patch('/api/v1/listings/$id/hide', data: {'hidden': hidden});
+      final response = await _api.dio.patch(
+        '/api/v1/listings/$id/hide',
+        data: {'hidden': hidden},
+      );
       return Listing.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -137,7 +148,11 @@ class ListingRepository {
     }
   }
 
-  Future<ListingImage> uploadImage(int listingId, XFile file) async {
+  Future<ListingImage> uploadImage(
+    int listingId,
+    XFile file, {
+    ProgressCallback? onSendProgress,
+  }) async {
     try {
       final bytes = await file.readAsBytes();
       final mimeType = file.mimeType ?? _mimeFromPath(file.path);
@@ -151,6 +166,7 @@ class ListingRepository {
       final response = await _api.dio.post(
         '/api/v1/listings/$listingId/images',
         data: formData,
+        onSendProgress: onSendProgress,
       );
       return ListingImage.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

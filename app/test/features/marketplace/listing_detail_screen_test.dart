@@ -561,6 +561,105 @@ void main() {
     );
 
     testWidgets(
+      'owner: carousel resets to first image after editing photos, so nav '
+      'arrows and image shown stay in sync with the refreshed listing',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        final oldImages = [
+          ListingImage(
+            id: 1,
+            listingId: 1,
+            url: '/uploads/old-a.jpg',
+            displayOrder: 0,
+            createdAt: DateTime(2026, 1, 1),
+          ),
+          ListingImage(
+            id: 2,
+            listingId: 1,
+            url: '/uploads/old-b.jpg',
+            displayOrder: 1,
+            createdAt: DateTime(2026, 1, 1),
+          ),
+        ];
+        final newImages = [
+          ListingImage(
+            id: 3,
+            listingId: 1,
+            url: '/uploads/new-a.jpg',
+            displayOrder: 0,
+            createdAt: DateTime(2026, 6, 1),
+          ),
+          ListingImage(
+            id: 4,
+            listingId: 1,
+            url: '/uploads/new-b.jpg',
+            displayOrder: 1,
+            createdAt: DateTime(2026, 6, 1),
+          ),
+        ];
+        final listing = _listing(images: oldImages, category: 'HONEY');
+        adapter.refetchedListingJson = {
+          ..._listingJson(listing),
+          'images': newImages
+              .map(
+                (img) => {
+                  'id': img.id,
+                  'listing_id': img.listingId,
+                  'url': img.url,
+                  'display_order': img.displayOrder,
+                  'created_at': img.createdAt.toIso8601String(),
+                },
+              )
+              .toList(),
+        };
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.image(NetworkImage('http://test/uploads/old-a.jpg')),
+            findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.chevron_right));
+        await tester.pumpAndSettle();
+
+        expect(find.image(NetworkImage('http://test/uploads/old-b.jpg')),
+            findsOneWidget);
+        final leftArrowBefore = tester.widget<InkWell>(
+          find.ancestor(
+            of: find.byIcon(Icons.chevron_left),
+            matching: find.byType(InkWell),
+          ),
+        );
+        expect(leftArrowBefore.onTap, isNotNull);
+
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.image(NetworkImage('http://test/uploads/new-a.jpg')),
+            findsOneWidget);
+        expect(find.image(NetworkImage('http://test/uploads/old-a.jpg')),
+            findsNothing);
+        expect(find.image(NetworkImage('http://test/uploads/old-b.jpg')),
+            findsNothing);
+
+        final leftArrowAfter = tester.widget<InkWell>(
+          find.ancestor(
+            of: find.byIcon(Icons.chevron_left),
+            matching: find.byType(InkWell),
+          ),
+        );
+        expect(leftArrowAfter.onTap, isNull);
+      },
+    );
+
+    testWidgets(
       'owner: delete button requires solving the confirmation puzzle, then '
       'pops back',
       (tester) async {

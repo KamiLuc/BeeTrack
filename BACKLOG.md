@@ -170,7 +170,6 @@
 
 | ID        | Layer | Status | Title                    | Notes                                                        |
 | --------- | ----- | ------ | ------------------------ | ------------------------------------------------------------ |
-| MKT-FE-07 | `FE`  | `[ ]`  | Category filter          | Chips for each category, multi-select UI. Landed as a single-select dropdown with icons (per-category `IconData`) with MKT-FE-01 — backend only supports one `category` param; multi-select still open |
 | MKT-FE-08 | `FE`  | `[x]`  | Price range filter       | Landed as two min/max text inputs (positive numbers only), not a slider; moved into a "Filters" bottom sheet (tune-icon button next to the category dropdown) so it doesn't clutter the home screen |
 | MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
 | MKT-FE-10 | `FE`  | `[x]`  | Date range filter        | Landed as a "posted within" dropdown (Any time/Today/7/14/30 days), not a date picker; lives in the same Filters bottom sheet as the price filter. Filters apply once when the sheet closes, not per keystroke/selection |
@@ -190,7 +189,7 @@
 | --------- | ----- | ------ | --------------------------- | ------------------------------------------------------------------- |
 | MKT-FE-15 | `FE`  | `[x]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload. Landed as part of MKT-FE-03's photo picker; edit-mode reuse (existing-image thumbnails + delete) added alongside MKT-FE-04 |
 | MKT-FE-16 | `FE`  | `[x]`  | Image carousel on detail   | Swipeable carousel for multiple images. Landed as part of MKT-FE-02's detail screen (PageView + dot-indicator) rather than as separate work |
-| MKT-FE-17 | `FE`  | `[ ]`  | Image upload progress      | Show upload progress/loading state                                  |
+| MKT-FE-17 | `FE`  | `[x]`  | Image upload progress      | Per-photo progress ring (real byte progress via dio) during create/edit listing submission; add/remove controls disabled while saving. Also applied to the hive inspection photo upload flow (inspection_form_screen.dart), which had the same gap though outside the marketplace epic |
 
 ### 9.9 Frontend — Data Models & Repositories
 

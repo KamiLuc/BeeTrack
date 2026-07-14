@@ -5,16 +5,47 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/core/api/api_client.dart';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/hive/data/hive_model.dart';
+import 'package:app/features/inspection/data/inspection_model.dart';
 import 'package:app/features/inspection/view/inspection_form_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
+/// A valid 1x1 transparent PNG, so `Image.memory` can decode the picked
+/// files' bytes in the pending thumbnails without throwing.
+final Uint8List _kOnePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY'
+  '42YAAAAASUVORK5CYII=',
+);
+
+/// A fake image_picker platform that returns a new in-memory [XFile] on
+/// every pick, so photo-picker flows can be exercised without a real
+/// device/plugin.
+class _FakeImagePickerPlatform extends ImagePickerPlatform {
+  int pickCount = 0;
+
+  @override
+  Future<XFile?> getImageFromSource({
+    required ImageSource source,
+    ImagePickerOptions options = const ImagePickerOptions(),
+  }) async {
+    pickCount++;
+    return XFile.fromData(
+      _kOnePixelPng,
+      name: 'photo$pickCount.jpg',
+      mimeType: 'image/jpeg',
+    );
+  }
+}
+
 class _RecordingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
+  List<Map<String, dynamic>> images = [];
 
   @override
   Future<ResponseBody> fetch(
@@ -53,7 +84,32 @@ class _RecordingAdapter implements HttpClientAdapter {
       );
     }
 
-    // Generic success for PATCH hive update, image upload, etc.
+    if (options.path.contains('/images') && options.method == 'GET') {
+      return ResponseBody.fromString(
+        jsonEncode(images),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (options.path.contains('/images') && options.method == 'POST') {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'id': 7,
+          'inspection_id': 99,
+          'mime_type': 'image/jpeg',
+          'created_at': DateTime(2026, 1, 1).toIso8601String(),
+        }),
+        201,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    // Generic success for PATCH hive update, image delete, etc.
     return ResponseBody.fromString(
       jsonEncode({}),
       200,
@@ -123,6 +179,11 @@ Future<void> _tapRemove(WidgetTester tester, int fieldIndex, {int times = 1}) as
 }
 
 void main() {
+  late AppLocalizations l10n;
+  setUpAll(() async {
+    l10n = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
   group('InspectionFormScreen signed frame delta logic', () {
     testWidgets(
         'tapping minus decrements the field and flips the label to removed',
@@ -250,5 +311,95 @@ void main() {
       );
       expect(field.controller!.text.length, 2);
     });
+  });
+
+  group('InspectionFormScreen upload progress', () {
+    testWidgets(
+      'shows a progress overlay instead of the remove button on a pending '
+      'thumbnail while saving, and hides it once the upload settles',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient();
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+
+        await tester.pumpWidget(_wrap(
+          apiClient,
+          const InspectionFormScreen(apiaryId: 1, hive: _hive),
+        ));
+        await tester.pumpAndSettle();
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.inspectionPhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        // Before submission the pending thumbnail shows a remove button and
+        // no progress indicator.
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.check));
+        // A single pump (not pumpAndSettle) catches the mid-upload frame
+        // before the fake adapter's response resolves and the screen pops.
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsWidgets);
+        expect(find.byIcon(Icons.close), findsNothing);
+
+        final addPhotoButton = tester.widget<IconButton>(addPhotoFinder);
+        expect(addPhotoButton.onPressed, isNull);
+
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'hides the existing-image remove button while saving',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.images = [
+          {
+            'id': 3,
+            'inspection_id': 55,
+            'mime_type': 'image/jpeg',
+            'created_at': DateTime(2026, 1, 1).toIso8601String(),
+          },
+        ];
+        final inspection = Inspection(
+          id: 55,
+          hiveId: 10,
+          inspectedAt: DateTime(2025, 6, 1),
+          queenSeen: 'seen',
+          broodPattern: '',
+          aggressiveness: '',
+          queenAdded: false,
+          notes: '',
+        );
+
+        await tester.pumpWidget(_wrap(
+          apiClient,
+          InspectionFormScreen(
+            apiaryId: 1,
+            hive: _hive,
+            inspection: inspection,
+          ),
+        ));
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.close), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.check));
+        await tester.pump();
+
+        expect(find.byIcon(Icons.close), findsNothing);
+
+        await tester.pumpAndSettle();
+      },
+    );
   });
 }

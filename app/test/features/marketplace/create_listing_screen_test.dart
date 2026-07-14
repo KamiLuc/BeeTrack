@@ -929,4 +929,113 @@ void main() {
       expect(imagePicker.pickCount, 3);
     });
   });
+
+  group('CreateListingScreen upload progress', () {
+    testWidgets(
+      'shows a progress overlay instead of the remove button on a pending '
+      'thumbnail while saving, and hides it once the upload settles',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await _fillRequiredFieldsStandalone(tester, l10n);
+
+        final addPhotoFinder = find.widgetWithText(
+          TextButton,
+          l10n.marketplaceAddPhoto,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        // Before submission the pending thumbnail shows a remove button and
+        // no progress indicator.
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        // A single pump (not pumpAndSettle) catches the mid-upload frame
+        // before the fake adapter's response resolves and the screen pops.
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsWidgets);
+        expect(find.byIcon(Icons.close), findsNothing);
+
+        final addPhotoButton = tester.widget<TextButton>(addPhotoFinder);
+        expect(addPhotoButton.onPressed, isNull);
+
+        await tester.pumpAndSettle();
+        expect(find.byType(CreateListingScreen), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'hides the existing-image remove button while saving',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image]);
+
+        await tester.pumpWidget(
+          _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.close), findsOneWidget);
+
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pump();
+
+        expect(find.byIcon(Icons.close), findsNothing);
+
+        await tester.pumpAndSettle();
+      },
+    );
+  });
+}
+
+Future<void> _fillRequiredFieldsStandalone(
+  WidgetTester tester,
+  AppLocalizations l10n,
+) async {
+  await tester.enterText(
+    find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+    'Wildflower Honey',
+  );
+  await tester.tap(find.byType(DropdownButtonFormField<String>));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+  await tester.pumpAndSettle();
+  await tester.enterText(
+    find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+    '42.50',
+  );
+  await tester.enterText(
+    find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+    '123456789',
+  );
 }

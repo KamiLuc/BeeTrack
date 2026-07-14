@@ -63,6 +63,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   List<InspectionImage> _existingImages = [];
   final List<XFile> _pendingImages = [];
+  final Map<XFile, double> _uploadProgress = {};
 
   bool _loading = false;
 
@@ -78,9 +79,15 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _aggressiveness = insp?.aggressiveness ?? '';
     _queenAdded = insp?.queenAdded ?? false;
 
-    _framesBroodController = _initFrameCtrl(insp?.framesBrood, prev?.framesBrood);
+    _framesBroodController = _initFrameCtrl(
+      insp?.framesBrood,
+      prev?.framesBrood,
+    );
     _framesFeedController = _initFrameCtrl(insp?.framesFeed, prev?.framesFeed);
-    _framesPollenController = _initFrameCtrl(insp?.framesPollen, prev?.framesPollen);
+    _framesPollenController = _initFrameCtrl(
+      insp?.framesPollen,
+      prev?.framesPollen,
+    );
 
     _framesAddedDrawn = insp?.framesAddedDrawn ?? 0;
     _framesAddedFoundation = insp?.framesAddedFoundation ?? 0;
@@ -240,6 +247,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           widget.hive.id,
           inspectionId,
           file,
+          onSendProgress: (sent, total) {
+            if (total <= 0 || !mounted) return;
+            setState(() => _uploadProgress[file] = sent / total);
+          },
         );
       }
       if (!ctx.mounted) return;
@@ -256,7 +267,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   }
 
   int get _netFramesDelta =>
-      _framesAddedDrawn + _framesAddedFoundation + _framesAddedBrood + _framesAddedFeed;
+      _framesAddedDrawn +
+      _framesAddedFoundation +
+      _framesAddedBrood +
+      _framesAddedFeed;
 
   bool get _framesWarning => false;
 
@@ -455,8 +469,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           _BoolRow(
                             label: l10n.inspectionQueenAdded,
                             value: _queenAdded,
-                            onChanged: (v) =>
-                                setState(() => _queenAdded = v),
+                            onChanged: (v) => setState(() => _queenAdded = v),
                           ),
                           const SizedBox(height: 12),
                           HiveDiseasesSection(
@@ -465,10 +478,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             onToggle: (disease, selected) {
                               setState(() {
                                 if (selected) {
-                                  _hiveDiseases = {
-                                    ..._hiveDiseases,
-                                    disease,
-                                  };
+                                  _hiveDiseases = {..._hiveDiseases, disease};
                                 } else {
                                   _hiveDiseases = _hiveDiseases
                                       .where((d) => d != disease)
@@ -483,6 +493,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             _FormPhotoGallery(
                               existingImages: _existingImages,
                               pendingFiles: _pendingImages,
+                              uploadProgress: _uploadProgress,
+                              saving: _loading,
                               imageRepo: imageRepo,
                               apiaryId: widget.apiaryId,
                               hiveId: widget.hive.id,
@@ -504,8 +516,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           _InspectionFormBanner(
             loading: _loading,
             pendingCount: _pendingImages.length,
-            atPhotoLimit:
-                (_existingImages.length + _pendingImages.length) >= 6,
+            atPhotoLimit: (_existingImages.length + _pendingImages.length) >= 6,
             onSave: () => _submit(context),
             onAddPhoto: _pickImageForBanner,
           ),
@@ -530,12 +541,16 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(AppLocalizations.of(context)!.inspectionPhotoSourceGallery),
+                title: Text(
+                  AppLocalizations.of(context)!.inspectionPhotoSourceGallery,
+                ),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(AppLocalizations.of(context)!.inspectionPhotoSourceCamera),
+                title: Text(
+                  AppLocalizations.of(context)!.inspectionPhotoSourceCamera,
+                ),
                 onTap: () => Navigator.of(context).pop(ImageSource.camera),
               ),
             ],
@@ -605,7 +620,7 @@ class _InspectionFormBanner extends StatelessWidget {
                       icon: const Icon(Icons.add_photo_alternate_outlined),
                       iconSize: 28,
                       tooltip: l10n.inspectionAddPhoto,
-                      onPressed: atPhotoLimit ? null : onAddPhoto,
+                      onPressed: (atPhotoLimit || loading) ? null : onAddPhoto,
                     ),
                   ),
                   // Save
@@ -639,6 +654,8 @@ class _InspectionFormBanner extends StatelessWidget {
 class _FormPhotoGallery extends StatelessWidget {
   final List<InspectionImage> existingImages;
   final List<XFile> pendingFiles;
+  final Map<XFile, double> uploadProgress;
+  final bool saving;
   final InspectionImageRepository imageRepo;
   final int apiaryId;
   final int hiveId;
@@ -649,6 +666,8 @@ class _FormPhotoGallery extends StatelessWidget {
   const _FormPhotoGallery({
     required this.existingImages,
     required this.pendingFiles,
+    required this.uploadProgress,
+    required this.saving,
     required this.imageRepo,
     required this.apiaryId,
     required this.hiveId,
@@ -686,8 +705,8 @@ class _FormPhotoGallery extends StatelessWidget {
         Text(
           '${l10n.inspectionPhotos}  $total / 6',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         const SizedBox(height: 8),
         LayoutBuilder(
@@ -706,9 +725,14 @@ class _FormPhotoGallery extends StatelessWidget {
                         for (int i = 0; i < existingImages.length; i++)
                           _GalleryThumb(
                             size: size,
+                            disabled: saving,
                             child: Image.network(
-                              imageRepo.imageUrl(apiaryId, hiveId, inspectionId,
-                                  existingImages[i].id),
+                              imageRepo.imageUrl(
+                                apiaryId,
+                                hiveId,
+                                inspectionId,
+                                existingImages[i].id,
+                              ),
                               headers: headers,
                               fit: BoxFit.cover,
                               errorBuilder: (context, err, stack) =>
@@ -721,13 +745,19 @@ class _FormPhotoGallery extends StatelessWidget {
                           _GalleryThumb(
                             size: size,
                             pending: true,
+                            disabled: saving,
+                            progress: saving
+                                ? uploadProgress[pendingFiles[i]] ?? 0
+                                : null,
                             child: FutureBuilder<Uint8List>(
                               future: pendingFiles[i].readAsBytes(),
                               builder: (_, snap) => snap.hasData
                                   ? Image.memory(snap.data!, fit: BoxFit.cover)
                                   : const Center(
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2)),
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
                             ),
                             onTap: () =>
                                 _openViewer(context, existingImages.length + i),
@@ -752,6 +782,11 @@ class _GalleryThumb extends StatelessWidget {
   final VoidCallback onDelete;
   final double size;
   final bool pending;
+  final bool disabled;
+
+  /// Upload progress in [0, 1] while the inspection is being saved, or null
+  /// before submission (shows the "NEW"/delete controls instead).
+  final double? progress;
 
   const _GalleryThumb({
     required this.child,
@@ -759,6 +794,8 @@ class _GalleryThumb extends StatelessWidget {
     required this.onDelete,
     required this.size,
     this.pending = false,
+    this.disabled = false,
+    this.progress,
   });
 
   @override
@@ -773,41 +810,67 @@ class _GalleryThumb extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: SizedBox(width: size, height: size, child: child),
             ),
-            if (pending)
-              Positioned(
-                top: 2,
-                left: 2,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'NEW',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+            if (progress != null)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black38,
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: progress! > 0 ? progress : null,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            Positioned(
-              top: 2,
-              right: 2,
-              child: GestureDetector(
-                onTap: onDelete,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(12),
+              )
+            else ...[
+              if (pending)
+                Positioned(
+                  top: 2,
+                  left: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'NEW',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 16),
                 ),
-              ),
-            ),
+              if (!disabled)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: GestureDetector(
+                    onTap: onDelete,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -862,8 +925,10 @@ class _PhotoViewerRouteState extends State<_PhotoViewerRoute> {
       appBar: AppBar(
         backgroundColor: Colors.black54,
         foregroundColor: Colors.white,
-        title: Text('${_current + 1} / $_total',
-            style: const TextStyle(color: Colors.white)),
+        title: Text(
+          '${_current + 1} / $_total',
+          style: const TextStyle(color: Colors.white),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -884,9 +949,10 @@ class _PhotoViewerRouteState extends State<_PhotoViewerRoute> {
                     headers: widget.headers,
                     fit: BoxFit.contain,
                     errorBuilder: (context, err, stack) => const Icon(
-                        Icons.broken_image_outlined,
-                        color: Colors.white,
-                        size: 64),
+                      Icons.broken_image_outlined,
+                      color: Colors.white,
+                      size: 64,
+                    ),
                   ),
                 ),
               );
@@ -897,9 +963,12 @@ class _PhotoViewerRouteState extends State<_PhotoViewerRoute> {
               builder: (_, snap) => snap.hasData
                   ? InteractiveViewer(
                       child: Center(
-                          child: Image.memory(snap.data!, fit: BoxFit.contain)))
+                        child: Image.memory(snap.data!, fit: BoxFit.contain),
+                      ),
+                    )
                   : const Center(
-                      child: CircularProgressIndicator(color: Colors.white)),
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
             );
           },
         ),
@@ -923,7 +992,6 @@ String _aggressivenessLabel(AppLocalizations l10n, String v) => switch (v) {
   'very_aggressive' => l10n.inspectionAggressivenessVeryAggressive,
   _ => v,
 };
-
 
 class _SectionTitle extends StatelessWidget {
   final String text;
@@ -1091,10 +1159,7 @@ class _NumericField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
 
-  const _NumericField({
-    required this.controller,
-    required this.label,
-  });
+  const _NumericField({required this.controller, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -1113,4 +1178,3 @@ class _NumericField extends StatelessWidget {
     );
   }
 }
-

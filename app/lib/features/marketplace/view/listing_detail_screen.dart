@@ -103,7 +103,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         final fresh = await ListingRepository(
           api: context.read<ApiClient>(),
         ).getListing(_listing.id);
-        if (mounted) setState(() => _listing = fresh);
+        if (mounted) {
+          setState(() {
+            _listing = fresh;
+            _imagePage = 0;
+          });
+          if (_imagePageController.hasClients) {
+            _imagePageController.jumpToPage(0);
+          }
+        }
       } catch (_) {}
     }
   }

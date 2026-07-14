@@ -46,6 +46,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final List<XFile> _pendingImages = [];
   late List<ListingImage> _existingImages;
   final Set<int> _deletingImageIds = {};
+  final Map<XFile, double> _uploadProgress = {};
   bool _saving = false;
   String? _submitError;
 
@@ -58,8 +59,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     if (listing != null) {
       _titleController.text = listing.title;
       _descriptionController.text = listing.description;
-      _priceController.text =
-          listing.price != null ? listing.price!.toStringAsFixed(2) : '';
+      _priceController.text = listing.price != null
+          ? listing.price!.toStringAsFixed(2)
+          : '';
       _quantityController.text = listing.quantity;
       _addressController.text = listing.address;
       _phoneController.text = listing.contactPhone;
@@ -83,15 +85,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   Future<void> _loadApiaries() async {
     try {
-      final apiaries =
-          await ApiaryRepository(api: context.read<ApiClient>()).listApiaries();
+      final apiaries = await ApiaryRepository(
+        api: context.read<ApiClient>(),
+      ).listApiaries();
       if (mounted) setState(() => _apiaries = apiaries);
     } catch (_) {}
   }
 
   bool _isValidEmail(String v) {
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(v.trim());
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(v.trim());
   }
 
   bool _isValidPhone(String v) {
@@ -99,14 +103,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     return digits.length >= 9;
   }
 
-  static final _priceInputFormatter = TextInputFormatter.withFunction(
-    (oldValue, newValue) {
-      if (newValue.text.isEmpty) return newValue;
-      return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
-          ? newValue
-          : oldValue;
-    },
-  );
+  static final _priceInputFormatter = TextInputFormatter.withFunction((
+    oldValue,
+    newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    return RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newValue.text)
+        ? newValue
+        : oldValue;
+  });
 
   int get _totalPhotoCount => _existingImages.length + _pendingImages.length;
 
@@ -164,19 +169,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _deletingImageIds.remove(image.id));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.generalError)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.generalError)));
       }
     }
   }
 
   void _reviewContactError() {
     if (_submitError == null) return;
-    if (_submitError != AppLocalizations.of(context)!.marketplaceContactRequired) {
+    if (_submitError !=
+        AppLocalizations.of(context)!.marketplaceContactRequired) {
       return;
     }
-    final hasContact = _phoneController.text.trim().isNotEmpty ||
+    final hasContact =
+        _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
     if (hasContact) setState(() => _submitError = null);
   }
@@ -184,7 +191,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     final formValid = _formKey.currentState?.validate() ?? false;
-    final hasContact = _phoneController.text.trim().isNotEmpty ||
+    final hasContact =
+        _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
     if (!formValid || _category == null || !hasContact) {
       setState(() {
@@ -229,7 +237,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         listingId = listing.id;
       }
       for (final file in _pendingImages) {
-        await repo.uploadImage(listingId, file);
+        await repo.uploadImage(
+          listingId,
+          file,
+          onSendProgress: (sent, total) {
+            if (total <= 0 || !mounted) return;
+            setState(() => _uploadProgress[file] = sent / total);
+          },
+        );
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -291,8 +306,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: _category,
-                    decoration:
-                        InputDecoration(labelText: l10n.marketplaceFieldCategory),
+                    decoration: InputDecoration(
+                      labelText: l10n.marketplaceFieldCategory,
+                    ),
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     items: [
                       for (final category in listingCategories)
@@ -309,8 +325,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         ),
                     ],
                     onChanged: (value) => setState(() => _category = value),
-                    validator: (v) =>
-                        v == null ? l10n.marketplaceFieldCategoryRequired : null,
+                    validator: (v) => v == null
+                        ? l10n.marketplaceFieldCategoryRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -337,8 +354,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       labelText: l10n.marketplaceFieldPrice,
                       counterText: SizeTier.small.counterText,
                     ),
-                    keyboardType:
-                        TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     textInputAction: TextInputAction.next,
                     inputFormatters: [_priceInputFormatter],
                     maxLength: SizeTier.small.maxLength,
@@ -399,8 +417,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   const SizedBox(height: 24),
                   Text(
                     l10n.marketplaceContactLabel,
-                    style: textTheme.titleSmall
-                        ?.copyWith(color: colorScheme.primary),
+                    style: textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -454,8 +473,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     const SizedBox(height: 24),
                     Text(
                       l10n.marketplaceApiaryLabel,
-                      style: textTheme.titleSmall
-                          ?.copyWith(color: colorScheme.primary),
+                      style: textTheme.titleSmall?.copyWith(
+                        color: colorScheme.primary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int?>(
@@ -479,7 +499,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     existingImages: _existingImages,
                     deletingImageIds: _deletingImageIds,
                     pendingImages: _pendingImages,
+                    uploadProgress: _uploadProgress,
                     totalCount: _totalPhotoCount,
+                    saving: _saving,
                     onAdd: _pickImage,
                     onRemove: _removeImage,
                     onRemoveExisting: _removeExistingImage,
@@ -525,7 +547,9 @@ class _PhotosSection extends StatelessWidget {
   final List<ListingImage> existingImages;
   final Set<int> deletingImageIds;
   final List<XFile> pendingImages;
+  final Map<XFile, double> uploadProgress;
   final int totalCount;
+  final bool saving;
   final VoidCallback onAdd;
   final ValueChanged<XFile> onRemove;
   final ValueChanged<ListingImage> onRemoveExisting;
@@ -534,7 +558,9 @@ class _PhotosSection extends StatelessWidget {
     required this.existingImages,
     required this.deletingImageIds,
     required this.pendingImages,
+    required this.uploadProgress,
     required this.totalCount,
+    required this.saving,
     required this.onAdd,
     required this.onRemove,
     required this.onRemoveExisting,
@@ -555,11 +581,11 @@ class _PhotosSection extends StatelessWidget {
             Text(
               '${l10n.marketplacePhotosLabel}  $totalCount/$_kMaxListingPhotos',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             TextButton.icon(
-              onPressed: atLimit ? null : onAdd,
+              onPressed: (atLimit || saving) ? null : onAdd,
               icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
               label: Text(l10n.marketplaceAddPhoto),
             ),
@@ -577,10 +603,15 @@ class _PhotosSection extends StatelessWidget {
                     image: image,
                     baseUrl: baseUrl,
                     deleting: deletingImageIds.contains(image.id),
+                    disabled: saving,
                     onRemove: () => onRemoveExisting(image),
                   ),
                 for (final file in pendingImages)
-                  _PendingThumbnail(file: file, onRemove: () => onRemove(file)),
+                  _PendingThumbnail(
+                    file: file,
+                    progress: saving ? uploadProgress[file] ?? 0 : null,
+                    onRemove: () => onRemove(file),
+                  ),
               ],
             ),
           ),
@@ -593,12 +624,14 @@ class _ExistingThumbnail extends StatelessWidget {
   final ListingImage image;
   final String baseUrl;
   final bool deleting;
+  final bool disabled;
   final VoidCallback onRemove;
 
   const _ExistingThumbnail({
     required this.image,
     required this.baseUrl,
     required this.deleting,
+    required this.disabled,
     required this.onRemove,
   });
 
@@ -640,7 +673,7 @@ class _ExistingThumbnail extends StatelessWidget {
                 ),
               ),
             )
-          else
+          else if (!disabled)
             Positioned(
               top: 2,
               right: 2,
@@ -663,9 +696,17 @@ class _ExistingThumbnail extends StatelessWidget {
 
 class _PendingThumbnail extends StatelessWidget {
   final XFile file;
+
+  /// Upload progress in [0, 1] while the listing is being saved, or null
+  /// before submission (shows the remove button instead).
+  final double? progress;
   final VoidCallback onRemove;
 
-  const _PendingThumbnail({required this.file, required this.onRemove});
+  const _PendingThumbnail({
+    required this.file,
+    required this.progress,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -691,20 +732,38 @@ class _PendingThumbnail extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
+          if (progress != null)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black38,
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: progress! > 0 ? progress : null,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            )
+          else
+            Positioned(
+              top: 2,
+              right: 2,
+              child: GestureDetector(
+                onTap: onRemove,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
