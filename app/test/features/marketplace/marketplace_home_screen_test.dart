@@ -986,7 +986,7 @@ void main() {
         expect(find.text('Latitude'), findsOneWidget);
         expect(find.text('Longitude'), findsOneWidget);
         expect(find.text('GPS'), findsOneWidget);
-        expect(find.text('Mapa'), findsOneWidget);
+        expect(find.text('Map'), findsOneWidget);
         expect(find.text('Any distance'), findsOneWidget);
 
         final dropdown = tester.widget<DropdownButton<double?>>(

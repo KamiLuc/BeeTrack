@@ -441,6 +441,18 @@ class AppLocalizationsPl extends AppLocalizations {
       'Wybierz lokalizację na mapie lub użyj GPS';
 
   @override
+  String get locationPickerTitle => 'Wybierz lokalizację';
+
+  @override
+  String get locationPickerHint => 'Dotknij mapę, aby wybrać lokalizację';
+
+  @override
+  String get locationPickerGpsButton => 'GPS';
+
+  @override
+  String get locationPickerMapButton => 'Mapa';
+
+  @override
   String get marketplaceFieldPhone => 'Telefon';
 
   @override

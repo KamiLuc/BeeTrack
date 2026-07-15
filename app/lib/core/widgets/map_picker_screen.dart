@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../l10n/app_localizations.dart';
+
 class MapPickerScreen extends StatefulWidget {
   final LatLng? initial;
 
@@ -24,8 +26,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Wybierz lokalizację')),
+      appBar: AppBar(title: Text(l10n.locationPickerTitle)),
       body: Stack(
         children: [
           FlutterMap(
@@ -68,10 +72,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (!_hasPicked)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        'Dotknij mapę, aby wybrać lokalizację',
+                        l10n.locationPickerHint,
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -91,7 +95,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         onPressed: _hasPicked
                             ? () => Navigator.of(context).pop(_picked)
                             : null,
-                        child: const Text('Potwierdź'),
+                        child: Text(l10n.generalConfirm),
                       ),
                     ),
                   ),

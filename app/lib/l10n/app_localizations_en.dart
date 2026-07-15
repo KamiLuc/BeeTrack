@@ -440,6 +440,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick a location on the map or use GPS';
 
   @override
+  String get locationPickerTitle => 'Pick a location';
+
+  @override
+  String get locationPickerHint => 'Tap the map to pick a location';
+
+  @override
+  String get locationPickerGpsButton => 'GPS';
+
+  @override
+  String get locationPickerMapButton => 'Map';
+
+  @override
   String get marketplaceFieldPhone => 'Phone';
 
   @override

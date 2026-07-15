@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../validation/size_tiers.dart';
 
 class LocationPickerSection extends StatelessWidget {
@@ -28,6 +29,8 @@ class LocationPickerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -65,7 +68,7 @@ class LocationPickerSection extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.my_location, size: 18),
-                label: const Text('GPS'),
+                label: Text(l10n.locationPickerGpsButton),
               ),
             ),
             const SizedBox(width: 8),
@@ -73,7 +76,7 @@ class LocationPickerSection extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onMap,
                 icon: const Icon(Icons.map, size: 18),
-                label: const Text('Mapa'),
+                label: Text(l10n.locationPickerMapButton),
               ),
             ),
           ],

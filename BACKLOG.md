@@ -26,8 +26,7 @@
 6. [Queen Recognition (AI Feature)](#6-queen-recognition-ai-feature)
 7. [MCP Server](#7-mcp-server)
 8. [Infrastructure & DevOps](#8-infrastructure--devops)
-9. [Marketplace — Sale Announcements](#9-marketplace--sale-announcements)
-10. [Honey Certification & Blockchain](#10-honey-certification--blockchain)
+9. [Honey Certification & Blockchain](#9-honey-certification--blockchain)
 
 ---
 
@@ -97,145 +96,20 @@
 
 ---
 
-## 9. Marketplace — Sale Announcements
-
-> Public marketplace for beekeeping products/services. Listings require auth to create; viewing is public. Includes search, filters, favorites, and map display.
-
-### 9.1 Database Schema
-
-| ID        | Layer | Status | Title                            | Notes                                                                                                                                                                      |
-| --------- | ----- | ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MKT-DB-01 | `DB`  | `[x]`  | Create `listings` table          | id, user_id, title, description, category, price, quantity, address, apiary_id, contact_phone, contact_email, is_hidden, created_at, updated_at                            |
-| MKT-DB-02 | `DB`  | `[x]`  | Create `listing_images` table    | id, listing_id, image_url, display_order, created_at                                                                                                                       |
-| MKT-DB-03 | `DB`  | `[x]`  | Create `listing_favorites` table | id, user_id, listing_id, created_at                                                                                                                                        |
-| MKT-DB-04 | `DB`  | `[x]`  | Create `listing_categories` enum | TEXT + CHECK constraint (codebase convention); HONEY, POLLEN, BEE_COLONIES, QUEEN_BEES, BEEHIVES, POPULATED_BEEHIVES, EQUIPMENT, EXTRACTION_EQUIPMENT, FEED, SUPPLIES, WAX_FOUNDATION, BEESWAX, PROPOLIS, SERVICES, OTHER |
-
-### 9.2 Backend — Models & Persistence
-
-| ID        | Layer | Status | Title                             | Notes                                                                                                                                           |
-| --------- | ----- | ------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| MKT-BE-01 | `BE`  | `[x]`    | Model: `Listing` struct           | id, user_id, title, description, category, price, quantity, address, apiary_id, contact_phone, contact_email, is_hidden, created_at, updated_at |
-| MKT-BE-02 | `BE`  | `[x]`    | Model: `ListingImage` struct      | id, listing_id, image_url, display_order, created_at                                                                                            |
-| MKT-BE-03 | `BE`  | `[x]`    | Repository: Create listing        | Insert + associated images                                                                                                                      |
-| MKT-BE-04 | `BE`  | `[x]`    | Repository: Get listing by ID     | With images and apiary details                                                                                                                  |
-| MKT-BE-05 | `BE`  | `[x]`    | Repository: List/search listings  | Filters: category, price_min/max, keyword, date_range, distance (if location provided), hidden status (only own)                                |
-| MKT-BE-06 | `BE`  | `[x]`    | Repository: Update listing        | Title, description, category, price, quantity, address, contact_phone, contact_email, is_hidden                                                 |
-| MKT-BE-07 | `BE`  | `[x]`    | Repository: Hide/show listing     | Toggle is_hidden (soft delete, not permanent)                                                                                                   |
-| MKT-BE-08 | `BE`  | `[x]`    | Repository: Delete listing images | Remove old images before update                                                                                                                 |
-
-### 9.3 Backend — Business Logic
-
-| ID        | Layer | Status | Title                           | Notes                                                                        |
-| --------- | ----- | ------ | -------------------------------- | ---------------------------------------------------------------------------- |
-| MKT-BE-09 | `BE`  | `[x]`  | Service: Create listing         | Validate auth, images (max 3), required fields; return listing with images   |
-| MKT-BE-10 | `BE`  | `[x]`  | Service: Update listing         | Validate ownership, handle image updates                                     |
-| MKT-BE-11 | `BE`  | `[x]`  | Service: Get listing            | Check if hidden; allow owner or public view; include apiary info if attached |
-| MKT-BE-12 | `BE`  | `[x]`  | Service: Search/filter listings | Build dynamic query based on filters; exclude hidden for non-owners          |
-
-### 9.4 Backend — API Handlers
-
-| ID        | Layer | Status | Title                                     | Notes                                                             |
-| --------- | ----- | ------ | ----------------------------------------- | ----------------------------------------------------------------- |
-| MKT-BE-13 | `BE`  | `[x]`  | Handler: POST /api/v1/listings            | Create listing (auth required)                                    |
-| MKT-BE-14 | `BE`  | `[x]`  | Handler: GET /api/v1/listings             | Search/filter (public, excludes hidden)                           |
-| MKT-BE-15 | `BE`  | `[x]`  | Handler: GET /api/v1/listings/{id}        | Get single listing (public)                                       |
-| MKT-BE-16 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}      | Update listing (auth + ownership required)                        |
-| MKT-BE-17 | `BE`  | `[x]`  | Handler: PATCH /api/v1/listings/{id}/hide | Hide listing (toggle is_hidden; auth + ownership)                 |
-| MKT-BE-18 | `BE`  | `[x]`  | Handler: DELETE /api/v1/listings/{id}     | Delete listing (auth + ownership required)                        |
-| MKT-BE-19 | `BE`  | `[x]`  | Handler: Image upload endpoint            | Multipart POST, validate MIME type, store in S3/local, return URL |
-
-### 9.4a Backend — Favorites
-
-> Backend for `listing_favorites` (was missing; frontend MKT-FE-20 depends on it).
-
-| ID        | Layer | Status | Title                                        | Notes                                                                                         |
-| --------- | ----- | ------ | -------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| MKT-BE-20 | `BE`  | `[x]`  | Favorites repository + service               | Add (idempotent via ON CONFLICT), remove, list favorited listings; hidden excluded for non-owner |
-| MKT-BE-21 | `BE`  | `[x]`  | Handler: POST/DELETE /api/v1/listings/{id}/favorite | Add/remove favorite (auth); verifies listing is visible to caller                      |
-| MKT-BE-22 | `BE`  | `[x]`  | Handler: GET /api/v1/favorites               | List caller's favorited listings (auth); returns `{items, total}`                             |
-| MKT-BE-23 | `BE`  | `[x]`  | Handler: GET /api/v1/listings/{id}/favorite  | Checks whether caller has favorited a single listing (auth); returns `{is_favorite}`. Frontend (MKT-FE-02) now uses this via `FavoritesRepository.checkFavorite()` instead of `listFavorites()` membership-checking |
-
-### 9.5 Frontend — Core Screens
-
-| ID        | Layer | Status | Title                   | Notes                                                                                                                |
-| --------- | ----- | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
-| MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button. Apiary summary later extended with hive count + a "show on map" button (bee-flight-range rings, via `ApiariesMapScreen`) when the apiary has GPS — required a backend extension to `GetByID` (MKT-BE-04) joining hive count + apiary lat/lng into the listing response |
-| MKT-FE-03 | `FE`  | `[x]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
-| MKT-FE-04 | `FE`  | `[x]`  | Edit listing screen     | `CreateListingScreen` now takes an optional `existingListing` and reuses the create form (prefilled, existing-image delete + new-image add) |
-| MKT-FE-05 | `FE`  | `[x]`  | My listings screen      | `MyListingsScreen`: lists `mine=true` (incl. hidden), per-card edit/hide-show/delete only (tapping the card itself does nothing — edit is menu-only, per follow-up request); reached via icon in the bottom amber banner next to Add/Map. Edit button also added to listing detail screen when viewer is the owner (not in original scope, added per follow-up request) |
-| MKT-FE-06 | `FE`  | `[x]`  | Favorites screen        | `FavoritesScreen`, reached via bookmark icon in the marketplace bottom banner; lists the caller's favorited listings. Unfavoriting toggles the heart in place rather than removing the card immediately, to guard against accidental taps — actual removal happens on next refresh/reload |
-
-### 9.6 Frontend — Search & Filters
-
-| ID        | Layer | Status | Title                    | Notes                                                        |
-| --------- | ----- | ------ | ------------------------ | ------------------------------------------------------------ |
-| MKT-FE-08 | `FE`  | `[x]`  | Price range filter       | Landed as two min/max text inputs (positive numbers only), not a slider; moved into a "Filters" bottom sheet (tune-icon button next to the category dropdown) so it doesn't clutter the home screen |
-| MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
-| MKT-FE-10 | `FE`  | `[x]`  | Date range filter        | Landed as a "posted within" dropdown (Any time/Today/7/14/30 days), not a date picker; lives in the same Filters bottom sheet as the price filter. Filters apply once when the sheet closes, not per keystroke/selection |
-| MKT-FE-11 | `FE`  | `[x]`  | Distance/location filter | Went further than the original ticket ("if user location available, show radius filter; else disable"): listings now have a required lat/lng (independent of the optional `apiary_id`), set via a GPS/map location picker on the create/edit listing form (reusing the apiary form's picker, extracted into a shared `LocationPickerSection`/`MapPickerScreen` widget). Filters bottom sheet gained a "Use my location" GPS button + radius dropdown (5/10/25/50/100km), disabled until a location is obtained; listing cards show "X km away" when active |
-| MKT-FE-24 | `BE/FE` | `[x]`  | "Has apiary attached" filter | Checkbox in the Filters bottom sheet ("Only listings with an apiary attached"); backend `ListingFilter.HasApiary` adds `apiary_id IS NOT NULL` to the query, parsed from `has_apiary=true`. Ad-hoc request, not from the original ticket list |
-
-### 9.7 Frontend — Map Integration
-
-| ID        | Layer | Status | Title                | Notes                                                                      |
-| --------- | ----- | ------ | --------------------- | -------------------------------------------------------------------------- |
-| MKT-FE-12 | `FE`  | `[ ]`  | Map screen           | Show listings with apiary attached as pins; tap pin to view listing. Reads the same `MarketplaceCubit` filter state as the feed (category/price/date/distance) rather than owning separate map filters — user sets filters, then taps map to see matching results as pins |
-| MKT-FE-13 | `FE`  | `[x]`  | ~~Map filters~~ — dropped | Decided against a separate map filter UI; folded into MKT-FE-12 (map consumes the feed's existing filter state instead of duplicating it) |
-| MKT-FE-14 | `FE`  | `[ ]`  | Distance calculation | Show distance from user to listing apiary (if location permission granted) |
-
-### 9.8 Frontend — Image Management
-
-| ID        | Layer | Status | Title                      | Notes                                                               |
-| --------- | ----- | ------ | --------------------------- | ------------------------------------------------------------------- |
-| MKT-FE-15 | `FE`  | `[x]`  | Image picker (create/edit) | Select up to 3 images from gallery or camera, preview before upload. Landed as part of MKT-FE-03's photo picker; edit-mode reuse (existing-image thumbnails + delete) added alongside MKT-FE-04 |
-| MKT-FE-16 | `FE`  | `[x]`  | Image carousel on detail   | Swipeable carousel for multiple images. Landed as part of MKT-FE-02's detail screen (PageView + dot-indicator) rather than as separate work |
-| MKT-FE-17 | `FE`  | `[x]`  | Image upload progress      | Per-photo progress ring (real byte progress via dio) during create/edit listing submission; add/remove controls disabled while saving. Also applied to the hive inspection photo upload flow (inspection_form_screen.dart), which had the same gap though outside the marketplace epic |
-
-### 9.9 Frontend — Data Models & Repositories
-
-| ID        | Layer | Status | Title               | Notes                                        |
-| --------- | ----- | ------ | ------------------- | -------------------------------------------- |
-| MKT-FE-18 | `FE`  | `[x]`  | ListingModel (Dart) | Mirrors Listing struct from backend          |
-| MKT-FE-19 | `FE`  | `[x]`  | ListingRepository   | CRUD + search methods, call backend handlers |
-| MKT-FE-20 | `FE`  | `[x]`  | FavoritesRepository | Add/remove favorite, list favorites          |
-
-### 9.10 Frontend — Navigation & State
-
-| ID        | Layer | Status | Title                             | Notes                                                 |
-| --------- | ----- | ------ | ---------------------------------- | ----------------------------------------------------- |
-| MKT-FE-21 | `FE`  | `[x]`  | Marketplace nav entry (drawer)    | Top-left hamburger opens a navigation drawer with Apiaries + Marketplace (Ogłoszenia). Replaced the "bottom nav" idea: the bottom amber bar is per-screen actions, so a shared `AppDrawer` is used instead. Points at a stub `MarketplaceHomeScreen` until MKT-FE-01 lands. |
-| MKT-FE-22 | `FE`  | `[ ]`  | Marketplace BLoC/Cubit            | Manage listings, search state, filters                |
-| MKT-FE-23 | `FE`  | `[ ]`  | Handle public vs. auth views      | Show "Create Listing" button for logged-in users only |
-
-### 9.11 Polish & Edge Cases
-
-| ID        | Layer   | Status | Title                        | Notes                                                                                   |
-| --------- | ------- | ------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| MKT-09-01 | `BE/FE` | `[ ]`  | Soft delete validation       | Ensure deleted listings don't appear in search; verify ownership on hide                |
-| MKT-09-02 | `FE`    | `[ ]`  | Empty states                 | "No listings yet", "No favorites yet" screens                                           |
-| MKT-09-03 | `FE`    | `[x]`  | Pagination / infinite scroll | Replaced with numbered-page pagination (20/page), same pattern as Inspections: `MarketplaceCubit.goToPage`/`MyListingsScreen._goToPage` + amber-banner page-number row, on both the Marketplace feed and My Listings |
-| MKT-09-04 | `BE`    | `[ ]`  | Add index on listings table  | category, user_id, created_at, is_hidden for query performance                          |
-| MKT-09-05 | `FE`    | `[ ]`  | Confirmation dialogs         | Before delete/hide listing                                                              |
-| MKT-09-06 | `BE/FE` | `[ ]`  | Prevent self-contact         | If listing has apiary, show apiary owner info (not user contact) if viewing own listing |
-| MKT-09-07 | `FE`    | `[ ]`  | Localization                 | Add l10n strings for all UI text (categories, labels, filters)                          |
-
----
-
-## 10. Honey Certification & Blockchain
+## 9. Honey Certification & Blockchain
 
 > Immutable honey batch certification stored on Polygon blockchain. Each batch gets a QR code that verifies authenticity via blockchain hash of lab PDF.
 >
 > **Blockchain Strategy:** Store minimal data on-chain (hash, metadata hash, timestamp) for cost efficiency. PDF hash links to lab report; scanning verifies hash hasn't changed.
 
-### 10.1 Database Schema
+### 9.1 Database Schema
 
 | ID       | Layer | Status | Title                               | Notes                                                                                                                                                                                                                                                                                                                        |
 | -------- | ----- | ------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HC-DB-01 | `DB`  | `[ ]`  | Create `honey_batches` table        | id, user_id, apiary_id, gathering_date, amount (kg), processing_method (enum: raw/filtered/pasteurized), honey_type (text: wildflower/acacia/etc), lab_pdf_url, pdf_file_hash (SHA256), metadata_hash, blockchain_tx_hash, blockchain_contract_address, blockchain_status (pending/confirmed/failed), created_at, updated_at |
 | HC-DB-02 | `DB`  | `[ ]`  | Create `honey_batch_qr_codes` table | id, batch_id, qr_code_data (URL), created_at                                                                                                                                                                                                                                                                                 |
 
-### 10.2 Backend — Blockchain Integration
+### 9.2 Backend — Blockchain Integration
 
 | ID       | Layer | Status | Title                      | Notes                                                                                                                 |
 | -------- | ----- | ------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -246,7 +120,7 @@
 | HC-BE-05 | `BE`  | `[ ]`  | Blockchain reader          | Function to query contract state; check if tx_hash exists and is confirmed; return stored hash                        |
 | HC-BE-06 | `BE`  | `[ ]`  | Hash utilities             | SHA256 for PDF file + batch metadata; ensure consistent hashing                                                       |
 
-### 10.3 Backend — Models & Persistence
+### 9.3 Backend — Models & Persistence
 
 | ID       | Layer | Status | Title                                   | Notes                                                                       |
 | -------- | ----- | ------ | ----------------------------------------- | --------------------------------------------------------------------------- |
@@ -257,7 +131,7 @@
 | HC-BE-11 | `BE`  | `[ ]`  | Repository: List batches by user/apiary | Filter by user_id or apiary_id                                              |
 | HC-BE-12 | `BE`  | `[ ]`  | Repository: Update batch status         | When blockchain tx confirmed, update blockchain_status + blockchain_tx_hash |
 
-### 10.4 Backend — Business Logic
+### 9.4 Backend — Business Logic
 
 | ID       | Layer | Status | Title                           | Notes                                                                                                    |
 | -------- | ----- | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -266,7 +140,7 @@
 | HC-BE-15 | `BE`  | `[ ]`  | Service: Poll blockchain status | Background job: check pending txs, update status when confirmed                                          |
 | HC-BE-16 | `BE`  | `[ ]`  | Service: Generate QR code data  | Create URL (e.g., https://beetrack.app/verify/batch/{id}); encode as QR                                  |
 
-### 10.5 Backend — API Handlers
+### 9.5 Backend — API Handlers
 
 | ID       | Layer | Status | Title                                           | Notes                                                                                 |
 | -------- | ----- | ------ | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -279,7 +153,7 @@
 | HC-BE-23 | `BE`  | `[ ]`  | Handler: DELETE /api/v1/honey-batches/{id}      | Soft delete batch (auth + ownership required)                                         |
 | HC-BE-24 | `BE`  | `[ ]`  | Handler: POST /api/v1/honey-batches/{id}/pdf    | Retrieve lab PDF URL (public)                                                         |
 
-### 10.6 Frontend — Core Screens
+### 9.6 Frontend — Core Screens
 
 | ID       | Layer | Status | Title                           | Notes                                                                                                             |
 | -------- | ----- | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -291,7 +165,7 @@
 | HC-FE-06 | `FE`  | `[ ]`  | QR code scanner screen          | Use camera, scan QR, navigate to verification screen                                                              |
 | HC-FE-07 | `FE`  | `[ ]`  | My honey batches screen         | List all user's certified batches, edit/delete/view details, show blockchain status (pending/confirmed)           |
 
-### 10.7 Frontend — Data Models & Repositories
+### 9.7 Frontend — Data Models & Repositories
 
 | ID       | Layer | Status | Title                       | Notes                                          |
 | -------- | ----- | ------ | ----------------------------- | ----------------------------------------------- |
@@ -299,7 +173,7 @@
 | HC-FE-09 | `FE`  | `[ ]`  | ProcessingMethodEnum (Dart) | raw, filtered, pasteurized with display labels |
 | HC-FE-10 | `FE`  | `[ ]`  | HoneyBatchRepository        | CRUD + get verification status, download PDF   |
 
-### 10.8 Frontend — QR Code & PDF Handling
+### 9.8 Frontend — QR Code & PDF Handling
 
 | ID       | Layer | Status | Title                  | Notes                                                                        |
 | -------- | ----- | ------ | ------------------------- | ---------------------------------------------------------------------------- |
@@ -308,7 +182,7 @@
 | HC-FE-13 | `FE`  | `[ ]`  | PDF preview / download | Embed PDF viewer or link to download; show in detail screen                  |
 | HC-FE-14 | `FE`  | `[ ]`  | PDF upload UI          | File picker; show file name + size before upload; upload progress indicator  |
 
-### 10.9 Frontend — Verification UI
+### 9.9 Frontend — Verification UI
 
 | ID       | Layer | Status | Title                       | Notes                                                                                       |
 | -------- | ----- | ------ | ------------------------------ | ------------------------------------------------------------------------------------------- |
@@ -316,7 +190,7 @@
 | HC-FE-16 | `FE`  | `[ ]`  | Verification details modal  | Show: tx hash (clickable link to Polygonscan), confirmed timestamp, PDF hash, metadata hash |
 | HC-FE-17 | `FE`  | `[ ]`  | Hash comparison display     | Show "On-chain hash: xyz..." and "Current PDF hash: xyz..." side-by-side                    |
 
-### 10.10 Frontend — Navigation & State
+### 9.10 Frontend — Navigation & State
 
 | ID       | Layer | Status | Title                                    | Notes                                                              |
 | -------- | ----- | ------ | -------------------------------------------- | ------------------------------------------------------------------ |
@@ -324,7 +198,7 @@
 | HC-FE-19 | `FE`  | `[ ]`  | Honey BLoC/Cubit                         | Manage batches, verification state, QR scanner state               |
 | HC-FE-20 | `FE`  | `[ ]`  | Deep link for QR verification            | Support scanning external QR codes that link to /verify/batch/{id} |
 
-### 10.11 Polish & Edge Cases
+### 9.11 Polish & Edge Cases
 
 | ID       | Layer | Status | Title                  | Notes                                                                                  |
 | -------- | ----- | ------ | ------------------------- | ---------------------------------------------------------------------------------------- |

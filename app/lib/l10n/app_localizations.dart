@@ -920,6 +920,30 @@ abstract class AppLocalizations {
   /// **'Wybierz lokalizację na mapie lub użyj GPS'**
   String get marketplaceLocationRequired;
 
+  /// No description provided for @locationPickerTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz lokalizację'**
+  String get locationPickerTitle;
+
+  /// No description provided for @locationPickerHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dotknij mapę, aby wybrać lokalizację'**
+  String get locationPickerHint;
+
+  /// No description provided for @locationPickerGpsButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'GPS'**
+  String get locationPickerGpsButton;
+
+  /// No description provided for @locationPickerMapButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'Mapa'**
+  String get locationPickerMapButton;
+
   /// No description provided for @marketplaceFieldPhone.
   ///
   /// In pl, this message translates to:
