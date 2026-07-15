@@ -18,6 +18,9 @@ final class MarketplaceLoaded extends MarketplaceState {
   final double? priceMin;
   final double? priceMax;
   final int? postedWithinDays;
+  final double? nearLat;
+  final double? nearLng;
+  final double? radiusKm;
   final Set<int> favoriteIds;
   final bool hasOwnListings;
 
@@ -31,6 +34,9 @@ final class MarketplaceLoaded extends MarketplaceState {
     this.priceMin,
     this.priceMax,
     this.postedWithinDays,
+    this.nearLat,
+    this.nearLng,
+    this.radiusKm,
     this.favoriteIds = const {},
     this.hasOwnListings = false,
   });
@@ -52,6 +58,9 @@ final class MarketplaceLoaded extends MarketplaceState {
       priceMin: priceMin,
       priceMax: priceMax,
       postedWithinDays: postedWithinDays,
+      nearLat: nearLat,
+      nearLng: nearLng,
+      radiusKm: radiusKm,
       favoriteIds: favoriteIds ?? this.favoriteIds,
       hasOwnListings: hasOwnListings,
     );

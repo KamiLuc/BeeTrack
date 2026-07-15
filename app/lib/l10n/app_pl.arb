@@ -104,6 +104,22 @@
   "marketplacePostedWithin7Days": "Ostatnie 7 dni",
   "marketplacePostedWithin14Days": "Ostatnie 14 dni",
   "marketplacePostedWithin30Days": "Ostatnie 30 dni",
+  "marketplaceDistanceLabel": "Odległość",
+  "marketplaceGpsUnavailable": "GPS niedostępny na tym urządzeniu",
+  "marketplaceDistanceAny": "Dowolna odległość",
+  "marketplaceDistance5Km": "Do 5 km",
+  "marketplaceDistance10Km": "Do 10 km",
+  "marketplaceDistance25Km": "Do 25 km",
+  "marketplaceDistance50Km": "Do 50 km",
+  "marketplaceDistance100Km": "Do 100 km",
+  "marketplaceDistanceAway": "{km} km stąd",
+  "@marketplaceDistanceAway": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
   "marketplacePriceOnRequest": "Cena do negocjacji",
   "marketplacePriceFree": "Za darmo",
   "marketplaceCategoryAll": "Wszystkie",
@@ -147,6 +163,9 @@
   "marketplaceFieldPriceRequired": "Cena jest wymagana",
   "marketplaceFieldPriceTooLarge": "Cena musi być mniejsza niż 100 000 000",
   "marketplaceFieldAddress": "Adres",
+  "marketplaceFieldLatitude": "Szerokość geograficzna",
+  "marketplaceFieldLongitude": "Długość geograficzna",
+  "marketplaceLocationRequired": "Wybierz lokalizację na mapie lub użyj GPS",
   "marketplaceFieldPhone": "Telefon",
   "marketplaceFieldPhoneInvalid": "Podaj prawidłowy numer telefonu",
   "marketplaceFieldEmail": "E-mail",

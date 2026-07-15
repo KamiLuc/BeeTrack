@@ -1699,6 +1699,9 @@ Listings are public classifieds posted by users. Auth is optional on read routes
   "address": "Warsaw, Poland",
   "apiary_id": 5,
   "apiary_name": "My Apiary",
+  "lat": 52.23,
+  "lng": 21.01,
+  "distance_km": 3.4,
   "contact_phone": "+48123456789",
   "contact_email": "seller@example.com",
   "is_hidden": false,
@@ -1719,6 +1722,8 @@ Listings are public classifieds posted by users. Auth is optional on read routes
 - `category` valid values: `HONEY`, `POLLEN`, `BEE_COLONIES`, `QUEEN_BEES`, `BEEHIVES`, `POPULATED_BEEHIVES`, `EQUIPMENT`, `EXTRACTION_EQUIPMENT`, `FEED`, `SUPPLIES`, `WAX_FOUNDATION`, `BEESWAX`, `PROPOLIS`, `SERVICES`, `OTHER`
 - `price` — nullable number
 - `apiary_id` — nullable; if set, must be an apiary the caller belongs to; `apiary_name` is populated via JOIN
+- `lat`/`lng` — required, independent of `apiary_id`; not derived from an attached apiary
+- `distance_km` — only present when the `GET /listings` request included a `near_lat`/`near_lng`/`radius_km` filter
 - `images` — max 3 per listing
 
 ---
@@ -1737,13 +1742,15 @@ Creates a listing owned by the authenticated user.
   "quantity": "10 jars",
   "address": "Warsaw, Poland",
   "apiary_id": 5,
+  "lat": 52.23,
+  "lng": 21.01,
   "contact_phone": "+48123456789",
   "contact_email": "seller@example.com",
   "image_urls": ["https://.../image.jpg"]
 }
 ```
 
-- `title` and `category` are required
+- `title`, `category`, `lat`, and `lng` are required
 - `image_urls` — optional array of strings, max 3
 
 **Response** `201 Created` — listing object
@@ -1761,6 +1768,8 @@ Creates a listing owned by the authenticated user.
 | `DESCRIPTION_TOO_LONG` | 400 | `description` exceeds 500 characters |
 | `QUANTITY_TOO_LONG` | 400 | `quantity` exceeds 50 characters |
 | `ADDRESS_TOO_LONG` | 400 | `address` exceeds 150 characters |
+| `LOCATION_REQUIRED` | 400 | `lat`/`lng` missing |
+| `INVALID_GPS` | 400 | `lat` not between -90 and 90, or `lng` not between -180 and 180 |
 | `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
 | `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
@@ -1781,9 +1790,14 @@ Searches/filters listings. Public — auth optional.
 | `price_min` | — | Minimum price |
 | `price_max` | — | Maximum price |
 | `posted_after` | — | Only listings created after this timestamp |
+| `near_lat` | — | Latitude to measure distance from; must be given together with `near_lng` and `radius_km` |
+| `near_lng` | — | Longitude to measure distance from; must be given together with `near_lat` and `radius_km` |
+| `radius_km` | — | Max distance in km from `near_lat`/`near_lng`, capped at 20,000; results are sorted nearest-first |
 | `limit` | 20 | Maximum number of records to return |
 | `offset` | 0 | Number of records to skip |
 | `mine` | false | If `true`, requires auth; returns only the caller's own listings, including hidden ones |
+
+`near_lat`, `near_lng`, and `radius_km` only apply if all three are present and valid; otherwise the distance filter is silently ignored (not an error).
 
 Non-owner and anonymous callers never see hidden listings.
 
@@ -1841,6 +1855,8 @@ Updates a listing. Only the owner can edit. Same body as create; when `image_url
 | `DESCRIPTION_TOO_LONG` | 400 | `description` exceeds 500 characters |
 | `QUANTITY_TOO_LONG` | 400 | `quantity` exceeds 50 characters |
 | `ADDRESS_TOO_LONG` | 400 | `address` exceeds 150 characters |
+| `LOCATION_REQUIRED` | 400 | `lat`/`lng` missing |
+| `INVALID_GPS` | 400 | `lat` not between -90 and 90, or `lng` not between -180 and 180 |
 | `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
 | `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |

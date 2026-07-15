@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ApiaryGridSection extends StatelessWidget {
@@ -89,83 +88,6 @@ class _GridPreview extends StatelessWidget {
           );
         }),
       ),
-    );
-  }
-}
-
-class ApiaryLocationSection extends StatelessWidget {
-  final TextEditingController latController;
-  final TextEditingController lngController;
-  final bool locating;
-  final VoidCallback onGps;
-  final VoidCallback onMap;
-  final AppLocalizations l10n;
-
-  const ApiaryLocationSection({
-    super.key,
-    required this.latController,
-    required this.lngController,
-    required this.locating,
-    required this.onGps,
-    required this.onMap,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextFormField(
-          controller: latController,
-          enabled: false,
-          decoration: InputDecoration(
-            labelText: l10n.apiaryLatitude,
-            counterText: SizeTier.small.counterText,
-          ),
-          maxLength: SizeTier.small.maxLength,
-          validator: (v) =>
-              validateSizeTier(v, SizeTier.small, l10n.apiaryLatitude, l10n),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: lngController,
-          enabled: false,
-          decoration: InputDecoration(
-            labelText: l10n.apiaryLongitude,
-            counterText: SizeTier.small.counterText,
-          ),
-          maxLength: SizeTier.small.maxLength,
-          validator: (v) =>
-              validateSizeTier(v, SizeTier.small, l10n.apiaryLongitude, l10n),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: locating ? null : onGps,
-                icon: locating
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.my_location, size: 18),
-                label: const Text('GPS'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onMap,
-                icon: const Icon(Icons.map, size: 18),
-                label: const Text('Mapa'),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

@@ -279,6 +279,35 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplacePostedWithin30Days => 'Ostatnie 30 dni';
 
   @override
+  String get marketplaceDistanceLabel => 'Odległość';
+
+  @override
+  String get marketplaceGpsUnavailable => 'GPS niedostępny na tym urządzeniu';
+
+  @override
+  String get marketplaceDistanceAny => 'Dowolna odległość';
+
+  @override
+  String get marketplaceDistance5Km => 'Do 5 km';
+
+  @override
+  String get marketplaceDistance10Km => 'Do 10 km';
+
+  @override
+  String get marketplaceDistance25Km => 'Do 25 km';
+
+  @override
+  String get marketplaceDistance50Km => 'Do 50 km';
+
+  @override
+  String get marketplaceDistance100Km => 'Do 100 km';
+
+  @override
+  String marketplaceDistanceAway(String km) {
+    return '$km km stąd';
+  }
+
+  @override
   String get marketplacePriceOnRequest => 'Cena do negocjacji';
 
   @override
@@ -389,6 +418,16 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get marketplaceFieldAddress => 'Adres';
+
+  @override
+  String get marketplaceFieldLatitude => 'Szerokość geograficzna';
+
+  @override
+  String get marketplaceFieldLongitude => 'Długość geograficzna';
+
+  @override
+  String get marketplaceLocationRequired =>
+      'Wybierz lokalizację na mapie lub użyj GPS';
 
   @override
   String get marketplaceFieldPhone => 'Telefon';

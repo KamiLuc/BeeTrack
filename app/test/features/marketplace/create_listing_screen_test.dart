@@ -198,6 +198,8 @@ Listing _existingListing({int id = 5, List<ListingImage> images = const []}) =>
       price: 12.5,
       quantity: '3 jars',
       address: 'Krakow',
+      lat: 50.0647,
+      lng: 19.945,
       contactPhone: '123456789',
       contactEmail: 'seller@example.com',
       isHidden: false,
@@ -657,6 +659,8 @@ void main() {
         find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
         '123456789',
       );
+      _setLocationFields(tester, l10n);
+      await tester.pump();
     }
 
     testWidgets(
@@ -788,6 +792,59 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text(l10n.marketplaceContactRequired), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'blocks submission and shows an error when no location has been picked',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+          'Wildflower Honey',
+        );
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+          '42.50',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+          '123456789',
+        );
+
+        final saveFinder = find.widgetWithText(
+          ElevatedButton,
+          l10n.generalSave,
+        );
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceLocationRequired), findsOneWidget);
+        final createRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'POST',
+        );
+        expect(createRequests, isEmpty);
+
+        _setLocationFields(tester, l10n);
+        await tester.pump();
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceLocationRequired), findsNothing);
+        final createRequestsAfter = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'POST',
+        );
+        expect(createRequestsAfter, hasLength(1));
       },
     );
   });
@@ -1038,4 +1095,24 @@ Future<void> _fillRequiredFieldsStandalone(
     find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
     '123456789',
   );
+  _setLocationFields(tester, l10n);
+  await tester.pump();
+}
+
+/// Sets the (disabled, picker-only) latitude/longitude fields directly via
+/// their controllers — mirrors what `_setLocation` does internally when the
+/// user taps GPS or picks a point on the map, which aren't drivable here.
+void _setLocationFields(WidgetTester tester, AppLocalizations l10n) {
+  tester
+      .widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldLatitude),
+      )
+      .controller!
+      .text = '52.229700';
+  tester
+      .widget<TextFormField>(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldLongitude),
+      )
+      .controller!
+      .text = '21.012200';
 }

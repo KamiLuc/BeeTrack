@@ -42,6 +42,8 @@ void main() {
         'price': 12.5,
         'quantity': '10 jars',
         'address': 'Warsaw',
+        'lat': 52.2297,
+        'lng': 21.0122,
         'apiary_id': 7,
         'apiary_name': 'Home Apiary',
         'contact_phone': '123456789',
@@ -49,6 +51,7 @@ void main() {
         'is_hidden': false,
         'created_at': '2024-02-01T08:30:00Z',
         'updated_at': '2024-02-02T09:00:00Z',
+        'distance_km': 3.25,
         'images': [
           {
             'id': 1,
@@ -68,6 +71,8 @@ void main() {
       expect(listing.price, 12.5);
       expect(listing.quantity, '10 jars');
       expect(listing.address, 'Warsaw');
+      expect(listing.lat, 52.2297);
+      expect(listing.lng, 21.0122);
       expect(listing.apiaryId, 7);
       expect(listing.apiaryName, 'Home Apiary');
       expect(listing.contactPhone, '123456789');
@@ -77,6 +82,7 @@ void main() {
       expect(listing.updatedAt, DateTime.parse('2024-02-02T09:00:00Z').toLocal());
       expect(listing.images.length, 1);
       expect(listing.images.first.id, 1);
+      expect(listing.distanceKm, 3.25);
     });
 
     test('handles null price, apiary, and empty images', () {
@@ -105,6 +111,9 @@ void main() {
       expect(listing.description, '');
       expect(listing.isHidden, true);
       expect(listing.images, isEmpty);
+      expect(listing.lat, 0);
+      expect(listing.lng, 0);
+      expect(listing.distanceKm, isNull);
     });
 
     test('parses integer price as double', () {

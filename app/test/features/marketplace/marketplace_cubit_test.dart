@@ -31,6 +31,8 @@ Listing _listing(int id) => Listing(
   category: 'HONEY',
   quantity: '',
   address: '',
+  lat: 0,
+  lng: 0,
   contactPhone: '',
   contactEmail: '',
   isHidden: false,
@@ -248,6 +250,51 @@ void main() {
             priceMin: 10,
             priceMax: 50,
             postedAfter: any(named: 'postedAfter'),
+            limit: any(named: 'limit'),
+          ),
+        ).called(1);
+      },
+    );
+  });
+
+  group('applyFilters distance', () {
+    blocTest<MarketplaceCubit, MarketplaceState>(
+      'sets nearLat/nearLng/radiusKm and reloads exactly once',
+      build: () {
+        when(
+          () => repo.searchListings(
+            category: any(named: 'category'),
+            keyword: any(named: 'keyword'),
+            priceMin: any(named: 'priceMin'),
+            priceMax: any(named: 'priceMax'),
+            postedAfter: any(named: 'postedAfter'),
+            nearLat: any(named: 'nearLat'),
+            nearLng: any(named: 'nearLng'),
+            radiusKm: any(named: 'radiusKm'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => ListingSearchResult(items: [], total: 0));
+        return cubit;
+      },
+      act: (c) => c.applyFilters(nearLat: 52.2, nearLng: 21.0, radiusKm: 25),
+      expect: () => [
+        isA<MarketplaceLoading>(),
+        isA<MarketplaceLoaded>()
+            .having((s) => s.nearLat, 'nearLat', 52.2)
+            .having((s) => s.nearLng, 'nearLng', 21.0)
+            .having((s) => s.radiusKm, 'radiusKm', 25),
+      ],
+      verify: (_) {
+        verify(
+          () => repo.searchListings(
+            category: null,
+            keyword: null,
+            priceMin: null,
+            priceMax: null,
+            postedAfter: any(named: 'postedAfter'),
+            nearLat: 52.2,
+            nearLng: 21.0,
+            radiusKm: 25,
             limit: any(named: 'limit'),
           ),
         ).called(1);

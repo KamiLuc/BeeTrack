@@ -12,6 +12,8 @@ type Listing struct {
 	Price        *float64
 	Quantity     string
 	Address      string
+	Lat          float64
+	Lng          float64
 	ApiaryID     *int64
 	ContactPhone string
 	ContactEmail string
@@ -20,4 +22,5 @@ type Listing struct {
 	UpdatedAt    time.Time
 	Images       []ListingImage `gorm:"-"`
 	ApiaryName   string         `gorm:"-"`
+	DistanceKm   *float64       `gorm:"-"`
 }

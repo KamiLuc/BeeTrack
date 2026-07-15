@@ -546,13 +546,20 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   │   in: shows the full drawer + profile icon when signed in, or a simpler drawer
   │   with a "Log in" option when browsing as a visitor. Cards for your own listings
   │   never show the favorite heart.
+  │   Tune-icon button next to the category dropdown opens a Filters bottom sheet:
+  │   price range (min/max), "posted within" (Any time/Today/7/14/30 days), and a
+  │   Distance section ("Use my location" GPS button + a radius dropdown of
+  │   5/10/25/50/100km, disabled until a location is obtained). Filters apply once
+  │   when the sheet closes. When the distance filter is active, cards show "X km away".
   │   Bottom amber banner (signed-in only): + (add) → CreateListingScreen; list icon
   │   → MyListingsScreen (only shown once you have listings); bookmark icon →
   │   FavoritesScreen; map button present but disabled (no handler wired up yet).
   ├── CreateListingScreen (banner + button, or edit button on a listing you own)
   │   │   Same form doubles as create and edit: takes an optional `existingListing`;
   │   │   when set, fields are prefilled and existing images can be deleted alongside
-  │   │   picking new ones.
+  │   │   picking new ones. A location (via GPS or a map pin picker, the same pattern
+  │   │   used on the apiary form) is required and independent of the optional linked
+  │   │   apiary; submission is blocked with an inline error until a location is set.
   ├── MyListingsScreen (list icon in bottom banner, signed-in only)
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card

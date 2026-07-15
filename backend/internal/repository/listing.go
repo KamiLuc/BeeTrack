@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -15,8 +16,28 @@ type ListingFilter struct {
 	PriceMax    *float64
 	PostedAfter *string
 	OwnerUserID *int64
+	NearLat     *float64
+	NearLng     *float64
+	RadiusKm    *float64
 	Limit       int
 	Offset      int
+}
+
+// hasNearFilter reports whether f carries a complete distance filter — all of
+// NearLat, NearLng, and RadiusKm must be set together, otherwise it's ignored.
+func (f ListingFilter) hasNearFilter() bool {
+	return f.NearLat != nil && f.NearLng != nil && f.RadiusKm != nil
+}
+
+// haversineKmExpr builds a SQL expression computing the great-circle distance in
+// kilometers between (NearLat, NearLng) and the row's lat/lng columns (prefixed by p).
+// Returns the expression and its three bind params (lat, lng, lat), in that order.
+func (f ListingFilter) haversineKmExpr(p string) (string, []any) {
+	expr := fmt.Sprintf(
+		"6371 * acos(cos(radians(?)) * cos(radians(%[1]slat)) * cos(radians(%[1]slng) - radians(?)) + sin(radians(?)) * sin(radians(%[1]slat)))",
+		p,
+	)
+	return expr, []any{*f.NearLat, *f.NearLng, *f.NearLat}
 }
 
 // ListingRepository persists marketplace listings and their images.
@@ -79,19 +100,30 @@ func (r *ListingRepository) Count(ctx context.Context, f ListingFilter) (int64, 
 	return count, err
 }
 
-// List returns listings matching the filter, ordered by created_at descending with pagination.
+// List returns listings matching the filter, ordered by distance ascending when a
+// near-filter is active, otherwise by created_at descending; with pagination.
 func (r *ListingRepository) List(ctx context.Context, f ListingFilter) ([]*model.Listing, error) {
 	type row struct {
 		model.Listing
-		ApiaryName string `gorm:"column:apiary_name"`
+		ApiaryName string   `gorm:"column:apiary_name"`
+		DistanceKm *float64 `gorm:"column:distance_km"`
 	}
 	var rows []row
+	selectCols := "l.*, a.name AS apiary_name"
+	orderBy := "l.created_at DESC"
+	var selectArgs []any
+	if f.hasNearFilter() {
+		distanceExpr, args := f.haversineKmExpr("l.")
+		selectCols += ", " + distanceExpr + " AS distance_km"
+		selectArgs = args
+		orderBy = "distance_km ASC"
+	}
 	q := r.db.WithContext(ctx).
 		Table("listings l").
-		Select("l.*, a.name AS apiary_name").
+		Select(selectCols, selectArgs...).
 		Joins("LEFT JOIN apiaries a ON a.id = l.apiary_id")
 	q = r.applyFilterAliased(q, f)
-	err := q.Order("l.created_at DESC").
+	err := q.Order(orderBy).
 		Limit(f.Limit).
 		Offset(f.Offset).
 		Find(&rows).Error
@@ -103,6 +135,7 @@ func (r *ListingRepository) List(ctx context.Context, f ListingFilter) ([]*model
 	for i, row := range rows {
 		l := row.Listing
 		l.ApiaryName = row.ApiaryName
+		l.DistanceKm = row.DistanceKm
 		listings[i] = &l
 		ids[i] = l.ID
 	}
@@ -127,6 +160,8 @@ func (r *ListingRepository) Update(ctx context.Context, l *model.Listing) error 
 			"price":         l.Price,
 			"quantity":      l.Quantity,
 			"address":       l.Address,
+			"lat":           l.Lat,
+			"lng":           l.Lng,
 			"apiary_id":     l.ApiaryID,
 			"contact_phone": l.ContactPhone,
 			"contact_email": l.ContactEmail,
@@ -262,6 +297,10 @@ func (r *ListingRepository) buildFilter(q *gorm.DB, f ListingFilter, p string) *
 	}
 	if f.PostedAfter != nil {
 		q = q.Where(p+"created_at >= ?", *f.PostedAfter)
+	}
+	if f.hasNearFilter() {
+		distanceExpr, args := f.haversineKmExpr(p)
+		q = q.Where(distanceExpr+" <= ?", append(args, *f.RadiusKm)...)
 	}
 	return q
 }

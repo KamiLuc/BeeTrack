@@ -74,9 +74,12 @@ func newListingSvc(store *mockListingStore) *ListingService {
 }
 
 func validListingParams() ListingParams {
+	lat, lng := 52.2297, 21.0122
 	return ListingParams{
 		Title:    "Raw wildflower honey",
 		Category: "HONEY",
+		Lat:      &lat,
+		Lng:      &lng,
 	}
 }
 
@@ -309,6 +312,56 @@ func TestListingCreate_KeepsExplicitPrice(t *testing.T) {
 	}
 	if l.Price == nil || *l.Price != 12.5 {
 		t.Errorf("expected price 12.5, got %v", l.Price)
+	}
+}
+
+func TestListingCreate_MissingLocation(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	params := validListingParams()
+	params.Lat = nil
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrListingLocationRequired {
+		t.Errorf("expected ErrListingLocationRequired, got %v", err)
+	}
+
+	params = validListingParams()
+	params.Lng = nil
+	_, err = svc.Create(context.Background(), 1, params)
+	if err != ErrListingLocationRequired {
+		t.Errorf("expected ErrListingLocationRequired, got %v", err)
+	}
+}
+
+func TestListingCreate_InvalidGPS(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	badLat := 91.0
+	params := validListingParams()
+	params.Lat = &badLat
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrInvalidGPS {
+		t.Errorf("expected ErrInvalidGPS for lat=91, got %v", err)
+	}
+
+	badLng := -181.0
+	params = validListingParams()
+	params.Lng = &badLng
+	_, err = svc.Create(context.Background(), 1, params)
+	if err != ErrInvalidGPS {
+		t.Errorf("expected ErrInvalidGPS for lng=-181, got %v", err)
+	}
+}
+
+func TestListingUpdate_MissingLocation(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.Lat = nil
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrListingLocationRequired {
+		t.Errorf("expected ErrListingLocationRequired, got %v", err)
 	}
 }
 

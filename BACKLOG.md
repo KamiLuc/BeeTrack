@@ -173,7 +173,7 @@
 | MKT-FE-08 | `FE`  | `[x]`  | Price range filter       | Landed as two min/max text inputs (positive numbers only), not a slider; moved into a "Filters" bottom sheet (tune-icon button next to the category dropdown) so it doesn't clutter the home screen |
 | MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
 | MKT-FE-10 | `FE`  | `[x]`  | Date range filter        | Landed as a "posted within" dropdown (Any time/Today/7/14/30 days), not a date picker; lives in the same Filters bottom sheet as the price filter. Filters apply once when the sheet closes, not per keystroke/selection |
-| MKT-FE-11 | `FE`  | `[ ]`  | Distance/location filter | If user location available, show radius filter; else disable |
+| MKT-FE-11 | `FE`  | `[x]`  | Distance/location filter | Went further than the original ticket ("if user location available, show radius filter; else disable"): listings now have a required lat/lng (independent of the optional `apiary_id`), set via a GPS/map location picker on the create/edit listing form (reusing the apiary form's picker, extracted into a shared `LocationPickerSection`/`MapPickerScreen` widget). Filters bottom sheet gained a "Use my location" GPS button + radius dropdown (5/10/25/50/100km), disabled until a location is obtained; listing cards show "X km away" when active |
 
 ### 9.7 Frontend — Map Integration
 

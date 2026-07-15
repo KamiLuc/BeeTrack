@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/beetrack/backend/internal/middleware"
@@ -31,6 +32,8 @@ type listingRequest struct {
 	Price        *float64 `json:"price"`
 	Quantity     string   `json:"quantity"`
 	Address      string   `json:"address"`
+	Lat          *float64 `json:"lat"`
+	Lng          *float64 `json:"lng"`
 	ApiaryID     *int64   `json:"apiary_id"`
 	ContactPhone string   `json:"contact_phone"`
 	ContactEmail string   `json:"contact_email"`
@@ -45,6 +48,8 @@ func (req listingRequest) toParams() service.ListingParams {
 		Price:        req.Price,
 		Quantity:     req.Quantity,
 		Address:      req.Address,
+		Lat:          req.Lat,
+		Lng:          req.Lng,
 		ApiaryID:     req.ApiaryID,
 		ContactPhone: req.ContactPhone,
 		ContactEmail: req.ContactEmail,
@@ -84,6 +89,9 @@ func listingJSON(l *model.Listing) map[string]any {
 		"price":         l.Price,
 		"quantity":      l.Quantity,
 		"address":       l.Address,
+		"lat":           l.Lat,
+		"lng":           l.Lng,
+		"distance_km":   l.DistanceKm,
 		"apiary_id":     l.ApiaryID,
 		"apiary_name":   apiaryName,
 		"contact_phone": l.ContactPhone,
@@ -117,6 +125,10 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "QUANTITY_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingAddressTooLong):
 		respond.Error(w, http.StatusBadRequest, "ADDRESS_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrListingLocationRequired):
+		respond.Error(w, http.StatusBadRequest, "LOCATION_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrInvalidGPS):
+		respond.Error(w, http.StatusBadRequest, "INVALID_GPS", err.Error())
 	case errors.Is(err, service.ErrListingContactPhoneTooLong):
 		respond.Error(w, http.StatusBadRequest, "CONTACT_PHONE_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingContactEmailTooLong):
@@ -154,6 +166,11 @@ func parseListingFilter(r *http.Request) repository.ListingFilter {
 	if v := q.Get("posted_after"); v != "" {
 		f.PostedAfter = &v
 	}
+	if lat, lng, radius, ok := parseNearFilter(q); ok {
+		f.NearLat = &lat
+		f.NearLng = &lng
+		f.RadiusKm = &radius
+	}
 	if v := q.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			f.Limit = n
@@ -165,6 +182,33 @@ func parseListingFilter(r *http.Request) repository.ListingFilter {
 		}
 	}
 	return f
+}
+
+// maxRadiusKm caps the distance filter's radius so a bogus huge value can't be
+// used to force what looks like a filtered query into a full table scan.
+const maxRadiusKm = 20_000
+
+// parseNearFilter reads near_lat, near_lng, and radius_km from the query string.
+// It returns ok=false unless all three are present, parseable, and within bounds —
+// a partial or invalid distance filter is treated as no filter at all.
+func parseNearFilter(q url.Values) (lat, lng, radius float64, ok bool) {
+	latStr, lngStr, radiusStr := q.Get("near_lat"), q.Get("near_lng"), q.Get("radius_km")
+	if latStr == "" || lngStr == "" || radiusStr == "" {
+		return 0, 0, 0, false
+	}
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil || lat < -90 || lat > 90 {
+		return 0, 0, 0, false
+	}
+	lng, err = strconv.ParseFloat(lngStr, 64)
+	if err != nil || lng < -180 || lng > 180 {
+		return 0, 0, 0, false
+	}
+	radius, err = strconv.ParseFloat(radiusStr, 64)
+	if err != nil || radius <= 0 || radius > maxRadiusKm {
+		return 0, 0, 0, false
+	}
+	return lat, lng, radius, true
 }
 
 // Create handles POST /api/v1/listings — creates a new listing.

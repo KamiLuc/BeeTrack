@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/validation/gps_bounds.dart';
 import '../../../core/validation/size_tiers.dart';
+import '../../../core/widgets/location_picker_section.dart';
+import '../../../core/widgets/map_picker_screen.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -14,7 +16,6 @@ import '../cubit/apiaries_cubit.dart';
 import '../data/apiary_model.dart';
 import '../data/apiary_repository.dart';
 import 'apiary_form_widgets.dart';
-import 'map_picker_screen.dart';
 
 class EditApiaryScreen extends StatelessWidget {
   final Apiary apiary;
@@ -234,13 +235,26 @@ class _EditApiaryViewState extends State<_EditApiaryView> {
                           ),
                         ],
                         const SizedBox(height: 24),
-                        ApiaryLocationSection(
+                        LocationPickerSection(
                           latController: _latController,
                           lngController: _lngController,
+                          latLabel: l10n.apiaryLatitude,
+                          lngLabel: l10n.apiaryLongitude,
                           locating: _locating,
                           onGps: () => _useGps(l10n),
                           onMap: _pickOnMap,
-                          l10n: l10n,
+                          latValidator: (v) => validateSizeTier(
+                            v,
+                            SizeTier.small,
+                            l10n.apiaryLatitude,
+                            l10n,
+                          ),
+                          lngValidator: (v) => validateSizeTier(
+                            v,
+                            SizeTier.small,
+                            l10n.apiaryLongitude,
+                            l10n,
+                          ),
                         ),
                         const SizedBox(height: 32),
                         Center(

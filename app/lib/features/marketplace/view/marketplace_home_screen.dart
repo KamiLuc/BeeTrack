@@ -3,13 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/gps_bounds.dart';
 import '../../../core/widgets/app_drawer.dart';
+import '../../../core/widgets/location_picker_section.dart';
+import '../../../core/widgets/map_picker_screen.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
 import '../../../l10n/app_localizations.dart';
@@ -359,6 +364,9 @@ class _PendingFilters {
   double? min;
   double? max;
   int? days;
+  double? nearLat;
+  double? nearLng;
+  double? radiusKm;
 }
 
 class _FiltersButton extends StatelessWidget {
@@ -372,10 +380,22 @@ class _FiltersButton extends StatelessWidget {
     final initialDays = current is MarketplaceLoaded
         ? current.postedWithinDays
         : null;
+    final initialNearLat = current is MarketplaceLoaded
+        ? current.nearLat
+        : null;
+    final initialNearLng = current is MarketplaceLoaded
+        ? current.nearLng
+        : null;
+    final initialRadiusKm = current is MarketplaceLoaded
+        ? current.radiusKm
+        : null;
     final pending = _PendingFilters()
       ..min = initialMin
       ..max = initialMax
-      ..days = initialDays;
+      ..days = initialDays
+      ..nearLat = initialNearLat
+      ..nearLng = initialNearLng
+      ..radiusKm = initialRadiusKm;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -386,12 +406,18 @@ class _FiltersButton extends StatelessWidget {
     final changed =
         pending.min != initialMin ||
         pending.max != initialMax ||
-        pending.days != initialDays;
+        pending.days != initialDays ||
+        pending.nearLat != initialNearLat ||
+        pending.nearLng != initialNearLng ||
+        pending.radiusKm != initialRadiusKm;
     if (changed) {
       cubit.applyFilters(
         priceMin: pending.min,
         priceMax: pending.max,
         postedWithinDays: pending.days,
+        nearLat: pending.nearLat,
+        nearLng: pending.nearLng,
+        radiusKm: pending.radiusKm,
       );
     }
   }
@@ -404,45 +430,31 @@ class _FiltersButton extends StatelessWidget {
         state is MarketplaceLoaded &&
         (state.priceMin != null ||
             state.priceMax != null ||
-            state.postedWithinDays != null);
+            state.postedWithinDays != null ||
+            state.radiusKm != null);
+
+    final textColor = active
+        ? Theme.of(context).colorScheme.primary
+        : Colors.black;
 
     return Padding(
       padding: const EdgeInsets.only(right: 16),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          SizedBox(
-            height: 48,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.outline),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () => _openFilters(context),
-              icon: const Icon(Icons.tune, size: 18),
-              label: Text(l10n.marketplaceFiltersButton),
+      child: SizedBox(
+        height: 48,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.outline),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          if (active)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.surface,
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-        ],
+          onPressed: () => _openFilters(context),
+          icon: Icon(Icons.tune, size: 18, color: textColor),
+          label: Text(
+            l10n.marketplaceFiltersButton,
+            style: TextStyle(color: textColor),
+          ),
+        ),
       ),
     );
   }
@@ -474,13 +486,83 @@ class _FiltersSheetState extends State<_FiltersSheet> {
   late final _maxController = TextEditingController(
     text: _formatPrice(widget.pending.max),
   );
+  late final _latController = TextEditingController(
+    text: _formatCoord(widget.pending.nearLat),
+  );
+  late final _lngController = TextEditingController(
+    text: _formatCoord(widget.pending.nearLng),
+  );
   late int? _days = widget.pending.days;
+  late double? _radiusKm = widget.pending.radiusKm;
+  bool _locating = false;
 
   @override
   void dispose() {
     _minController.dispose();
     _maxController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
     super.dispose();
+  }
+
+  LatLng? get _location {
+    final lat = double.tryParse(_latController.text);
+    final lng = double.tryParse(_lngController.text);
+    if (lat != null && lng != null) return LatLng(lat, lng);
+    return null;
+  }
+
+  void _setLocation(LatLng loc) {
+    _latController.text = clampLatitude(loc.latitude).toStringAsFixed(6);
+    _lngController.text = clampLongitude(loc.longitude).toStringAsFixed(6);
+    widget.pending.nearLat = clampLatitude(loc.latitude);
+    widget.pending.nearLng = clampLongitude(loc.longitude);
+  }
+
+  Future<void> _useMyLocation() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _locating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showLocationError(l10n);
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showLocationError(l10n);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      setState(() => _setLocation(LatLng(pos.latitude, pos.longitude)));
+    } catch (_) {
+      _showLocationError(l10n);
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _pickOnMap() async {
+    final result = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(builder: (_) => MapPickerScreen(initial: _location)),
+    );
+    if (result != null) setState(() => _setLocation(result));
+  }
+
+  void _showLocationError(AppLocalizations l10n) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.marketplaceGpsUnavailable)));
+  }
+
+  void _onRadiusChanged(double? radiusKm) {
+    setState(() => _radiusKm = radiusKm);
+    widget.pending.radiusKm = radiusKm;
   }
 
   String _formatPrice(double? value) {
@@ -489,6 +571,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
         ? value.toStringAsFixed(0)
         : value.toStringAsFixed(2);
   }
+
+  String _formatCoord(double? value) =>
+      value == null ? '' : value.toStringAsFixed(6);
 
   double? _parse(String value) {
     final trimmed = value.trim();
@@ -510,10 +595,16 @@ class _FiltersSheetState extends State<_FiltersSheet> {
       _minController.clear();
       _maxController.clear();
       _days = null;
+      _latController.clear();
+      _lngController.clear();
+      _radiusKm = null;
     });
     widget.pending.min = null;
     widget.pending.max = null;
     widget.pending.days = null;
+    widget.pending.nearLat = null;
+    widget.pending.nearLng = null;
+    widget.pending.radiusKm = null;
   }
 
   @override
@@ -590,6 +681,30 @@ class _FiltersSheetState extends State<_FiltersSheet> {
               ),
             ),
             _PostedWithinDropdown(value: _days, onChanged: _onDaysChanged),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Text(
+                l10n.marketplaceDistanceLabel,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: LocationPickerSection(
+                latController: _latController,
+                lngController: _lngController,
+                latLabel: l10n.marketplaceFieldLatitude,
+                lngLabel: l10n.marketplaceFieldLongitude,
+                locating: _locating,
+                onGps: _useMyLocation,
+                onMap: _pickOnMap,
+              ),
+            ),
+            _RadiusDropdown(
+              value: _radiusKm,
+              enabled: _location != null,
+              onChanged: _onRadiusChanged,
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -653,6 +768,76 @@ class _PostedWithinDropdown extends StatelessWidget {
           items: [
             for (final days in const [null, 1, 7, 14, 30])
               DropdownMenuItem(value: days, child: postedWithinItem(days)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RadiusDropdown extends StatelessWidget {
+  final double? value;
+  final bool enabled;
+  final ValueChanged<double?> onChanged;
+
+  const _RadiusDropdown({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    String label(double? radiusKm) {
+      return switch (radiusKm) {
+        null => l10n.marketplaceDistanceAny,
+        5 => l10n.marketplaceDistance5Km,
+        10 => l10n.marketplaceDistance10Km,
+        25 => l10n.marketplaceDistance25Km,
+        50 => l10n.marketplaceDistance50Km,
+        100 => l10n.marketplaceDistance100Km,
+        _ => l10n.marketplaceDistanceAny,
+      };
+    }
+
+    Widget radiusItem(double? radiusKm) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [Text(label(radiusKm))],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.outline),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButton<double?>(
+          isExpanded: true,
+          value: enabled ? value : null,
+          underline: const SizedBox(),
+          onChanged: enabled
+              ? (radiusKm) {
+                  FocusScope.of(context).unfocus();
+                  onChanged(radiusKm);
+                }
+              : null,
+          selectedItemBuilder: (BuildContext context) {
+            return [
+              for (final radiusKm in const [null, 5.0, 10.0, 25.0, 50.0, 100.0])
+                radiusItem(radiusKm),
+            ];
+          },
+          items: [
+            for (final radiusKm in const [null, 5.0, 10.0, 25.0, 50.0, 100.0])
+              DropdownMenuItem(value: radiusKm, child: radiusItem(radiusKm)),
           ],
         ),
       ),
@@ -754,6 +939,18 @@ class _ListingsFeedState extends State<_ListingsFeed> {
   }
 }
 
+/// Combines the listing's address and distance onto a single line so a
+/// fixed-height card doesn't overflow when both are present.
+String? _addressLine(Listing listing, AppLocalizations l10n) {
+  final distance = listing.distanceKm != null
+      ? l10n.marketplaceDistanceAway(listing.distanceKm!.toStringAsFixed(1))
+      : null;
+  if (listing.address.isNotEmpty && distance != null) {
+    return '${listing.address} • $distance';
+  }
+  return distance ?? (listing.address.isNotEmpty ? listing.address : null);
+}
+
 class _ListingCard extends StatelessWidget {
   final Listing listing;
   final bool isFavorite;
@@ -810,9 +1007,9 @@ class _ListingCard extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (listing.address.isNotEmpty)
+                                if (_addressLine(listing, l10n) != null)
                                   Text(
-                                    listing.address,
+                                    _addressLine(listing, l10n)!,
                                     style: textTheme.bodySmall?.copyWith(
                                       color: colorScheme.onSurfaceVariant,
                                     ),

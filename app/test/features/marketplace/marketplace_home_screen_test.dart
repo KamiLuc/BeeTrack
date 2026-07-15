@@ -69,6 +69,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
     int? mineTotal,
     this.itemsPerPage = 1,
     this.favoritesCount = 0,
+    this.distanceKm,
   }) : mineTotal = mineTotal ?? total;
 
   final double? price;
@@ -76,6 +77,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
   final int mineTotal;
   final int itemsPerPage;
   final int favoritesCount;
+  final double? distanceKm;
   int listingsRequestCount = 0;
   final List<RequestOptions> listingsRequests = [];
 
@@ -119,6 +121,7 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
                 'created_at': DateTime(2026, 1, 1).toIso8601String(),
                 'updated_at': DateTime(2026, 1, 1).toIso8601String(),
                 'images': [],
+                if (distanceKm != null) 'distance_km': distanceKm,
               },
           ],
           'total': pageTotal,
@@ -927,6 +930,61 @@ void main() {
         expect(find.text('Max price'), findsOneWidget);
         expect(find.widgetWithText(TextButton, 'Clear filters'), findsOneWidget);
         expect(find.text('Any time'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Filters sheet shows a Distance section with a disabled radius '
+      'dropdown until a location is set',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Distance'), findsOneWidget);
+        expect(find.text('Latitude'), findsOneWidget);
+        expect(find.text('Longitude'), findsOneWidget);
+        expect(find.text('GPS'), findsOneWidget);
+        expect(find.text('Mapa'), findsOneWidget);
+        expect(find.text('Any distance'), findsOneWidget);
+
+        final dropdown = tester.widget<DropdownButton<double?>>(
+          find.byType(DropdownButton<double?>),
+        );
+        expect(dropdown.onChanged, isNull);
+      },
+    );
+
+    testWidgets(
+      'shows "km away" on a listing card when the listing carries a '
+      'distanceKm',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings(
+          adapter: _ListingsHttpClientAdapter(distanceKm: 3.2),
+        );
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Krakow • 3.2 km away'), findsOneWidget);
       },
     );
 

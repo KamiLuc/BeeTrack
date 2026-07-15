@@ -31,6 +31,8 @@ class Listing {
   final double? price;
   final String quantity;
   final String address;
+  final double lat;
+  final double lng;
   final int? apiaryId;
   final String? apiaryName;
   final String contactPhone;
@@ -39,6 +41,7 @@ class Listing {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<ListingImage> images;
+  final double? distanceKm;
 
   const Listing({
     required this.id,
@@ -49,6 +52,8 @@ class Listing {
     this.price,
     required this.quantity,
     required this.address,
+    required this.lat,
+    required this.lng,
     this.apiaryId,
     this.apiaryName,
     required this.contactPhone,
@@ -57,6 +62,7 @@ class Listing {
     required this.createdAt,
     required this.updatedAt,
     required this.images,
+    this.distanceKm,
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) => Listing(
@@ -68,6 +74,8 @@ class Listing {
         price: (json['price'] as num?)?.toDouble(),
         quantity: json['quantity'] as String? ?? '',
         address: json['address'] as String? ?? '',
+        lat: (json['lat'] as num?)?.toDouble() ?? 0,
+        lng: (json['lng'] as num?)?.toDouble() ?? 0,
         apiaryId: json['apiary_id'] as int?,
         apiaryName: json['apiary_name'] as String?,
         contactPhone: json['contact_phone'] as String? ?? '',
@@ -78,5 +86,6 @@ class Listing {
         images: (json['images'] as List<dynamic>? ?? [])
             .map((e) => ListingImage.fromJson(e as Map<String, dynamic>))
             .toList(),
+        distanceKm: (json['distance_km'] as num?)?.toDouble(),
       );
 }

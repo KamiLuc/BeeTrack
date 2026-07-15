@@ -208,6 +208,8 @@ Listing _listing({
   price: price,
   quantity: '10 jars',
   address: 'Krakow',
+  lat: 50.0647,
+  lng: 19.945,
   apiaryName: apiaryName,
   contactPhone: '123456789',
   contactEmail: 'seller@example.com',

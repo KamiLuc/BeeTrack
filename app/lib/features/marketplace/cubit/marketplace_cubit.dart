@@ -19,6 +19,9 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
   double? _priceMin;
   double? _priceMax;
   int? _postedWithinDays;
+  double? _nearLat;
+  double? _nearLng;
+  double? _radiusKm;
 
   MarketplaceCubit({
     required ListingRepository repo,
@@ -65,6 +68,9 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         priceMin: _priceMin,
         priceMax: _priceMax,
         postedAfter: _postedAfter,
+        nearLat: _nearLat,
+        nearLng: _nearLng,
+        radiusKm: _radiusKm,
         limit: _pageSize,
         offset: 0,
       );
@@ -80,6 +86,9 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
           priceMin: _priceMin,
           priceMax: _priceMax,
           postedWithinDays: _postedWithinDays,
+          nearLat: _nearLat,
+          nearLng: _nearLng,
+          radiusKm: _radiusKm,
           favoriteIds: favoriteIds,
           hasOwnListings: hasOwnListings,
         ),
@@ -104,6 +113,9 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         priceMin: _priceMin,
         priceMax: _priceMax,
         postedAfter: _postedAfter,
+        nearLat: _nearLat,
+        nearLng: _nearLng,
+        radiusKm: _radiusKm,
         limit: _pageSize,
         offset: current.items.length,
       );
@@ -146,10 +158,16 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
     double? priceMin,
     double? priceMax,
     int? postedWithinDays,
+    double? nearLat,
+    double? nearLng,
+    double? radiusKm,
   }) {
     _priceMin = priceMin;
     _priceMax = priceMax;
     _postedWithinDays = postedWithinDays;
+    _nearLat = nearLat;
+    _nearLng = nearLng;
+    _radiusKm = radiusKm;
     load();
   }
 

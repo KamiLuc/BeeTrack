@@ -614,6 +614,60 @@ abstract class AppLocalizations {
   /// **'Ostatnie 30 dni'**
   String get marketplacePostedWithin30Days;
 
+  /// No description provided for @marketplaceDistanceLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odległość'**
+  String get marketplaceDistanceLabel;
+
+  /// No description provided for @marketplaceGpsUnavailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'GPS niedostępny na tym urządzeniu'**
+  String get marketplaceGpsUnavailable;
+
+  /// No description provided for @marketplaceDistanceAny.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dowolna odległość'**
+  String get marketplaceDistanceAny;
+
+  /// No description provided for @marketplaceDistance5Km.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do 5 km'**
+  String get marketplaceDistance5Km;
+
+  /// No description provided for @marketplaceDistance10Km.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do 10 km'**
+  String get marketplaceDistance10Km;
+
+  /// No description provided for @marketplaceDistance25Km.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do 25 km'**
+  String get marketplaceDistance25Km;
+
+  /// No description provided for @marketplaceDistance50Km.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do 50 km'**
+  String get marketplaceDistance50Km;
+
+  /// No description provided for @marketplaceDistance100Km.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do 100 km'**
+  String get marketplaceDistance100Km;
+
+  /// No description provided for @marketplaceDistanceAway.
+  ///
+  /// In pl, this message translates to:
+  /// **'{km} km stąd'**
+  String marketplaceDistanceAway(String km);
+
   /// No description provided for @marketplacePriceOnRequest.
   ///
   /// In pl, this message translates to:
@@ -829,6 +883,24 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Adres'**
   String get marketplaceFieldAddress;
+
+  /// No description provided for @marketplaceFieldLatitude.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szerokość geograficzna'**
+  String get marketplaceFieldLatitude;
+
+  /// No description provided for @marketplaceFieldLongitude.
+  ///
+  /// In pl, this message translates to:
+  /// **'Długość geograficzna'**
+  String get marketplaceFieldLongitude;
+
+  /// No description provided for @marketplaceLocationRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz lokalizację na mapie lub użyj GPS'**
+  String get marketplaceLocationRequired;
 
   /// No description provided for @marketplaceFieldPhone.
   ///

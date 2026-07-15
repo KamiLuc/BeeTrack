@@ -30,6 +30,7 @@ var (
 	ErrListingContactPhoneTooLong = fmt.Errorf("contact phone must be at most %d characters", validation.SuperSmall.MaxLength())
 	ErrListingContactEmailTooLong = fmt.Errorf("contact email must be at most %d characters", validation.Medium.MaxLength())
 	ErrListingPriceTooLarge       = errors.New("price must be less than 100,000,000")
+	ErrListingLocationRequired    = errors.New("location (lat/lng) is required")
 	ErrNotListingOwner            = errors.New("not the listing owner")
 )
 
@@ -74,6 +75,8 @@ type ListingParams struct {
 	Price        *float64
 	Quantity     string
 	Address      string
+	Lat          *float64
+	Lng          *float64
 	ApiaryID     *int64
 	ContactPhone string
 	ContactEmail string
@@ -101,6 +104,12 @@ func validateListingParams(p ListingParams) error {
 	}
 	if validation.TooLong(p.Address, validation.Medium) {
 		return ErrListingAddressTooLong
+	}
+	if p.Lat == nil || p.Lng == nil {
+		return ErrListingLocationRequired
+	}
+	if !validGPS(p.Lat, p.Lng) {
+		return ErrInvalidGPS
 	}
 	if validation.TooLong(p.ContactPhone, validation.SuperSmall) {
 		return ErrListingContactPhoneTooLong
@@ -161,6 +170,8 @@ func (s *ListingService) Create(ctx context.Context, userID int64, params Listin
 		Price:        defaultPrice(params.Price),
 		Quantity:     params.Quantity,
 		Address:      params.Address,
+		Lat:          *params.Lat,
+		Lng:          *params.Lng,
 		ApiaryID:     params.ApiaryID,
 		ContactPhone: params.ContactPhone,
 		ContactEmail: params.ContactEmail,
@@ -219,6 +230,8 @@ func (s *ListingService) Update(ctx context.Context, userID, listingID int64, pa
 	l.Price = defaultPrice(params.Price)
 	l.Quantity = params.Quantity
 	l.Address = params.Address
+	l.Lat = *params.Lat
+	l.Lng = *params.Lng
 	l.ApiaryID = params.ApiaryID
 	l.ContactPhone = params.ContactPhone
 	l.ContactEmail = params.ContactEmail

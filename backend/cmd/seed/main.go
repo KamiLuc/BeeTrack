@@ -19,12 +19,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -170,9 +174,11 @@ func ensureUser(ctx context.Context, repo *repository.UserRepository, email, pas
 
 func seedApiaries(ctx context.Context, repo *repository.ApiaryRepository, ownerID int64) []*model.Apiary {
 	krakowLat, krakowLng := 50.0647, 19.9450
+	zakopaneLat, zakopaneLng := 49.2992, 19.9496
 	specs := []*model.Apiary{
 		{OwnerUserID: ownerID, Name: "Pasieka Słoneczna", Lat: &krakowLat, Lng: &krakowLng, GridRows: 4, GridCols: 5},
 		{OwnerUserID: ownerID, Name: "Pasieka Leśna", GridRows: 2, GridCols: 10},
+		{OwnerUserID: ownerID, Name: "Pasieka Górska", Lat: &zakopaneLat, Lng: &zakopaneLng, GridRows: 3, GridCols: 3},
 	}
 	for _, a := range specs {
 		if err := repo.Create(ctx, a, "owner"); err != nil {
@@ -343,6 +349,58 @@ func seedHarvests(ctx context.Context, repo *repository.HarvestRepository, hive 
 	return 1
 }
 
+// cityCoords maps each city name used in the seeded listings' Address field to
+// its real-world coordinates, so the distance filter has something meaningful
+// to filter/sort by.
+var cityCoords = map[string][2]float64{
+	"Kraków":    {50.0647, 19.9450},
+	"Wieliczka": {49.9880, 20.0561},
+	"Tarnów":    {50.0121, 20.9858},
+	"Bochnia":   {49.9702, 20.4310},
+	"Zakopane":  {49.2992, 19.9496},
+	"Lublin":    {51.2465, 22.5684},
+	"Nowy Sącz": {49.6221, 20.6906},
+}
+
+var quantityCountRe = regexp.MustCompile(`^(\d+)(.*)$`)
+
+// jitterQuantity randomly varies the leading count in a quantity string like
+// "10 słoików 0.9kg" by up to ±40% (minimum 1), so repeated seed runs don't
+// produce visually identical listings.
+func jitterQuantity(q string) string {
+	m := quantityCountRe.FindStringSubmatch(q)
+	if m == nil {
+		return q
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return q
+	}
+	delta := int(float64(n) * 0.4)
+	if delta < 1 {
+		delta = 1
+	}
+	jittered := n - delta + rand.Intn(2*delta+1)
+	if jittered < 1 {
+		jittered = 1
+	}
+	return fmt.Sprintf("%d%s", jittered, m[2])
+}
+
+// jitterPrice randomly varies base by ±15%, rounded to the nearest 0.50.
+func jitterPrice(base float64) float64 {
+	factor := 0.85 + rand.Float64()*0.3
+	return math.Round(base*factor*2) / 2
+}
+
+// jitterCoord nudges (lat, lng) by up to ~3km in a random direction, so
+// seeded listings in the same city aren't all pinned to the exact same point.
+func jitterCoord(lat, lng float64) (float64, float64) {
+	const maxDeltaDeg = 0.03
+	jitter := func(v float64) float64 { return v + (rand.Float64()*2-1)*maxDeltaDeg }
+	return jitter(lat), jitter(lng)
+}
+
 func seedListings(ctx context.Context, repo *repository.ListingRepository, userID int64, apiaries []*model.Apiary, email string) []*model.Listing {
 	price := func(v float64) *float64 { return &v }
 	specs := []*model.Listing{
@@ -379,7 +437,7 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 		{
 			Title: "Miód spadziowy leśny", Description: "Ciemny miód spadziowy z lasów iglastych, bogaty w minerały.",
 			Category: "HONEY", Price: price(45), Quantity: "8 słoików 0.9kg", Address: "Zakopane",
-			ApiaryID: &apiaries[1].ID, ContactPhone: "+48 600 100 200", ContactEmail: email,
+			ApiaryID: &apiaries[2].ID, ContactPhone: "+48 600 100 200", ContactEmail: email,
 		},
 		{
 			Title: "Miód gryczany", Description: "Intensywny miód gryczany, polecany na przeziębienie.",
@@ -409,6 +467,14 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 	}
 	for _, l := range specs {
 		l.UserID = userID
+		if coords, ok := cityCoords[l.Address]; ok {
+			l.Lat, l.Lng = jitterCoord(coords[0], coords[1])
+		}
+		if l.Price != nil {
+			jittered := jitterPrice(*l.Price)
+			l.Price = &jittered
+		}
+		l.Quantity = jitterQuantity(l.Quantity)
 		if err := repo.Create(ctx, l); err != nil {
 			log.Fatalf("create listing %q: %v", l.Title, err)
 		}

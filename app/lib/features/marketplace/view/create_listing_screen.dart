@@ -4,11 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/validation/gps_bounds.dart';
 import '../../../core/validation/size_tiers.dart';
+import '../../../core/widgets/location_picker_section.dart';
+import '../../../core/widgets/map_picker_screen.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/apiary/data/apiary_model.dart';
 import '../../../features/apiary/data/apiary_repository.dart';
@@ -37,6 +42,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final _priceController = TextEditingController();
   final _quantityController = TextEditingController();
   final _addressController = TextEditingController();
+  final _latController = TextEditingController();
+  final _lngController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
 
@@ -48,6 +55,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final Set<int> _deletingImageIds = {};
   final Map<XFile, double> _uploadProgress = {};
   bool _saving = false;
+  bool _locating = false;
   String? _submitError;
 
   @override
@@ -64,6 +72,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           : '';
       _quantityController.text = listing.quantity;
       _addressController.text = listing.address;
+      _setLocation(LatLng(listing.lat, listing.lng));
       _phoneController.text = listing.contactPhone;
       _emailController.text = listing.contactEmail;
       _category = listing.category;
@@ -78,9 +87,76 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     _priceController.dispose();
     _quantityController.dispose();
     _addressController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  LatLng? get _location {
+    final lat = double.tryParse(_latController.text);
+    final lng = double.tryParse(_lngController.text);
+    if (lat != null && lng != null) return LatLng(lat, lng);
+    return null;
+  }
+
+  void _setLocation(LatLng loc) {
+    _latController.text = clampLatitude(loc.latitude).toStringAsFixed(6);
+    _lngController.text = clampLongitude(loc.longitude).toStringAsFixed(6);
+  }
+
+  Future<void> _useGps() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _locating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showGpsError(l10n);
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showGpsError(l10n);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      setState(() => _setLocation(LatLng(pos.latitude, pos.longitude)));
+      _reviewLocationError();
+    } catch (_) {
+      _showGpsError(l10n);
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  void _showGpsError(AppLocalizations l10n) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.marketplaceGpsUnavailable)));
+  }
+
+  Future<void> _pickOnMap() async {
+    final result = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(builder: (_) => MapPickerScreen(initial: _location)),
+    );
+    if (result != null) {
+      setState(() => _setLocation(result));
+      _reviewLocationError();
+    }
+  }
+
+  void _reviewLocationError() {
+    if (_submitError == null) return;
+    if (_submitError != AppLocalizations.of(context)!.marketplaceLocationRequired) {
+      return;
+    }
+    if (_location != null) setState(() => _submitError = null);
   }
 
   Future<void> _loadApiaries() async {
@@ -194,9 +270,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final hasContact =
         _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
-    if (!formValid || _category == null || !hasContact) {
+    final location = _location;
+    if (!formValid || _category == null || !hasContact || location == null) {
       setState(() {
-        _submitError = !hasContact ? l10n.marketplaceContactRequired : null;
+        _submitError = !hasContact
+            ? l10n.marketplaceContactRequired
+            : location == null
+            ? l10n.marketplaceLocationRequired
+            : null;
       });
       return;
     }
@@ -217,6 +298,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           price: double.parse(_priceController.text.trim()),
           quantity: _quantityController.text.trim(),
           address: _addressController.text.trim(),
+          lat: location.latitude,
+          lng: location.longitude,
           apiaryId: _apiaryId,
           contactPhone: _phoneController.text.trim(),
           contactEmail: _emailController.text.trim(),
@@ -230,6 +313,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           price: double.parse(_priceController.text.trim()),
           quantity: _quantityController.text.trim(),
           address: _addressController.text.trim(),
+          lat: location.latitude,
+          lng: location.longitude,
           apiaryId: _apiaryId,
           contactPhone: _phoneController.text.trim(),
           contactEmail: _emailController.text.trim(),
@@ -413,6 +498,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       l10n.marketplaceFieldAddress,
                       l10n,
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  LocationPickerSection(
+                    latController: _latController,
+                    lngController: _lngController,
+                    latLabel: l10n.marketplaceFieldLatitude,
+                    lngLabel: l10n.marketplaceFieldLongitude,
+                    locating: _locating,
+                    onGps: _useGps,
+                    onMap: _pickOnMap,
                   ),
                   const SizedBox(height: 24),
                   Text(
