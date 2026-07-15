@@ -160,7 +160,7 @@
 | ID        | Layer | Status | Title                   | Notes                                                                                                                |
 | --------- | ----- | ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | MKT-FE-01 | `FE`  | `[x]`  | Marketplace home screen | Feed of listings with search/filter UI, category chips, map button                                                   |
-| MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button                   |
+| MKT-FE-02 | `FE`  | `[x]`  | Listing detail screen   | Full details, images carousel, contact info, apiary summary (if attached), add to favorites button. Apiary summary later extended with hive count + a "show on map" button (bee-flight-range rings, via `ApiariesMapScreen`) when the apiary has GPS — required a backend extension to `GetByID` (MKT-BE-04) joining hive count + apiary lat/lng into the listing response |
 | MKT-FE-03 | `FE`  | `[x]`  | Create listing screen   | Form: title, description, category, price, quantity, address, contact_phone, contact_email, attach apiary (optional) |
 | MKT-FE-04 | `FE`  | `[x]`  | Edit listing screen     | `CreateListingScreen` now takes an optional `existingListing` and reuses the create form (prefilled, existing-image delete + new-image add) |
 | MKT-FE-05 | `FE`  | `[x]`  | My listings screen      | `MyListingsScreen`: lists `mine=true` (incl. hidden), per-card edit/hide-show/delete only (tapping the card itself does nothing — edit is menu-only, per follow-up request); reached via icon in the bottom amber banner next to Add/Map. Edit button also added to listing detail screen when viewer is the owner (not in original scope, added per follow-up request) |
@@ -174,13 +174,14 @@
 | MKT-FE-09 | `FE`  | `[x]`  | Keyword search           | Text field, real-time or search button                       |
 | MKT-FE-10 | `FE`  | `[x]`  | Date range filter        | Landed as a "posted within" dropdown (Any time/Today/7/14/30 days), not a date picker; lives in the same Filters bottom sheet as the price filter. Filters apply once when the sheet closes, not per keystroke/selection |
 | MKT-FE-11 | `FE`  | `[x]`  | Distance/location filter | Went further than the original ticket ("if user location available, show radius filter; else disable"): listings now have a required lat/lng (independent of the optional `apiary_id`), set via a GPS/map location picker on the create/edit listing form (reusing the apiary form's picker, extracted into a shared `LocationPickerSection`/`MapPickerScreen` widget). Filters bottom sheet gained a "Use my location" GPS button + radius dropdown (5/10/25/50/100km), disabled until a location is obtained; listing cards show "X km away" when active |
+| MKT-FE-24 | `BE/FE` | `[x]`  | "Has apiary attached" filter | Checkbox in the Filters bottom sheet ("Only listings with an apiary attached"); backend `ListingFilter.HasApiary` adds `apiary_id IS NOT NULL` to the query, parsed from `has_apiary=true`. Ad-hoc request, not from the original ticket list |
 
 ### 9.7 Frontend — Map Integration
 
 | ID        | Layer | Status | Title                | Notes                                                                      |
 | --------- | ----- | ------ | --------------------- | -------------------------------------------------------------------------- |
-| MKT-FE-12 | `FE`  | `[ ]`  | Map screen           | Show listings with apiary attached as pins; tap pin to view listing        |
-| MKT-FE-13 | `FE`  | `[ ]`  | Map filters          | Filter map pins by category, price range, same filters as feed             |
+| MKT-FE-12 | `FE`  | `[ ]`  | Map screen           | Show listings with apiary attached as pins; tap pin to view listing. Reads the same `MarketplaceCubit` filter state as the feed (category/price/date/distance) rather than owning separate map filters — user sets filters, then taps map to see matching results as pins |
+| MKT-FE-13 | `FE`  | `[x]`  | ~~Map filters~~ — dropped | Decided against a separate map filter UI; folded into MKT-FE-12 (map consumes the feed's existing filter state instead of duplicating it) |
 | MKT-FE-14 | `FE`  | `[ ]`  | Distance calculation | Show distance from user to listing apiary (if location permission granted) |
 
 ### 9.8 Frontend — Image Management

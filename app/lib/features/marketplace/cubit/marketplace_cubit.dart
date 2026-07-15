@@ -22,6 +22,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
   double? _nearLat;
   double? _nearLng;
   double? _radiusKm;
+  bool _hasApiary = false;
 
   MarketplaceCubit({
     required ListingRepository repo,
@@ -71,6 +72,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         nearLat: _nearLat,
         nearLng: _nearLng,
         radiusKm: _radiusKm,
+        hasApiary: _hasApiary,
         limit: _pageSize,
         offset: 0,
       );
@@ -89,6 +91,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
           nearLat: _nearLat,
           nearLng: _nearLng,
           radiusKm: _radiusKm,
+          hasApiary: _hasApiary,
           favoriteIds: favoriteIds,
           hasOwnListings: hasOwnListings,
         ),
@@ -116,6 +119,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
         nearLat: _nearLat,
         nearLng: _nearLng,
         radiusKm: _radiusKm,
+        hasApiary: _hasApiary,
         limit: _pageSize,
         offset: current.items.length,
       );
@@ -161,6 +165,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
     double? nearLat,
     double? nearLng,
     double? radiusKm,
+    bool hasApiary = false,
   }) {
     _priceMin = priceMin;
     _priceMax = priceMax;
@@ -168,6 +173,7 @@ class MarketplaceCubit extends Cubit<MarketplaceState> {
     _nearLat = nearLat;
     _nearLng = nearLng;
     _radiusKm = radiusKm;
+    _hasApiary = hasApiary;
     load();
   }
 

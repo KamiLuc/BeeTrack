@@ -94,7 +94,9 @@
   "marketplaceComingSoon": "Coming soon",
   "marketplaceSearchHint": "Search listings",
   "marketplaceEmpty": "No listings yet",
-  "marketplaceMapTooltip": "Map view (coming soon)",
+  "marketplaceMapTooltip": "Map view",
+  "marketplaceMapTitle": "Marketplace map",
+  "marketplaceMapEmpty": "No listings with a location match your filters",
   "marketplacePriceMinHint": "Min price",
   "marketplacePriceMaxHint": "Max price",
   "marketplaceFiltersButton": "Filters",
@@ -112,6 +114,7 @@
   "marketplaceDistance25Km": "Within 25 km",
   "marketplaceDistance50Km": "Within 50 km",
   "marketplaceDistance100Km": "Within 100 km",
+  "marketplaceApiaryFilterLabel": "Only listings with an apiary attached",
   "marketplaceDistanceAway": "{km} km away",
   "@marketplaceDistanceAway": {
     "placeholders": {
@@ -187,6 +190,7 @@
   "marketplaceDeleteWarning": "This cannot be undone.",
   "apiaryMapTitle": "Apiaries map",
   "apiaryMapTooltip": "Show on map",
+  "apiaryLocationTitle": "Apiary location",
   "apiaryCopy": "Copy apiary",
   "apiaryCopySuffix": "copy",
   "apiaryCopyNewName": "New name",

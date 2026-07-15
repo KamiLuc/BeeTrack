@@ -8,6 +8,8 @@ import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/delete_dialog.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../apiary/data/apiary_model.dart';
+import '../../apiary/view/apiaries_map_screen.dart';
 import '../data/favorites_repository.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
@@ -40,6 +42,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     if (context.read<AuthBloc>().state is AuthAuthenticated) {
       _loadFavoriteStatus();
     }
+    _loadFullListing();
+  }
+
+  /// The listing passed in may have come from the feed's search results,
+  /// which don't include detail-only fields (attached apiary's GPS/hive
+  /// count), so refetch the full listing by id once the screen opens.
+  Future<void> _loadFullListing() async {
+    try {
+      final fresh = await ListingRepository(
+        api: context.read<ApiClient>(),
+      ).getListing(_listing.id);
+      if (mounted) setState(() => _listing = fresh);
+    } catch (_) {}
   }
 
   @override
@@ -114,6 +129,29 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         }
       } catch (_) {}
     }
+  }
+
+  void _openApiaryMap() {
+    final listing = _listing;
+    final l10n = AppLocalizations.of(context)!;
+    final apiary = Apiary(
+      id: listing.apiaryId!,
+      name: listing.apiaryName ?? '',
+      lat: listing.apiaryLat,
+      lng: listing.apiaryLng,
+      gridRows: 0,
+      gridCols: 0,
+      hiveCount: listing.apiaryHiveCount,
+      userRole: '',
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApiariesMapScreen(
+          apiaries: [apiary],
+          title: l10n.apiaryLocationTitle,
+        ),
+      ),
+    );
   }
 
   Future<void> _delete() async {
@@ -334,9 +372,39 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               _DetailSection(
                                 icon: Icons.location_city_outlined,
                                 title: l10n.marketplaceApiaryLabel,
-                                child: Text(
-                                  listing.apiaryName!,
-                                  style: textTheme.bodyMedium,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      listing.apiaryName!,
+                                      style: textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        _InfoChip(
+                                          icon: Icons.hive_outlined,
+                                          label: l10n.hiveCount(
+                                            listing.apiaryHiveCount,
+                                          ),
+                                        ),
+                                        if (listing.apiaryLat != null &&
+                                            listing.apiaryLng != null) ...[
+                                          const Spacer(),
+                                          OutlinedButton.icon(
+                                            onPressed: _openApiaryMap,
+                                            icon: const Icon(
+                                              Icons.map_outlined,
+                                              size: 18,
+                                            ),
+                                            label: Text(
+                                              l10n.apiaryMapTooltip,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

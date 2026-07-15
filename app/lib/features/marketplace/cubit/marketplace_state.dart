@@ -21,6 +21,7 @@ final class MarketplaceLoaded extends MarketplaceState {
   final double? nearLat;
   final double? nearLng;
   final double? radiusKm;
+  final bool hasApiary;
   final Set<int> favoriteIds;
   final bool hasOwnListings;
 
@@ -37,6 +38,7 @@ final class MarketplaceLoaded extends MarketplaceState {
     this.nearLat,
     this.nearLng,
     this.radiusKm,
+    this.hasApiary = false,
     this.favoriteIds = const {},
     this.hasOwnListings = false,
   });
@@ -61,6 +63,7 @@ final class MarketplaceLoaded extends MarketplaceState {
       nearLat: nearLat,
       nearLng: nearLng,
       radiusKm: radiusKm,
+      hasApiary: hasApiary,
       favoriteIds: favoriteIds ?? this.favoriteIds,
       hasOwnListings: hasOwnListings,
     );

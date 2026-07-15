@@ -17,6 +17,7 @@ import 'package:app/features/marketplace/view/create_listing_screen.dart';
 import 'package:app/features/marketplace/view/favorites_screen.dart';
 import 'package:app/features/marketplace/view/listing_detail_screen.dart';
 import 'package:app/features/marketplace/view/marketplace_home_screen.dart';
+import 'package:app/features/marketplace/view/marketplace_map_screen.dart';
 import 'package:app/features/marketplace/view/my_listings_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
@@ -91,7 +92,8 @@ class _ListingsHttpClientAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final isMine = options.queryParameters['mine'] == true;
-    if (options.path.contains('/listings') && options.method == 'GET') {
+    final isSearchEndpoint = RegExp(r'/listings/?$').hasMatch(options.path);
+    if (isSearchEndpoint && options.method == 'GET') {
       listingsRequestCount++;
       listingsRequests.add(options);
     }
@@ -689,6 +691,34 @@ void main() {
     );
 
     testWidgets(
+      'once listings load, tapping the map button opens MarketplaceMapScreen '
+      'with the currently loaded listings',
+      (tester) async {
+        final apiClient = await _fakeApiClientWithListings();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final mapButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.map_outlined),
+        );
+        expect(mapButton.onPressed, isNotNull);
+
+        await tester.tap(find.byIcon(Icons.map_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MarketplaceMapScreen), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'authenticated: the "+" button is shown next to the map button in '
       'the bottom banner',
       (tester) async {
@@ -1222,6 +1252,122 @@ void main() {
               .lastWhere((r) => r.queryParameters['mine'] != true)
               .queryParameters['price_min'],
           10.0,
+        );
+      },
+    );
+
+    testWidgets(
+      'toggling the "has apiary" checkbox and closing the sheet applies '
+      'has_apiary=true to the reload',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(CheckboxListTile), findsOneWidget);
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isFalse,
+        );
+
+        await tester.tap(find.byType(CheckboxListTile));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isTrue,
+        );
+
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['has_apiary'],
+          true,
+        );
+
+        // The Filters button now shows the "active filters" state (colored,
+        // not the default black used when no filter is active).
+        final icon = tester.widget<Icon>(find.byIcon(Icons.tune));
+        expect(icon.color, isNot(Colors.black));
+      },
+    );
+
+    testWidgets(
+      '"Clear filters" resets the "has apiary" checkbox back to unchecked',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter();
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Check the box and apply it first.
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(CheckboxListTile));
+        await tester.pumpAndSettle();
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters['has_apiary'],
+          true,
+        );
+        final requestCountAfterApply = adapter.listingsRequestCount;
+
+        // Reopen, clear, and confirm the checkbox resets immediately even
+        // though the sheet stays open (no reload yet).
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isTrue,
+        );
+
+        await tester.tap(find.widgetWithText(TextButton, 'Clear filters'));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isFalse,
+        );
+        expect(adapter.listingsRequestCount, requestCountAfterApply);
+
+        // Closing the sheet now applies the cleared filters.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.listingsRequests
+              .lastWhere((r) => r.queryParameters['mine'] != true)
+              .queryParameters
+              .containsKey('has_apiary'),
+          isFalse,
         );
       },
     );

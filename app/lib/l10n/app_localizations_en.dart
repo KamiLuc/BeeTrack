@@ -249,7 +249,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceEmpty => 'No listings yet';
 
   @override
-  String get marketplaceMapTooltip => 'Map view (coming soon)';
+  String get marketplaceMapTooltip => 'Map view';
+
+  @override
+  String get marketplaceMapTitle => 'Marketplace map';
+
+  @override
+  String get marketplaceMapEmpty =>
+      'No listings with a location match your filters';
 
   @override
   String get marketplacePriceMinHint => 'Min price';
@@ -301,6 +308,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get marketplaceDistance100Km => 'Within 100 km';
+
+  @override
+  String get marketplaceApiaryFilterLabel =>
+      'Only listings with an apiary attached';
 
   @override
   String marketplaceDistanceAway(String km) {
@@ -490,6 +501,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apiaryMapTooltip => 'Show on map';
+
+  @override
+  String get apiaryLocationTitle => 'Apiary location';
 
   @override
   String get apiaryCopy => 'Copy apiary';

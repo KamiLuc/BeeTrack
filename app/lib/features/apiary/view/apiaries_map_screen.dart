@@ -8,7 +8,12 @@ import '../data/apiary_model.dart';
 class ApiariesMapScreen extends StatelessWidget {
   final List<Apiary> apiaries;
 
-  const ApiariesMapScreen({super.key, required this.apiaries});
+  /// Overrides the default "Apiaries map" AppBar title — useful when showing
+  /// a single apiary (e.g. from a marketplace listing) where the plural
+  /// title would read oddly.
+  final String? title;
+
+  const ApiariesMapScreen({super.key, required this.apiaries, this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +67,7 @@ class ApiariesMapScreen extends StatelessWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.apiaryMapTitle)),
+      appBar: AppBar(title: Text(title ?? l10n.apiaryMapTitle)),
       body: FlutterMap(
         options: MapOptions(
           initialCenter: center,

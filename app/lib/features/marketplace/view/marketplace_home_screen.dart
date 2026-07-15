@@ -27,6 +27,7 @@ import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
 import 'favorites_screen.dart';
 import 'listing_detail_screen.dart';
+import 'marketplace_map_screen.dart';
 import 'my_listings_screen.dart';
 
 class MarketplaceHomeScreen extends StatelessWidget {
@@ -101,6 +102,12 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
       context,
     ).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
     if (context.mounted) context.read<MarketplaceCubit>().load();
+  }
+
+  void _openMap(BuildContext context, List<Listing> listings) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MarketplaceMapScreen(listings: listings)),
+    );
   }
 
   @override
@@ -180,7 +187,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     onAdd: () => _openCreateListing(context),
                     onMyListings: () => _openMyListings(context),
                     onFavorites: () => _openFavorites(context),
-                    onMap: null,
+                    onMap: loaded == null
+                        ? null
+                        : () => _openMap(context, loaded.items),
                   );
                 },
               ),
@@ -367,6 +376,7 @@ class _PendingFilters {
   double? nearLat;
   double? nearLng;
   double? radiusKm;
+  bool hasApiary = false;
 }
 
 class _FiltersButton extends StatelessWidget {
@@ -389,13 +399,17 @@ class _FiltersButton extends StatelessWidget {
     final initialRadiusKm = current is MarketplaceLoaded
         ? current.radiusKm
         : null;
+    final initialHasApiary = current is MarketplaceLoaded
+        ? current.hasApiary
+        : false;
     final pending = _PendingFilters()
       ..min = initialMin
       ..max = initialMax
       ..days = initialDays
       ..nearLat = initialNearLat
       ..nearLng = initialNearLng
-      ..radiusKm = initialRadiusKm;
+      ..radiusKm = initialRadiusKm
+      ..hasApiary = initialHasApiary;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -409,7 +423,8 @@ class _FiltersButton extends StatelessWidget {
         pending.days != initialDays ||
         pending.nearLat != initialNearLat ||
         pending.nearLng != initialNearLng ||
-        pending.radiusKm != initialRadiusKm;
+        pending.radiusKm != initialRadiusKm ||
+        pending.hasApiary != initialHasApiary;
     if (changed) {
       cubit.applyFilters(
         priceMin: pending.min,
@@ -418,6 +433,7 @@ class _FiltersButton extends StatelessWidget {
         nearLat: pending.nearLat,
         nearLng: pending.nearLng,
         radiusKm: pending.radiusKm,
+        hasApiary: pending.hasApiary,
       );
     }
   }
@@ -431,7 +447,8 @@ class _FiltersButton extends StatelessWidget {
         (state.priceMin != null ||
             state.priceMax != null ||
             state.postedWithinDays != null ||
-            state.radiusKm != null);
+            state.radiusKm != null ||
+            state.hasApiary);
 
     final textColor = active
         ? Theme.of(context).colorScheme.primary
@@ -494,6 +511,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
   );
   late int? _days = widget.pending.days;
   late double? _radiusKm = widget.pending.radiusKm;
+  late bool _hasApiary = widget.pending.hasApiary;
   bool _locating = false;
 
   @override
@@ -590,6 +608,11 @@ class _FiltersSheetState extends State<_FiltersSheet> {
     widget.pending.days = days;
   }
 
+  void _onHasApiaryChanged(bool value) {
+    setState(() => _hasApiary = value);
+    widget.pending.hasApiary = value;
+  }
+
   void _clearFilters() {
     setState(() {
       _minController.clear();
@@ -598,6 +621,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
       _latController.clear();
       _lngController.clear();
       _radiusKm = null;
+      _hasApiary = false;
     });
     widget.pending.min = null;
     widget.pending.max = null;
@@ -605,6 +629,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
     widget.pending.nearLat = null;
     widget.pending.nearLng = null;
     widget.pending.radiusKm = null;
+    widget.pending.hasApiary = false;
   }
 
   @override
@@ -704,6 +729,13 @@ class _FiltersSheetState extends State<_FiltersSheet> {
               value: _radiusKm,
               enabled: _location != null,
               onChanged: _onRadiusChanged,
+            ),
+            CheckboxListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _hasApiary,
+              onChanged: (value) => _onHasApiaryChanged(value ?? false),
+              title: Text(l10n.marketplaceApiaryFilterLabel),
             ),
             const SizedBox(height: 16),
           ],

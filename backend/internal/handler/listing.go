@@ -81,25 +81,28 @@ func listingJSON(l *model.Listing) map[string]any {
 		images[i] = listingImageJSON(img)
 	}
 	return map[string]any{
-		"id":            l.ID,
-		"user_id":       l.UserID,
-		"title":         l.Title,
-		"description":   l.Description,
-		"category":      l.Category,
-		"price":         l.Price,
-		"quantity":      l.Quantity,
-		"address":       l.Address,
-		"lat":           l.Lat,
-		"lng":           l.Lng,
-		"distance_km":   l.DistanceKm,
-		"apiary_id":     l.ApiaryID,
-		"apiary_name":   apiaryName,
-		"contact_phone": l.ContactPhone,
-		"contact_email": l.ContactEmail,
-		"is_hidden":     l.IsHidden,
-		"created_at":    l.CreatedAt,
-		"updated_at":    l.UpdatedAt,
-		"images":        images,
+		"id":                l.ID,
+		"user_id":           l.UserID,
+		"title":             l.Title,
+		"description":       l.Description,
+		"category":          l.Category,
+		"price":             l.Price,
+		"quantity":          l.Quantity,
+		"address":           l.Address,
+		"lat":               l.Lat,
+		"lng":               l.Lng,
+		"distance_km":       l.DistanceKm,
+		"apiary_id":         l.ApiaryID,
+		"apiary_name":       apiaryName,
+		"apiary_lat":        l.ApiaryLat,
+		"apiary_lng":        l.ApiaryLng,
+		"apiary_hive_count": l.ApiaryHiveCount,
+		"contact_phone":     l.ContactPhone,
+		"contact_email":     l.ContactEmail,
+		"is_hidden":         l.IsHidden,
+		"created_at":        l.CreatedAt,
+		"updated_at":        l.UpdatedAt,
+		"images":            images,
 	}
 }
 
@@ -170,6 +173,9 @@ func parseListingFilter(r *http.Request) repository.ListingFilter {
 		f.NearLat = &lat
 		f.NearLng = &lng
 		f.RadiusKm = &radius
+	}
+	if q.Get("has_apiary") == "true" {
+		f.HasApiary = true
 	}
 	if v := q.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {

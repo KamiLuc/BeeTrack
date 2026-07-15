@@ -19,6 +19,7 @@ type ListingFilter struct {
 	NearLat     *float64
 	NearLng     *float64
 	RadiusKm    *float64
+	HasApiary   bool
 	Limit       int
 	Offset      int
 }
@@ -66,16 +67,21 @@ func (r *ListingRepository) Create(ctx context.Context, l *model.Listing) error 
 	})
 }
 
-// GetByID returns the listing with the given id, including its images and apiary name.
+// GetByID returns the listing with the given id, including its images and attached
+// apiary's name, GPS, and hive count.
 func (r *ListingRepository) GetByID(ctx context.Context, id int64) (*model.Listing, error) {
 	type row struct {
 		model.Listing
-		ApiaryName string `gorm:"column:apiary_name"`
+		ApiaryName      string   `gorm:"column:apiary_name"`
+		ApiaryLat       *float64 `gorm:"column:apiary_lat"`
+		ApiaryLng       *float64 `gorm:"column:apiary_lng"`
+		ApiaryHiveCount int      `gorm:"column:apiary_hive_count"`
 	}
 	var result row
 	err := r.db.WithContext(ctx).
 		Table("listings l").
-		Select("l.*, a.name AS apiary_name").
+		Select("l.*, a.name AS apiary_name, a.lat AS apiary_lat, a.lng AS apiary_lng, "+
+			"(SELECT COUNT(*) FROM hives h WHERE h.apiary_id = a.id) AS apiary_hive_count").
 		Joins("LEFT JOIN apiaries a ON a.id = l.apiary_id").
 		Where("l.id = ?", id).
 		First(&result).Error
@@ -84,6 +90,9 @@ func (r *ListingRepository) GetByID(ctx context.Context, id int64) (*model.Listi
 	}
 	listing := result.Listing
 	listing.ApiaryName = result.ApiaryName
+	listing.ApiaryLat = result.ApiaryLat
+	listing.ApiaryLng = result.ApiaryLng
+	listing.ApiaryHiveCount = result.ApiaryHiveCount
 	images, err := r.listImages(ctx, id)
 	if err != nil {
 		return nil, err
@@ -301,6 +310,9 @@ func (r *ListingRepository) buildFilter(q *gorm.DB, f ListingFilter, p string) *
 	if f.hasNearFilter() {
 		distanceExpr, args := f.haversineKmExpr(p)
 		q = q.Where(distanceExpr+" <= ?", append(args, *f.RadiusKm)...)
+	}
+	if f.HasApiary {
+		q = q.Where(p + "apiary_id IS NOT NULL")
 	}
 	return q
 }

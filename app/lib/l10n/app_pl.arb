@@ -94,7 +94,9 @@
   "marketplaceComingSoon": "Wkrótce",
   "marketplaceSearchHint": "Szukaj ogłoszeń",
   "marketplaceEmpty": "Brak ogłoszeń",
-  "marketplaceMapTooltip": "Widok mapy (wkrótce)",
+  "marketplaceMapTooltip": "Mapa ogłoszeń",
+  "marketplaceMapTitle": "Mapa ogłoszeń",
+  "marketplaceMapEmpty": "Brak ogłoszeń z lokalizacją pasującą do filtrów",
   "marketplacePriceMinHint": "Cena od",
   "marketplacePriceMaxHint": "Cena do",
   "marketplaceFiltersButton": "Filtry",
@@ -112,6 +114,7 @@
   "marketplaceDistance25Km": "Do 25 km",
   "marketplaceDistance50Km": "Do 50 km",
   "marketplaceDistance100Km": "Do 100 km",
+  "marketplaceApiaryFilterLabel": "Tylko ogłoszenia z powiązaną pasieką",
   "marketplaceDistanceAway": "{km} km stąd",
   "@marketplaceDistanceAway": {
     "placeholders": {
@@ -187,6 +190,7 @@
   "marketplaceDeleteWarning": "Tej operacji nie można cofnąć.",
   "apiaryMapTitle": "Mapa pasiek",
   "apiaryMapTooltip": "Pokaż na mapie",
+  "apiaryLocationTitle": "Lokalizacja pasieki",
   "apiaryCopy": "Skopiuj pasiekę",
   "apiaryCopySuffix": "kopia",
   "apiaryCopyNewName": "Nowa nazwa",

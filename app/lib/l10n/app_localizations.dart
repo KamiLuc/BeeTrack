@@ -557,8 +557,20 @@ abstract class AppLocalizations {
   /// No description provided for @marketplaceMapTooltip.
   ///
   /// In pl, this message translates to:
-  /// **'Widok mapy (wkrótce)'**
+  /// **'Mapa ogłoszeń'**
   String get marketplaceMapTooltip;
+
+  /// No description provided for @marketplaceMapTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Mapa ogłoszeń'**
+  String get marketplaceMapTitle;
+
+  /// No description provided for @marketplaceMapEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak ogłoszeń z lokalizacją pasującą do filtrów'**
+  String get marketplaceMapEmpty;
 
   /// No description provided for @marketplacePriceMinHint.
   ///
@@ -661,6 +673,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Do 100 km'**
   String get marketplaceDistance100Km;
+
+  /// No description provided for @marketplaceApiaryFilterLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tylko ogłoszenia z powiązaną pasieką'**
+  String get marketplaceApiaryFilterLabel;
 
   /// No description provided for @marketplaceDistanceAway.
   ///
@@ -1027,6 +1045,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Pokaż na mapie'**
   String get apiaryMapTooltip;
+
+  /// No description provided for @apiaryLocationTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lokalizacja pasieki'**
+  String get apiaryLocationTitle;
 
   /// No description provided for @apiaryCopy.
   ///

@@ -35,6 +35,9 @@ class Listing {
   final double lng;
   final int? apiaryId;
   final String? apiaryName;
+  final double? apiaryLat;
+  final double? apiaryLng;
+  final int apiaryHiveCount;
   final String contactPhone;
   final String contactEmail;
   final bool isHidden;
@@ -56,6 +59,9 @@ class Listing {
     required this.lng,
     this.apiaryId,
     this.apiaryName,
+    this.apiaryLat,
+    this.apiaryLng,
+    this.apiaryHiveCount = 0,
     required this.contactPhone,
     required this.contactEmail,
     required this.isHidden,
@@ -78,6 +84,9 @@ class Listing {
         lng: (json['lng'] as num?)?.toDouble() ?? 0,
         apiaryId: json['apiary_id'] as int?,
         apiaryName: json['apiary_name'] as String?,
+        apiaryLat: (json['apiary_lat'] as num?)?.toDouble(),
+        apiaryLng: (json['apiary_lng'] as num?)?.toDouble(),
+        apiaryHiveCount: json['apiary_hive_count'] as int? ?? 0,
         contactPhone: json['contact_phone'] as String? ?? '',
         contactEmail: json['contact_email'] as String? ?? '',
         isHidden: json['is_hidden'] as bool? ?? false,

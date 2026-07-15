@@ -249,7 +249,14 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceEmpty => 'Brak ogłoszeń';
 
   @override
-  String get marketplaceMapTooltip => 'Widok mapy (wkrótce)';
+  String get marketplaceMapTooltip => 'Mapa ogłoszeń';
+
+  @override
+  String get marketplaceMapTitle => 'Mapa ogłoszeń';
+
+  @override
+  String get marketplaceMapEmpty =>
+      'Brak ogłoszeń z lokalizacją pasującą do filtrów';
 
   @override
   String get marketplacePriceMinHint => 'Cena od';
@@ -301,6 +308,10 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get marketplaceDistance100Km => 'Do 100 km';
+
+  @override
+  String get marketplaceApiaryFilterLabel =>
+      'Tylko ogłoszenia z powiązaną pasieką';
 
   @override
   String marketplaceDistanceAway(String km) {
@@ -492,6 +503,9 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get apiaryMapTooltip => 'Pokaż na mapie';
+
+  @override
+  String get apiaryLocationTitle => 'Lokalizacja pasieki';
 
   @override
   String get apiaryCopy => 'Skopiuj pasiekę';

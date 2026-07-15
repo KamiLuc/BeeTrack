@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/core/api/api_client.dart';
 import 'package:app/core/storage/token_storage.dart';
+import 'package:app/features/apiary/view/apiaries_map_screen.dart';
 import 'package:app/features/auth/bloc/auth_bloc.dart';
 import 'package:app/features/auth/data/auth_repository.dart';
 import 'package:app/features/marketplace/data/listing_model.dart';
@@ -195,7 +196,11 @@ Widget _wrap(
 
 Listing _listing({
   int id = 1,
+  int? apiaryId,
   String? apiaryName,
+  double? apiaryLat,
+  double? apiaryLng,
+  int apiaryHiveCount = 0,
   List<ListingImage> images = const [],
   double? price = 42.5,
   String category = 'honey',
@@ -210,7 +215,11 @@ Listing _listing({
   address: 'Krakow',
   lat: 50.0647,
   lng: 19.945,
+  apiaryId: apiaryId,
   apiaryName: apiaryName,
+  apiaryLat: apiaryLat,
+  apiaryLng: apiaryLng,
+  apiaryHiveCount: apiaryHiveCount,
   contactPhone: '123456789',
   contactEmail: 'seller@example.com',
   isHidden: false,
@@ -310,6 +319,102 @@ void main() {
 
       expect(find.text('Sunny Meadow'), findsNothing);
     });
+
+    testWidgets(
+      'shows hive count chip and "show on map" button when apiary has GPS',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(
+              listing: _listing(
+                apiaryId: 3,
+                apiaryName: 'Sunny Meadow',
+                apiaryLat: 50.05,
+                apiaryLng: 19.95,
+                apiaryHiveCount: 4,
+              ),
+            ),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.hiveCount(4)), findsOneWidget);
+        expect(
+          find.widgetWithText(OutlinedButton, l10n.apiaryMapTooltip),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'hides "show on map" button when apiary has no GPS, but still shows '
+      'hive count',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(
+              listing: _listing(
+                apiaryId: 3,
+                apiaryName: 'Sunny Meadow',
+                apiaryHiveCount: 4,
+              ),
+            ),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.hiveCount(4)), findsOneWidget);
+        expect(
+          find.widgetWithText(OutlinedButton, l10n.apiaryMapTooltip),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'tapping "show on map" opens ApiariesMapScreen with the overridden '
+      'title',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(
+              listing: _listing(
+                apiaryId: 3,
+                apiaryName: 'Sunny Meadow',
+                apiaryLat: 50.05,
+                apiaryLng: 19.95,
+                apiaryHiveCount: 4,
+              ),
+            ),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final mapButtonFinder = find.widgetWithText(
+          OutlinedButton,
+          l10n.apiaryMapTooltip,
+        );
+        await tester.ensureVisible(mapButtonFinder);
+        await tester.tap(mapButtonFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ApiariesMapScreen), findsOneWidget);
+        expect(find.text(l10n.apiaryLocationTitle), findsOneWidget);
+        expect(find.text(l10n.apiaryMapTitle), findsNothing);
+      },
+    );
 
     testWidgets('shows placeholder icon when listing has no images', (
       tester,
@@ -522,15 +627,19 @@ void main() {
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient(userId: 5);
         final listing = _listing(category: 'HONEY');
-        adapter.refetchedListingJson = _listingJson(listing).map(
-          (key, value) =>
-              MapEntry(key, key == 'title' ? 'Updated Title' : value),
-        );
 
         await tester.pumpWidget(
           _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
         );
         await tester.pumpAndSettle();
+
+        // Set only after the initial load-on-open settles, so that fetch
+        // (which happens regardless of this test) sees the original listing
+        // — this fixture is for the edit-triggered refetch below.
+        adapter.refetchedListingJson = _listingJson(listing).map(
+          (key, value) =>
+              MapEntry(key, key == 'title' ? 'Updated Title' : value),
+        );
 
         expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
         expect(
@@ -600,6 +709,14 @@ void main() {
           ),
         ];
         final listing = _listing(images: oldImages, category: 'HONEY');
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        // Set only after the initial load-on-open settles — see the sibling
+        // "shows edit button..." test above for why.
         adapter.refetchedListingJson = {
           ..._listingJson(listing),
           'images': newImages
@@ -614,11 +731,6 @@ void main() {
               )
               .toList(),
         };
-
-        await tester.pumpWidget(
-          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
-        );
-        await tester.pumpAndSettle();
 
         expect(find.image(NetworkImage('http://test/uploads/old-a.jpg')),
             findsOneWidget);
