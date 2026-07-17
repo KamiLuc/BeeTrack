@@ -251,8 +251,8 @@ func seedSpecialHives(ctx context.Context, repo *repository.HiveRepository, apia
 }
 
 var queenStatuses = []string{"seen", "not_seen"}
-var broodPatterns = []string{"excellent", "good", "medium", "few", "poor"}
-var aggressivenessLevels = []string{"calm", "mild", "aggressive"}
+var broodPatterns = []string{"excellent", "good", "poor", "none"}
+var aggressivenessLevels = []string{"calm", "mild", "aggressive", "very_aggressive"}
 var inspectionNotes = []string{
 	"Rodzina silna, matka czerwi równomiernie.",
 	"Widoczne oznaki rójki, dołożono ramkę z zasuszem.",

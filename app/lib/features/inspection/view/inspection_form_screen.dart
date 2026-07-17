@@ -354,7 +354,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           const SizedBox(height: 16),
                           _EnumDropdown(
                             label: l10n.inspectionBroodPattern,
-                            value: _broodPattern.isEmpty ? null : _broodPattern,
+                            value: broodPatternValues.contains(_broodPattern)
+                                ? _broodPattern
+                                : null,
                             items: broodPatternValues,
                             labelFor: (v) => _broodPatternLabel(l10n, v),
                             onChanged: (v) =>
@@ -363,9 +365,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           const SizedBox(height: 16),
                           _EnumDropdown(
                             label: l10n.inspectionAggressiveness,
-                            value: _aggressiveness.isEmpty
-                                ? null
-                                : _aggressiveness,
+                            value:
+                                aggressivenessValues.contains(_aggressiveness)
+                                ? _aggressiveness
+                                : null,
                             items: aggressivenessValues,
                             labelFor: (v) => _aggressivenessLabel(l10n, v),
                             onChanged: (v) =>
@@ -457,6 +460,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             value: _hiveQueenless,
                             onChanged: (v) =>
                                 setState(() => _hiveQueenless = v),
+                            enabled: !_queenAdded,
                           ),
                           const SizedBox(height: 12),
                           _BoolRow(
@@ -1012,11 +1016,13 @@ class _BoolRow extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
 
   const _BoolRow({
     required this.label,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   @override
@@ -1025,7 +1031,7 @@ class _BoolRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        Switch(value: value, onChanged: onChanged),
+        Switch(value: value, onChanged: enabled ? onChanged : null),
       ],
     );
   }
