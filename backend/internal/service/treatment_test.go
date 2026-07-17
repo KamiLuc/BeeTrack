@@ -59,6 +59,14 @@ func (m *mockTreatmentRepo) Update(ctx context.Context, t *model.Treatment) erro
 	return nil
 }
 
+func (m *mockTreatmentRepo) DistinctMedicineNames(ctx context.Context, userID int64) ([]string, error) {
+	return nil, nil
+}
+
+func (m *mockTreatmentRepo) DistinctDoses(ctx context.Context, userID int64) ([]string, error) {
+	return nil, nil
+}
+
 type mockBulkHiveReader struct {
 	hives []*model.Hive
 }
@@ -212,7 +220,7 @@ func TestBulkTreat(t *testing.T) {
 		repo,
 	)
 
-	count, err := svc.BulkTreat(context.Background(), 1, 1, validTreatmentParams())
+	count, err := svc.BulkTreat(context.Background(), 1, 1, nil, validTreatmentParams())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -229,6 +237,34 @@ func TestBulkTreat(t *testing.T) {
 	}
 }
 
+func TestBulkTreat_SelectedHives(t *testing.T) {
+	hives := []*model.Hive{
+		{ID: 10, ApiaryID: 1},
+		{ID: 11, ApiaryID: 1},
+		{ID: 12, ApiaryID: 1},
+	}
+	repo := &mockTreatmentRepo{}
+	svc := NewTreatmentService(
+		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
+		&mockInspectionHiveReader{hive: hives[0]},
+		&mockBulkHiveReader{hives: hives},
+		repo,
+	)
+
+	count, err := svc.BulkTreat(context.Background(), 1, 1, []int64{10, 12, 999}, validTreatmentParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected count 2, got %d", count)
+	}
+	for _, tr := range repo.bulkCreated {
+		if tr.HiveID != 10 && tr.HiveID != 12 {
+			t.Errorf("expected only hives 10 and 12, got hive_id %d", tr.HiveID)
+		}
+	}
+}
+
 func TestBulkTreat_NoHives(t *testing.T) {
 	repo := &mockTreatmentRepo{}
 	svc := NewTreatmentService(
@@ -238,7 +274,7 @@ func TestBulkTreat_NoHives(t *testing.T) {
 		repo,
 	)
 
-	count, err := svc.BulkTreat(context.Background(), 1, 1, validTreatmentParams())
+	count, err := svc.BulkTreat(context.Background(), 1, 1, nil, validTreatmentParams())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -259,7 +295,7 @@ func TestBulkTreat_DefaultDose(t *testing.T) {
 
 	params := validTreatmentParams()
 	params.Dose = ""
-	_, err := svc.BulkTreat(context.Background(), 1, 1, params)
+	_, err := svc.BulkTreat(context.Background(), 1, 1, nil, params)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -274,7 +310,7 @@ func TestBulkTreat_MissingMedicine(t *testing.T) {
 
 	params := validTreatmentParams()
 	params.MedicineName = ""
-	_, err := svc.BulkTreat(context.Background(), 1, 1, params)
+	_, err := svc.BulkTreat(context.Background(), 1, 1, nil, params)
 	if err != ErrMedicineNameRequired {
 		t.Errorf("expected ErrMedicineNameRequired, got %v", err)
 	}
@@ -289,7 +325,7 @@ func TestBulkTreat_ApiaryNotFound(t *testing.T) {
 		repo,
 	)
 
-	_, err := svc.BulkTreat(context.Background(), 1, 99, validTreatmentParams())
+	_, err := svc.BulkTreat(context.Background(), 1, 99, nil, validTreatmentParams())
 	if err != ErrApiaryNotFound {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
 	}

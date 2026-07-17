@@ -1352,6 +1352,24 @@ abstract class AppLocalizations {
   /// **'Dodaj leczenie'**
   String get hiveDetailLogTreatment;
 
+  /// No description provided for @hiveDetailFeedings.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podkarmianie'**
+  String get hiveDetailFeedings;
+
+  /// No description provided for @hiveDetailNoFeedings.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak podkarmiań'**
+  String get hiveDetailNoFeedings;
+
+  /// No description provided for @hiveDetailLogFeeding.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj podkarmianie'**
+  String get hiveDetailLogFeeding;
+
   /// No description provided for @hiveDetailHarvests.
   ///
   /// In pl, this message translates to:
@@ -1853,7 +1871,7 @@ abstract class AppLocalizations {
   /// No description provided for @treatmentTreatAllHives.
   ///
   /// In pl, this message translates to:
-  /// **'Lecz wszystkie ule'**
+  /// **'Lecz ule'**
   String get treatmentTreatAllHives;
 
   /// No description provided for @treatmentBulkSuccess.
@@ -1861,6 +1879,102 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{count, plural, =1{Leczenie zapisano dla 1 ula} few{Leczenie zapisano dla {count} uli} many{Leczenie zapisano dla {count} uli} other{Leczenie zapisano dla {count} uli}}'**
   String treatmentBulkSuccess(int count);
+
+  /// No description provided for @feedingTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podkarmianie'**
+  String get feedingTitle;
+
+  /// No description provided for @feedingAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj podkarmianie'**
+  String get feedingAdd;
+
+  /// No description provided for @feedingEdit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Edytuj podkarmianie'**
+  String get feedingEdit;
+
+  /// No description provided for @feedingEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak podkarmiań'**
+  String get feedingEmpty;
+
+  /// No description provided for @feedingDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć podkarmianie?'**
+  String get feedingDeleteConfirm;
+
+  /// No description provided for @feedingDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie wpis podkarmiania.'**
+  String get feedingDeleteWarning;
+
+  /// No description provided for @feedingDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Data podkarmiania'**
+  String get feedingDate;
+
+  /// No description provided for @feedingType.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokarm'**
+  String get feedingType;
+
+  /// No description provided for @feedingTypeRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rodzaj pokarmu jest wymagany'**
+  String get feedingTypeRequired;
+
+  /// No description provided for @feedingAmount.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ilość'**
+  String get feedingAmount;
+
+  /// No description provided for @feedingAmountRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ilość jest wymagana'**
+  String get feedingAmountRequired;
+
+  /// No description provided for @feedingNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Notatka'**
+  String get feedingNote;
+
+  /// No description provided for @feedingFedBy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przez {name}'**
+  String feedingFedBy(String name);
+
+  /// No description provided for @feedingFeedAllHives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podkarm ule'**
+  String get feedingFeedAllHives;
+
+  /// No description provided for @feedingBulkSuccess.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{Podkarmianie zapisano dla 1 ula} few{Podkarmianie zapisano dla {count} uli} many{Podkarmianie zapisano dla {count} uli} other{Podkarmianie zapisano dla {count} uli}}'**
+  String feedingBulkSuccess(int count);
+
+  /// No description provided for @bulkSelectHives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz ule'**
+  String get bulkSelectHives;
 
   /// No description provided for @harvestTitle.
   ///

@@ -13,28 +13,6 @@ import (
 	"github.com/beetrack/backend/pkg/respond"
 )
 
-// KnownMedicines is the canonical list of varroa and disease treatments used as suggestions.
-var KnownMedicines = []string{
-	"Api Life Var",
-	"Api-Bioxal",
-	"Apiguard",
-	"Apivar",
-	"Apistan",
-	"Apiwarol",
-	"Bayvarol",
-	"Biowar 500",
-	"Formicpro",
-	"MAQS",
-	"Oxuvar",
-	"PolyVar Yellow",
-	"VarroMed",
-}
-
-// Medicines handles GET /api/v1/medicines — returns the list of known medicine names.
-func Medicines(w http.ResponseWriter, r *http.Request) {
-	respond.JSON(w, http.StatusOK, KnownMedicines)
-}
-
 // TreatmentHandler handles HTTP requests for treatment resources.
 type TreatmentHandler struct {
 	treatments *service.TreatmentService
@@ -50,6 +28,11 @@ type treatmentRequest struct {
 	MedicineName string     `json:"medicine_name"`
 	Dose         string     `json:"dose"`
 	Notes        string     `json:"notes"`
+}
+
+type bulkTreatmentRequest struct {
+	treatmentRequest
+	HiveIDs []int64 `json:"hive_ids"`
 }
 
 func (req treatmentRequest) toParams() service.TreatmentParams {
@@ -112,6 +95,40 @@ func parseTreatmentPathIDs(r *http.Request) (apiaryID, hiveID int64, err error) 
 	return
 }
 
+// Medicines handles GET /api/v1/medicines — returns medicine names this user has previously used.
+func (h *TreatmentHandler) Medicines(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	names, err := h.treatments.MedicineSuggestions(r.Context(), userID)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, names)
+}
+
+// Doses handles GET /api/v1/doses — returns doses this user has previously used.
+func (h *TreatmentHandler) Doses(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	doses, err := h.treatments.DoseSuggestions(r.Context(), userID)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, doses)
+}
+
 // BulkCreate handles POST /api/v1/apiaries/{id}/treatments/bulk — creates one treatment per hive in the apiary.
 func (h *TreatmentHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
@@ -126,13 +143,13 @@ func (h *TreatmentHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req treatmentRequest
+	var req bulkTreatmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
 		return
 	}
 
-	count, err := h.treatments.BulkTreat(r.Context(), userID, apiaryID, req.toParams())
+	count, err := h.treatments.BulkTreat(r.Context(), userID, apiaryID, req.HiveIDs, req.treatmentRequest.toParams())
 	if err != nil {
 		treatmentError(w, err)
 		return

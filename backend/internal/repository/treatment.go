@@ -112,3 +112,31 @@ func (r *TreatmentRepository) Delete(ctx context.Context, treatmentID int64) err
 		Where("id = ?", treatmentID).
 		Delete(&model.Treatment{}).Error
 }
+
+// DistinctMedicineNames returns the distinct medicine names userID has previously
+// entered, most recently used first.
+func (r *TreatmentRepository) DistinctMedicineNames(ctx context.Context, userID int64) ([]string, error) {
+	names := []string{}
+	err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Select("medicine_name").
+		Where("treated_by = ? AND medicine_name <> ''", userID).
+		Group("medicine_name").
+		Order("MAX(treated_at) DESC").
+		Pluck("medicine_name", &names).Error
+	return names, err
+}
+
+// DistinctDoses returns the distinct doses userID has previously entered, most
+// recently used first.
+func (r *TreatmentRepository) DistinctDoses(ctx context.Context, userID int64) ([]string, error) {
+	doses := []string{}
+	err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Select("dose").
+		Where("treated_by = ? AND dose <> ''", userID).
+		Group("dose").
+		Order("MAX(treated_at) DESC").
+		Pluck("dose", &doses).Error
+	return doses, err
+}

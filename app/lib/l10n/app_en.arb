@@ -257,6 +257,9 @@
   "hiveDetailTreatments": "Treatments",
   "hiveDetailNoTreatments": "No active treatments",
   "hiveDetailLogTreatment": "Log treatment",
+  "hiveDetailFeedings": "Feedings",
+  "hiveDetailNoFeedings": "No feedings recorded",
+  "hiveDetailLogFeeding": "Log feeding",
   "hiveDetailHarvests": "Harvests",
   "hiveDetailNoHarvests": "No harvests yet",
   "hiveDetailLogHarvest": "Log harvest",
@@ -363,13 +366,41 @@
       "name": {"type": "String"}
     }
   },
-  "treatmentTreatAllHives": "Treat all hives",
+  "treatmentTreatAllHives": "Treat hives",
   "treatmentBulkSuccess": "{count, plural, =1{Treatment logged for 1 hive} other{Treatment logged for {count} hives}}",
   "@treatmentBulkSuccess": {
     "placeholders": {
       "count": { "type": "int" }
     }
   },
+
+  "feedingTitle": "Feedings",
+  "feedingAdd": "Add feeding",
+  "feedingEdit": "Edit feeding",
+  "feedingEmpty": "No feedings yet",
+  "feedingDeleteConfirm": "Delete feeding?",
+  "feedingDeleteWarning": "This will permanently delete the feeding record.",
+  "feedingDate": "Feeding date",
+  "feedingType": "Feed",
+  "feedingTypeRequired": "Feed type is required",
+  "feedingAmount": "Amount",
+  "feedingAmountRequired": "Amount is required",
+  "feedingNote": "Note",
+  "feedingFedBy": "By {name}",
+  "@feedingFedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "feedingFeedAllHives": "Feed hives",
+  "feedingBulkSuccess": "{count, plural, =1{Feeding logged for 1 hive} other{Feeding logged for {count} hives}}",
+  "@feedingBulkSuccess": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "bulkSelectHives": "Select hives",
 
   "harvestTitle": "Harvests",
   "harvestAdd": "Add harvest",

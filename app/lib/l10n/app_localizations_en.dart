@@ -676,6 +676,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveDetailLogTreatment => 'Log treatment';
 
   @override
+  String get hiveDetailFeedings => 'Feedings';
+
+  @override
+  String get hiveDetailNoFeedings => 'No feedings recorded';
+
+  @override
+  String get hiveDetailLogFeeding => 'Log feeding';
+
+  @override
   String get hiveDetailHarvests => 'Harvests';
 
   @override
@@ -953,7 +962,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get treatmentTreatAllHives => 'Treat all hives';
+  String get treatmentTreatAllHives => 'Treat hives';
 
   @override
   String treatmentBulkSuccess(int count) {
@@ -965,6 +974,65 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get feedingTitle => 'Feedings';
+
+  @override
+  String get feedingAdd => 'Add feeding';
+
+  @override
+  String get feedingEdit => 'Edit feeding';
+
+  @override
+  String get feedingEmpty => 'No feedings yet';
+
+  @override
+  String get feedingDeleteConfirm => 'Delete feeding?';
+
+  @override
+  String get feedingDeleteWarning =>
+      'This will permanently delete the feeding record.';
+
+  @override
+  String get feedingDate => 'Feeding date';
+
+  @override
+  String get feedingType => 'Feed';
+
+  @override
+  String get feedingTypeRequired => 'Feed type is required';
+
+  @override
+  String get feedingAmount => 'Amount';
+
+  @override
+  String get feedingAmountRequired => 'Amount is required';
+
+  @override
+  String get feedingNote => 'Note';
+
+  @override
+  String feedingFedBy(String name) {
+    return 'By $name';
+  }
+
+  @override
+  String get feedingFeedAllHives => 'Feed hives';
+
+  @override
+  String feedingBulkSuccess(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Feeding logged for $count hives',
+      one: 'Feeding logged for 1 hive',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bulkSelectHives => 'Select hives';
 
   @override
   String get harvestTitle => 'Harvests';

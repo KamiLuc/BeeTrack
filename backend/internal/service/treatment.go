@@ -29,6 +29,8 @@ type TreatmentRepository interface {
 	CountByHiveID(ctx context.Context, hiveID int64) (int64, error)
 	ListByHiveID(ctx context.Context, hiveID int64, limit, offset int) ([]*model.Treatment, error)
 	Update(ctx context.Context, t *model.Treatment) error
+	DistinctMedicineNames(ctx context.Context, userID int64) ([]string, error)
+	DistinctDoses(ctx context.Context, userID int64) ([]string, error)
 }
 
 // BulkHiveReader lists all hives for an apiary.
@@ -178,9 +180,10 @@ func (s *TreatmentService) Update(ctx context.Context, userID, apiaryID, hiveID,
 	return t, nil
 }
 
-// BulkTreat creates one treatment record per hive in the apiary within a single transaction.
-// It returns the number of treatments inserted.
-func (s *TreatmentService) BulkTreat(ctx context.Context, userID, apiaryID int64, params TreatmentParams) (int, error) {
+// BulkTreat creates one treatment record for each hive in hiveIDs (or every hive in the
+// apiary when hiveIDs is empty) within a single transaction. Any id in hiveIDs that does
+// not belong to the apiary is silently ignored. It returns the number of treatments inserted.
+func (s *TreatmentService) BulkTreat(ctx context.Context, userID, apiaryID int64, hiveIDs []int64, params TreatmentParams) (int, error) {
 	if err := validateTreatmentParams(params); err != nil {
 		return 0, err
 	}
@@ -190,9 +193,22 @@ func (s *TreatmentService) BulkTreat(ctx context.Context, userID, apiaryID int64
 		}
 		return 0, fmt.Errorf("get apiary: %w", err)
 	}
-	hives, err := s.allHives.ListByApiaryID(ctx, apiaryID)
+	allHives, err := s.allHives.ListByApiaryID(ctx, apiaryID)
 	if err != nil {
 		return 0, fmt.Errorf("list hives: %w", err)
+	}
+	hives := allHives
+	if len(hiveIDs) > 0 {
+		wanted := make(map[int64]bool, len(hiveIDs))
+		for _, id := range hiveIDs {
+			wanted[id] = true
+		}
+		hives = make([]*model.Hive, 0, len(allHives))
+		for _, h := range allHives {
+			if wanted[h.ID] {
+				hives = append(hives, h)
+			}
+		}
 	}
 	dose := params.Dose
 	if dose == "" {
@@ -213,6 +229,18 @@ func (s *TreatmentService) BulkTreat(ctx context.Context, userID, apiaryID int64
 		return 0, fmt.Errorf("bulk create treatments: %w", err)
 	}
 	return len(treatments), nil
+}
+
+// MedicineSuggestions returns the medicine names userID has previously used,
+// most recently used first.
+func (s *TreatmentService) MedicineSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return s.treatments.DistinctMedicineNames(ctx, userID)
+}
+
+// DoseSuggestions returns the doses userID has previously used, most recently
+// used first.
+func (s *TreatmentService) DoseSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return s.treatments.DistinctDoses(ctx, userID)
 }
 
 // Delete removes a treatment after verifying membership.

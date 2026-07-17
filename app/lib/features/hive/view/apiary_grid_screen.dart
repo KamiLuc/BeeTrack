@@ -15,7 +15,9 @@ import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
 import '../../treatment/view/bulk_treatment_form_screen.dart';
+import '../../feeding/view/bulk_feeding_form_screen.dart';
 import 'add_hive_screen.dart';
+import 'bulk_hive_selection_dialog.dart';
 import 'hive_detail_screen.dart';
 
 enum _HiveFilter { readyForHarvest, queenless, sick }
@@ -89,16 +91,40 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     if (context.mounted) context.read<HivesCubit>().load();
   }
 
-  Future<void> _openBulkTreatment(BuildContext context) async {
+  Future<void> _openBulkTreatment(BuildContext context, List<Hive> hives) async {
+    final hiveIds = await showBulkHiveSelectionDialog(context, hives: hives);
+    if (hiveIds == null || !context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final count = await Navigator.of(context).push<int>(
       MaterialPageRoute(
-        builder: (_) => BulkTreatmentFormScreen(apiaryId: widget.apiary.id),
+        builder: (_) => BulkTreatmentFormScreen(
+          apiaryId: widget.apiary.id,
+          hiveIds: hiveIds,
+        ),
       ),
     );
     if (count != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.treatmentBulkSuccess(count))),
+      );
+    }
+  }
+
+  Future<void> _openBulkFeeding(BuildContext context, List<Hive> hives) async {
+    final hiveIds = await showBulkHiveSelectionDialog(context, hives: hives);
+    if (hiveIds == null || !context.mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final count = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => BulkFeedingFormScreen(
+          apiaryId: widget.apiary.id,
+          hiveIds: hiveIds,
+        ),
+      ),
+    );
+    if (count != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.feedingBulkSuccess(count))),
       );
     }
   }
@@ -249,7 +275,8 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                   onToggle: _toggleFilter,
                   onCenter: () =>
                       _transformController.value = Matrix4.identity(),
-                  onTreatAll: () => _openBulkTreatment(context),
+                  onTreatAll: () => _openBulkTreatment(context, state.hives),
+                  onFeedAll: () => _openBulkFeeding(context, state.hives),
                   l10n: l10n,
                   apiaryId: widget.apiary.id,
                   hives: state.hives,
@@ -280,6 +307,7 @@ class _FilterBar extends StatelessWidget {
   final void Function(_HiveFilter) onToggle;
   final VoidCallback onCenter;
   final VoidCallback onTreatAll;
+  final VoidCallback onFeedAll;
   final AppLocalizations l10n;
   final int apiaryId;
   final List<Hive> hives;
@@ -290,6 +318,7 @@ class _FilterBar extends StatelessWidget {
     required this.onToggle,
     required this.onCenter,
     required this.onTreatAll,
+    required this.onFeedAll,
     required this.l10n,
     required this.apiaryId,
     required this.hives,
@@ -381,6 +410,7 @@ class _FilterBar extends StatelessWidget {
         hives: hives,
         onHiveTap: onHiveTap,
         onTreatAll: onTreatAll,
+        onFeedAll: onFeedAll,
       ),
     );
   }
@@ -452,12 +482,14 @@ class _HiveListDialog extends StatefulWidget {
   final List<Hive> hives;
   final void Function(Hive) onHiveTap;
   final VoidCallback onTreatAll;
+  final VoidCallback onFeedAll;
 
   const _HiveListDialog({
     required this.apiaryId,
     required this.hives,
     required this.onHiveTap,
     required this.onTreatAll,
+    required this.onFeedAll,
   });
 
   @override
@@ -599,16 +631,28 @@ class _HiveListDialogState extends State<_HiveListDialog> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Center(
-                  child: FractionallySizedBox(
-                    widthFactor: 0.6,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onTreatAll();
-                      },
-                      icon: const Icon(Icons.medical_services_outlined, size: 18),
-                      label: Text(l10n.treatmentTreatAllHives),
-                    ),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.onTreatAll();
+                        },
+                        icon: const Icon(Icons.medical_services_outlined, size: 18),
+                        label: Text(l10n.treatmentTreatAllHives),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.onFeedAll();
+                        },
+                        icon: const Icon(Icons.grain, size: 18),
+                        label: Text(l10n.feedingFeedAllHives),
+                      ),
+                    ],
                   ),
                 ),
               ),

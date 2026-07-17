@@ -17,6 +17,10 @@ import '../../inspection/view/inspection_images_section.dart';
 import '../../inspection/view/inspection_summary.dart';
 import '../../treatment/data/treatment_model.dart';
 import '../../treatment/data/treatment_repository.dart';
+import '../../feeding/data/feeding_model.dart';
+import '../../feeding/data/feeding_repository.dart';
+import '../../feeding/view/feeding_form_screen.dart';
+import '../../feeding/view/feeding_history_screen.dart';
 import '../../harvest/data/harvest_model.dart';
 import '../../harvest/data/harvest_repository.dart';
 import '../../harvest/view/harvest_form_screen.dart';
@@ -51,6 +55,8 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
   bool _inspectionLoaded = false;
   Treatment? _lastTreatment;
   bool _treatmentLoaded = false;
+  Feeding? _lastFeeding;
+  bool _feedingLoaded = false;
   Harvest? _lastHarvest;
   bool _harvestLoaded = false;
   List<Apiary>? _otherApiaries;
@@ -61,6 +67,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     _hive = widget.hive;
     _loadLastInspection();
     _loadLastTreatment();
+    _loadLastFeeding();
     _loadLastHarvest();
     _loadOtherApiaries();
   }
@@ -195,6 +202,34 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     _loadLastTreatment();
   }
 
+  Future<void> _loadLastFeeding() async {
+    try {
+      final result = await FeedingRepository(
+        api: context.read<ApiClient>(),
+      ).listFeedings(widget.apiaryId, _hive.id, limit: 1);
+      if (!mounted) return;
+      setState(() {
+        _feedingLoaded = true;
+        _lastFeeding = result.items.isNotEmpty ? result.items.first : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _feedingLoaded = true);
+    }
+  }
+
+  Future<void> _openFeedings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FeedingHistoryScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _loadLastFeeding();
+  }
+
   Future<void> _loadLastHarvest() async {
     try {
       final result = await HarvestRepository(
@@ -249,6 +284,19 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
     if (result == true) _loadLastTreatment();
   }
 
+  Future<void> _openCreateFeeding() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => FeedingFormScreen(
+          apiaryId: widget.apiaryId,
+          hive: _hive,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == true) _loadLastFeeding();
+  }
+
   Future<void> _openCreateInspection() async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -297,6 +345,13 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   onAdd: _openCreateInspection,
                   onViewAll: _openInspections,
                   apiaryId: widget.apiaryId,
+                ),
+                const SizedBox(height: 16),
+                _FeedingSectionCard(
+                  lastFeeding: _lastFeeding,
+                  feedingLoaded: _feedingLoaded,
+                  onAdd: _openCreateFeeding,
+                  onViewAll: _openFeedings,
                 ),
                 const SizedBox(height: 16),
                 _TreatmentSectionCard(
@@ -752,6 +807,161 @@ class _TreatmentSectionCard extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onAdd,
                     child: Text(l10n.hiveDetailLogTreatment),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedingSummary extends StatelessWidget {
+  final Feeding feeding;
+  final AppLocalizations l10n;
+  final String? currentUserName;
+
+  const _FeedingSummary({
+    required this.feeding,
+    required this.l10n,
+    this.currentUserName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+    final labelStyle = textTheme.labelSmall?.copyWith(
+      color: colorScheme.primary,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    );
+
+    final dateStr = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).add_Hm().format(feeding.fedAt);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          dateStr,
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (feeding.fedByName != null &&
+            feeding.fedByName != currentUserName) ...[
+          const SizedBox(height: 2),
+          Text(
+            l10n.feedingFedBy(feeding.fedByName!),
+            style: bodyStyle,
+          ),
+        ],
+        const SizedBox(height: 8),
+        Text(l10n.feedingType, style: labelStyle),
+        const SizedBox(height: 2),
+        Text(
+          '${feeding.feedType} · ${feeding.amount}',
+          style: bodyStyle,
+        ),
+        if (feeding.notes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(l10n.feedingNote, style: labelStyle),
+          const SizedBox(height: 2),
+          Text(
+            feeding.notes,
+            style: bodyStyle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _FeedingSectionCard extends StatelessWidget {
+  final Feeding? lastFeeding;
+  final bool feedingLoaded;
+  final VoidCallback onAdd;
+  final VoidCallback onViewAll;
+
+  const _FeedingSectionCard({
+    required this.lastFeeding,
+    required this.feedingLoaded,
+    required this.onAdd,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: lastFeeding != null ? onViewAll : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.grain,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.hiveDetailFeedings,
+                          style: textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (!feedingLoaded)
+                    const SizedBox.shrink()
+                  else if (lastFeeding == null)
+                    Text(
+                      l10n.hiveDetailNoFeedings,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    _FeedingSummary(
+                      feeding: lastFeeding!,
+                      l10n: l10n,
+                      currentUserName: context.read<TokenStorage>().name,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: onAdd,
+                    child: Text(l10n.hiveDetailLogFeeding),
                   ),
                 ],
               ),

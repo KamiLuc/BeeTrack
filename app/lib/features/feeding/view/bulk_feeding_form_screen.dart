@@ -5,68 +5,57 @@ import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../hive/data/hive_model.dart';
-import '../data/treatment_model.dart';
-import '../data/treatment_repository.dart';
-import 'treatment_form_fields.dart';
+import '../data/feeding_repository.dart';
+import 'feeding_form_fields.dart';
 
-class TreatmentFormScreen extends StatefulWidget {
+class BulkFeedingFormScreen extends StatefulWidget {
   final int apiaryId;
-  final Hive hive;
-  final Treatment? treatment;
+  final List<int>? hiveIds;
 
-  const TreatmentFormScreen({
-    super.key,
-    required this.apiaryId,
-    required this.hive,
-    this.treatment,
-  });
-
-  bool get isEditing => treatment != null;
+  const BulkFeedingFormScreen({super.key, required this.apiaryId, this.hiveIds});
 
   @override
-  State<TreatmentFormScreen> createState() => _TreatmentFormScreenState();
+  State<BulkFeedingFormScreen> createState() => _BulkFeedingFormScreenState();
 }
 
-class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
+class _BulkFeedingFormScreenState extends State<BulkFeedingFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late DateTime _treatedAt;
-  late final TextEditingController _medicineController;
-  late final TextEditingController _doseController;
+  late DateTime _fedAt;
+  late final TextEditingController _feedTypeController;
+  late final TextEditingController _amountController;
   late final TextEditingController _notesController;
 
-  List<String> _medicineOptions = [];
-  List<String> _doseOptions = [];
+  List<String> _feedTypeOptions = [];
+  List<String> _amountOptions = [];
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    final t = widget.treatment;
-    _treatedAt = t?.treatedAt ?? DateTime.now();
-    _medicineController = TextEditingController(text: t?.medicineName ?? '');
-    _doseController = TextEditingController(text: t?.dose ?? '1');
-    _notesController = TextEditingController(text: t?.notes ?? '');
+    _fedAt = DateTime.now();
+    _feedTypeController = TextEditingController();
+    _amountController = TextEditingController();
+    _notesController = TextEditingController();
     _loadSuggestions();
   }
 
   Future<void> _loadSuggestions() async {
-    final repo = TreatmentRepository(api: context.read<ApiClient>());
+    final repo = FeedingRepository(api: context.read<ApiClient>());
     try {
-      final options = await repo.listMedicines();
-      if (mounted) setState(() => _medicineOptions = options);
+      final options = await repo.listFeedTypes();
+      if (mounted) setState(() => _feedTypeOptions = options);
     } catch (_) {}
     try {
-      final doses = await repo.listDoses();
-      if (mounted) setState(() => _doseOptions = doses);
+      final amounts = await repo.listAmounts();
+      if (mounted) setState(() => _amountOptions = amounts);
     } catch (_) {}
   }
 
   @override
   void dispose() {
-    _medicineController.dispose();
-    _doseController.dispose();
+    _feedTypeController.dispose();
+    _amountController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -74,23 +63,24 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _treatedAt,
+      initialDate: _fedAt,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
     if (picked == null || !mounted) return;
+
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_treatedAt),
+      initialTime: TimeOfDay.fromDateTime(_fedAt),
     );
     if (!mounted) return;
     setState(
-      () => _treatedAt = DateTime(
+      () => _fedAt = DateTime(
         picked.year,
         picked.month,
         picked.day,
-        pickedTime?.hour ?? _treatedAt.hour,
-        pickedTime?.minute ?? _treatedAt.minute,
+        pickedTime?.hour ?? _fedAt.hour,
+        pickedTime?.minute ?? _fedAt.minute,
       ),
     );
   }
@@ -98,31 +88,18 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
-    final repo = TreatmentRepository(api: ctx.read<ApiClient>());
+    final repo = FeedingRepository(api: ctx.read<ApiClient>());
     try {
-      if (widget.isEditing) {
-        await repo.updateTreatment(
-          apiaryId: widget.apiaryId,
-          hiveId: widget.hive.id,
-          treatmentId: widget.treatment!.id,
-          treatedAt: _treatedAt,
-          medicineName: _medicineController.text.trim(),
-          dose: _doseController.text.trim(),
-          notes: _notesController.text.trim(),
-        );
-      } else {
-        await repo.createTreatment(
-          apiaryId: widget.apiaryId,
-          hiveId: widget.hive.id,
-          treatedAt: _treatedAt,
-          medicineName: _medicineController.text.trim(),
-          dose: _doseController.text.trim(),
-          notes: _notesController.text.trim(),
-        );
-      }
-
+      final count = await repo.bulkFeeding(
+        apiaryId: widget.apiaryId,
+        hiveIds: widget.hiveIds,
+        fedAt: _fedAt,
+        feedType: _feedTypeController.text.trim(),
+        amount: _amountController.text.trim(),
+        notes: _notesController.text.trim(),
+      );
       if (!ctx.mounted) return;
-      Navigator.of(ctx).pop(true);
+      Navigator.of(ctx).pop(count);
     } catch (_) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(
@@ -139,7 +116,7 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? l10n.treatmentEdit : l10n.treatmentAdd),
+        title: Text(l10n.feedingFeedAllHives),
         actions: const [ProfileIconButton()],
       ),
       body: Column(
@@ -152,14 +129,14 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: AppLayout.formConstraints(context),
-                    child: TreatmentFormFields(
+                    child: FeedingFormFields(
                       formKey: _formKey,
-                      treatedAt: _treatedAt,
-                      medicineController: _medicineController,
-                      doseController: _doseController,
+                      fedAt: _fedAt,
+                      feedTypeController: _feedTypeController,
+                      amountController: _amountController,
                       notesController: _notesController,
-                      medicineOptions: _medicineOptions,
-                      doseOptions: _doseOptions,
+                      feedTypeOptions: _feedTypeOptions,
+                      amountOptions: _amountOptions,
                       onDateTap: _pickDate,
                     ),
                   ),
@@ -198,8 +175,7 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
                                 child: SizedBox(
                                   width: 24,
                                   height: 24,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               )
                             : IconButton(

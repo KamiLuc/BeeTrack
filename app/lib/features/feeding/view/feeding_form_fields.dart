@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/validation/size_tiers.dart';
 import '../../../l10n/app_localizations.dart';
 
-class TreatmentFormFields extends StatelessWidget {
+class FeedingFormFields extends StatelessWidget {
   final GlobalKey<FormState> formKey;
-  final DateTime treatedAt;
-  final TextEditingController medicineController;
-  final TextEditingController doseController;
+  final DateTime fedAt;
+  final TextEditingController feedTypeController;
+  final TextEditingController amountController;
   final TextEditingController notesController;
-  final List<String> medicineOptions;
-  final List<String> doseOptions;
+  final List<String> feedTypeOptions;
+  final List<String> amountOptions;
   final VoidCallback onDateTap;
 
-  const TreatmentFormFields({
+  const FeedingFormFields({
     super.key,
     required this.formKey,
-    required this.treatedAt,
-    required this.medicineController,
-    required this.doseController,
+    required this.fedAt,
+    required this.feedTypeController,
+    required this.amountController,
     required this.notesController,
-    required this.medicineOptions,
-    this.doseOptions = const [],
+    required this.feedTypeOptions,
+    this.amountOptions = const [],
     required this.onDateTap,
   });
 
@@ -32,7 +31,7 @@ class TreatmentFormFields extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final dateStr = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
-    ).add_Hm().format(treatedAt);
+    ).add_Hm().format(fedAt);
 
     return Form(
       key: formKey,
@@ -43,7 +42,7 @@ class TreatmentFormFields extends StatelessWidget {
             onTap: onDateTap,
             child: InputDecorator(
               decoration: InputDecoration(
-                labelText: l10n.treatmentDate,
+                labelText: l10n.feedingDate,
                 suffixIcon: const Icon(Icons.calendar_today, size: 20),
               ),
               child: Text(dateStr),
@@ -51,36 +50,36 @@ class TreatmentFormFields extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Autocomplete<String>(
-            initialValue: TextEditingValue(text: medicineController.text),
+            initialValue: TextEditingValue(text: feedTypeController.text),
             optionsBuilder: (textEditingValue) {
-              if (textEditingValue.text.isEmpty) return medicineOptions;
+              if (textEditingValue.text.isEmpty) return feedTypeOptions;
               final query = textEditingValue.text.toLowerCase();
-              return medicineOptions.where((m) => m.toLowerCase().contains(query));
+              return feedTypeOptions.where((m) => m.toLowerCase().contains(query));
             },
             onSelected: (selection) {
-              medicineController.text = selection;
+              feedTypeController.text = selection;
             },
             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-              if (controller.text.isEmpty && medicineController.text.isNotEmpty) {
-                controller.text = medicineController.text;
+              if (controller.text.isEmpty && feedTypeController.text.isNotEmpty) {
+                controller.text = feedTypeController.text;
               }
               return TextFormField(
                 controller: controller,
                 focusNode: focusNode,
                 decoration: InputDecoration(
-                  labelText: l10n.treatmentMedicine,
+                  labelText: l10n.feedingType,
                   counterText: SizeTier.small.counterText,
                 ),
                 maxLength: SizeTier.small.maxLength,
-                onChanged: (v) => medicineController.text = v,
+                onChanged: (v) => feedTypeController.text = v,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return l10n.treatmentMedicineRequired;
+                    return l10n.feedingTypeRequired;
                   }
                   return validateSizeTier(
                     v,
                     SizeTier.small,
-                    l10n.treatmentMedicine,
+                    l10n.feedingType,
                     l10n,
                   );
                 },
@@ -89,41 +88,36 @@ class TreatmentFormFields extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Autocomplete<String>(
-            initialValue: TextEditingValue(text: doseController.text),
+            initialValue: TextEditingValue(text: amountController.text),
             optionsBuilder: (textEditingValue) {
-              if (textEditingValue.text.isEmpty) return doseOptions;
+              if (textEditingValue.text.isEmpty) return amountOptions;
               final query = textEditingValue.text.toLowerCase();
-              return doseOptions.where((d) => d.toLowerCase().contains(query));
+              return amountOptions.where((a) => a.toLowerCase().contains(query));
             },
             onSelected: (selection) {
-              doseController.text = selection;
+              amountController.text = selection;
             },
             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-              if (controller.text.isEmpty && doseController.text.isNotEmpty) {
-                controller.text = doseController.text;
+              if (controller.text.isEmpty && amountController.text.isNotEmpty) {
+                controller.text = amountController.text;
               }
               return TextFormField(
                 controller: controller,
                 focusNode: focusNode,
                 decoration: InputDecoration(
-                  labelText: l10n.treatmentDose,
+                  labelText: l10n.feedingAmount,
                   counterText: SizeTier.superSmall.counterText,
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
                 maxLength: SizeTier.superSmall.maxLength,
-                onChanged: (v) => doseController.text = v,
+                onChanged: (v) => amountController.text = v,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return l10n.treatmentDoseRequired;
+                    return l10n.feedingAmountRequired;
                   }
                   return validateSizeTier(
                     v,
                     SizeTier.superSmall,
-                    l10n.treatmentDose,
+                    l10n.feedingAmount,
                     l10n,
                   );
                 },
@@ -133,14 +127,14 @@ class TreatmentFormFields extends StatelessWidget {
           const SizedBox(height: 16),
           TextFormField(
             controller: notesController,
-            decoration: InputDecoration(labelText: l10n.treatmentNote),
+            decoration: InputDecoration(labelText: l10n.feedingNote),
             maxLines: 3,
             minLines: 1,
             maxLength: SizeTier.extraLarge.maxLength,
             validator: (v) => validateSizeTier(
               v,
               SizeTier.extraLarge,
-              l10n.treatmentNote,
+              l10n.feedingNote,
               l10n,
             ),
           ),

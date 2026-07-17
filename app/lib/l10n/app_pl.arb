@@ -257,6 +257,9 @@
   "hiveDetailTreatments": "Leczenia",
   "hiveDetailNoTreatments": "Brak aktywnych leczeń",
   "hiveDetailLogTreatment": "Dodaj leczenie",
+  "hiveDetailFeedings": "Podkarmianie",
+  "hiveDetailNoFeedings": "Brak podkarmiań",
+  "hiveDetailLogFeeding": "Dodaj podkarmianie",
   "hiveDetailHarvests": "Zbiory",
   "hiveDetailNoHarvests": "Brak zbiorów",
   "hiveDetailLogHarvest": "Dodaj zbiór",
@@ -375,13 +378,41 @@
       "name": {"type": "String"}
     }
   },
-  "treatmentTreatAllHives": "Lecz wszystkie ule",
+  "treatmentTreatAllHives": "Lecz ule",
   "treatmentBulkSuccess": "{count, plural, =1{Leczenie zapisano dla 1 ula} few{Leczenie zapisano dla {count} uli} many{Leczenie zapisano dla {count} uli} other{Leczenie zapisano dla {count} uli}}",
   "@treatmentBulkSuccess": {
     "placeholders": {
       "count": { "type": "int" }
     }
   },
+
+  "feedingTitle": "Podkarmianie",
+  "feedingAdd": "Dodaj podkarmianie",
+  "feedingEdit": "Edytuj podkarmianie",
+  "feedingEmpty": "Brak podkarmiań",
+  "feedingDeleteConfirm": "Usunąć podkarmianie?",
+  "feedingDeleteWarning": "Ta operacja trwale usunie wpis podkarmiania.",
+  "feedingDate": "Data podkarmiania",
+  "feedingType": "Pokarm",
+  "feedingTypeRequired": "Rodzaj pokarmu jest wymagany",
+  "feedingAmount": "Ilość",
+  "feedingAmountRequired": "Ilość jest wymagana",
+  "feedingNote": "Notatka",
+  "feedingFedBy": "Przez {name}",
+  "@feedingFedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "feedingFeedAllHives": "Podkarm ule",
+  "feedingBulkSuccess": "{count, plural, =1{Podkarmianie zapisano dla 1 ula} few{Podkarmianie zapisano dla {count} uli} many{Podkarmianie zapisano dla {count} uli} other{Podkarmianie zapisano dla {count} uli}}",
+  "@feedingBulkSuccess": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "bulkSelectHives": "Wybierz ule",
 
   "harvestTitle": "Zbiory",
   "harvestAdd": "Dodaj zbiór",

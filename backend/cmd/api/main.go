@@ -43,6 +43,7 @@ func main() {
 	inspectionImageRepo := repository.NewInspectionImageRepository(db)
 	invitationRepo := repository.NewInvitationRepository(db)
 	treatmentRepo := repository.NewTreatmentRepository(db)
+	feedingRepo := repository.NewFeedingRepository(db)
 	harvestRepo := repository.NewHarvestRepository(db)
 	listingRepo := repository.NewListingRepository(db)
 	listingFavoriteRepo := repository.NewListingFavoriteRepository(db)
@@ -56,6 +57,7 @@ func main() {
 	inspectionSvc := service.NewInspectionService(apiaryRepo, hiveRepo, inspectionRepo)
 	inspectionImageSvc := service.NewInspectionImageService(apiaryRepo, hiveRepo, inspectionRepo, inspectionImageRepo, cfg.ImageStoragePath)
 	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
+	feedingSvc := service.NewFeedingService(apiaryRepo, hiveRepo, hiveRepo, feedingRepo)
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
 	listingSvc := service.NewListingService(listingRepo, apiaryRepo)
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
@@ -69,6 +71,7 @@ func main() {
 	inspectionHandler := handler.NewInspectionHandler(inspectionSvc, inspectionImageSvc)
 	inspectionImageHandler := handler.NewInspectionImageHandler(inspectionImageSvc)
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
+	feedingHandler := handler.NewFeedingHandler(feedingSvc)
 	harvestHandler := handler.NewHarvestHandler(harvestSvc)
 	listingHandler := handler.NewListingHandler(listingSvc)
 	listingImageHandler := handler.NewListingImageHandler(listingImageSvc)
@@ -125,7 +128,8 @@ func main() {
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases", auth(http.HandlerFunc(inspectionHandler.AddDisease)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId}", auth(http.HandlerFunc(inspectionHandler.RemoveDisease)))
 
-	mux.HandleFunc("GET /api/v1/medicines", handler.Medicines)
+	mux.Handle("GET /api/v1/medicines", auth(http.HandlerFunc(treatmentHandler.Medicines)))
+	mux.Handle("GET /api/v1/doses", auth(http.HandlerFunc(treatmentHandler.Doses)))
 
 	mux.Handle("POST /api/v1/apiaries/{id}/treatments/bulk", auth(http.HandlerFunc(treatmentHandler.BulkCreate)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments", auth(http.HandlerFunc(treatmentHandler.List)))
@@ -133,6 +137,17 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Delete)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Get)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId}", auth(http.HandlerFunc(treatmentHandler.Update)))
+
+	mux.Handle("GET /api/v1/feed-types", auth(http.HandlerFunc(feedingHandler.FeedTypes)))
+	mux.Handle("GET /api/v1/feed-amounts", auth(http.HandlerFunc(feedingHandler.Amounts)))
+
+	mux.Handle("POST /api/v1/apiaries/{id}/feedings/bulk", auth(http.HandlerFunc(feedingHandler.BulkCreate)))
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/feedings", auth(http.HandlerFunc(feedingHandler.List)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/feedings", auth(http.HandlerFunc(feedingHandler.Create)))
+	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId}", auth(http.HandlerFunc(feedingHandler.Delete)))
+	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId}", auth(http.HandlerFunc(feedingHandler.Get)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId}", auth(http.HandlerFunc(feedingHandler.Update)))
+
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/harvests", auth(http.HandlerFunc(harvestHandler.List)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/harvests", auth(http.HandlerFunc(harvestHandler.Create)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}", auth(http.HandlerFunc(harvestHandler.Delete)))

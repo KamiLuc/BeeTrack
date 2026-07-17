@@ -10,8 +10,9 @@ import 'treatment_form_fields.dart';
 
 class BulkTreatmentFormScreen extends StatefulWidget {
   final int apiaryId;
+  final List<int>? hiveIds;
 
-  const BulkTreatmentFormScreen({super.key, required this.apiaryId});
+  const BulkTreatmentFormScreen({super.key, required this.apiaryId, this.hiveIds});
 
   @override
   State<BulkTreatmentFormScreen> createState() => _BulkTreatmentFormScreenState();
@@ -26,6 +27,7 @@ class _BulkTreatmentFormScreenState extends State<BulkTreatmentFormScreen> {
   late final TextEditingController _notesController;
 
   List<String> _medicineOptions = [];
+  List<String> _doseOptions = [];
   bool _loading = false;
 
   @override
@@ -35,13 +37,18 @@ class _BulkTreatmentFormScreenState extends State<BulkTreatmentFormScreen> {
     _medicineController = TextEditingController();
     _doseController = TextEditingController(text: '1');
     _notesController = TextEditingController();
-    _loadMedicines();
+    _loadSuggestions();
   }
 
-  Future<void> _loadMedicines() async {
+  Future<void> _loadSuggestions() async {
+    final repo = TreatmentRepository(api: context.read<ApiClient>());
     try {
-      final options = await TreatmentRepository(api: context.read<ApiClient>()).listMedicines();
+      final options = await repo.listMedicines();
       if (mounted) setState(() => _medicineOptions = options);
+    } catch (_) {}
+    try {
+      final doses = await repo.listDoses();
+      if (mounted) setState(() => _doseOptions = doses);
     } catch (_) {}
   }
 
@@ -85,6 +92,7 @@ class _BulkTreatmentFormScreenState extends State<BulkTreatmentFormScreen> {
     try {
       final count = await repo.bulkTreatment(
         apiaryId: widget.apiaryId,
+        hiveIds: widget.hiveIds,
         treatedAt: _treatedAt,
         medicineName: _medicineController.text.trim(),
         dose: _doseController.text.trim(),
@@ -128,6 +136,7 @@ class _BulkTreatmentFormScreenState extends State<BulkTreatmentFormScreen> {
                       doseController: _doseController,
                       notesController: _notesController,
                       medicineOptions: _medicineOptions,
+                      doseOptions: _doseOptions,
                       onDateTap: _pickDate,
                     ),
                   ),

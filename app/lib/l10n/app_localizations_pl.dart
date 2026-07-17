@@ -684,6 +684,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveDetailLogTreatment => 'Dodaj leczenie';
 
   @override
+  String get hiveDetailFeedings => 'Podkarmianie';
+
+  @override
+  String get hiveDetailNoFeedings => 'Brak podkarmiań';
+
+  @override
+  String get hiveDetailLogFeeding => 'Dodaj podkarmianie';
+
+  @override
   String get hiveDetailHarvests => 'Zbiory';
 
   @override
@@ -963,7 +972,7 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get treatmentTreatAllHives => 'Lecz wszystkie ule';
+  String get treatmentTreatAllHives => 'Lecz ule';
 
   @override
   String treatmentBulkSuccess(int count) {
@@ -977,6 +986,67 @@ class AppLocalizationsPl extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get feedingTitle => 'Podkarmianie';
+
+  @override
+  String get feedingAdd => 'Dodaj podkarmianie';
+
+  @override
+  String get feedingEdit => 'Edytuj podkarmianie';
+
+  @override
+  String get feedingEmpty => 'Brak podkarmiań';
+
+  @override
+  String get feedingDeleteConfirm => 'Usunąć podkarmianie?';
+
+  @override
+  String get feedingDeleteWarning =>
+      'Ta operacja trwale usunie wpis podkarmiania.';
+
+  @override
+  String get feedingDate => 'Data podkarmiania';
+
+  @override
+  String get feedingType => 'Pokarm';
+
+  @override
+  String get feedingTypeRequired => 'Rodzaj pokarmu jest wymagany';
+
+  @override
+  String get feedingAmount => 'Ilość';
+
+  @override
+  String get feedingAmountRequired => 'Ilość jest wymagana';
+
+  @override
+  String get feedingNote => 'Notatka';
+
+  @override
+  String feedingFedBy(String name) {
+    return 'Przez $name';
+  }
+
+  @override
+  String get feedingFeedAllHives => 'Podkarm ule';
+
+  @override
+  String feedingBulkSuccess(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Podkarmianie zapisano dla $count uli',
+      many: 'Podkarmianie zapisano dla $count uli',
+      few: 'Podkarmianie zapisano dla $count uli',
+      one: 'Podkarmianie zapisano dla 1 ula',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bulkSelectHives => 'Wybierz ule';
 
   @override
   String get harvestTitle => 'Zbiory';
