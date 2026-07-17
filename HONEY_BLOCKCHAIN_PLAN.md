@@ -55,7 +55,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
    - File: `backend/internal/config/blockchain_config.go`
    - Fields: PolygonRPCURL, ContractAddress, PrivateKey, ChainID (for testnet/mainnet detection)
    - Validation: Ensure private key is 64 hex chars, RPC URL is valid, contract address is 42 chars (0x...)
-   - Environment variables: POLYGON_RPC_URL, CONTRACT_ADDRESS, BLOCKCHAIN_PRIVATE_KEY, CHAIN_ID (default 80001 for Mumbai testnet)
+   - Environment variables: POLYGON_RPC_URL, CONTRACT_ADDRESS, BLOCKCHAIN_PRIVATE_KEY, CHAIN_ID (default 80002 for Amoy testnet)
 
 7. **HC-BE-02: Smart contract (Solidity)**
    - File: `backend/contracts/HoneyCertification.sol` (or upload to external repo)
@@ -66,7 +66,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
    - Owner validation: Only minter address (BeeTrack backend) can call certify()
 
 8. **HC-BE-03: Deploy contract to Polygon**
-   - Deploy to Mumbai testnet (chain ID 80001) first; later to Polygon mainnet (137)
+   - Deploy to Amoy testnet (chain ID 80002) first; later to Polygon mainnet (137)
    - Use Remix or hardhat for deployment; store contract address in config
    - Document: Store ABI in `backend/internal/blockchain/contracts/HoneyCertification.abi` for Go bindings
 
@@ -483,7 +483,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 ### Week 2: Blockchain
 5. Blockchain config (HC-BE-01)
-6. Smart contract (HC-BE-02, HC-BE-03) — deploy to Mumbai
+6. Smart contract (HC-BE-02, HC-BE-03) — deploy to Amoy
 7. Writer & reader (HC-BE-04, HC-BE-05, HC-BE-06)
 8. Integration tests for blockchain operations
 
@@ -524,7 +524,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 - **Integration:** Create batch → list batches → verify → delete
 
 ### Blockchain Tests
-- Deploy contract to Mumbai testnet
+- Deploy contract to Amoy testnet
 - Test certify() function, event emission
 - Test hash verification (on-chain vs stored)
 - Test failed tx retry logic
@@ -566,7 +566,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 ## Decisions Made
 
 1. **PDF Storage:** Match photo storage pattern (currently URL-based). PDFs stored as URLs in DB, can be backed by S3, cloud storage, or local file system per deployment
-2. **Blockchain Network:** **Polygon Mumbai testnet** (development) — costs fake MATIC, safe to test. Can migrate to Polygon mainnet later once validated
+2. **Blockchain Network:** **Polygon Amoy testnet** (development, chain ID 80002) — costs fake MATIC, safe to test. Can migrate to Polygon mainnet later once validated
 3. **Gas Fees:** **App/backend pays** — simpler UX, no wallet required from users
 4. **Scope:** **Full feature (50 tasks, 6 weeks)** — include polish, error handling, offline support, localization
 5. **Verification UI:** Public endpoint for verification; QR scanning via app
