@@ -43,7 +43,10 @@ void main() {
       expect(img.id, 7);
       expect(img.inspectionId, 42);
       expect(img.mimeType, 'image/jpeg');
-      expect(img.createdAt, DateTime.utc(2025, 6, 1, 10));
+      expect(
+        img.createdAt.isAtSameMomentAs(DateTime.utc(2025, 6, 1, 10)),
+        isTrue,
+      );
     });
   });
 

@@ -45,7 +45,7 @@ class Inspection {
     return Inspection(
       id: json['id'] as int,
       hiveId: json['hive_id'] as int,
-      inspectedAt: DateTime.parse(json['inspected_at'] as String),
+      inspectedAt: DateTime.parse(json['inspected_at'] as String).toLocal(),
       queenSeen: json['queen_status'] as String? ?? '',
       broodPattern: json['brood_pattern'] as String? ?? '',
       aggressiveness: json['aggressiveness'] as String? ?? '',

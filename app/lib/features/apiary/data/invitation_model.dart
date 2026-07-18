@@ -18,7 +18,7 @@ class ApiaryMemberInfo {
         name: json['name'] as String,
         email: json['email'] as String,
         role: json['role'] as String,
-        joinedAt: DateTime.parse(json['joined_at'] as String),
+        joinedAt: DateTime.parse(json['joined_at'] as String).toLocal(),
       );
 }
 
@@ -42,7 +42,7 @@ class ApiaryInvitation {
         apiaryId: json['apiary_id'] as int,
         invitedEmail: json['invited_email'] as String,
         status: json['status'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
+        createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       );
 }
 
@@ -66,7 +66,7 @@ class MyInvitation {
         apiaryId: json['apiary_id'] as int,
         apiaryName: json['apiary_name'] as String,
         invitedByName: json['invited_by_name'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
+        createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       );
 }
 

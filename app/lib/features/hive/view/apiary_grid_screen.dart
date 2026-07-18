@@ -92,7 +92,9 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
   }
 
   Future<void> _openBulkTreatment(BuildContext context, List<Hive> hives) async {
-    final hiveIds = await showBulkHiveSelectionDialog(context, hives: hives);
+    final activeHives = hives.where((h) => h.active).toList();
+    final hiveIds =
+        await showBulkHiveSelectionDialog(context, hives: activeHives);
     if (hiveIds == null || !context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final count = await Navigator.of(context).push<int>(
@@ -111,7 +113,9 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
   }
 
   Future<void> _openBulkFeeding(BuildContext context, List<Hive> hives) async {
-    final hiveIds = await showBulkHiveSelectionDialog(context, hives: hives);
+    final activeHives = hives.where((h) => h.active).toList();
+    final hiveIds =
+        await showBulkHiveSelectionDialog(context, hives: activeHives);
     if (hiveIds == null || !context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final count = await Navigator.of(context).push<int>(

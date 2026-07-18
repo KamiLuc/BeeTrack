@@ -21,7 +21,7 @@ class Feeding {
     return Feeding(
       id: json['id'] as int,
       hiveId: json['hive_id'] as int,
-      fedAt: DateTime.parse(json['fed_at'] as String),
+      fedAt: DateTime.parse(json['fed_at'] as String).toLocal(),
       feedType: json['feed_type'] as String? ?? '',
       amount: json['amount'] as String? ?? '',
       notes: json['notes'] as String? ?? '',

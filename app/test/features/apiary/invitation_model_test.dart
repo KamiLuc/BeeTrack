@@ -16,7 +16,10 @@ void main() {
       expect(m.name, 'Alice');
       expect(m.email, 'alice@example.com');
       expect(m.role, 'member');
-      expect(m.joinedAt, DateTime.parse('2024-01-15T10:00:00Z'));
+      expect(
+        m.joinedAt.isAtSameMomentAs(DateTime.parse('2024-01-15T10:00:00Z')),
+        isTrue,
+      );
     });
   });
 
@@ -34,7 +37,10 @@ void main() {
       expect(inv.apiaryId, 3);
       expect(inv.invitedEmail, 'bob@example.com');
       expect(inv.status, 'pending');
-      expect(inv.createdAt, DateTime.parse('2024-02-01T08:30:00Z'));
+      expect(
+        inv.createdAt.isAtSameMomentAs(DateTime.parse('2024-02-01T08:30:00Z')),
+        isTrue,
+      );
     });
   });
 
@@ -52,7 +58,10 @@ void main() {
       expect(inv.apiaryId, 5);
       expect(inv.apiaryName, 'Home Apiary');
       expect(inv.invitedByName, 'Charlie');
-      expect(inv.createdAt, DateTime.parse('2024-03-10T12:00:00Z'));
+      expect(
+        inv.createdAt.isAtSameMomentAs(DateTime.parse('2024-03-10T12:00:00Z')),
+        isTrue,
+      );
     });
   });
 

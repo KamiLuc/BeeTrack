@@ -32,7 +32,7 @@ class Apiary {
       hiveCount: json['hive_count'] as int? ?? 0,
       userRole: json['user_role'] as String,
       lastInspectedAt: json['last_inspected_at'] != null
-          ? DateTime.parse(json['last_inspected_at'] as String)
+          ? DateTime.parse(json['last_inspected_at'] as String).toLocal()
           : null,
     );
   }

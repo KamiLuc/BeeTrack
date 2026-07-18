@@ -21,7 +21,7 @@ class Treatment {
     return Treatment(
       id: json['id'] as int,
       hiveId: json['hive_id'] as int,
-      treatedAt: DateTime.parse(json['treated_at'] as String),
+      treatedAt: DateTime.parse(json['treated_at'] as String).toLocal(),
       medicineName: json['medicine_name'] as String? ?? '',
       dose: json['dose'] as String? ?? '1',
       notes: json['notes'] as String? ?? '',

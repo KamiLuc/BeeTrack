@@ -40,7 +40,10 @@ void main() {
       expect(apiary.gridCols, 4);
       expect(apiary.hiveCount, 5);
       expect(apiary.userRole, 'owner');
-      expect(apiary.lastInspectedAt, DateTime.utc(2025, 6, 1, 10));
+      expect(
+        apiary.lastInspectedAt!.isAtSameMomentAs(DateTime.utc(2025, 6, 1, 10)),
+        isTrue,
+      );
     });
 
     test('defaults hive_count to 0 when missing', () {
