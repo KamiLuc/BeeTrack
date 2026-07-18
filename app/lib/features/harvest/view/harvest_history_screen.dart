@@ -239,7 +239,9 @@ class HarvestCard extends StatelessWidget {
                   Text(l10n.harvestFrames, style: labelStyle),
                   const SizedBox(height: 2),
                   Text(
-                    '${harvest.frames} + ${harvest.halfFrames} ${l10n.harvestHalfFrames.toLowerCase()}',
+                    harvest.halfFrames > 0
+                        ? '${l10n.harvestFramesCount(harvest.frames)} + ${l10n.harvestHalfFramesCount(harvest.halfFrames)}'
+                        : l10n.harvestFramesCount(harvest.frames),
                     style: bodyStyle,
                   ),
                   const SizedBox(height: 8),

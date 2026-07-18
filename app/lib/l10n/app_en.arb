@@ -411,6 +411,18 @@
   "harvestDate": "Harvest date",
   "harvestFrames": "Frames",
   "harvestHalfFrames": "Half frames",
+  "harvestFramesCount": "{count, plural, =1{1 frame} other{{count} frames}}",
+  "@harvestFramesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "harvestHalfFramesCount": "{count, plural, =1{1 half frame} other{{count} half frames}}",
+  "@harvestHalfFramesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "harvestKilograms": "Kilograms (kg)",
   "harvestKilogramsRequired": "Kilograms is required",
   "harvestNote": "Note",

@@ -2030,6 +2030,18 @@ abstract class AppLocalizations {
   /// **'Półramki'**
   String get harvestHalfFrames;
 
+  /// No description provided for @harvestFramesCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 ramka} few{{count} ramki} many{{count} ramek} other{{count} ramek}}'**
+  String harvestFramesCount(int count);
+
+  /// No description provided for @harvestHalfFramesCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =1{1 półramka} few{{count} półramki} many{{count} półramek} other{{count} półramek}}'**
+  String harvestHalfFramesCount(int count);
+
   /// No description provided for @harvestKilograms.
   ///
   /// In pl, this message translates to:

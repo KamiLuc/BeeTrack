@@ -1063,6 +1063,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get harvestHalfFrames => 'Half frames';
 
   @override
+  String harvestFramesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count frames',
+      one: '1 frame',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String harvestHalfFramesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count half frames',
+      one: '1 half frame',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get harvestKilograms => 'Kilograms (kg)';
 
   @override

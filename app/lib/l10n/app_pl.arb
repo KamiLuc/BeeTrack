@@ -423,6 +423,18 @@
   "harvestDate": "Data zbioru",
   "harvestFrames": "Ramki",
   "harvestHalfFrames": "Półramki",
+  "harvestFramesCount": "{count, plural, =1{1 ramka} few{{count} ramki} many{{count} ramek} other{{count} ramek}}",
+  "@harvestFramesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "harvestHalfFramesCount": "{count, plural, =1{1 półramka} few{{count} półramki} many{{count} półramek} other{{count} półramek}}",
+  "@harvestHalfFramesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "harvestKilograms": "Kilogramy (kg)",
   "harvestKilogramsRequired": "Kilogramy są wymagane",
   "harvestNote": "Notatka",

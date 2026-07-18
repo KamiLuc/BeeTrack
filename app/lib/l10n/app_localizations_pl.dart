@@ -1076,6 +1076,32 @@ class AppLocalizationsPl extends AppLocalizations {
   String get harvestHalfFrames => 'Półramki';
 
   @override
+  String harvestFramesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ramek',
+      many: '$count ramek',
+      few: '$count ramki',
+      one: '1 ramka',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String harvestHalfFramesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count półramek',
+      many: '$count półramek',
+      few: '$count półramki',
+      one: '1 półramka',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get harvestKilograms => 'Kilogramy (kg)';
 
   @override
