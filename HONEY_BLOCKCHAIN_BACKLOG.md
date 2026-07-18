@@ -5,6 +5,8 @@
 > Treat each item like a Jira ticket — update status as work progresses.
 >
 > **Architecture in one line:** `CreateBatch` persists a batch + enqueues a `blockchain_jobs` row and returns immediately; a background `BlockchainWorker` owns all Polygon RPC interaction, writes results to an append-only `honey_batch_certifications` history, and drives a 7-state lifecycle (queued → submitting → submitted → pending_confirmation → confirmed / failed / reverted). Public verification uses an unguessable `verification_token`, never the numeric batch id. Honey amount is stored as integer grams, never `float64`.
+>
+> **Thesis scope, not production:** this is a final CS thesis feature — target environment is **Polygon Amoy testnet only**, exercised in a testing environment. Rows tagged **(optional)** below are production-hardening that can be skipped without weakening the thesis; everything else is in scope because it's the engineering content being demonstrated (async jobs, idempotency, deterministic hashing, append-only history).
 
 ---
 
@@ -68,7 +70,7 @@
 | --------- | ----- | ------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HC-BE-01  | `BE`  | `[ ]`  | Blockchain config                    | RPC URL, contract address, private key, chain ID (default 80002 Amoy), plus `JobPollInterval` (5s), `ConfirmationPollInterval` (30s), `RequiredConfirmations` (12). |
 | HC-BE-02  | `BE`  | `[ ]`  | Smart contract (Solidity)            | `certify()` **reverts if batchID already certified** — contract-level idempotency. Event `CertificationCreated`. Owner-only caller.               |
-| HC-BE-03  | `BE`  | `[ ]`  | Deploy contract to Polygon           | Amoy testnet (80002) first, mainnet (137) later. Store ABI at `backend/internal/blockchain/contracts/HoneyCertification.abi`.                     |
+| HC-BE-03  | `BE`  | `[ ]`  | Deploy contract to Polygon           | Amoy testnet (80002) — the only target needed. Mainnet (137) is **(optional)**, out of scope. Store ABI at `backend/internal/blockchain/contracts/HoneyCertification.abi`.                     |
 | HC-BE-04  | `BE`  | `[ ]`  | Blockchain writer                    | `CertifyBatch(...)` — called **only** by the worker (HC-BE-15b), never from the HTTP path. Returns tx hash immediately, doesn't wait for confirmation. |
 | HC-BE-05  | `BE`  | `[ ]`  | Blockchain reader                    | `VerifyBatch(...)` + `GetTransactionStatus(txHash)` (confirmed/reverted/blockNumber/gasUsed) — used by the confirmation-polling loop (HC-BE-15c).  |
 | HC-BE-06  | `BE`  | `[ ]`  | Hash utilities — PDF                 | `SHA256File(filePath)` for PDF hashing.                                                                                                            |
@@ -167,10 +169,10 @@
 
 | ID       | Layer | Status | Title                   | Notes                                                                                                                                    |
 | -------- | ----- | ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| HC-10-01 | `BE`  | `[ ]`  | PDF file validation     | MIME type + max size (10MB); optional ClamAV scan.                                                                                        |
+| HC-10-01 | `BE`  | `[ ]`  | PDF file validation     | MIME type + max size (10MB). ClamAV scan is **(optional)**, skip.                                                                          |
 | HC-10-02 | `BE`  | `[ ]`  | Blockchain retry logic  | Moved to the worker (HC-BE-15b) — exponential backoff via `blockchain_jobs.next_retry_at`, 3 attempts then terminal `failed`.             |
-| HC-10-03 | `BE`  | `[ ]`  | Storage for PDFs        | S3/local FS, signed URLs, soft-delete cleanup.                                                                                            |
-| HC-10-04 | `BE`  | `[ ]`  | Gas fee management      | `gas_used` persisted per-certification row (auditable per batch, not just logged). Alert on gas price spikes.                            |
+| HC-10-03 | `BE`  | `[ ]`  | Storage for PDFs        | Local FS is enough for the thesis's testing env (matches existing photo-storage pattern). S3 + signed URLs is **(optional)**.             |
+| HC-10-04 | `BE`  | `[ ]`  | Gas fee management      | `gas_used` persisted per-certification row (auditable per batch — useful for the thesis write-up, cheap to keep). Gas relay service + price-spike alerting is **(optional)**, unnecessary on free testnet gas. |
 | HC-10-05 | `FE`  | `[ ]`  | Offline handling        | Simplified vs. original plan — no local blockchain-write queue needed, since the app never triggers chain writes directly.               |
 | HC-10-06 | `FE`  | `[ ]`  | Loading states          | Distinct UI per lifecycle state; "Retry" button on `failed` batches (calls HC-BE-24c).                                                    |
 | HC-10-07 | `FE`  | `[ ]`  | Error handling          | Error copy mapped from lifecycle status (queued/submitting/submitted/pending_confirmation = "in progress", not an error).                |

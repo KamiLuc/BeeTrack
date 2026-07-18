@@ -8,6 +8,8 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 **Architecture Strategy (revised):** Blockchain certification is fully asynchronous. The HTTP API never blocks on Polygon RPC calls — creating a batch persists the batch and enqueues a durable job; a dedicated background worker owns all chain interaction, retries, and status transitions. Certification results are recorded as an append-only history (`honey_batch_certifications`) rather than mutable fields on the batch itself, and batches are exposed publicly through an unguessable verification token rather than their sequential database ID.
 
+**Thesis Scope:** This feature is being built for a final computer science thesis, not for a production deployment. The target environment is **Polygon Amoy testnet only** — there is no mainnet migration, no real-money gas spend, and no external users depending on uptime. The architectural rigor above (async jobs, idempotency, append-only certification history, deterministic hashing) is kept because it's the interesting engineering content of the thesis and needs to demonstrably work correctly under test, not because the deployment needs to survive production traffic. Anything below tagged **(production-hardening — optional for thesis)** can be skipped, stubbed, or left as documented future work without weakening the thesis; it's noted for completeness rather than as a requirement.
+
 ---
 
 ## Implementation Phases
@@ -125,7 +127,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Owner validation: Only minter address (BeeTrack backend) can call certify()
 
 13. **HC-BE-03: Deploy contract to Polygon**
-    - Deploy to Amoy testnet (chain ID 80002) first; later to Polygon mainnet (137)
+    - Deploy to Amoy testnet (chain ID 80002) — this is the only deployment target needed for the thesis. Mainnet (137) deployment is **(production-hardening — optional for thesis)**; the code stays chain-agnostic (`chain_id` is a config value, never hardcoded) so it's possible later, but is not part of this scope.
     - Use Remix or hardhat for deployment; store contract address in config
     - Document: Store ABI in `backend/internal/blockchain/contracts/HoneyCertification.abi` for Go bindings
 
@@ -474,13 +476,13 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Highlight match/mismatch
 
 ### Phase 11: Polish & Edge Cases (10 tasks)
-**Goals:** Production-ready error handling, offline support, localization.
+**Goals:** Solid error handling, offline support, localization for a testing/demo environment. Items marked **(production-hardening — optional for thesis)** below can be skipped without weakening the thesis's engineering content.
 
 53. **HC-10-01: PDF file validation (backend)**
     - File: `backend/internal/service/honey_batch.go` (add to HC-BE-13)
     - Check MIME type: application/pdf only
     - Max size: 10MB
-    - Optional: scan with ClamAV if security required
+    - ClamAV scanning: **(production-hardening — optional for thesis)**, skip
 
 54. **HC-10-02: Blockchain retry logic (backend)**
     - File: `backend/internal/worker/blockchain_worker.go` (moved from the service layer — retries are now entirely the worker's responsibility, per improvement #1/#2)
@@ -490,16 +492,14 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 55. **HC-10-03: PDF storage (backend)**
     - File: `backend/internal/storage/pdf_storage.go`
-    - Use S3 or local file system
-    - Generate signed URLs for secure access (public batches: no signature)
+    - Local file system is sufficient for the thesis's testing environment, matching the existing photo-storage pattern in the app; S3 + signed URLs are **(production-hardening — optional for thesis)**
     - Cleanup: soft-delete PDFs when batch deleted
-    - Security: validate PDF MIME before storing
+    - Security: validate PDF MIME before storing (cheap to keep, not skipped)
 
 56. **HC-10-04: Gas fee management (backend)**
     - File: `backend/internal/blockchain/writer.go`
-    - `gas_used` is persisted per-certification (HC-DB-04), so cost is auditable per batch, not just logged
-    - Consider gas relay service (OpenZeppelin Defender) for user-pays-nothing model (optional phase 2)
-    - Alert if gas price spikes (worker can inspect the current gas price before submitting and defer/log if above a configured ceiling)
+    - `gas_used` is persisted per-certification (HC-DB-04), so cost is auditable per batch — useful for the thesis write-up (e.g. reporting real testnet gas costs), and effectively free to keep
+    - Gas relay service (OpenZeppelin Defender) and gas-price-spike alerting: **(production-hardening — optional for thesis)**, not needed since testnet gas is free (fake MATIC)
 
 57. **HC-10-05: Offline handling (frontend)**
     - File: `app/lib/features/honey/cubit/honey_batches_cubit.dart`
@@ -697,13 +697,14 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 9. **Soft deletes:** Batches marked deleted, not hard-deleted (audit trail); on-chain certification records are immutable regardless
 10. **QR code immutability:** URLs permanent; scanning always reflects the worker's latest known on-chain state (not a live RPC call per scan, for both latency and rate-limit reasons)
 11. **Idempotency is defense-in-depth:** enforced at three independent layers — smart contract revert-on-duplicate, application-level pre-submission check, and a DB partial unique constraint — so no single missed edge case causes a double-certification.
+12. **Thesis scope, not production:** target environment is Polygon Amoy testnet only. Mainnet deployment, gas relay services, malware scanning, and signed-URL cloud storage are documented as future work but are **(production-hardening — optional for thesis)** and not required to consider the feature complete.
 
 ---
 
 ## Decisions Made
 
 1. **PDF Storage:** Match photo storage pattern (currently URL-based). PDFs stored as URLs in DB, can be backed by S3, cloud storage, or local file system per deployment
-2. **Blockchain Network:** **Polygon Amoy testnet** (development, chain ID 80002) — costs fake MATIC, safe to test. Can migrate to Polygon mainnet later once validated; `chain_id` is stored per-certification (not globally assumed) specifically so a future mainnet migration doesn't require reinterpreting historical records.
+2. **Blockchain Network:** **Polygon Amoy testnet** (chain ID 80002) — costs fake MATIC, safe to test, and is the only target this thesis needs. `chain_id` is still stored per-certification (not globally assumed), which costs nothing extra but keeps a mainnet migration possible later without reinterpreting historical records — that migration itself is out of scope.
 3. **Gas Fees:** **App/backend pays** — simpler UX, no wallet required from users
 4. **Scope:** **Full feature (revised task breakdown, 6 weeks)** — include polish, error handling, offline support, localization; the async/jobs/certifications-table architecture adds a handful of tasks but does not extend the timeline, since it replaces (rather than adds alongside) the original inline-blockchain-call approach
 5. **Verification UI:** Public endpoint for verification, keyed by an unguessable token; QR scanning via app
