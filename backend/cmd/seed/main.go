@@ -80,6 +80,7 @@ func main() {
 	hiveRepo := repository.NewHiveRepository(db)
 	inspectionRepo := repository.NewInspectionRepository(db)
 	treatmentRepo := repository.NewTreatmentRepository(db)
+	feedingRepo := repository.NewFeedingRepository(db)
 	harvestRepo := repository.NewHarvestRepository(db)
 	listingRepo := repository.NewListingRepository(db)
 
@@ -101,17 +102,20 @@ func main() {
 		log.Fatalf("create hive disease: %v", err)
 	}
 
-	inspectionCount, treatmentCount, harvestCount := 0, 0, 0
+	inspectionCount, treatmentCount, feedingCount, harvestCount := 0, 0, 0, 0
 	for i, h := range allHives {
 		inspectionCount += seedInspections(ctx, inspectionRepo, h, user.ID, i, h.Name == "Sick")
 		if i%2 == 0 {
 			treatmentCount += seedTreatments(ctx, treatmentRepo, h, user.ID, i)
 		}
+		if h.Active {
+			feedingCount += seedFeedings(ctx, feedingRepo, h, user.ID, i)
+		}
 		if i%2 == 1 || h.ReadyForHarvest {
 			harvestCount += seedHarvests(ctx, harvestRepo, h, user.ID, i)
 		}
 	}
-	log.Printf("created %d hives, %d inspections, %d treatments, %d harvests", len(allHives), inspectionCount, treatmentCount, harvestCount)
+	log.Printf("created %d hives, %d inspections, %d treatments, %d feedings, %d harvests", len(allHives), inspectionCount, treatmentCount, feedingCount, harvestCount)
 
 	listings := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
 	log.Printf("created %d listings", len(listings))
@@ -325,6 +329,29 @@ func seedTreatments(ctx context.Context, repo *repository.TreatmentRepository, h
 		}
 		if err := repo.Create(ctx, t); err != nil {
 			log.Fatalf("create treatment for hive %d: %v", hive.ID, err)
+		}
+		count++
+	}
+	return count
+}
+
+var feedTypes = []string{"Syrop cukrowy 1:1", "Ciasto cukrowe", "Pokarm inwertowany", "Syrop cukrowy 3:2"}
+var feedAmounts = []string{"2 l", "1 kg", "1.5 l", "0.5 kg"}
+
+func seedFeedings(ctx context.Context, repo *repository.FeedingRepository, hive *model.Hive, userID int64, hiveIdx int) int {
+	count := 0
+	for j, daysAgo := range []int{25, 10} {
+		idx := hiveIdx + j
+		f := &model.Feeding{
+			HiveID:   hive.ID,
+			FedBy:    userID,
+			FedAt:    time.Now().AddDate(0, 0, -daysAgo),
+			FeedType: feedTypes[idx%len(feedTypes)],
+			Amount:   feedAmounts[idx%len(feedAmounts)],
+			Notes:    "Podkarmianie w ramach przygotowań rodziny.",
+		}
+		if err := repo.Create(ctx, f); err != nil {
+			log.Fatalf("create feeding for hive %d: %v", hive.ID, err)
 		}
 		count++
 	}

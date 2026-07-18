@@ -9,6 +9,8 @@ Quick reference for AI-assisted sessions. Read this before grepping the codebase
 ```
 backend/           # Go API
   cmd/api/         # main.go entry point
+  cmd/seed/        # dev seed script (sample data, incl. feedings)
+  cmd/resetdb/     # drops+recreates public schema, reruns goose migrations (requires -yes)
   internal/
     handler/       # HTTP handlers (one file per domain)
     service/       # Business logic
