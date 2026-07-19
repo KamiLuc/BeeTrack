@@ -113,8 +113,8 @@
 
 | ID       | Layer | Status | Title                            | Notes                                                                                                                          |
 | -------- | ----- | ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| HC-BE-W1 | `BE`  | `[ ]`  | Wire blockchain components in main.go | Service no longer holds a direct `blockchain.Writer` dependency — only the worker does. Register `/verify/{token}` public route group. |
-| HC-BE-26 | `BE`  | `[x]`  | Background worker runner         | `BlockchainWorker.Run(ctx, jobInterval, confirmationInterval)` — two ticker loops, graceful shutdown on context cancel. `SweepStuckSubmitting` (5 min timeout) handles crash-mid-step recovery, run once per job-loop tick. Not yet wired into `main.go` — see HC-BE-W1. |
+| HC-BE-W1 | `BE`  | `[x]`  | Wire blockchain components in main.go | `startHoneyCertificationWorker(ctx, db)` builds the writer/reader/repos and starts the worker — optional, not fatal, if blockchain env vars aren't set (feature has no HTTP handlers yet). Adds the app's first graceful-shutdown context via `signal.NotifyContext` (SIGINT/SIGTERM), which didn't exist before. `/verify/{token}` route registration deferred to when the handlers (Phase 5) exist. |
+| HC-BE-26 | `BE`  | `[x]`  | Background worker runner         | `BlockchainWorker.Run(ctx, jobInterval, confirmationInterval)` — two ticker loops, graceful shutdown on context cancel. `SweepStuckSubmitting` (5 min timeout) handles crash-mid-step recovery, run once per job-loop tick. Wired into `main.go` via HC-BE-W1. |
 
 ---
 

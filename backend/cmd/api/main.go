@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
 
+	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/config"
 	"github.com/beetrack/backend/internal/database"
 	"github.com/beetrack/backend/internal/handler"
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/service"
+	"github.com/beetrack/backend/internal/worker"
 	"github.com/beetrack/backend/migrations"
 	"github.com/beetrack/backend/pkg/mailer"
 	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -33,6 +39,10 @@ func main() {
 	if err := database.Migrate(db, migrations.FS); err != nil {
 		log.Fatal(err)
 	}
+
+	ctx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	startHoneyCertificationWorker(ctx, db)
 
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
@@ -179,4 +189,40 @@ func main() {
 	if err := http.ListenAndServe(":"+cfg.Port, cors(mux)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// startHoneyCertificationWorker wires and starts the honey batch blockchain
+// worker if blockchain env vars are configured. It's optional rather than
+// fatal: this feature isn't wired into any HTTP handler yet, so a missing
+// blockchain config shouldn't prevent the rest of the API from starting.
+func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) {
+	blockchainCfg, err := config.LoadBlockchainConfig()
+	if err != nil {
+		log.Printf("Blockchain config not set, honey certification worker disabled: %v", err)
+		return
+	}
+
+	certWriter, err := blockchain.NewHoneyCertWriter(blockchainCfg)
+	if err != nil {
+		log.Printf("Failed to create blockchain writer, honey certification worker disabled: %v", err)
+		return
+	}
+	certReader, err := blockchain.NewHoneyCertReader(blockchainCfg)
+	if err != nil {
+		log.Printf("Failed to create blockchain reader, honey certification worker disabled: %v", err)
+		return
+	}
+
+	blockchainWorker := worker.NewBlockchainWorker(
+		repository.NewBlockchainJobRepository(db),
+		repository.NewHoneyBatchCertificationRepository(db),
+		repository.NewHoneyBatchRepository(db),
+		certWriter,
+		certReader,
+		blockchainCfg.ChainID,
+		blockchainCfg.ContractAddress,
+		blockchainCfg.RequiredConfirmations,
+	)
+	go blockchainWorker.Run(ctx, blockchainCfg.JobPollInterval, blockchainCfg.ConfirmationPollInterval)
+	log.Println("Honey certification worker started")
 }
