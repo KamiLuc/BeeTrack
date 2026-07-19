@@ -372,6 +372,110 @@ func TestPollSubmittedJobs_MissingCertificationIDCollectsError(t *testing.T) {
 	}
 }
 
+// crashCertRepo is a CertificationRepository fake that keeps every row ever
+// created (in creation order, like the append-only DB table) and can be told
+// to fail one specific UpdateStatus call, leaving that row stuck mid-status
+// — used to reproduce a worker crashing between broadcasting a transaction
+// and recording it (HC-BE-25).
+type crashCertRepo struct {
+	rows       []*model.HoneyBatchCertification
+	nextID     int64
+	failUpdate int // 1-based UpdateStatus call number to fail; 0 = never
+	updateCall int
+}
+
+func (r *crashCertRepo) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertification, error) {
+	for _, c := range r.rows {
+		if c.ID == id {
+			return c, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *crashCertRepo) GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error) {
+	var latest *model.HoneyBatchCertification
+	for _, c := range r.rows {
+		if c.BatchID == batchID {
+			latest = c
+		}
+	}
+	return latest, nil
+}
+
+func (r *crashCertRepo) Create(ctx context.Context, c *model.HoneyBatchCertification) error {
+	r.nextID++
+	c.ID = r.nextID
+	r.rows = append(r.rows, c)
+	return nil
+}
+
+func (r *crashCertRepo) UpdateStatus(ctx context.Context, id int64, status model.CertificationStatus, fields map[string]any) error {
+	r.updateCall++
+	if r.failUpdate != 0 && r.updateCall == r.failUpdate {
+		return errors.New("simulated crash: connection lost before recording tx")
+	}
+	for _, c := range r.rows {
+		if c.ID == id {
+			c.Status = status
+			if txHash, ok := fields["transaction_hash"].(string); ok {
+				c.TransactionHash = &txHash
+			}
+		}
+	}
+	return nil
+}
+
+// TestProcessNextJob_MidBroadcastCrashRecovery reproduces HC-BE-25's
+// idempotency guarantee: a worker that dies right after broadcasting a
+// certify() transaction, but before recording the tx hash, must never let a
+// retried job create more than one live certification. The transaction from
+// the first attempt already succeeded on-chain, so the retry's own
+// certify() call reverts as already-certified — exercising idempotency
+// layers 1 (contract revert) and the resulting confirm-in-place handling
+// together.
+func TestProcessNextJob_MidBroadcastCrashRecovery(t *testing.T) {
+	certs := &crashCertRepo{failUpdate: 1}
+	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}
+	batches := &mockBatchReader{batch: newTestBatch()}
+	w := newWorker(jobs, certs, batches, &mockWriter{txHash: "0xfirst"}, &mockReader{})
+
+	if _, err := w.ProcessNextJob(context.Background()); err == nil {
+		t.Fatal("expected the simulated post-broadcast crash to surface as an error")
+	}
+	if jobs.submittedCalled {
+		t.Error("job should not be marked submitted when recording the tx crashes")
+	}
+
+	// Recovery: SweepStuckSubmitting (exercised separately) would reset the
+	// stuck job back to queued; here we just simulate ClaimNext returning it
+	// again for retry.
+	jobs.next = &model.BlockchainJob{ID: 1, BatchID: 7, AttemptCount: 1}
+	reader := &mockReader{record: &blockchain.CertificationRecord{Timestamp: time.Unix(2000, 0)}}
+	w2 := newWorker(jobs, certs, batches, &mockWriter{err: blockchain.ErrAlreadyCertified}, reader)
+
+	processed, err := w2.ProcessNextJob(context.Background())
+	if err != nil {
+		t.Fatalf("ProcessNextJob() retry error = %v", err)
+	}
+	if !processed {
+		t.Fatal("expected the retried job to be processed")
+	}
+
+	if len(certs.rows) != 2 {
+		t.Fatalf("expected two certification attempts recorded (one orphaned, one confirmed), got %d", len(certs.rows))
+	}
+	live := 0
+	for _, c := range certs.rows {
+		if c.Status.IsLive() {
+			live++
+		}
+	}
+	if live != 1 {
+		t.Errorf("expected exactly one live certification after crash+recovery, got %d (rows: %+v)", live, certs.rows)
+	}
+}
+
 func idPtr(id int64) *int64 { return &id }
 
 func TestRun_TicksAndStopsOnContextCancel(t *testing.T) {

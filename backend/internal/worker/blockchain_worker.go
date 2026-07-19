@@ -1,3 +1,39 @@
+// Package worker runs the background BlockchainWorker that owns all Polygon
+// RPC interaction for honey batch certification.
+//
+// # Idempotency (HC-BE-25)
+//
+// A batch must never end up with more than one "live" certification (a
+// certification in status submitted/pending_confirmation/confirmed — see
+// [model.CertificationStatus.IsLive]), even though the job queue guarantees
+// only at-least-once processing (a job can be retried after a crash, a
+// timed-out RPC call, or a stuck "submitting" job getting swept back to
+// queued by SweepStuckSubmitting). Three independent layers enforce this:
+//
+//  1. Contract-level: the on-chain certify() call reverts with
+//     blockchain.ErrAlreadyCertified if the batch id was already certified.
+//     This is the ultimate source of truth — even if every off-chain layer
+//     below fails, a duplicate certify() can never succeed twice on-chain.
+//     ProcessNextJob treats this revert as success (handleAlreadyCertified):
+//     the batch is certified, just not by this attempt, so the in-flight
+//     certification row is marked confirmed immediately.
+//  2. Worker-level: before submitting a new certification attempt,
+//     ProcessNextJob checks for an existing live certification for the
+//     batch and, if found, marks the job confirmed without resubmitting.
+//     This is what makes a duplicate/replayed job a cheap no-op in the
+//     common case, without needing a chain round-trip.
+//  3. Database-level: a partial UNIQUE index on
+//     honey_batch_certifications(batch_id) WHERE status IN (submitted,
+//     pending_confirmation, confirmed) makes it impossible to persist two
+//     live rows for the same batch even under a race the two layers above
+//     didn't catch (e.g. two worker instances momentarily processing the
+//     same batch).
+//
+// See TestProcessNextJob_MidBroadcastCrashRecovery for a test that exercises
+// layers 1 and 2 together: it simulates a worker crashing after broadcasting
+// a transaction but before recording it, then a retry that hits the
+// contract's duplicate-certify revert, and asserts exactly one live
+// certification results.
 package worker
 
 import (
