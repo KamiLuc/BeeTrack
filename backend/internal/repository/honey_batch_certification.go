@@ -41,6 +41,19 @@ func (r *HoneyBatchCertificationRepository) GetLatestByBatchID(ctx context.Conte
 	return &c, nil
 }
 
+// GetByID returns the certification with the given id, or nil if not found.
+func (r *HoneyBatchCertificationRepository) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertification, error) {
+	var c model.HoneyBatchCertification
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&c).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // ListByBatchID returns the full certification history for batchID, most
 // recent first.
 func (r *HoneyBatchCertificationRepository) ListByBatchID(ctx context.Context, batchID int64) ([]*model.HoneyBatchCertification, error) {

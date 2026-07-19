@@ -18,12 +18,16 @@ type JobRepository interface {
 	ClaimNext(ctx context.Context) (*model.BlockchainJob, error)
 	MarkSubmitting(ctx context.Context, id, certificationID int64) error
 	MarkSubmitted(ctx context.Context, id int64) error
+	MarkPendingConfirmation(ctx context.Context, id int64) error
 	MarkConfirmed(ctx context.Context, id int64) error
+	MarkReverted(ctx context.Context, id int64) error
 	MarkFailed(ctx context.Context, id int64, lastErr string, nextRetryAt time.Time) error
+	ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error)
 }
 
 // CertificationRepository is the certification history interface used by BlockchainWorker.
 type CertificationRepository interface {
+	GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertification, error)
 	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error)
 	Create(ctx context.Context, c *model.HoneyBatchCertification) error
 	UpdateStatus(ctx context.Context, id int64, status model.CertificationStatus, fields map[string]any) error
@@ -39,21 +43,23 @@ type CertifyWriter interface {
 	CertifyBatch(ctx context.Context, batchID int64, pdfHash, metadataHash [32]byte) (string, error)
 }
 
-// CertificationReader reads on-chain certification records.
+// CertificationReader reads on-chain certification and transaction state.
 type CertificationReader interface {
 	GetCertification(ctx context.Context, batchID int64) (*blockchain.CertificationRecord, error)
+	GetTransactionStatus(ctx context.Context, txHash string) (mined, reverted bool, blockNumber, gasUsed, confirmations uint64, err error)
 }
 
 // BlockchainWorker processes the durable blockchain_jobs queue: it's the
 // only code path that ever calls CertifyWriter or CertificationReader.
 type BlockchainWorker struct {
-	jobs            JobRepository
-	certifications  CertificationRepository
-	batches         BatchReader
-	writer          CertifyWriter
-	reader          CertificationReader
-	chainID         int
-	contractAddress string
+	jobs                  JobRepository
+	certifications        CertificationRepository
+	batches               BatchReader
+	writer                CertifyWriter
+	reader                CertificationReader
+	chainID               int
+	contractAddress       string
+	requiredConfirmations uint64
 }
 
 // NewBlockchainWorker creates a BlockchainWorker with the given dependencies.
@@ -65,15 +71,17 @@ func NewBlockchainWorker(
 	reader CertificationReader,
 	chainID int,
 	contractAddress string,
+	requiredConfirmations int,
 ) *BlockchainWorker {
 	return &BlockchainWorker{
-		jobs:            jobs,
-		certifications:  certifications,
-		batches:         batches,
-		writer:          writer,
-		reader:          reader,
-		chainID:         chainID,
-		contractAddress: contractAddress,
+		jobs:                  jobs,
+		certifications:        certifications,
+		batches:               batches,
+		writer:                writer,
+		reader:                reader,
+		chainID:               chainID,
+		contractAddress:       contractAddress,
+		requiredConfirmations: uint64(requiredConfirmations),
 	}
 }
 
@@ -192,6 +200,79 @@ func (w *BlockchainWorker) failJob(ctx context.Context, job *model.BlockchainJob
 		}
 	}
 	return cause
+}
+
+// PollSubmittedJobs checks every submitted/pending_confirmation job's
+// transaction against the chain, advancing its status as it gets mined and
+// accumulates confirmations. Errors on individual jobs are collected and
+// returned together rather than aborting the batch — one bad job shouldn't
+// stop the rest from being polled.
+func (w *BlockchainWorker) PollSubmittedJobs(ctx context.Context) error {
+	jobs, err := w.jobs.ListPendingConfirmation(ctx)
+	if err != nil {
+		return fmt.Errorf("list pending confirmation jobs: %w", err)
+	}
+
+	var errs []error
+	for _, job := range jobs {
+		if err := w.pollJob(ctx, job); err != nil {
+			errs = append(errs, fmt.Errorf("job %d: %w", job.ID, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (w *BlockchainWorker) pollJob(ctx context.Context, job *model.BlockchainJob) error {
+	if job.CertificationID == nil {
+		return errors.New("job has no certification id")
+	}
+	cert, err := w.certifications.GetByID(ctx, *job.CertificationID)
+	if err != nil {
+		return fmt.Errorf("get certification: %w", err)
+	}
+	if cert == nil || cert.TransactionHash == nil {
+		return errors.New("certification has no transaction hash")
+	}
+
+	mined, reverted, blockNumber, gasUsed, confirmations, err := w.reader.GetTransactionStatus(ctx, *cert.TransactionHash)
+	if err != nil {
+		return fmt.Errorf("get transaction status: %w", err)
+	}
+	if !mined {
+		return nil
+	}
+
+	if reverted {
+		if err := w.certifications.UpdateStatus(ctx, cert.ID, model.CertificationStatusReverted, nil); err != nil {
+			return fmt.Errorf("mark certification reverted: %w", err)
+		}
+		if err := w.jobs.MarkReverted(ctx, job.ID); err != nil {
+			return fmt.Errorf("mark job reverted: %w", err)
+		}
+		return nil
+	}
+
+	if confirmations < w.requiredConfirmations {
+		if cert.Status == model.CertificationStatusPendingConfirmation {
+			return nil
+		}
+		if err := w.certifications.UpdateStatus(ctx, cert.ID, model.CertificationStatusPendingConfirmation, nil); err != nil {
+			return fmt.Errorf("mark certification pending confirmation: %w", err)
+		}
+		return w.jobs.MarkPendingConfirmation(ctx, job.ID)
+	}
+
+	blockNum := int64(blockNumber)
+	gas := int64(gasUsed)
+	now := time.Now()
+	if err := w.certifications.UpdateStatus(ctx, cert.ID, model.CertificationStatusConfirmed, map[string]any{
+		"block_number":           blockNum,
+		"gas_used":               gas,
+		"confirmation_timestamp": now,
+	}); err != nil {
+		return fmt.Errorf("mark certification confirmed: %w", err)
+	}
+	return w.jobs.MarkConfirmed(ctx, job.ID)
 }
 
 // backoffDuration returns 1s, 2s, 4s, 8s (capped) for attempt 1, 2, 3, 4+.

@@ -15,9 +15,12 @@ type mockJobRepo struct {
 	claimErr         error
 	submittingCertID *int64
 	submittedCalled  bool
+	pendingCalled    bool
 	confirmedCalled  bool
+	revertedCalled   bool
 	failedErr        string
 	failedNextRetry  time.Time
+	pendingList      []*model.BlockchainJob
 }
 
 func (m *mockJobRepo) ClaimNext(ctx context.Context) (*model.BlockchainJob, error) {
@@ -31,8 +34,16 @@ func (m *mockJobRepo) MarkSubmitted(ctx context.Context, id int64) error {
 	m.submittedCalled = true
 	return nil
 }
+func (m *mockJobRepo) MarkPendingConfirmation(ctx context.Context, id int64) error {
+	m.pendingCalled = true
+	return nil
+}
 func (m *mockJobRepo) MarkConfirmed(ctx context.Context, id int64) error {
 	m.confirmedCalled = true
+	return nil
+}
+func (m *mockJobRepo) MarkReverted(ctx context.Context, id int64) error {
+	m.revertedCalled = true
 	return nil
 }
 func (m *mockJobRepo) MarkFailed(ctx context.Context, id int64, lastErr string, nextRetryAt time.Time) error {
@@ -40,9 +51,13 @@ func (m *mockJobRepo) MarkFailed(ctx context.Context, id int64, lastErr string, 
 	m.failedNextRetry = nextRetryAt
 	return nil
 }
+func (m *mockJobRepo) ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error) {
+	return m.pendingList, nil
+}
 
 type mockCertRepo struct {
 	latest  *model.HoneyBatchCertification
+	byID    map[int64]*model.HoneyBatchCertification
 	nextID  int64
 	created *model.HoneyBatchCertification
 	updates []statusUpdate
@@ -54,6 +69,12 @@ type statusUpdate struct {
 	fields map[string]any
 }
 
+func (m *mockCertRepo) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertification, error) {
+	if m.byID == nil {
+		return nil, nil
+	}
+	return m.byID[id], nil
+}
 func (m *mockCertRepo) GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error) {
 	return m.latest, nil
 }
@@ -88,10 +109,21 @@ func (m *mockWriter) CertifyBatch(ctx context.Context, batchID int64, pdfHash, m
 type mockReader struct {
 	record *blockchain.CertificationRecord
 	err    error
+
+	mined         bool
+	reverted      bool
+	blockNumber   uint64
+	gasUsed       uint64
+	confirmations uint64
+	statusErr     error
 }
 
 func (m *mockReader) GetCertification(ctx context.Context, batchID int64) (*blockchain.CertificationRecord, error) {
 	return m.record, m.err
+}
+
+func (m *mockReader) GetTransactionStatus(ctx context.Context, txHash string) (mined, reverted bool, blockNumber, gasUsed, confirmations uint64, err error) {
+	return m.mined, m.reverted, m.blockNumber, m.gasUsed, m.confirmations, m.statusErr
 }
 
 func newTestBatch() *model.HoneyBatch {
@@ -99,8 +131,12 @@ func newTestBatch() *model.HoneyBatch {
 	return &model.HoneyBatch{ID: 7, PDFFileHash: hash, MetadataHash: hash}
 }
 
+func newWorker(jobs JobRepository, certs CertificationRepository, batches BatchReader, writer CertifyWriter, reader CertificationReader) *BlockchainWorker {
+	return NewBlockchainWorker(jobs, certs, batches, writer, reader, 80002, "0xabc", 12)
+}
+
 func TestProcessNextJob_NoJobAvailable(t *testing.T) {
-	w := NewBlockchainWorker(&mockJobRepo{}, &mockCertRepo{}, &mockBatchReader{}, &mockWriter{}, &mockReader{}, 80002, "0xabc")
+	w := newWorker(&mockJobRepo{}, &mockCertRepo{}, &mockBatchReader{}, &mockWriter{}, &mockReader{})
 
 	processed, err := w.ProcessNextJob(context.Background())
 	if err != nil {
@@ -116,7 +152,7 @@ func TestProcessNextJob_HappyPath(t *testing.T) {
 	certs := &mockCertRepo{}
 	batches := &mockBatchReader{batch: newTestBatch()}
 	writer := &mockWriter{txHash: "0xdeadbeef"}
-	w := NewBlockchainWorker(jobs, certs, batches, writer, &mockReader{}, 80002, "0xabc")
+	w := newWorker(jobs, certs, batches, writer, &mockReader{})
 
 	processed, err := w.ProcessNextJob(context.Background())
 	if err != nil {
@@ -143,7 +179,7 @@ func TestProcessNextJob_SkipsWhenAlreadyLive(t *testing.T) {
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}
 	certs := &mockCertRepo{latest: &model.HoneyBatchCertification{Status: model.CertificationStatusConfirmed}}
 	writer := &mockWriter{}
-	w := NewBlockchainWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{}, 80002, "0xabc")
+	w := newWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{})
 
 	processed, err := w.ProcessNextJob(context.Background())
 	if err != nil {
@@ -165,7 +201,7 @@ func TestProcessNextJob_AlreadyCertifiedRevert(t *testing.T) {
 	certs := &mockCertRepo{}
 	writer := &mockWriter{err: blockchain.ErrAlreadyCertified}
 	reader := &mockReader{record: &blockchain.CertificationRecord{Timestamp: time.Unix(1000, 0)}}
-	w := NewBlockchainWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, reader, 80002, "0xabc")
+	w := newWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, reader)
 
 	processed, err := w.ProcessNextJob(context.Background())
 	if err != nil {
@@ -186,7 +222,7 @@ func TestProcessNextJob_WriterFailureSchedulesRetry(t *testing.T) {
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7, AttemptCount: 0}}
 	certs := &mockCertRepo{}
 	writer := &mockWriter{err: errors.New("rpc timeout")}
-	w := NewBlockchainWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{}, 80002, "0xabc")
+	w := newWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{})
 
 	if _, err := w.ProcessNextJob(context.Background()); err == nil {
 		t.Fatal("expected ProcessNextJob to surface the writer error")
@@ -205,7 +241,7 @@ func TestProcessNextJob_WriterFailureSchedulesRetry(t *testing.T) {
 func TestProcessNextJob_ExhaustedAttemptsGoesFarFuture(t *testing.T) {
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7, AttemptCount: maxAttempts - 1}}
 	writer := &mockWriter{err: errors.New("still failing")}
-	w := NewBlockchainWorker(jobs, &mockCertRepo{}, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{}, 80002, "0xabc")
+	w := newWorker(jobs, &mockCertRepo{}, &mockBatchReader{batch: newTestBatch()}, writer, &mockReader{})
 
 	if _, err := w.ProcessNextJob(context.Background()); err == nil {
 		t.Fatal("expected an error")
@@ -218,7 +254,7 @@ func TestProcessNextJob_ExhaustedAttemptsGoesFarFuture(t *testing.T) {
 func TestProcessNextJob_BatchNotFound(t *testing.T) {
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}
 	certs := &mockCertRepo{}
-	w := NewBlockchainWorker(jobs, certs, &mockBatchReader{batch: nil}, &mockWriter{}, &mockReader{}, 80002, "0xabc")
+	w := newWorker(jobs, certs, &mockBatchReader{batch: nil}, &mockWriter{}, &mockReader{})
 
 	if _, err := w.ProcessNextJob(context.Background()); err == nil {
 		t.Fatal("expected an error when the batch is missing")
@@ -245,3 +281,89 @@ func TestBackoffDuration(t *testing.T) {
 		}
 	}
 }
+
+func txHash(s string) *string { return &s }
+
+func TestPollSubmittedJobs_NotYetMined(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5)}
+	jobs := &mockJobRepo{pendingList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{byID: map[int64]*model.HoneyBatchCertification{5: {ID: 5, TransactionHash: txHash("0xabc")}}}
+	reader := &mockReader{mined: false}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, reader)
+
+	if err := w.PollSubmittedJobs(context.Background()); err != nil {
+		t.Fatalf("PollSubmittedJobs() error = %v", err)
+	}
+	if len(certs.updates) != 0 {
+		t.Errorf("expected no updates while unmined, got %+v", certs.updates)
+	}
+}
+
+func TestPollSubmittedJobs_MinedUnderConfirmations(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5)}
+	jobs := &mockJobRepo{pendingList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{byID: map[int64]*model.HoneyBatchCertification{5: {ID: 5, Status: model.CertificationStatusSubmitted, TransactionHash: txHash("0xabc")}}}
+	reader := &mockReader{mined: true, confirmations: 3}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, reader)
+
+	if err := w.PollSubmittedJobs(context.Background()); err != nil {
+		t.Fatalf("PollSubmittedJobs() error = %v", err)
+	}
+	if !jobs.pendingCalled {
+		t.Error("expected job marked pending_confirmation")
+	}
+	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusPendingConfirmation {
+		t.Errorf("expected certification marked pending_confirmation, got %+v", certs.updates)
+	}
+}
+
+func TestPollSubmittedJobs_ConfirmedAfterEnoughConfirmations(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5)}
+	jobs := &mockJobRepo{pendingList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{byID: map[int64]*model.HoneyBatchCertification{5: {ID: 5, TransactionHash: txHash("0xabc")}}}
+	reader := &mockReader{mined: true, confirmations: 12, blockNumber: 999, gasUsed: 21000}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, reader)
+
+	if err := w.PollSubmittedJobs(context.Background()); err != nil {
+		t.Fatalf("PollSubmittedJobs() error = %v", err)
+	}
+	if !jobs.confirmedCalled {
+		t.Error("expected job marked confirmed")
+	}
+	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusConfirmed {
+		t.Errorf("expected certification marked confirmed, got %+v", certs.updates)
+	}
+	if certs.updates[0].fields["block_number"] != int64(999) {
+		t.Errorf("expected block_number 999, got %+v", certs.updates[0].fields)
+	}
+}
+
+func TestPollSubmittedJobs_Reverted(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5)}
+	jobs := &mockJobRepo{pendingList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{byID: map[int64]*model.HoneyBatchCertification{5: {ID: 5, TransactionHash: txHash("0xabc")}}}
+	reader := &mockReader{mined: true, reverted: true}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, reader)
+
+	if err := w.PollSubmittedJobs(context.Background()); err != nil {
+		t.Fatalf("PollSubmittedJobs() error = %v", err)
+	}
+	if !jobs.revertedCalled {
+		t.Error("expected job marked reverted")
+	}
+	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusReverted {
+		t.Errorf("expected certification marked reverted, got %+v", certs.updates)
+	}
+}
+
+func TestPollSubmittedJobs_MissingCertificationIDCollectsError(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7}
+	jobs := &mockJobRepo{pendingList: []*model.BlockchainJob{job}}
+	w := newWorker(jobs, &mockCertRepo{}, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	if err := w.PollSubmittedJobs(context.Background()); err == nil {
+		t.Fatal("expected an error for a job with no certification id")
+	}
+}
+
+func idPtr(id int64) *int64 { return &id }

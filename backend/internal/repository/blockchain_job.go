@@ -111,6 +111,30 @@ func (r *BlockchainJobRepository) MarkConfirmed(ctx context.Context, id int64) e
 		}).Error
 }
 
+// MarkPendingConfirmation transitions the job to "pending_confirmation" —
+// mined but not yet past RequiredConfirmations.
+func (r *BlockchainJobRepository) MarkPendingConfirmation(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.BlockchainJob{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"status":     model.CertificationStatusPendingConfirmation,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
+// MarkReverted transitions the job to "reverted" — terminal, not retried,
+// since a revert is a semantic on-chain rejection, not a transient failure.
+func (r *BlockchainJobRepository) MarkReverted(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.BlockchainJob{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"status":     model.CertificationStatusReverted,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
 // ListPendingConfirmation returns jobs whose certification has been broadcast
 // but not yet confirmed on-chain, for the confirmation-polling loop.
 func (r *BlockchainJobRepository) ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error) {
