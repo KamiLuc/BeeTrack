@@ -8,11 +8,9 @@ import (
 	"github.com/beetrack/backend/internal/model"
 )
 
-// TestCanonicalMetadataHash_Golden locks the field order/format/separator
-// spec in place: this exact input must always produce this exact hash, in
-// any language, forever. If this test ever needs to change, the hashing
-// spec itself changed and every already-certified batch's on-chain hash is
-// now unreproducible from its DB row.
+// TestCanonicalMetadataHash_Golden pins this exact input to this exact hash
+// forever — changing it means the hashing spec changed and every
+// already-certified batch's hash is unreproducible from its DB row.
 func TestCanonicalMetadataHash_Golden(t *testing.T) {
 	batch := &model.HoneyBatch{
 		ID:               42,
