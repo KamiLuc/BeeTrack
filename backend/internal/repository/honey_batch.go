@@ -68,6 +68,21 @@ func (r *HoneyBatchRepository) GetByID(ctx context.Context, id int64) (*model.Ho
 	return &b, nil
 }
 
+// GetByIDIgnoringDeletion returns the batch with the given id regardless of
+// soft-delete status. Used by the worker: on-chain certification is
+// immutable and intentionally unaffected by a soft delete.
+func (r *HoneyBatchRepository) GetByIDIgnoringDeletion(ctx context.Context, id int64) (*model.HoneyBatch, error) {
+	var b model.HoneyBatch
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&b).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
 // GetByVerificationToken returns the non-deleted batch with the given
 // verification token, or nil if not found. Used by the public verification path.
 func (r *HoneyBatchRepository) GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error) {

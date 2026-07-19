@@ -97,6 +97,20 @@ func (r *BlockchainJobRepository) MarkFailed(ctx context.Context, id int64, last
 		}).Error
 }
 
+// MarkConfirmed transitions the job directly to "confirmed", bypassing
+// submitted/pending_confirmation — used only when the worker discovers the
+// batch was already certified by a different attempt, so this job has
+// nothing left to broadcast or track.
+func (r *BlockchainJobRepository) MarkConfirmed(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.BlockchainJob{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"status":     model.CertificationStatusConfirmed,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
 // ListPendingConfirmation returns jobs whose certification has been broadcast
 // but not yet confirmed on-chain, for the confirmation-polling loop.
 func (r *BlockchainJobRepository) ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error) {
