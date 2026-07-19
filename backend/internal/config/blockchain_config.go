@@ -26,7 +26,7 @@ var (
 )
 
 // LoadBlockchainConfig reads blockchain settings from the environment and
-// validates them. Defaults (JobPollInterval 5s, ConfirmationPollInterval 30s,
+// validates them. Defaults (JobPollInterval 10s, ConfirmationPollInterval 30s,
 // RequiredConfirmations 12, ChainID 80002 for Amoy testnet) are not
 // environment-configurable — they're fixed for this thesis's scope.
 func LoadBlockchainConfig() (BlockchainConfig, error) {
@@ -40,7 +40,7 @@ func LoadBlockchainConfig() (BlockchainConfig, error) {
 		ContractAddress:          getEnv("CONTRACT_ADDRESS", ""),
 		PrivateKey:               getEnv("BLOCKCHAIN_PRIVATE_KEY", ""),
 		ChainID:                  chainID,
-		JobPollInterval:          5 * time.Second,
+		JobPollInterval:          10 * time.Second,
 		ConfirmationPollInterval: 30 * time.Second,
 		RequiredConfirmations:    12,
 	}

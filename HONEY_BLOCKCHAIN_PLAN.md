@@ -113,7 +113,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 11. **HC-BE-01: Blockchain configuration**
     - File: `backend/internal/config/blockchain_config.go`
-    - Fields: PolygonRPCURL, ContractAddress, PrivateKey, ChainID (for testnet/mainnet detection), JobPollInterval (default 5s — how often the worker claims new jobs), ConfirmationPollInterval (default 30s — how often it checks pending transactions), RequiredConfirmations (default 12)
+    - Fields: PolygonRPCURL, ContractAddress, PrivateKey, ChainID (for testnet/mainnet detection), JobPollInterval (default 10s — how often the worker claims new jobs), ConfirmationPollInterval (default 30s — how often it checks pending transactions), RequiredConfirmations (default 12)
     - Validation: Ensure private key is 64 hex chars, RPC URL is valid, contract address is 42 chars (0x...)
     - Environment variables: POLYGON_RPC_URL, CONTRACT_ADDRESS, BLOCKCHAIN_PRIVATE_KEY, CHAIN_ID (default 80002 for Amoy testnet)
 
@@ -220,7 +220,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       4. Call `blockchain.Writer.CertifyBatch(...)`. If the contract reverts with "already certified" (see HC-BE-02), treat as success (another safety net for improvement #6) and mark the certification `confirmed`-pending-verification via the reader instead of erroring.
       5. On successful broadcast: update the certification row (`status='submitted'`, `transaction_hash=...`) and the job (`status='submitted'`)
       6. On failure: increment `attempt_count`; if under the retry limit, set `status='failed'`... `next_retry_at = now + backoff(attempt_count)` (exponential: 1s, 2s, 4s, 8s, capped) so `ClaimNext` picks it up again later; if attempts exhausted, leave `status='failed'` permanently and record `last_error`
-    - Run in a loop on a ticker (`JobPollInterval`, default 5s), started from `main.go` (HC-BE-24).
+    - Run in a loop on a ticker (`JobPollInterval`, default 10s), started from `main.go` (HC-BE-24).
 
 21. **HC-BE-15c: Worker — poll for confirmations** *(replaces the old HC-BE-15 "PollPendingBatchStatuses")*
     - File: `backend/internal/worker/blockchain_worker.go`
@@ -336,7 +336,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 36. **HC-BE-26: Background worker runner** *(replaces the old "Add background job scheduler")*
     - File: `backend/internal/worker/blockchain_worker.go`
     - Function: `(w *BlockchainWorker) Run(ctx context.Context)` — runs two independent ticker loops concurrently:
-      - `ProcessNextJob` every `JobPollInterval` (default 5s) — claims and submits queued/retryable jobs
+      - `ProcessNextJob` every `JobPollInterval` (default 10s) — claims and submits queued/retryable jobs
       - `PollSubmittedJobs` every `ConfirmationPollInterval` (default 30s) — checks on submitted transactions
     - Graceful shutdown: both loops select on `ctx.Done()` and exit cleanly; `main.go` cancels the context on SIGTERM/SIGINT the same way other background work in the app already shuts down.
     - On startup, the worker doesn't need any special "recovery" logic beyond its normal claim query — jobs left `queued` or `submitting`-then-crashed are picked up naturally because `ClaimNext` only looks at DB state, not in-memory state. (A job stuck in `submitting` past a timeout is treated as `failed`+retryable by a periodic sweep, to handle a crash mid-step 3 of HC-BE-15b.)

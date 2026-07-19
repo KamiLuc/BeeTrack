@@ -68,7 +68,7 @@
 
 | ID        | Layer | Status | Title                                | Notes                                                                                                                                            |
 | --------- | ----- | ------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HC-BE-01  | `BE`  | `[x]`  | Blockchain config                    | RPC URL, contract address, private key, chain ID (default 80002 Amoy), plus `JobPollInterval` (5s), `ConfirmationPollInterval` (30s), `RequiredConfirmations` (12). |
+| HC-BE-01  | `BE`  | `[x]`  | Blockchain config                    | RPC URL, contract address, private key, chain ID (default 80002 Amoy), plus `JobPollInterval` (10s), `ConfirmationPollInterval` (30s), `RequiredConfirmations` (12). |
 | HC-BE-02  | `BE`  | `[x]`  | Smart contract (Solidity)            | `certify()` **reverts if batchID already certified** — contract-level idempotency. Event `CertificationCreated`. Owner-only caller.               |
 | HC-BE-03  | `BE`  | `[x]`  | Deploy contract to Polygon           | Deployed to Amoy testnet (80002) at `0x5d92856257b2e0a8365c02aed826a857317f95ed` (tx `0x7d792e87289cbb4b613299c18c788b7207a6d2a2215289ac3c6ca4d1bcb2a6ff`). ABI stored at `backend/internal/blockchain/contracts/HoneyCertification.abi`. Set `CONTRACT_ADDRESS` env var to the address above. |
 | HC-BE-04  | `BE`  | `[x]`  | Blockchain writer                    | `CertifyBatch(...)` — called **only** by the worker (HC-BE-15b), never from the HTTP path. Returns tx hash immediately, doesn't wait for confirmation. |
