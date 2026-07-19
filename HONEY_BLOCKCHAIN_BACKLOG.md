@@ -52,10 +52,10 @@
 
 | ID        | Layer | Status | Title                                             | Notes                                                                                                                       |
 | --------- | ----- | ------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| HC-BE-07  | `BE`  | `[ ]`  | Model: `HoneyBatch` struct                        | Mirrors DB schema. `AmountGrams int64`, `VerificationToken string`. No blockchain fields on this struct.                    |
-| HC-BE-08  | `BE`  | `[ ]`  | Model: `ProcessingMethod` enum                    | raw, filtered, pasteurized + `IsValidProcessingMethod`                                                                      |
-| HC-BE-07b | `BE`  | `[ ]`  | Model: `HoneyBatchCertification` + status lifecycle | `CertificationStatus` type: queued/submitting/submitted/pending_confirmation/confirmed/failed/reverted. `IsTerminal()`/`IsLive()` helpers. Single source of truth mirrored in DB CHECK, API JSON, Dart enum (HC-FE-08b). |
-| HC-BE-07c | `BE`  | `[ ]`  | Model: `BlockchainJob` struct                     | Reuses `CertificationStatus` for its own status field.                                                                      |
+| HC-BE-07  | `BE`  | `[x]`  | Model: `HoneyBatch` struct                        | Mirrors DB schema. `AmountGrams int64`, `VerificationToken string`. No blockchain fields on this struct.                    |
+| HC-BE-08  | `BE`  | `[x]`  | Model: `ProcessingMethod` enum                    | raw, filtered, pasteurized + `IsValidProcessingMethod`                                                                      |
+| HC-BE-07b | `BE`  | `[x]`  | Model: `HoneyBatchCertification` + status lifecycle | `CertificationStatus` type: queued/submitting/submitted/pending_confirmation/confirmed/failed/reverted. `IsTerminal()`/`IsLive()` helpers. Single source of truth mirrored in DB CHECK, API JSON, Dart enum (HC-FE-08b). |
+| HC-BE-07c | `BE`  | `[x]`  | Model: `BlockchainJob` struct                     | Reuses `CertificationStatus` for its own status field.                                                                      |
 | HC-BE-09  | `BE`  | `[ ]`  | Repository: `HoneyBatchRepository` — Create        | Runs in a transaction together with the initial `blockchain_jobs` insert (HC-BE-13) — a batch is never persisted without a job. |
 | HC-BE-10  | `BE`  | `[ ]`  | Repository: Get by ID / by verification token      | `GetByID` (owner-scoped), `GetByVerificationToken` (public path)                                                            |
 | HC-BE-11  | `BE`  | `[ ]`  | Repository: List batches by user/apiary            | `ListByUserID`, `ListByApiaryID`, paginated                                                                                 |
