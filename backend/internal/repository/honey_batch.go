@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"time"
 
+	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -22,6 +24,33 @@ func NewHoneyBatchRepository(db *gorm.DB) *HoneyBatchRepository {
 // Create inserts a new honey batch record.
 func (r *HoneyBatchRepository) Create(ctx context.Context, b *model.HoneyBatch) error {
 	return r.db.WithContext(ctx).Create(b).Error
+}
+
+// CreateWithCertificationJob inserts b and, if job is non-nil, job, in a
+// single transaction. CanonicalMetadataHash requires b's id, which doesn't
+// exist until after insert, so the hash is computed and persisted here
+// (between the insert and the job insert) rather than by the caller — this
+// is the only way to keep the batch, its hash, and its job atomic together.
+func (r *HoneyBatchRepository) CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(b).Error; err != nil {
+			return err
+		}
+
+		hash := blockchain.CanonicalMetadataHash(b)
+		b.MetadataHash = hex.EncodeToString(hash[:])
+		if err := tx.Model(b).Update("metadata_hash", b.MetadataHash).Error; err != nil {
+			return err
+		}
+
+		if job != nil {
+			job.BatchID = b.ID
+			if err := tx.Create(job).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // GetByID returns the non-deleted batch with the given id, or nil if not found.

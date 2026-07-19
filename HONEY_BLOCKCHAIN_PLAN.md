@@ -189,7 +189,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Validation:
       - User owns apiary (via apiary repo)
       - Apiary exists
-      - AmountGrams > 0 and <= 10,000,000 (10,000 kg reasonable upper bound, expressed in grams)
+      - AmountGrams > 0 and <= 100,000,000 (100,000 kg / 100 tonnes reasonable upper bound, expressed in grams — a sanity guard against typos/garbage input, not a realistic per-batch limit)
       - HoneyType not empty, <= 100 chars
       - Processing method is valid
       - PDF file provided and accessible
