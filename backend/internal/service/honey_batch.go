@@ -22,22 +22,31 @@ var (
 	ErrHoneyTypeTooLong        = fmt.Errorf("honey_type must be at most %d characters", validation.Small.MaxLength())
 	ErrInvalidProcessingMethod = errors.New("invalid processing_method")
 	ErrPDFRequired             = errors.New("lab PDF file is required")
+	ErrBatchNotFound           = errors.New("honey batch not found")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
 type HoneyBatchRepository interface {
 	CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error
+	GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error)
+}
+
+// HoneyBatchCertificationRepository is the persistence interface for
+// certification history used by HoneyBatchService.
+type HoneyBatchCertificationRepository interface {
+	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error)
 }
 
 // HoneyBatchService handles business logic for honey batch certification.
 type HoneyBatchService struct {
-	apiaries ApiaryMembershipReader
-	batches  HoneyBatchRepository
+	apiaries       ApiaryMembershipReader
+	batches        HoneyBatchRepository
+	certifications HoneyBatchCertificationRepository
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies.
-func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository) *HoneyBatchService {
-	return &HoneyBatchService{apiaries: apiaries, batches: batches}
+func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository) *HoneyBatchService {
+	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch.
@@ -124,4 +133,32 @@ func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID, apiaryID in
 	}
 
 	return batch, nil
+}
+
+// BatchVerification is a batch plus its current certification state.
+// Certification is nil if the batch has never had certification requested.
+type BatchVerification struct {
+	Batch         *model.HoneyBatch
+	Certification *model.HoneyBatchCertification
+}
+
+// GetBatchWithVerification looks up a batch by its public verification token
+// and returns it together with its latest certification (if any). It only
+// reads from the DB — kept fresh by the worker's confirmation loop — never
+// making a live blockchain call itself.
+func (s *HoneyBatchService) GetBatchWithVerification(ctx context.Context, token string) (*BatchVerification, error) {
+	batch, err := s.batches.GetByVerificationToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("get batch: %w", err)
+	}
+	if batch == nil {
+		return nil, ErrBatchNotFound
+	}
+
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get latest certification: %w", err)
+	}
+
+	return &BatchVerification{Batch: batch, Certification: cert}, nil
 }

@@ -15,6 +15,8 @@ type mockHoneyBatchRepo struct {
 	createdJob   *model.BlockchainJob
 	nextID       int64
 	err          error
+
+	byToken map[string]*model.HoneyBatch
 }
 
 func (m *mockHoneyBatchRepo) CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error {
@@ -34,6 +36,25 @@ func (m *mockHoneyBatchRepo) CreateWithCertificationJob(ctx context.Context, b *
 	return nil
 }
 
+func (m *mockHoneyBatchRepo) GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.byToken[token], nil
+}
+
+type mockHoneyBatchCertificationRepo struct {
+	latest map[int64]*model.HoneyBatchCertification
+	err    error
+}
+
+func (m *mockHoneyBatchCertificationRepo) GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.latest[batchID], nil
+}
+
 func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockApiaryMembershipReader, *mockHoneyBatchRepo, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -44,7 +65,8 @@ func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockApiaryMemb
 
 	apiaries := &mockApiaryMembershipReader{apiary: &model.Apiary{ID: 1}, role: "member"}
 	batches := &mockHoneyBatchRepo{}
-	return NewHoneyBatchService(apiaries, batches), apiaries, batches, pdfPath
+	certifications := &mockHoneyBatchCertificationRepo{}
+	return NewHoneyBatchService(apiaries, batches, certifications), apiaries, batches, pdfPath
 }
 
 func validCreateBatchRequest(pdfPath string) CreateBatchRequest {
@@ -151,5 +173,52 @@ func TestCreateBatch_MissingPDFFile(t *testing.T) {
 
 	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err == nil {
 		t.Error("expected an error when the PDF file doesn't exist on disk")
+	}
+}
+
+func TestGetBatchWithVerification_NeverCertified(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
+	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications)
+
+	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
+	if err != nil {
+		t.Fatalf("GetBatchWithVerification() error = %v", err)
+	}
+	if result.Batch != batch {
+		t.Error("expected the returned batch to match")
+	}
+	if result.Certification != nil {
+		t.Error("expected a nil certification for a never-certified batch")
+	}
+}
+
+func TestGetBatchWithVerification_WithCertification(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
+	cert := &model.HoneyBatchCertification{ID: 5, BatchID: 1, Status: model.CertificationStatusConfirmed}
+	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: cert}}
+	svc := NewHoneyBatchService(apiaries, batches, certifications)
+
+	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
+	if err != nil {
+		t.Fatalf("GetBatchWithVerification() error = %v", err)
+	}
+	if result.Certification != cert {
+		t.Error("expected the latest certification to be returned")
+	}
+}
+
+func TestGetBatchWithVerification_TokenNotFound(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications)
+
+	if _, err := svc.GetBatchWithVerification(context.Background(), "unknown-token"); err != ErrBatchNotFound {
+		t.Errorf("expected ErrBatchNotFound, got %v", err)
 	}
 }

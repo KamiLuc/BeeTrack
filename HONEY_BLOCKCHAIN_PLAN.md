@@ -205,10 +205,10 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 19. **HC-BE-14: Service — Get batch + verify**
     - File: `backend/internal/service/honey_batch.go`
     - Function: `GetBatchWithVerification(ctx context.Context, token string) (*BatchVerification, error)` — looked up by verification token (HC-BE-16b), not numeric ID, for the public-facing path
-    - Returns struct: batch data + latest certification (from `HoneyBatchCertificationRepository.GetLatestByBatchID`) + hash comparison + confirmation count
+    - Returns struct: batch data + latest certification (from `HoneyBatchCertificationRepository.GetLatestByBatchID`)
     - If `GetLatestByBatchID` returns no row, the returned certification field is nil/absent (not a status value) — this is a normal, expected state, not an error
     - If the latest certification has a `transaction_hash`, this only reads from the DB (already kept fresh by the worker's confirmation loop) — it does **not** make a live RPC call on every request, keeping the endpoint fast under load. A "Refresh" action (HC-FE-04) can trigger an on-demand re-check via a lightweight endpoint that nudges the worker or does a bounded live read.
-    - Compare stored `pdf_file_hash` with the batch's current `pdf_file_hash` (detects if the PDF was ever swapped post-certification — should always match since PDFs are immutable once uploaded)
+    - **No DB-only "hash comparison" field:** `honey_batch_certifications` doesn't persist the pdf/metadata hash that was actually submitted on-chain — only `honey_batches.pdf_file_hash`/`metadata_hash` exist, set once at creation and never updated. A genuine on-chain-vs-current-PDF comparison would need a live RPC read, which this function deliberately avoids; that comparison, if ever added, belongs to the on-demand "Refresh" path (HC-FE-04) instead.
 
 20. **HC-BE-15b: Worker — process certify jobs** *(new — addresses improvements #1, #2, #6)*
     - File: `backend/internal/worker/blockchain_worker.go`
