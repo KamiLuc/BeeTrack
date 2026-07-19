@@ -5,13 +5,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/model"
 )
 
-const maxAttempts = 3
+const (
+	maxAttempts            = 3
+	stuckSubmittingTimeout = 5 * time.Minute
+)
 
 // JobRepository is the durable job queue interface used by BlockchainWorker.
 type JobRepository interface {
@@ -23,6 +27,7 @@ type JobRepository interface {
 	MarkReverted(ctx context.Context, id int64) error
 	MarkFailed(ctx context.Context, id int64, lastErr string, nextRetryAt time.Time) error
 	ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error)
+	SweepStuckSubmitting(ctx context.Context, olderThan time.Duration) (int64, error)
 }
 
 // CertificationRepository is the certification history interface used by BlockchainWorker.
@@ -82,6 +87,65 @@ func NewBlockchainWorker(
 		chainID:               chainID,
 		contractAddress:       contractAddress,
 		requiredConfirmations: uint64(requiredConfirmations),
+	}
+}
+
+// Run starts two independent ticker loops — job processing and confirmation
+// checking — and blocks until ctx is cancelled, at which point both loops
+// exit cleanly. Call it as `go worker.Run(ctx, ...)` once at app startup.
+func (w *BlockchainWorker) Run(ctx context.Context, jobPollInterval, confirmationPollInterval time.Duration) {
+	done := make(chan struct{}, 2)
+	go func() {
+		w.runJobLoop(ctx, jobPollInterval)
+		done <- struct{}{}
+	}()
+	go func() {
+		w.runConfirmationLoop(ctx, confirmationPollInterval)
+		done <- struct{}{}
+	}()
+	<-done
+	<-done
+}
+
+func (w *BlockchainWorker) runJobLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if n, err := w.jobs.SweepStuckSubmitting(ctx, stuckSubmittingTimeout); err != nil {
+				log.Printf("blockchain worker: sweep stuck submitting jobs: %v", err)
+			} else if n > 0 {
+				log.Printf("blockchain worker: reset %d stuck submitting job(s)", n)
+			}
+
+			for {
+				processed, err := w.ProcessNextJob(ctx)
+				if err != nil {
+					log.Printf("blockchain worker: process job: %v", err)
+				}
+				if !processed {
+					break
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (w *BlockchainWorker) runConfirmationLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := w.PollSubmittedJobs(ctx); err != nil {
+				log.Printf("blockchain worker: poll submitted jobs: %v", err)
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

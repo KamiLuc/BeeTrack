@@ -114,7 +114,7 @@
 | ID       | Layer | Status | Title                            | Notes                                                                                                                          |
 | -------- | ----- | ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | HC-BE-W1 | `BE`  | `[ ]`  | Wire blockchain components in main.go | Service no longer holds a direct `blockchain.Writer` dependency — only the worker does. Register `/verify/{token}` public route group. |
-| HC-BE-26 | `BE`  | `[ ]`  | Background worker runner         | `BlockchainWorker.Run(ctx)` — two ticker loops (job processing @5s, confirmation polling @30s), graceful shutdown on context cancel. A `submitting`-stuck-past-timeout sweep handles crash-mid-step recovery. |
+| HC-BE-26 | `BE`  | `[x]`  | Background worker runner         | `BlockchainWorker.Run(ctx, jobInterval, confirmationInterval)` — two ticker loops, graceful shutdown on context cancel. `SweepStuckSubmitting` (5 min timeout) handles crash-mid-step recovery, run once per job-loop tick. Not yet wired into `main.go` — see HC-BE-W1. |
 
 ---
 

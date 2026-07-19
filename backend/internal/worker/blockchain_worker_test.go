@@ -21,6 +21,8 @@ type mockJobRepo struct {
 	failedErr        string
 	failedNextRetry  time.Time
 	pendingList      []*model.BlockchainJob
+	sweptCalled      bool
+	sweptCount       int64
 }
 
 func (m *mockJobRepo) ClaimNext(ctx context.Context) (*model.BlockchainJob, error) {
@@ -53,6 +55,10 @@ func (m *mockJobRepo) MarkFailed(ctx context.Context, id int64, lastErr string, 
 }
 func (m *mockJobRepo) ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error) {
 	return m.pendingList, nil
+}
+func (m *mockJobRepo) SweepStuckSubmitting(ctx context.Context, olderThan time.Duration) (int64, error) {
+	m.sweptCalled = true
+	return m.sweptCount, nil
 }
 
 type mockCertRepo struct {
@@ -367,3 +373,28 @@ func TestPollSubmittedJobs_MissingCertificationIDCollectsError(t *testing.T) {
 }
 
 func idPtr(id int64) *int64 { return &id }
+
+func TestRun_TicksAndStopsOnContextCancel(t *testing.T) {
+	jobs := &mockJobRepo{}
+	certs := &mockCertRepo{}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		w.Run(ctx, 10*time.Millisecond, 15*time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after context cancellation")
+	}
+
+	if !jobs.sweptCalled {
+		t.Error("expected the job loop to have ticked at least once")
+	}
+}

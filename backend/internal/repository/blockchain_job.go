@@ -135,6 +135,25 @@ func (r *BlockchainJobRepository) MarkReverted(ctx context.Context, id int64) er
 		}).Error
 }
 
+// SweepStuckSubmitting resets jobs stuck in "submitting" for longer than
+// olderThan back to "failed" with an immediate next_retry_at. A job can get
+// stuck here if the worker crashes between claiming it and recording the
+// outcome of its writer call — ClaimNext never picks up "submitting" jobs on
+// its own, so without this sweep such a job would be stranded forever.
+// Returns the number of jobs reset.
+func (r *BlockchainJobRepository) SweepStuckSubmitting(ctx context.Context, olderThan time.Duration) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.BlockchainJob{}).
+		Where("status = ? AND updated_at < ?", model.CertificationStatusSubmitting, time.Now().Add(-olderThan)).
+		Updates(map[string]any{
+			"status":        model.CertificationStatusFailed,
+			"last_error":    "reset by stuck-submitting sweep",
+			"next_retry_at": time.Now(),
+			"updated_at":    gorm.Expr("NOW()"),
+		})
+	return result.RowsAffected, result.Error
+}
+
 // ListPendingConfirmation returns jobs whose certification has been broadcast
 // but not yet confirmed on-chain, for the confirmation-polling loop.
 func (r *BlockchainJobRepository) ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error) {
