@@ -372,11 +372,8 @@ func TestPollSubmittedJobs_MissingCertificationIDCollectsError(t *testing.T) {
 	}
 }
 
-// crashCertRepo is a CertificationRepository fake that keeps every row ever
-// created (in creation order, like the append-only DB table) and can be told
-// to fail one specific UpdateStatus call, leaving that row stuck mid-status
-// — used to reproduce a worker crashing between broadcasting a transaction
-// and recording it (HC-BE-25).
+// crashCertRepo is a CertificationRepository fake that can fail one specific
+// UpdateStatus call, leaving that row stuck mid-status.
 type crashCertRepo struct {
 	rows       []*model.HoneyBatchCertification
 	nextID     int64
@@ -426,14 +423,8 @@ func (r *crashCertRepo) UpdateStatus(ctx context.Context, id int64, status model
 	return nil
 }
 
-// TestProcessNextJob_MidBroadcastCrashRecovery reproduces HC-BE-25's
-// idempotency guarantee: a worker that dies right after broadcasting a
-// certify() transaction, but before recording the tx hash, must never let a
-// retried job create more than one live certification. The transaction from
-// the first attempt already succeeded on-chain, so the retry's own
-// certify() call reverts as already-certified — exercising idempotency
-// layers 1 (contract revert) and the resulting confirm-in-place handling
-// together.
+// A worker that dies right after broadcasting but before recording the tx
+// must not let a retry create more than one live certification (HC-BE-25).
 func TestProcessNextJob_MidBroadcastCrashRecovery(t *testing.T) {
 	certs := &crashCertRepo{failUpdate: 1}
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}

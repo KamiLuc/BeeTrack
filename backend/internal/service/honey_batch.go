@@ -23,11 +23,13 @@ var (
 	ErrInvalidProcessingMethod = errors.New("invalid processing_method")
 	ErrPDFRequired             = errors.New("lab PDF file is required")
 	ErrBatchNotFound           = errors.New("honey batch not found")
+	ErrBatchNotCertified       = errors.New("honey batch does not have a confirmed certification yet")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
 type HoneyBatchRepository interface {
 	CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error
+	GetByID(ctx context.Context, id int64) (*model.HoneyBatch, error)
 	GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error)
 }
 
@@ -37,16 +39,24 @@ type HoneyBatchCertificationRepository interface {
 	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error)
 }
 
+// HoneyBatchQRCodeRepository is the persistence interface for QR code data used by HoneyBatchService.
+type HoneyBatchQRCodeRepository interface {
+	GetByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchQRCode, error)
+	Create(ctx context.Context, q *model.HoneyBatchQRCode) error
+}
+
 // HoneyBatchService handles business logic for honey batch certification.
 type HoneyBatchService struct {
 	apiaries       ApiaryMembershipReader
 	batches        HoneyBatchRepository
 	certifications HoneyBatchCertificationRepository
+	qrCodes        HoneyBatchQRCodeRepository
+	appURL         string
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies.
-func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository) *HoneyBatchService {
-	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications}
+func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, appURL string) *HoneyBatchService {
+	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications, qrCodes: qrCodes, appURL: appURL}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch.
@@ -161,4 +171,37 @@ func (s *HoneyBatchService) GetBatchWithVerification(ctx context.Context, token 
 	}
 
 	return &BatchVerification{Batch: batch, Certification: cert}, nil
+}
+
+// GenerateQRCodeData returns the QR code data URL for batchID, generating and persisting it on first call. Requires a confirmed certification.
+func (s *HoneyBatchService) GenerateQRCodeData(ctx context.Context, batchID int64) (string, error) {
+	existing, err := s.qrCodes.GetByBatchID(ctx, batchID)
+	if err != nil {
+		return "", fmt.Errorf("get qr code: %w", err)
+	}
+	if existing != nil {
+		return existing.QRCodeData, nil
+	}
+
+	batch, err := s.batches.GetByID(ctx, batchID)
+	if err != nil {
+		return "", fmt.Errorf("get batch: %w", err)
+	}
+	if batch == nil {
+		return "", ErrBatchNotFound
+	}
+
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batchID)
+	if err != nil {
+		return "", fmt.Errorf("get latest certification: %w", err)
+	}
+	if cert == nil || cert.Status != model.CertificationStatusConfirmed {
+		return "", ErrBatchNotCertified
+	}
+
+	data := s.appURL + "/verify/" + batch.VerificationToken
+	if err := s.qrCodes.Create(ctx, &model.HoneyBatchQRCode{BatchID: batchID, QRCodeData: data}); err != nil {
+		return "", fmt.Errorf("create qr code: %w", err)
+	}
+	return data, nil
 }

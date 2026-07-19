@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,14 @@ type mockHoneyBatchRepo struct {
 	err          error
 
 	byToken map[string]*model.HoneyBatch
+	byID    map[int64]*model.HoneyBatch
+}
+
+func (m *mockHoneyBatchRepo) GetByID(ctx context.Context, id int64) (*model.HoneyBatch, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.byID[id], nil
 }
 
 func (m *mockHoneyBatchRepo) CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error {
@@ -55,6 +64,32 @@ func (m *mockHoneyBatchCertificationRepo) GetLatestByBatchID(ctx context.Context
 	return m.latest[batchID], nil
 }
 
+type mockHoneyBatchQRCodeRepo struct {
+	byBatchID map[int64]*model.HoneyBatchQRCode
+	created   *model.HoneyBatchQRCode
+	nextID    int64
+	err       error
+}
+
+func (m *mockHoneyBatchQRCodeRepo) GetByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchQRCode, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.byBatchID[batchID], nil
+}
+
+func (m *mockHoneyBatchQRCodeRepo) Create(ctx context.Context, q *model.HoneyBatchQRCode) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.nextID++
+	q.ID = m.nextID
+	m.created = q
+	return nil
+}
+
+const testAppURL = "https://app.example.com"
+
 func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockApiaryMembershipReader, *mockHoneyBatchRepo, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -66,7 +101,8 @@ func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockApiaryMemb
 	apiaries := &mockApiaryMembershipReader{apiary: &model.Apiary{ID: 1}, role: "member"}
 	batches := &mockHoneyBatchRepo{}
 	certifications := &mockHoneyBatchCertificationRepo{}
-	return NewHoneyBatchService(apiaries, batches, certifications), apiaries, batches, pdfPath
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	return NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL), apiaries, batches, pdfPath
 }
 
 func validCreateBatchRequest(pdfPath string) CreateBatchRequest {
@@ -181,7 +217,7 @@ func TestGetBatchWithVerification_NeverCertified(t *testing.T) {
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
 	certifications := &mockHoneyBatchCertificationRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications)
+	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, testAppURL)
 
 	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
 	if err != nil {
@@ -201,7 +237,7 @@ func TestGetBatchWithVerification_WithCertification(t *testing.T) {
 	cert := &model.HoneyBatchCertification{ID: 5, BatchID: 1, Status: model.CertificationStatusConfirmed}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: cert}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications)
+	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, testAppURL)
 
 	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
 	if err != nil {
@@ -216,9 +252,139 @@ func TestGetBatchWithVerification_TokenNotFound(t *testing.T) {
 	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
 	certifications := &mockHoneyBatchCertificationRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications)
+	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, testAppURL)
 
 	if _, err := svc.GetBatchWithVerification(context.Background(), "unknown-token"); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
+	}
+}
+
+func TestGenerateQRCodeData_FirstCallCreatesRow(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	data, err := svc.GenerateQRCodeData(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GenerateQRCodeData() error = %v", err)
+	}
+	want := testAppURL + "/verify/tok-1"
+	if data != want {
+		t.Errorf("GenerateQRCodeData() = %q, want %q", data, want)
+	}
+	if qrCodes.created == nil || qrCodes.created.QRCodeData != want {
+		t.Errorf("expected a QR code row to be persisted with data %q, got %+v", want, qrCodes.created)
+	}
+}
+
+func TestGenerateQRCodeData_ReusesExistingRow(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	existing := &model.HoneyBatchQRCode{ID: 9, BatchID: 1, QRCodeData: testAppURL + "/verify/tok-1"}
+	qrCodes := &mockHoneyBatchQRCodeRepo{byBatchID: map[int64]*model.HoneyBatchQRCode{1: existing}}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	data, err := svc.GenerateQRCodeData(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GenerateQRCodeData() error = %v", err)
+	}
+	if data != existing.QRCodeData {
+		t.Errorf("GenerateQRCodeData() = %q, want %q", data, existing.QRCodeData)
+	}
+	if qrCodes.created != nil {
+		t.Error("expected no new row when one already exists")
+	}
+}
+
+func TestGenerateQRCodeData_BatchNotFound(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{}}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 999); err != ErrBatchNotFound {
+		t.Errorf("expected ErrBatchNotFound, got %v", err)
+	}
+}
+
+func TestGenerateQRCodeData_NotCertifiedYet(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusSubmitted}}}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
+		t.Errorf("expected ErrBatchNotCertified, got %v", err)
+	}
+	if qrCodes.created != nil {
+		t.Error("expected no row to be persisted for an uncertified batch")
+	}
+}
+
+func TestGenerateQRCodeData_NeverCertified(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
+		t.Errorf("expected ErrBatchNotCertified, got %v", err)
+	}
+}
+
+func TestGenerateQRCodeData_Reverted(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusReverted}}}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
+		t.Errorf("expected ErrBatchNotCertified, got %v", err)
+	}
+	if qrCodes.created != nil {
+		t.Error("expected no row to be persisted for a reverted certification")
+	}
+}
+
+func TestGenerateQRCodeData_CertificationRepoError(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
+	certifications := &mockHoneyBatchCertificationRepo{err: errors.New("db down")}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
+func TestGenerateQRCodeData_QRRepoLookupError(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	qrCodes := &mockHoneyBatchQRCodeRepo{err: errors.New("db down")}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
+func TestGenerateQRCodeData_BatchRepoError(t *testing.T) {
+	apiaries := &mockApiaryMembershipReader{}
+	batches := &mockHoneyBatchRepo{err: errors.New("db down")}
+	certifications := &mockHoneyBatchCertificationRepo{}
+	qrCodes := &mockHoneyBatchQRCodeRepo{}
+	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, testAppURL)
+
+	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
+		t.Error("expected error, got nil")
 	}
 }
