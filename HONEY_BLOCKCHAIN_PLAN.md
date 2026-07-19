@@ -90,7 +90,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
      - `CertificationStatusFailed` — terminal failure (RPC error, reverted before inclusion, retries exhausted)
      - `CertificationStatusReverted` — mined but the transaction reverted on-chain (terminal)
    - Helper: `IsTerminal() bool` (confirmed/failed/reverted) and `IsLive() bool` (submitted/pending_confirmation/confirmed) used by the idempotency check in HC-BE-25.
-   - This same `CertificationStatus` type (and its string values) is the single source of truth reflected in the DB CHECK constraints, `blockchain_jobs.status`, API JSON, and — mirrored 1:1 — the Dart enum in HC-FE-09b, so the lifecycle never drifts between layers.
+   - This same `CertificationStatus` type (and its string values) is the single source of truth reflected in the DB CHECK constraints, `blockchain_jobs.status`, API JSON, and — mirrored 1:1 — the Dart enum in HC-FE-09b, so the lifecycle never drifts between layers. A batch that was never certified simply has **no** `HoneyBatchCertification` at all (a nil pointer in Go, `null` in JSON, a nullable field in Dart) — this is not a value of the enum, it's the absence of one.
 
 8. **HC-BE-07c: Create BlockchainJob model**
    - File: `backend/internal/model/blockchain_job.go`
@@ -178,11 +178,14 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 ### Phase 4: Backend Business Logic (7 tasks)
 **Goals:** Service layer with validation, async job orchestration, and a dedicated worker for all blockchain interaction.
 
-**Async Certification Architecture** *(addresses improvement #1)*: `CreateBatch` no longer talks to Polygon at all. It validates the request, persists the batch, and enqueues a `blockchain_jobs` row with `status='queued'` in the same DB transaction — then returns. A separate long-running worker process (started once at app boot, HC-BE-15b) is the *only* code path that ever calls `blockchain.Writer` or `blockchain.Reader`. This means the API's response time is bounded purely by Postgres, never by Polygon RPC latency, and a Polygon outage degrades to "certifications queue up" rather than "batch creation fails".
+**Async Certification Architecture** *(addresses improvement #1)*: `CreateBatch` no longer talks to Polygon at all. It validates the request, persists the batch, and — only if the caller opted in — enqueues a `blockchain_jobs` row with `status='queued'` in the same DB transaction, then returns. A separate long-running worker process (started once at app boot, HC-BE-15b) is the *only* code path that ever calls `blockchain.Writer` or `blockchain.Reader`. This means the API's response time is bounded purely by Postgres, never by Polygon RPC latency, and a Polygon outage degrades to "certifications queue up" rather than "batch creation fails".
+
+**Certification is opt-in, not automatic** *(revised)*: not every honey batch needs an on-chain certification — a beekeeper may want to log a batch's data without paying for/waiting on certification, and decide later whether it's worth certifying. `CreateBatchRequest` carries a `RequestCertification bool` field (default `false` if omitted). A batch created with it `false` has **no** `blockchain_jobs` or `honey_batch_certifications` rows at all — not a `queued` job, just nothing. `GetLatestByBatchID` simply returns no row for such a batch, and every layer (service, API JSON, Dart model) represents that as an absent/nil certification rather than inventing a status value for it — see HC-BE-07b. The owner can request certification at any later time via the broadened retry/certify endpoint (see HC-BE-24c below).
 
 18. **HC-BE-13: Service — Create honey batch**
     - File: `backend/internal/service/honey_batch.go`
     - Function: `CreateBatch(ctx context.Context, userID, apiaryID int64, req CreateBatchRequest) (*model.HoneyBatch, error)`
+    - `CreateBatchRequest` includes `RequestCertification bool` (default `false`) alongside the batch fields
     - Validation:
       - User owns apiary (via apiary repo)
       - Apiary exists
@@ -195,7 +198,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       2. Hash PDF file (`SHA256File`)
       3. Generate `verification_token` (crypto-random UUID v4, see HC-BE-16 rename below)
       4. Compute `metadata_hash` (`CanonicalMetadataHash`, HC-BE-06b)
-      5. In a single DB transaction: insert the batch row, then insert a `blockchain_jobs` row (`job_type='certify'`, `status='queued'`, `next_retry_at=NOW()`)
+      5. In a single DB transaction: insert the batch row, and — **only if `RequestCertification` is true** — insert a `blockchain_jobs` row (`job_type='certify'`, `status='queued'`, `next_retry_at=NOW()`). If false, the transaction is just the batch insert.
       6. Return the created batch immediately — **no blockchain call happens here**
     - Error responses: Use domain errors (ErrApiaryNotFound, ErrInvalidAmount, etc.)
 
@@ -203,6 +206,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - File: `backend/internal/service/honey_batch.go`
     - Function: `GetBatchWithVerification(ctx context.Context, token string) (*BatchVerification, error)` — looked up by verification token (HC-BE-16b), not numeric ID, for the public-facing path
     - Returns struct: batch data + latest certification (from `HoneyBatchCertificationRepository.GetLatestByBatchID`) + hash comparison + confirmation count
+    - If `GetLatestByBatchID` returns no row, the returned certification field is nil/absent (not a status value) — this is a normal, expected state, not an error
     - If the latest certification has a `transaction_hash`, this only reads from the DB (already kept fresh by the worker's confirmation loop) — it does **not** make a live RPC call on every request, keeping the endpoint fast under load. A "Refresh" action (HC-FE-04) can trigger an on-demand re-check via a lightweight endpoint that nudges the worker or does a bounded live read.
     - Compare stored `pdf_file_hash` with the batch's current `pdf_file_hash` (detects if the PDF was ever swapped post-certification — should always match since PDFs are immutable once uploaded)
 
@@ -250,10 +254,10 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 25. **HC-BE-17: Handler — POST /api/v1/honey-batches**
     - File: `backend/internal/handler/honey_batch.go`
     - Auth required (extract userID from context)
-    - Parse multipart form: batch data (JSON) + PDF file
+    - Parse multipart form: batch data (JSON, including optional `request_certification: bool`, default `false`) + PDF file
     - Validate request (see service HC-BE-13)
     - Call service.CreateBatch()
-    - Return: batch object including `verification_token`, plus `certification_status: "queued"` — **no tx_hash yet**, since certification hasn't been submitted at request time (this is the API-visible consequence of the async architecture in improvement #1)
+    - Return: batch object including `verification_token`, plus `certification_status: "queued"` if `request_certification` was true, or no `certification` field at all (null) if false/omitted — **no tx_hash yet either way**, since certification (when requested) hasn't been submitted at request time (this is the API-visible consequence of the async architecture in improvement #1)
     - Error mapping: 400 for validation, 403 for ownership, 500 for unexpected DB failure. A blockchain-side failure can never produce a 500 here anymore, since no blockchain call happens synchronously.
 
 26. **HC-BE-18: Handler — GET /api/v1/honey-batches/{id}**
@@ -306,11 +310,15 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Public endpoint, mirrors HC-BE-24 but keyed by verification token so anyone scanning the QR code can view the certifying lab PDF without ever learning the batch's numeric ID
     - Return 302 redirect to S3/cloud storage URL or stream PDF
 
-34. **HC-BE-24c: Handler — POST /api/v1/honey-batches/{id}/retry-certification** *(new, small)*
+34. **HC-BE-24c: Handler — POST /api/v1/honey-batches/{id}/retry-certification** *(broadened — now doubles as "certify this batch now")*
     - File: `backend/internal/handler/honey_batch.go`
     - Auth + ownership required
-    - For a batch whose latest certification is `failed`, allows the owner to explicitly re-enqueue a `blockchain_jobs` row (`status='queued'`) rather than waiting for an automatic retry window — surfaced by HC-FE-06 "Check status" / retry button
-    - Idempotency guarantees from HC-BE-25 apply identically to manually-triggered jobs
+    - Looks up the batch's latest certification (if any) and enqueues a fresh `blockchain_jobs` row (`status='queued'`) in these cases:
+      - **No certification exists yet** (`GetLatestByBatchID` returns nil) — this is now the primary "certify this batch" action for batches created with `request_certification: false`, not just a retry path
+      - Latest certification is `failed` or `reverted` — re-enqueue, same as the original retry behavior
+    - Rejects (409) if the latest certification is already `queued`/`submitting`/`submitted`/`pending_confirmation`/`confirmed` — there's already a live or in-flight attempt, nothing to do
+    - Idempotency guarantees from HC-BE-25 apply identically to manually-triggered jobs, whether this is a first-time request or a retry
+    - Surfaced by HC-FE-03/HC-FE-06 as both a "Certify" button (when no certification exists yet) and a "Retry" button (on `failed`/`reverted` batches) — same endpoint, different button copy depending on current state
 
 ### Phase 6: Backend Integration & Wiring (2 tasks)
 **Goals:** Wire handlers, services, repos, and the worker into main app.
@@ -347,7 +355,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 38. **HC-FE-08b: HoneyBatchCertificationModel (Dart)** *(new)*
     - File: `app/lib/features/honey/data/honey_batch_certification_model.dart`
     - Fields: id, batchId, chainId, contractAddress, transactionHash, blockNumber, status (CertificationStatus enum), gasUsed, confirmationTimestamp, createdAt
-    - `CertificationStatus` enum: `queued, submitting, submitted, pendingConfirmation, confirmed, failed, reverted` — string values match the Go/DB constants exactly (`pending_confirmation` ↔ `pendingConfirmation`, etc.) via explicit `fromJson`/`toJson` mapping, so the lifecycle defined in HC-BE-07b is the single cross-stack source of truth (addresses improvement #4).
+    - `CertificationStatus` enum: `queued, submitting, submitted, pendingConfirmation, confirmed, failed, reverted` — string values match the Go/DB constants exactly (`pending_confirmation` ↔ `pendingConfirmation`, etc.) via explicit `fromJson`/`toJson` mapping, so the lifecycle defined in HC-BE-07b is the single cross-stack source of truth (addresses improvement #4). `HoneyBatchModel.certification` is nullable (`HoneyBatchCertificationModel?`); `null` means "not certified yet" — the UI checks for null rather than switching on an extra enum value.
 
 39. **HC-FE-09: ProcessingMethodEnum (Dart)**
     - File: `app/lib/features/honey/data/honey_batch_model.dart` (same file)
@@ -361,10 +369,10 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Methods:
       - listBatches(apiaryId, {limit, offset}) → Future<(items: List<HoneyBatch>, total: int)>
       - getBatch(id) → Future<HoneyBatch> (owner-scoped, numeric id)
-      - createBatch(data, pdfFile) → Future<HoneyBatch> (multipart upload)
+      - createBatch(data, pdfFile, {requestCertification = false}) → Future<HoneyBatch> (multipart upload)
       - updateBatch(id, data) → Future<HoneyBatch>
       - deleteBatch(id) → Future<void>
-      - retryCertification(id) → Future<void> (calls HC-BE-24c)
+      - requestCertification(id) → Future<void> (calls HC-BE-24c; also used to retry a failed/reverted certification, same endpoint)
       - verifyByToken(token) → Future<VerificationDetails> (calls the public `/verify/{token}` route — no auth header needed, works for scanned QR codes from any user, including logged-out)
       - getQRCodeUrl(token) → String (URL to QR image at `/verify/{token}/qr-code`)
     - Error handling: Convert DioException to ApiException
@@ -378,9 +386,9 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Methods:
       - load(apiaryId) → emit Loading then Loaded
       - loadMore() → append to existing list
-      - create(data, file) → emit Loading, update state (resulting batch has `certification_status: queued` — UI reflects "queued" immediately, not "pending")
+      - create(data, file, {requestCertification = false}) → emit Loading, update state (resulting batch's `certification` is populated with status `queued` if requested, else stays `null`)
       - delete(id) → remove from list, refresh if error
-      - retryCertification(id) → re-enqueue and optimistically update the item's badge to "queued"
+      - requestCertification(id) → re-enqueue (works whether `certification` is currently `null` or `failed`/`reverted`) and optimistically update the item's badge to "queued"
       - setApiaryFilter(apiaryId) → reload
     - Pagination: track offset, hasMore flag
 
@@ -405,16 +413,17 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - Honey type (text input, autocomplete suggestions)
       - Apiary selector (dropdown, pre-filled if from apiary detail)
       - PDF upload (file picker, show file name + size)
+      - "Certify on the blockchain" toggle/checkbox — **off by default**, since certification is opt-in; when off, the batch is created with no certification attempt at all (`certification` stays `null`, certifiable later from the detail screen)
     - Submit button: calls cubit.create(), shows progress
     - Error toast if validation fails
-    - Success → pop screen + reload parent; success message clarifies certification is queued and will complete in the background ("Batch created — blockchain certification is in progress")
+    - Success → pop screen + reload parent; success message depends on the toggle: "Batch created — blockchain certification is in progress" if requested, or "Batch created" if not
 
 44. **HC-FE-03: Honey batch detail screen**
     - File: `app/lib/features/honey/view/honey_batch_detail_screen.dart`
     - Displays: all batch info, gathering date, amount (formatted from `amountGrams` as kg), processing method, honey type, apiary name
     - PDF section: preview/download link (owner-scoped endpoint)
-    - QR code section: display QR image (encodes the verification token URL), "Share" button
-    - Certification status section: badge reflecting the full lifecycle (queued/submitting/submitted/pending confirmation/confirmed/failed/reverted) + details button; if `failed`, shows a "Retry" action wired to `retryCertification`
+    - QR code section: display QR image (encodes the verification token URL), "Share" button — hidden/disabled while `certification` is `null`, since there's nothing on-chain yet to verify
+    - Certification status section: badge shows a distinct "Not certified yet" indicator when `certification` is `null`, otherwise reflects the full lifecycle (queued/submitting/submitted/pending confirmation/confirmed/failed/reverted) + details button; when `null`, shows a "Certify" action, and if `failed`/`reverted`, shows a "Retry" action — both wired to the same `requestCertification` call
     - Edit button (if user owns batch) → edit screen
     - Delete button (if user owns batch)
 
@@ -466,7 +475,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 51. **HC-FE-15 & HC-FE-16: Certification status indicator + verification modal**
     - File: `app/lib/features/honey/widgets/blockchain_status_widget.dart` + `verification_modal.dart`
-    - `BlockchainStatusWidget`: badge driven by the `CertificationStatus` enum (HC-FE-08b) — distinct color/icon per state (e.g. grey "Queued", blue spinner "Submitting"/"Submitted", amber "Pending confirmation", green check "Confirmed", red "Failed"/"Reverted") rather than a flattened three-state pending/confirmed/failed badge
+    - `BlockchainStatusWidget`: badge driven by the `CertificationStatus` enum (HC-FE-08b) — distinct color/icon per state (e.g. neutral outline "Not requested", grey "Queued", blue spinner "Submitting"/"Submitted", amber "Pending confirmation", green check "Confirmed", red "Failed"/"Reverted") rather than a flattened three-state pending/confirmed/failed badge
     - `VerificationModal`: detailed view of on-chain state, including certification history (all rows from `ListByBatchID`, most recent first) if more than one exists — surfaces retries/migrations transparently
 
 52. **HC-FE-17: Hash comparison display**
@@ -511,11 +520,12 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - File: `app/lib/features/honey/view/honey_batch_*.dart`
     - Show the appropriate badge for every lifecycle state (never a generic spinner covering "queued" through "pending confirmation" — that's exactly what the richer status model in improvement #4 is for)
     - Allow user to check status later without blocking UI
-    - "Check status" / "Retry" button on failed batches (calls HC-BE-24c)
+    - "Certify" button when `certification` is `null`, "Check status" / "Retry" button on `failed`/`reverted` batches (both call HC-BE-24c)
 
 59. **HC-10-07: Error handling (frontend)**
     - File: `app/lib/core/widgets/error_dialog.dart` (modify existing)
     - Display user-friendly certification errors mapped from the lifecycle status:
+      - `certification == null` → not an error state; shows a neutral "Not certified yet" indicator with a "Certify" action, not an error dialog
       - `queued`/`submitting`/`submitted`/`pending_confirmation` → "Certification in progress — check back shortly" (not an error state)
       - `failed` → "Certification failed — tap Retry to try again"
       - `reverted` → "Certification was rejected on-chain — contact support"
@@ -526,6 +536,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - File: `app/lib/l10n/app_en.arb` + `app_pl.arb`
     - Add keys: processingMethod_raw, processingMethod_filtered, processingMethod_pasteurized
     - Add keys for every lifecycle state (addresses improvement #4 needing consistent UI badges): certificationStatus_queued, certificationStatus_submitting, certificationStatus_submitted, certificationStatus_pendingConfirmation, certificationStatus_confirmed, certificationStatus_failed, certificationStatus_reverted
+    - Add a separate key for the null-certification case (not part of the enum): certificationNotRequested
     - Add keys: verification_verified, verification_details, verification_pending
     - Run `flutter gen-l10n` to regenerate
 
@@ -698,6 +709,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 10. **QR code immutability:** URLs permanent; scanning always reflects the worker's latest known on-chain state (not a live RPC call per scan, for both latency and rate-limit reasons)
 11. **Idempotency is defense-in-depth:** enforced at three independent layers — smart contract revert-on-duplicate, application-level pre-submission check, and a DB partial unique constraint — so no single missed edge case causes a double-certification.
 12. **Thesis scope, not production:** target environment is Polygon Amoy testnet only. Mainnet deployment, gas relay services, malware scanning, and signed-URL cloud storage are documented as future work but are **(production-hardening — optional for thesis)** and not required to consider the feature complete.
+13. **Certification is opt-in, not automatic:** `CreateBatch` no longer always enqueues a certification job. A batch can exist indefinitely with zero rows in `blockchain_jobs`/`honey_batch_certifications` — represented everywhere as a nil/null certification, not a synthesized status value — until the owner explicitly requests certification via the broadened HC-BE-24c endpoint. This reflects that not every batch needs on-chain proof — some beekeepers just want the record-keeping.
 
 ---
 
