@@ -6,8 +6,8 @@ import { useI18n } from "../i18n/I18nContext";
 export function LoginPage() {
   const { user, error, login } = useAuth();
   const { lang, setLang, t } = useI18n();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(import.meta.env.DEV ? "kamil@op.pl" : "");
+  const [password, setPassword] = useState(import.meta.env.DEV ? "lion12345" : "");
   const [submitting, setSubmitting] = useState(false);
 
   if (user) return <Navigate to="/listings" replace />;
