@@ -435,6 +435,10 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/honey-batches/{id}` | Get honey batch |
 | PATCH | `/api/v1/honey-batches/{id}` | Update honey batch's `honey_type` (only mutable field) |
 | DELETE | `/api/v1/honey-batches/{id}` | Soft-delete honey batch |
+| GET | `/api/v1/honey-batches/{id}/pdf` | Serve honey batch's lab PDF (owner-scoped, auth required) |
+| GET | `/api/v1/verify/{token}` | Public lookup of a honey batch by its verification token; returns batch + certification status |
+| GET | `/api/v1/verify/{token}/qr-code` | Public PNG QR code encoding the verification URL (requires confirmed certification) |
+| GET | `/api/v1/verify/{token}/pdf` | Public lab PDF for a batch (requires confirmed certification) |
 
 ---
 
