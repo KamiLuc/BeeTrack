@@ -199,6 +199,7 @@ func main() {
 	mux.Handle("POST /api/v1/honey-batches/{id}/retry-certification", auth(http.HandlerFunc(honeyBatchHandler.RetryCertification)))
 	mux.HandleFunc("GET /api/v1/verify/{token}", honeyBatchVerifyHandler.Verify)
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code", honeyBatchVerifyHandler.QRCode)
+	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code/download", honeyBatchVerifyHandler.QRCodeDownload)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
 
 	cors := middleware.CORS(cfg.AllowedOrigins)

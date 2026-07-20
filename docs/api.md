@@ -1892,6 +1892,21 @@ Public, no authentication. Serves a 512x512 PNG QR code encoding the verificatio
 
 ---
 
+### GET /verify/{token}/qr-code/download
+
+Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`, but adds `Content-Disposition: attachment; filename="honey-batch-qr-code.png"` so the response triggers a browser download/save dialog instead of rendering inline. Same requirement (confirmed certification) and same caching.
+
+**Response** `200 OK` — `image/png` binary, `Content-Disposition: attachment; filename="honey-batch-qr-code.png"`, `Cache-Control: public, max-age=31536000, immutable`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `BATCH_NOT_FOUND` | 404 | Token does not resolve to a batch |
+| `BATCH_NOT_CERTIFIED` | 409 | Batch has no confirmed certification |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /verify/{token}/pdf
 
 Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed certification — no public exposure of lab data for an uncertified batch.

@@ -32,21 +32,38 @@ func (h *HoneyBatchVerifyHandler) Verify(w http.ResponseWriter, r *http.Request)
 	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification))
 }
 
-// QRCode handles GET /api/v1/verify/{token}/qr-code — public, serves a PNG QR code encoding the batch's verification URL. Requires a confirmed certification; cached indefinitely once generated.
-func (h *HoneyBatchVerifyHandler) QRCode(w http.ResponseWriter, r *http.Request) {
+// qrCodePNG generates the PNG bytes for a batch's QR code, resolved via its public verification token.
+func (h *HoneyBatchVerifyHandler) qrCodePNG(r *http.Request) ([]byte, error) {
 	data, err := h.batches.GenerateQRCodeDataByToken(r.Context(), r.PathValue("token"))
+	if err != nil {
+		return nil, err
+	}
+	return qrcode.Encode(data, qrcode.Medium, qrCodeImageSize)
+}
+
+// QRCode handles GET /api/v1/verify/{token}/qr-code — public, serves a PNG QR code encoding the batch's verification URL for inline display. Requires a confirmed certification; cached indefinitely once generated.
+func (h *HoneyBatchVerifyHandler) QRCode(w http.ResponseWriter, r *http.Request) {
+	png, err := h.qrCodePNG(r)
 	if err != nil {
 		honeyBatchError(w, err)
 		return
 	}
 
-	png, err := qrcode.Encode(data, qrcode.Medium, qrCodeImageSize)
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Write(png)
+}
+
+// QRCodeDownload handles GET /api/v1/verify/{token}/qr-code/download — public, same PNG as QRCode but forces a browser download instead of inline display (e.g. for printing).
+func (h *HoneyBatchVerifyHandler) QRCodeDownload(w http.ResponseWriter, r *http.Request) {
+	png, err := h.qrCodePNG(r)
 	if err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not generate qr code")
+		honeyBatchError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Disposition", `attachment; filename="honey-batch-qr-code.png"`)
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	w.Write(png)
 }
