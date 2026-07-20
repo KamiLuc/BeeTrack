@@ -76,6 +76,8 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusRequestEntityTooLarge, "PDF_TOO_LARGE", err.Error())
 	case errors.Is(err, service.ErrBatchNotCertified):
 		respond.Error(w, http.StatusConflict, "BATCH_NOT_CERTIFIED", err.Error())
+	case errors.Is(err, service.ErrBatchAlreadyCertified):
+		respond.Error(w, http.StatusConflict, "BATCH_ALREADY_CERTIFIED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -295,4 +297,37 @@ func (h *HoneyBatchHandler) PDF(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/pdf")
 	http.ServeFile(w, r, path)
+}
+
+// RetryCertification handles POST /api/v1/honey-batches/{id}/retry-certification — enqueues a certify job for a batch owned by the caller.
+func (h *HoneyBatchHandler) RetryCertification(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	id, err := parseHoneyBatchID(r)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid honey batch id")
+		return
+	}
+
+	if err := h.batches.RetryCertification(r.Context(), userID, id); err != nil {
+		honeyBatchError(w, err)
+		return
+	}
+
+	result, err := h.batches.GetBatch(r.Context(), userID, id)
+	if err != nil {
+		honeyBatchError(w, err)
+		return
+	}
+
+	// No new certification row exists yet — the worker creates one once it claims the job — so a synthetic "queued" placeholder reflects it here.
+	cert := result.Certification
+	if cert == nil || !cert.Status.IsLive() {
+		cert = &model.HoneyBatchCertification{Status: model.CertificationStatusQueued}
+	}
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, cert))
 }

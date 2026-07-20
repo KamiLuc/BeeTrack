@@ -60,6 +60,7 @@ func main() {
 	honeyBatchRepo := repository.NewHoneyBatchRepository(db)
 	honeyBatchCertificationRepo := repository.NewHoneyBatchCertificationRepository(db)
 	honeyBatchQRCodeRepo := repository.NewHoneyBatchQRCodeRepository(db)
+	blockchainJobRepo := repository.NewBlockchainJobRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -76,7 +77,7 @@ func main() {
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
-	honeyBatchSvc := service.NewHoneyBatchService(apiaryRepo, honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchQRCodeRepo, cfg.AppURL, cfg.PDFStoragePath)
+	honeyBatchSvc := service.NewHoneyBatchService(apiaryRepo, honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.AppURL, cfg.PDFStoragePath)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
@@ -195,6 +196,7 @@ func main() {
 	mux.Handle("PATCH /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Update)))
 	mux.Handle("DELETE /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Delete)))
 	mux.Handle("GET /api/v1/honey-batches/{id}/pdf", auth(http.HandlerFunc(honeyBatchHandler.PDF)))
+	mux.Handle("POST /api/v1/honey-batches/{id}/retry-certification", auth(http.HandlerFunc(honeyBatchHandler.RetryCertification)))
 	mux.HandleFunc("GET /api/v1/verify/{token}", honeyBatchVerifyHandler.Verify)
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code", honeyBatchVerifyHandler.QRCode)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)

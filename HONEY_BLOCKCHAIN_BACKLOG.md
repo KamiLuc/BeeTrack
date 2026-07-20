@@ -105,7 +105,7 @@
 | HC-BE-23  | `BE`  | `[x]`  | Handler: DELETE /api/v1/honey-batches/{id}               | Auth + ownership. Soft delete; on-chain record is untouched/immutable.                                                   |
 | HC-BE-24  | `BE`  | `[x]`  | Handler: GET /api/v1/honey-batches/{id}/pdf              | Auth + ownership — owner-scoped PDF access. Not gated on certification status — the owner can always view their own upload. |
 | HC-BE-24b | `BE`  | `[x]`  | Handler: GET /api/v1/verify/{token}/pdf                  | Public, token-scoped PDF access. Gated on a confirmed certification, same rationale as the QR gate — no public exposure of lab data for an uncertified batch. |
-| HC-BE-24c | `BE`  | `[ ]`  | Handler: POST /api/v1/honey-batches/{id}/retry-certification | Broadened — auth + ownership. Re-enqueues a `blockchain_jobs` row when no certification exists yet (first-time certify), or the latest is `failed`/`reverted`. Rejects (409) if already live/confirmed. Backs both the FE "Certify" and "Retry" buttons (HC-10-06). |
+| HC-BE-24c | `BE`  | `[x]`  | Handler: POST /api/v1/honey-batches/{id}/retry-certification | Auth + ownership. `HoneyBatchService.RetryCertification` re-enqueues a `blockchain_jobs` row when no certification exists yet (first-time certify), or the latest is `failed`/`reverted`. Rejects (409, `BATCH_ALREADY_CERTIFIED`) if `IsLive()`. Backs both the FE "Certify" and "Retry" buttons (HC-10-06). |
 
 ---
 

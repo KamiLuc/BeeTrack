@@ -1846,6 +1846,23 @@ Serves the lab PDF for a batch owned by the caller. Not gated on certification s
 
 ---
 
+### POST /honey-batches/{id}/retry-certification 🔒
+
+Enqueues a blockchain certification job for a batch owned by the caller — a first-time certify if certification was never requested, or a retry if the latest attempt is `failed`/`reverted`. No request body.
+
+**Response** `200 OK` — honey batch object. `certification` is the synthetic `{"status": "queued", ...}` placeholder described above (no certification row exists yet until the background worker claims the job).
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `BATCH_ALREADY_CERTIFIED` | 409 | Batch already has a live certification (`submitted`, `pending_confirmation`, or `confirmed`) |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /verify/{token}
 
 Public, no authentication. Looks up a batch by its public `verification_token` (opaque UUID, not the numeric `id`) and returns the same honey batch object shape as `GET /honey-batches/{id}`.

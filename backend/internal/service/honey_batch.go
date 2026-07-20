@@ -30,6 +30,7 @@ var (
 	ErrPDFTooLarge             = fmt.Errorf("lab PDF exceeds %d MB limit", maxLabPDFBytes/(1024*1024))
 	ErrBatchNotFound           = errors.New("honey batch not found")
 	ErrBatchNotCertified       = errors.New("honey batch does not have a confirmed certification yet")
+	ErrBatchAlreadyCertified   = errors.New("honey batch already has a live certification")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
@@ -55,19 +56,25 @@ type HoneyBatchQRCodeRepository interface {
 	Create(ctx context.Context, q *model.HoneyBatchQRCode) error
 }
 
+// BlockchainJobRepository is the persistence interface for enqueuing certification jobs used by HoneyBatchService.
+type BlockchainJobRepository interface {
+	Create(ctx context.Context, j *model.BlockchainJob) error
+}
+
 // HoneyBatchService handles business logic for honey batch certification.
 type HoneyBatchService struct {
 	apiaries       ApiaryMembershipReader
 	batches        HoneyBatchRepository
 	certifications HoneyBatchCertificationRepository
 	qrCodes        HoneyBatchQRCodeRepository
+	jobs           BlockchainJobRepository
 	appURL         string
 	pdfStoragePath string
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies. Lab PDFs are stored under pdfStoragePath.
-func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, appURL, pdfStoragePath string) *HoneyBatchService {
-	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications, qrCodes: qrCodes, appURL: appURL, pdfStoragePath: pdfStoragePath}
+func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
+	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch, including the raw lab PDF upload.
@@ -278,6 +285,31 @@ func (s *HoneyBatchService) DeleteBatch(ctx context.Context, userID, batchID int
 	}
 	if err := s.batches.SoftDelete(ctx, batchID); err != nil {
 		return fmt.Errorf("delete batch: %w", err)
+	}
+	return nil
+}
+
+// RetryCertification enqueues a "certify" job for a batch owned by userID — first-time certify if none was ever requested, or a retry if the latest attempt failed/reverted. Rejects with ErrBatchAlreadyCertified if a live certification already exists.
+func (s *HoneyBatchService) RetryCertification(ctx context.Context, userID, batchID int64) error {
+	batch, err := s.ownedBatch(ctx, userID, batchID)
+	if err != nil {
+		return err
+	}
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
+	if err != nil {
+		return fmt.Errorf("get latest certification: %w", err)
+	}
+	if cert != nil && cert.Status.IsLive() {
+		return ErrBatchAlreadyCertified
+	}
+	job := &model.BlockchainJob{
+		BatchID:     batch.ID,
+		JobType:     "certify",
+		Status:      model.CertificationStatusQueued,
+		NextRetryAt: time.Now(),
+	}
+	if err := s.jobs.Create(ctx, job); err != nil {
+		return fmt.Errorf("create blockchain job: %w", err)
 	}
 	return nil
 }
