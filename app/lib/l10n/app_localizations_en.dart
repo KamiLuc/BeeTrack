@@ -1111,7 +1111,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get honeyBatchAdd => 'Add honey batch';
 
   @override
-  String get honeyBatchDetailTitle => 'Honey Batch';
+  String get honeyBatchEditTitle => 'Edit honey batch';
 
   @override
   String get honeyBatchHoneyType => 'Honey type';
@@ -1147,16 +1147,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get honeyBatchPdfLabel => 'Lab PDF';
 
   @override
-  String get honeyBatchPdfRequired => 'Attach the lab PDF';
-
-  @override
   String get honeyBatchNoPdf => 'None';
 
   @override
-  String get honeyBatchCertifyToggle => 'Certify on the blockchain';
+  String get honeyBatchCertify => 'Certify on blockchain';
 
   @override
-  String get honeyBatchCertify => 'Certify on blockchain';
+  String get honeyBatchCertifyConfirmTitle => 'Certify this batch?';
+
+  @override
+  String get honeyBatchCertifyConfirmMessage =>
+      'Once certified, this honey batch\'s data can no longer be edited.';
 
   @override
   String get honeyBatchRetry => 'Retry certification';

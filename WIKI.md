@@ -435,7 +435,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | POST | `/api/v1/honey-batches` | Create honey batch (multipart with `lab_pdf`; optional certification request) |
 | GET | `/api/v1/honey-batches` | List caller's honey batches (paginated, each with latest certification) |
 | GET | `/api/v1/honey-batches/{id}` | Get honey batch |
-| PATCH | `/api/v1/honey-batches/{id}` | Update honey batch's `honey_type` (only mutable field) |
+| PATCH | `/api/v1/honey-batches/{id}` | Update honey batch (gathering date, amount, processing method, honey type; multipart, with an optional `lab_pdf` to replace the existing PDF, or `remove_pdf` to clear it); locked once certification has been attempted |
 | DELETE | `/api/v1/honey-batches/{id}` | Soft-delete honey batch |
 | GET | `/api/v1/honey-batches/{id}/pdf` | Serve honey batch's lab PDF (owner-scoped, auth required) |
 | POST | `/api/v1/honey-batches/{id}/retry-certification` | Enqueue certification (first attempt or retry after failure) for a batch owned by the caller |
@@ -557,19 +557,30 @@ ApiariesScreen (shown once logged in)
 
 HoneyBatchesHomeScreen (signed-in only — reached from the drawer's "Honey Batches" option)
   │   Lists the caller's honey batches, newest first, page by page (same pagination
-  │   pattern as InspectionHistoryScreen). Each card shows gathering date, honey type,
-  │   processing method, amount, and a certification status badge. Bottom amber banner:
-  │   + (add) → CreateHoneyBatchScreen; empty state shows just the banner's + button.
-  ├── CreateHoneyBatchScreen (+ button in banner)
-  │   │   Form: gathering date, amount (kg), processing method, honey type, required
-  │   │   lab PDF upload (via file_picker), and a toggle to request certification
-  │   │   immediately on creation. Batches belong only to their creator — no apiary
-  │   │   link.
-  └── HoneyBatchDetailScreen (tap a card)
-      │   Shows batch details, certification status badge, and a certify/retry action
-      │   (button label and behaviour depend on certification status: none yet →
-      │   "Certify"; failed/reverted → "Retry"; confirmed → view/download QR buttons;
-      │   otherwise shows an in-progress spinner). AppBar delete icon removes the batch.
+  │   pattern as InspectionHistoryScreen). There is no separate detail screen — each
+  │   card itself shows the full picture: gathering date, certification status badge,
+  │   a 3-dot overflow menu (Edit — only shown while the batch has no certification
+  │   attempt yet, opens CreateHoneyBatchScreen pre-filled to edit gathering date,
+  │   amount, processing method, and honey type together — and Delete, always shown),
+  │   honey type, processing method, amount in kg, the uploaded PDF's filename (or "None"),
+  │   and a certification action area (Certify/Retry button, an in-progress spinner,
+  │   or view/download QR buttons once confirmed — QR buttons are still TODO stubs
+  │   pending a later ticket). Certify/Retry and Delete both use the math-puzzle
+  │   confirmation dialog (same pattern as apiary/listing/hive deletion), warning
+  │   that certified data can no longer be edited.
+  │   Bottom amber banner: + (add) → CreateHoneyBatchScreen; empty state shows just
+  │   the banner's + button.
+  └── CreateHoneyBatchScreen (+ button in banner)
+      │   Form: gathering date, amount (kg), processing method, honey type, required
+      │   lab PDF upload (via file_picker). Batches are always created uncertified —
+      │   there is no certify-on-creation toggle; certification can only be requested
+      │   afterward via the card's Certify/Retry button. Doubles as the edit screen
+      │   (via the card's Edit action): pre-filled with an existing batch's values.
+      │   The PDF picker stays visible in edit mode too, showing the batch's current
+      │   filename as a placeholder until the owner picks a replacement; leaving it
+      │   unset keeps the existing PDF, and clearing it (the picker's X button) marks
+      │   the existing PDF for removal on save. Batches belong only to their creator —
+      │   no apiary link.
 
 MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option)
   │   Search bar + category dropdown + page-based listing feed (20 per page, same

@@ -298,6 +298,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Allow updating only: notes, honey_type (not PDF, amount, or any certification data)
     - Call service.UpdateBatch()
     - Return updated batch
+    - **Deviation:** expanded to `gathering_date`, `amount_grams`, `processing_method`, and `honey_type` (all pre-PDF/pre-certification fields, not just `honey_type`). Locked with `409 BATCH_LOCKED` once the batch has any certification attempt (row of any status, or a pending/unclaimed job), since editing after that point could desync the batch from an already-submitted `metadata_hash`. `metadata_hash` is recomputed on every successful edit rather than only at creation time. Request is now `multipart/form-data` (not JSON), matching Create, with an added optional `lab_pdf` field: if provided it replaces the batch's PDF (same validation as Create, old file deleted after the DB write succeeds); if omitted the existing PDF is untouched. **Later deviation:** added an optional `remove_pdf` form field (`"true"`/absent) — when set and no new `lab_pdf` is uploaded, the existing PDF is cleared (`lab_pdf_url`/`pdf_filename`/`pdf_file_hash`) and the stored file deleted; a new `lab_pdf` upload always takes precedence over `remove_pdf`.
 
 31. **HC-BE-23: Handler — DELETE /api/v1/honey-batches/{id}**
     - File: `backend/internal/handler/honey_batch.go`
@@ -410,7 +411,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Displays list of user's batches
     - "Create Batch" button → navigate to create screen
     - List items show: batch name/type, date, certification status (badge reflecting the full lifecycle — see HC-FE-15)
-    - Tap item → detail screen (owner view, numeric id)
+    - Tap item → detail screen (owner view, numeric id) — **deviation:** no separate detail screen exists; the list card itself (`HoneyBatchCard`) shows the full detail content and actions (see HC-FE-03 deviation note)
     - Pull-to-refresh support
 
 43. **HC-FE-02: Create honey batch screen**
@@ -422,10 +423,10 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - Honey type (text input, autocomplete suggestions)
       - Apiary selector (dropdown, pre-filled if from apiary detail) — **removed**; the create form has no apiary picker at all (see HC-DB-01 deviation note)
       - PDF upload (file picker, show file name + size)
-      - "Certify on the blockchain" toggle/checkbox — **off by default**, since certification is opt-in; when off, the batch is created with no certification attempt at all (`certification` stays `null`, certifiable later from the detail screen)
+      - "Certify on the blockchain" toggle/checkbox — **off by default**, since certification is opt-in; when off, the batch is created with no certification attempt at all (`certification` stays `null`, certifiable later from the detail screen) — **later removed:** the toggle was dropped entirely from create mode; a batch is now always created uncertified, and certification can only be requested afterward via the card's Certify/Retry button (HC-BE-24c)
     - Submit button: calls cubit.create(), shows progress
     - Error toast if validation fails
-    - Success → pop screen + reload parent; success message depends on the toggle: "Batch created — blockchain certification is in progress" if requested, or "Batch created" if not
+    - Success → pop screen + reload parent; success message depends on the toggle: "Batch created — blockchain certification is in progress" if requested, or "Batch created" if not — **later deviation:** since the toggle is gone, `createBatch` is no longer called with `requestCertification: true` from this screen, so the success message is always the non-certifying one
 
 44. **HC-FE-03: Honey batch detail screen**
     - File: `app/lib/features/honey/view/honey_batch_detail_screen.dart`
@@ -435,6 +436,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Certification status section: badge shows a distinct "Not certified yet" indicator when `certification` is `null`, otherwise reflects the full lifecycle (queued/submitting/submitted/pending confirmation/confirmed/failed/reverted) + details button; when `null`, shows a "Certify" action, and if `failed`/`reverted`, shows a "Retry" action — both wired to the same `requestCertification` call
     - Edit button (if user owns batch) → edit screen
     - Delete button (if user owns batch)
+    - **deviation:** no standalone detail screen was built — this content (status badge, certify/retry action, delete) was merged directly into `HoneyBatchCard` on the home screen's list instead; the requirement (owner can certify/retry, see status) is still met, just via the card itself. The "Edit" action no longer opens a honey-type-only dialog — it pushes `CreateHoneyBatchScreen` in edit mode, pre-filled with the batch's current values, letting the owner edit gathering date, amount, processing method, and honey type together (the certify toggle is hidden in this mode; the PDF picker is shown, letting the owner optionally replace the batch's PDF, with the current filename shown as a placeholder until a replacement is picked).
 
 45. **HC-FE-04: Honey batch verification screen**
     - File: `app/lib/features/honey/view/honey_batch_verification_screen.dart`

@@ -8,11 +8,16 @@ import '../../../core/theme/app_layout.dart';
 import '../../../core/validation/size_tiers.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../data/honey_batch_model.dart';
 import '../data/honey_batch_repository.dart';
 import '../data/processing_method.dart';
 
 class CreateHoneyBatchScreen extends StatefulWidget {
-  const CreateHoneyBatchScreen({super.key});
+  final HoneyBatchModel? existingBatch;
+
+  const CreateHoneyBatchScreen({super.key, this.existingBatch});
+
+  bool get isEditing => existingBatch != null;
 
   @override
   State<CreateHoneyBatchScreen> createState() => _CreateHoneyBatchScreenState();
@@ -26,9 +31,20 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
   DateTime _gatheringDate = DateTime.now();
   ProcessingMethod _processingMethod = ProcessingMethod.raw;
   PlatformFile? _pickedFile;
-  bool _requestCertification = false;
+  bool _removeExistingPdf = false;
   bool _saving = false;
-  String? _pdfError;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingBatch;
+    if (existing != null) {
+      _gatheringDate = existing.gatheringDate;
+      _processingMethod = existing.processingMethod;
+      _amountController.text = existing.amountKg.toString();
+      _honeyTypeController.text = existing.honeyType;
+    }
+  }
 
   @override
   void dispose() {
@@ -57,22 +73,24 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
     if (result == null || result.files.isEmpty || !mounted) return;
     setState(() {
       _pickedFile = result.files.single;
-      _pdfError = null;
+      _removeExistingPdf = false;
     });
   }
 
   void _clearPdf() {
-    setState(() => _pickedFile = null);
+    setState(() {
+      if (_pickedFile != null) {
+        _pickedFile = null;
+      } else {
+        _removeExistingPdf = true;
+      }
+    });
   }
 
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     final formValid = _formKey.currentState?.validate() ?? false;
-    final pickedFile = _pickedFile;
-    if (pickedFile == null && _requestCertification) {
-      setState(() => _pdfError = l10n.honeyBatchPdfRequired);
-    }
-    if (!formValid || (pickedFile == null && _requestCertification)) return;
+    if (!formValid) return;
 
     setState(() => _saving = true);
     final repo = HoneyBatchRepository(api: context.read<ApiClient>());
@@ -80,17 +98,31 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
       final amountKg = double.parse(
         _amountController.text.trim().replaceAll(',', '.'),
       );
-      await repo.createBatch(
-        gatheringDate: _gatheringDate,
-        amountGrams: (amountKg * 1000).round(),
-        processingMethod: _processingMethod,
-        honeyType: _honeyTypeController.text.trim(),
-        pdfBytes: pickedFile?.bytes,
-        pdfFilename: pickedFile?.name,
-        requestCertification: _requestCertification,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
+      if (widget.isEditing) {
+        final updated = await repo.updateBatch(
+          id: widget.existingBatch!.id,
+          gatheringDate: _gatheringDate,
+          amountGrams: (amountKg * 1000).round(),
+          processingMethod: _processingMethod,
+          honeyType: _honeyTypeController.text.trim(),
+          pdfBytes: _pickedFile?.bytes,
+          pdfFilename: _pickedFile?.name,
+          removePdf: _removeExistingPdf,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(updated);
+      } else {
+        await repo.createBatch(
+          gatheringDate: _gatheringDate,
+          amountGrams: (amountKg * 1000).round(),
+          processingMethod: _processingMethod,
+          honeyType: _honeyTypeController.text.trim(),
+          pdfBytes: _pickedFile?.bytes,
+          pdfFilename: _pickedFile?.name,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,7 +142,7 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.honeyBatchAdd),
+        title: Text(widget.isEditing ? l10n.honeyBatchEditTitle : l10n.honeyBatchAdd),
         actions: const [ProfileIconButton()],
       ),
       body: Column(
@@ -202,19 +234,10 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
                           const SizedBox(height: 16),
                           _PdfPickerField(
                             file: _pickedFile,
-                            error: _pdfError,
+                            existingFilename: widget.existingBatch?.pdfFilename,
+                            removed: _removeExistingPdf,
                             onPick: _pickPdf,
                             onClear: _clearPdf,
-                          ),
-                          const SizedBox(height: 16),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.honeyBatchCertifyToggle),
-                            value: _requestCertification,
-                            onChanged: (v) => setState(() {
-                              _requestCertification = v;
-                              if (!v) _pdfError = null;
-                            }),
                           ),
                         ],
                       ),
@@ -280,48 +303,43 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
 
 class _PdfPickerField extends StatelessWidget {
   final PlatformFile? file;
-  final String? error;
+  final String? existingFilename;
+  final bool removed;
   final VoidCallback onPick;
   final VoidCallback onClear;
 
   const _PdfPickerField({
     required this.file,
-    required this.error,
+    this.existingFilename,
+    required this.removed,
     required this.onPick,
     required this.onClear,
   });
 
+  bool get _hasExisting =>
+      !removed && existingFilename != null && existingFilename!.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    final label = file?.name ??
+        (_hasExisting ? existingFilename! : l10n.honeyBatchPdfLabel);
+    final showClear = file != null || _hasExisting;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onPick,
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-                label: Text(
-                  file?.name ?? l10n.honeyBatchPdfLabel,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            if (file != null)
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: onClear,
-              ),
-          ],
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onPick,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: Text(label, overflow: TextOverflow.ellipsis),
+          ),
         ),
-        if (error != null) ...[
-          const SizedBox(height: 4),
-          Text(error!, style: TextStyle(color: colorScheme.error, fontSize: 12)),
-        ],
+        if (showClear)
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: onClear,
+          ),
       ],
     );
   }

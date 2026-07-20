@@ -19,8 +19,15 @@ type mockHoneyBatchRepo struct {
 	byID    map[int64]*model.HoneyBatch
 	byUser  map[int64][]*model.HoneyBatch
 
-	updatedHoneyType string
-	deletedID        int64
+	updatedGatheringDate    time.Time
+	updatedAmountGrams      int64
+	updatedProcessingMethod string
+	updatedHoneyType        string
+	updatedMetadataHash     string
+	updatedLabPDFURL        string
+	updatedPDFFilename      string
+	updatedPDFFileHash      string
+	deletedID               int64
 }
 
 func (m *mockHoneyBatchRepo) GetByID(ctx context.Context, id int64) (*model.HoneyBatch, error) {
@@ -68,11 +75,18 @@ func (m *mockHoneyBatchRepo) CountByUserID(ctx context.Context, userID int64) (i
 	return int64(len(m.byUser[userID])), nil
 }
 
-func (m *mockHoneyBatchRepo) UpdateNotes(ctx context.Context, id int64, honeyType string) error {
+func (m *mockHoneyBatchRepo) UpdateFields(ctx context.Context, batch *model.HoneyBatch) error {
 	if m.err != nil {
 		return m.err
 	}
-	m.updatedHoneyType = honeyType
+	m.updatedGatheringDate = batch.GatheringDate
+	m.updatedAmountGrams = batch.AmountGrams
+	m.updatedProcessingMethod = batch.ProcessingMethod
+	m.updatedHoneyType = batch.HoneyType
+	m.updatedMetadataHash = batch.MetadataHash
+	m.updatedLabPDFURL = batch.LabPDFURL
+	m.updatedPDFFilename = batch.PDFFilename
+	m.updatedPDFFileHash = batch.PDFFileHash
 	return nil
 }
 
@@ -360,6 +374,21 @@ func TestGetBatch_NotFound(t *testing.T) {
 	}
 }
 
+func TestGetBatch_SynthesizesQueuedForPendingJob(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	jobs := &mockHoneyBatchJobRepo{pending: true}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+
+	result, err := svc.GetBatch(context.Background(), 42, 1)
+	if err != nil {
+		t.Fatalf("GetBatch() error = %v", err)
+	}
+	if result.Certification == nil || result.Certification.Status != model.CertificationStatusQueued {
+		t.Errorf("expected a synthesized queued certification, got %+v", result.Certification)
+	}
+}
+
 func TestListBatches(t *testing.T) {
 	b1 := &model.HoneyBatch{ID: 1, UserID: 42}
 	b2 := &model.HoneyBatch{ID: 2, UserID: 42}
@@ -383,39 +412,217 @@ func TestListBatches(t *testing.T) {
 	}
 }
 
-func TestUpdateHoneyType_Owned(t *testing.T) {
-	batch := &model.HoneyBatch{ID: 1, UserID: 42, HoneyType: "Lipowy"}
-	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
-
-	updated, err := svc.UpdateHoneyType(context.Background(), 42, 1, "Gryczany")
-	if err != nil {
-		t.Fatalf("UpdateHoneyType() error = %v", err)
-	}
-	if updated.HoneyType != "Gryczany" {
-		t.Errorf("expected honey_type Gryczany, got %s", updated.HoneyType)
-	}
-	if batches.updatedHoneyType != "Gryczany" {
-		t.Errorf("expected repository update to be called with Gryczany, got %s", batches.updatedHoneyType)
+func validUpdateBatchRequest() UpdateBatchRequest {
+	return UpdateBatchRequest{
+		GatheringDate:    time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
+		AmountGrams:      20000,
+		ProcessingMethod: "filtered",
+		HoneyType:        "Gryczany",
 	}
 }
 
-func TestUpdateHoneyType_NotOwner(t *testing.T) {
+func TestUpdateBatch_Owned(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, HoneyType: "Lipowy", AmountGrams: 1000, ProcessingMethod: "raw"}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	updated, err := svc.UpdateBatch(context.Background(), 42, 1, validUpdateBatchRequest())
+	if err != nil {
+		t.Fatalf("UpdateBatch() error = %v", err)
+	}
+	if updated.HoneyType != "Gryczany" || updated.AmountGrams != 20000 || updated.ProcessingMethod != "filtered" {
+		t.Errorf("expected updated fields to be applied, got %+v", updated)
+	}
+	if batches.updatedHoneyType != "Gryczany" || batches.updatedAmountGrams != 20000 || batches.updatedProcessingMethod != "filtered" {
+		t.Errorf("expected repository update to be called with the new fields, got honeyType=%s amount=%d method=%s",
+			batches.updatedHoneyType, batches.updatedAmountGrams, batches.updatedProcessingMethod)
+	}
+	if batches.updatedMetadataHash == "" {
+		t.Error("expected metadata_hash to be recomputed")
+	}
+}
+
+func TestUpdateBatch_KeepsExistingPDFWhenNoneProvided(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, LabPDFURL: "old.pdf", PDFFilename: "old.pdf", PDFFileHash: "oldhash"}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	updated, err := svc.UpdateBatch(context.Background(), 42, 1, validUpdateBatchRequest())
+	if err != nil {
+		t.Fatalf("UpdateBatch() error = %v", err)
+	}
+	if updated.LabPDFURL != "old.pdf" || updated.PDFFilename != "old.pdf" || updated.PDFFileHash != "oldhash" {
+		t.Errorf("expected existing PDF fields to be preserved, got %+v", updated)
+	}
+	if batches.updatedLabPDFURL != "old.pdf" || batches.updatedPDFFileHash != "oldhash" {
+		t.Error("expected repository update to persist the unchanged PDF fields")
+	}
+}
+
+func TestUpdateBatch_ReplacesPDF(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, LabPDFURL: "old.pdf", PDFFilename: "old.pdf", PDFFileHash: "oldhash"}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.PDFData = []byte("%PDF-1.4 new lab results")
+	req.PDFMimeType = "application/pdf"
+	req.PDFFilename = "new.pdf"
+
+	updated, err := svc.UpdateBatch(context.Background(), 42, 1, req)
+	if err != nil {
+		t.Fatalf("UpdateBatch() error = %v", err)
+	}
+	if updated.PDFFilename != "new.pdf" {
+		t.Errorf("expected PDFFilename new.pdf, got %s", updated.PDFFilename)
+	}
+	if updated.PDFFileHash == "oldhash" || updated.PDFFileHash == "" {
+		t.Errorf("expected a freshly computed PDF hash, got %s", updated.PDFFileHash)
+	}
+	if updated.LabPDFURL == "old.pdf" || updated.LabPDFURL == "" {
+		t.Errorf("expected a new generated filename, got %s", updated.LabPDFURL)
+	}
+}
+
+func TestUpdateBatch_RemovesPDF(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, LabPDFURL: "old.pdf", PDFFilename: "old.pdf", PDFFileHash: "oldhash"}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.RemovePDF = true
+
+	updated, err := svc.UpdateBatch(context.Background(), 42, 1, req)
+	if err != nil {
+		t.Fatalf("UpdateBatch() error = %v", err)
+	}
+	if updated.LabPDFURL != "" || updated.PDFFilename != "" || updated.PDFFileHash != "" {
+		t.Errorf("expected PDF fields to be cleared, got %+v", updated)
+	}
+	if batches.updatedLabPDFURL != "" || batches.updatedPDFFileHash != "" {
+		t.Error("expected repository update to persist the cleared PDF fields")
+	}
+}
+
+func TestUpdateBatch_PDFDataTakesPrecedenceOverRemovePDF(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, LabPDFURL: "old.pdf", PDFFilename: "old.pdf", PDFFileHash: "oldhash"}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.RemovePDF = true
+	req.PDFData = []byte("%PDF-1.4 new lab results")
+	req.PDFMimeType = "application/pdf"
+	req.PDFFilename = "new.pdf"
+
+	updated, err := svc.UpdateBatch(context.Background(), 42, 1, req)
+	if err != nil {
+		t.Fatalf("UpdateBatch() error = %v", err)
+	}
+	if updated.PDFFilename != "new.pdf" || updated.PDFFileHash == "" {
+		t.Errorf("expected the new PDF to win over RemovePDF, got %+v", updated)
+	}
+}
+
+func TestUpdateBatch_InvalidPDFType(t *testing.T) {
+	batches := &mockHoneyBatchRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.PDFData = []byte("not a pdf")
+	req.PDFMimeType = "image/png"
+
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, req); err != ErrInvalidPDFType {
+		t.Errorf("expected ErrInvalidPDFType, got %v", err)
+	}
+}
+
+func TestUpdateBatch_PDFTooLarge(t *testing.T) {
+	batches := &mockHoneyBatchRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.PDFData = make([]byte, maxLabPDFBytes+1)
+	req.PDFMimeType = "application/pdf"
+
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, req); err != ErrPDFTooLarge {
+		t.Errorf("expected ErrPDFTooLarge, got %v", err)
+	}
+}
+
+func TestUpdateBatch_NotOwner(t *testing.T) {
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
-	if _, err := svc.UpdateHoneyType(context.Background(), 999, 1, "Gryczany"); err != ErrBatchNotFound {
+	if _, err := svc.UpdateBatch(context.Background(), 999, 1, validUpdateBatchRequest()); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
 	}
 }
 
-func TestUpdateHoneyType_Required(t *testing.T) {
+func TestUpdateBatch_HoneyTypeRequired(t *testing.T) {
 	batches := &mockHoneyBatchRepo{}
 	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
-	if _, err := svc.UpdateHoneyType(context.Background(), 42, 1, ""); err != ErrHoneyTypeRequired {
+	req := validUpdateBatchRequest()
+	req.HoneyType = ""
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, req); err != ErrHoneyTypeRequired {
 		t.Errorf("expected ErrHoneyTypeRequired, got %v", err)
+	}
+}
+
+func TestUpdateBatch_InvalidAmount(t *testing.T) {
+	batches := &mockHoneyBatchRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.AmountGrams = 0
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, req); err != ErrInvalidAmount {
+		t.Errorf("expected ErrInvalidAmount, got %v", err)
+	}
+}
+
+func TestUpdateBatch_InvalidProcessingMethod(t *testing.T) {
+	batches := &mockHoneyBatchRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	req := validUpdateBatchRequest()
+	req.ProcessingMethod = "boiled"
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, req); err != ErrInvalidProcessingMethod {
+		t.Errorf("expected ErrInvalidProcessingMethod, got %v", err)
+	}
+}
+
+func TestUpdateBatch_LockedWhenCertified(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, validUpdateBatchRequest()); err != ErrBatchLocked {
+		t.Errorf("expected ErrBatchLocked, got %v", err)
+	}
+}
+
+func TestUpdateBatch_LockedWhenFailedAttemptExists(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusFailed}}}
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, validUpdateBatchRequest()); err != ErrBatchLocked {
+		t.Errorf("expected ErrBatchLocked, got %v", err)
+	}
+}
+
+func TestUpdateBatch_LockedWhenJobPending(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	jobs := &mockHoneyBatchJobRepo{pending: true}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+
+	if _, err := svc.UpdateBatch(context.Background(), 42, 1, validUpdateBatchRequest()); err != ErrBatchLocked {
+		t.Errorf("expected ErrBatchLocked, got %v", err)
 	}
 }
 

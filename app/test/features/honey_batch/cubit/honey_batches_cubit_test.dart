@@ -16,6 +16,7 @@ HoneyBatchModel _fakeBatch({int id = 1}) => HoneyBatchModel(
       amountGrams: 1000,
       processingMethod: ProcessingMethod.raw,
       honeyType: 'Wildflower',
+      pdfFilename: 'lab-$id.pdf',
       pdfFileHash: 'hash-$id',
       createdAt: DateTime(2025, 6, 1),
       updatedAt: DateTime(2025, 6, 1),
@@ -207,6 +208,100 @@ void main() {
           .thenThrow(Exception('certification failed'));
 
       expect(() => cubit.requestCertification(1), throwsException);
+    });
+  });
+
+  group('replaceInList', () {
+    blocTest<HoneyBatchesCubit, HoneyBatchesState>(
+      'replaces the matching batch in a Loaded state',
+      build: () => cubit,
+      seed: () => HoneyBatchesLoaded(
+        [_fakeBatch(id: 1), _fakeBatch(id: 2)],
+        currentPage: 1,
+        totalPages: 1,
+      ),
+      act: (c) => c.replaceInList(_fakeBatch(id: 1)),
+      expect: () => [
+        isA<HoneyBatchesLoaded>()
+            .having((s) => s.batches.length, 'length', 2)
+            .having((s) => s.batches.first.id, 'first id', 1),
+      ],
+    );
+
+    test('no-ops when state is not Loaded', () {
+      cubit.replaceInList(_fakeBatch(id: 1));
+
+      expect(cubit.state, isA<HoneyBatchesInitial>());
+    });
+  });
+
+  group('delete', () {
+    blocTest<HoneyBatchesCubit, HoneyBatchesState>(
+      'reloads the current page on success',
+      build: () {
+        when(() => repo.deleteBatch(1)).thenAnswer((_) async {});
+        when(
+          () => repo.listBatches(
+              limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async => _result([_fakeBatch(id: 2)]));
+        return cubit;
+      },
+      seed: () => HoneyBatchesLoaded(
+        [_fakeBatch(id: 1), _fakeBatch(id: 2)],
+        currentPage: 1,
+        totalPages: 1,
+      ),
+      act: (c) => c.delete(1),
+      expect: () => [
+        isA<HoneyBatchesLoaded>()
+            .having((s) => s.batches.length, 'length', 1)
+            .having((s) => s.currentPage, 'currentPage', 1),
+      ],
+    );
+
+    blocTest<HoneyBatchesCubit, HoneyBatchesState>(
+      'backs up to previous page when current page becomes empty after delete',
+      build: () {
+        when(() => repo.deleteBatch(1)).thenAnswer((_) async {});
+        var call = 0;
+        when(
+          () => repo.listBatches(
+              limit: any(named: 'limit'), offset: any(named: 'offset')),
+        ).thenAnswer((_) async {
+          call++;
+          if (call == 1) return _result([]);
+          return _result([_fakeBatch(id: 2)]);
+        });
+        return cubit;
+      },
+      seed: () => HoneyBatchesLoaded([_fakeBatch(id: 1)],
+          currentPage: 2, totalPages: 2),
+      act: (c) => c.delete(1),
+      expect: () => [
+        isA<HoneyBatchesLoading>(),
+        isA<HoneyBatchesLoaded>()
+            .having((s) => s.currentPage, 'currentPage', 1)
+            .having((s) => s.batches, 'batches', isNotEmpty),
+      ],
+    );
+
+    test('no-ops when state is not Loaded', () async {
+      await cubit.delete(1);
+
+      expect(cubit.state, isA<HoneyBatchesInitial>());
+      verifyNever(() => repo.deleteBatch(any()));
+    });
+
+    test('rethrows on repo failure without touching state', () async {
+      when(() => repo.deleteBatch(1)).thenThrow(Exception('delete failed'));
+
+      cubit.emit(HoneyBatchesLoaded(
+        [_fakeBatch(id: 1)],
+        currentPage: 1,
+        totalPages: 1,
+      ));
+
+      expect(() => cubit.delete(1), throwsException);
     });
   });
 }

@@ -125,15 +125,64 @@ void main() {
     });
   });
 
-  group('updateHoneyType', () {
-    test('sends PATCH with honey_type body', () async {
+  group('updateBatch', () {
+    test('sends multipart PATCH with the updated fields, no file', () async {
       adapter.responseData = _batchJson();
 
-      await repository.updateHoneyType(1, 'Wildflower');
+      await repository.updateBatch(
+        id: 1,
+        gatheringDate: DateTime(2024, 5, 1),
+        amountGrams: 3000,
+        processingMethod: ProcessingMethod.pasteurized,
+        honeyType: 'Wildflower',
+      );
 
       expect(adapter.lastOptions!.method, 'PATCH');
       expect(adapter.lastOptions!.path, '/api/v1/honey-batches/1');
-      expect(adapter.lastOptions!.data, {'honey_type': 'Wildflower'});
+
+      final data = adapter.lastOptions!.data as FormData;
+      final fields = {for (final f in data.fields) f.key: f.value};
+      expect(fields['gathering_date'], '2024-05-01');
+      expect(fields['amount_grams'], '3000');
+      expect(fields['processing_method'], 'pasteurized');
+      expect(fields['honey_type'], 'Wildflower');
+      expect(data.files, isEmpty);
+    });
+
+    test('sends the pdf file when replacing it', () async {
+      adapter.responseData = _batchJson();
+
+      await repository.updateBatch(
+        id: 1,
+        gatheringDate: DateTime(2024, 5, 1),
+        amountGrams: 3000,
+        processingMethod: ProcessingMethod.pasteurized,
+        honeyType: 'Wildflower',
+        pdfBytes: [1, 2, 3],
+        pdfFilename: 'new-lab.pdf',
+      );
+
+      final data = adapter.lastOptions!.data as FormData;
+      expect(data.files.single.key, 'lab_pdf');
+      expect(data.files.single.value.filename, 'new-lab.pdf');
+    });
+
+    test('sends remove_pdf when removing without a replacement', () async {
+      adapter.responseData = _batchJson();
+
+      await repository.updateBatch(
+        id: 1,
+        gatheringDate: DateTime(2024, 5, 1),
+        amountGrams: 3000,
+        processingMethod: ProcessingMethod.pasteurized,
+        honeyType: 'Wildflower',
+        removePdf: true,
+      );
+
+      final data = adapter.lastOptions!.data as FormData;
+      final fields = {for (final f in data.fields) f.key: f.value};
+      expect(fields['remove_pdf'], 'true');
+      expect(data.files, isEmpty);
     });
   });
 

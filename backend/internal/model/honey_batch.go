@@ -33,6 +33,7 @@ type HoneyBatch struct {
 	ProcessingMethod  string
 	HoneyType         string
 	LabPDFURL         string
+	PDFFilename       string
 	PDFFileHash       string
 	MetadataHash      string
 	DeletedAt         *time.Time

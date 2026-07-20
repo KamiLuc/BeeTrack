@@ -73,11 +73,34 @@ class HoneyBatchRepository {
     }
   }
 
-  Future<HoneyBatchModel> updateHoneyType(int id, String honeyType) async {
+  Future<HoneyBatchModel> updateBatch({
+    required int id,
+    required DateTime gatheringDate,
+    required int amountGrams,
+    required ProcessingMethod processingMethod,
+    required String honeyType,
+    List<int>? pdfBytes,
+    String? pdfFilename,
+    bool removePdf = false,
+  }) async {
     try {
+      final formData = FormData.fromMap({
+        'gathering_date': DateFormat('yyyy-MM-dd').format(gatheringDate),
+        'amount_grams': amountGrams.toString(),
+        'processing_method': processingMethod.toJson(),
+        'honey_type': honeyType,
+        if (pdfBytes != null)
+          'lab_pdf': MultipartFile.fromBytes(
+            pdfBytes,
+            filename: pdfFilename,
+            contentType: DioMediaType.parse('application/pdf'),
+          )
+        else if (removePdf)
+          'remove_pdf': 'true',
+      });
       final response = await _api.dio.patch(
         '/api/v1/honey-batches/$id',
-        data: {'honey_type': honeyType},
+        data: formData,
       );
       return HoneyBatchModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

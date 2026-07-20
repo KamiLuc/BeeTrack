@@ -31,6 +31,7 @@ var (
 	ErrBatchNotCertified       = errors.New("honey batch does not have a confirmed certification yet")
 	ErrBatchAlreadyCertified   = errors.New("honey batch already has a live certification")
 	ErrBatchHasNoPDF           = errors.New("honey batch has no lab PDF; a PDF is required to certify")
+	ErrBatchLocked             = errors.New("honey batch can no longer be edited once certification has been requested")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
@@ -40,7 +41,7 @@ type HoneyBatchRepository interface {
 	GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error)
 	ListByUserID(ctx context.Context, userID int64, limit, offset int) ([]*model.HoneyBatch, error)
 	CountByUserID(ctx context.Context, userID int64) (int64, error)
-	UpdateNotes(ctx context.Context, id int64, honeyType string) error
+	UpdateFields(ctx context.Context, batch *model.HoneyBatch) error
 	SoftDelete(ctx context.Context, id int64) error
 }
 
@@ -85,6 +86,7 @@ type CreateBatchRequest struct {
 	HoneyType            string
 	PDFMimeType          string
 	PDFData              []byte
+	PDFFilename          string
 	RequestCertification bool
 }
 
@@ -154,6 +156,11 @@ func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID int64, req C
 		return nil, fmt.Errorf("generate verification token: %w", err)
 	}
 
+	var pdfFilename string
+	if filename != "" {
+		pdfFilename = req.PDFFilename
+	}
+
 	batch := &model.HoneyBatch{
 		UserID:            userID,
 		VerificationToken: token.String(),
@@ -162,6 +169,7 @@ func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID int64, req C
 		ProcessingMethod:  req.ProcessingMethod,
 		HoneyType:         req.HoneyType,
 		LabPDFURL:         filename,
+		PDFFilename:       pdfFilename,
 		PDFFileHash:       pdfHashHex,
 	}
 
@@ -229,6 +237,26 @@ func (s *HoneyBatchService) ownedBatch(ctx context.Context, userID, batchID int6
 	return batch, nil
 }
 
+// withPendingFallback returns cert unchanged if non-nil. Otherwise, since a
+// queued/in-flight job has no certification row until the worker claims it
+// (see RetryCertification's HasPendingJob check), it checks for one and
+// synthesizes a "queued" placeholder so owner-facing reads (GetBatch,
+// ListBatches) reflect an in-progress attempt instead of looking identical
+// to "never certified".
+func (s *HoneyBatchService) withPendingFallback(ctx context.Context, batchID int64, cert *model.HoneyBatchCertification) (*model.HoneyBatchCertification, error) {
+	if cert != nil {
+		return cert, nil
+	}
+	pending, err := s.jobs.HasPendingJob(ctx, batchID)
+	if err != nil {
+		return nil, fmt.Errorf("check pending job: %w", err)
+	}
+	if !pending {
+		return nil, nil
+	}
+	return &model.HoneyBatchCertification{Status: model.CertificationStatusQueued}, nil
+}
+
 // GetBatch returns a single batch owned by userID, together with its latest certification (if any).
 func (s *HoneyBatchService) GetBatch(ctx context.Context, userID, batchID int64) (*BatchVerification, error) {
 	batch, err := s.ownedBatch(ctx, userID, batchID)
@@ -238,6 +266,10 @@ func (s *HoneyBatchService) GetBatch(ctx context.Context, userID, batchID int64)
 	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get latest certification: %w", err)
+	}
+	cert, err = s.withPendingFallback(ctx, batch.ID, cert)
+	if err != nil {
+		return nil, err
 	}
 	return &BatchVerification{Batch: batch, Certification: cert}, nil
 }
@@ -259,27 +291,134 @@ func (s *HoneyBatchService) ListBatches(ctx context.Context, userID int64, limit
 		if err != nil {
 			return nil, 0, fmt.Errorf("get latest certification: %w", err)
 		}
+		cert, err = s.withPendingFallback(ctx, b.ID, cert)
+		if err != nil {
+			return nil, 0, err
+		}
 		items[i] = BatchVerification{Batch: b, Certification: cert}
 	}
 	return items, total, nil
 }
 
-// UpdateHoneyType validates and overwrites a batch's honey_type — the only user-editable field.
-func (s *HoneyBatchService) UpdateHoneyType(ctx context.Context, userID, batchID int64, honeyType string) (*model.HoneyBatch, error) {
-	if honeyType == "" {
+// UpdateBatchRequest holds the editable fields for an existing batch,
+// available before certification is ever requested. PDFData is optional —
+// when non-empty it replaces the batch's lab PDF; when empty and RemovePDF
+// is true, the existing PDF (if any) is cleared; when empty and RemovePDF is
+// false, the existing PDF is left untouched. PDFData takes precedence over
+// RemovePDF if both are set.
+type UpdateBatchRequest struct {
+	GatheringDate    time.Time
+	AmountGrams      int64
+	ProcessingMethod string
+	HoneyType        string
+	PDFData          []byte
+	PDFMimeType      string
+	PDFFilename      string
+	RemovePDF        bool
+}
+
+// hasCertificationAttempt reports whether batchID has any certification
+// history (including failed/reverted) or a queued/in-flight job — once
+// true, the batch is locked from further edits, since its metadata hash may
+// already be part of a submitted or on-chain attempt.
+func (s *HoneyBatchService) hasCertificationAttempt(ctx context.Context, batchID int64) (bool, error) {
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batchID)
+	if err != nil {
+		return false, fmt.Errorf("get latest certification: %w", err)
+	}
+	if cert != nil {
+		return true, nil
+	}
+	pending, err := s.jobs.HasPendingJob(ctx, batchID)
+	if err != nil {
+		return false, fmt.Errorf("check pending job: %w", err)
+	}
+	return pending, nil
+}
+
+// UpdateBatch validates and overwrites a batch's gathering date, amount,
+// processing method, and honey type — the fields editable before
+// certification is ever requested. Recomputes metadata_hash so a later
+// certification always hashes the batch's current field values, never
+// stale ones from creation time. Rejects with ErrBatchLocked once any
+// certification attempt exists (see hasCertificationAttempt).
+func (s *HoneyBatchService) UpdateBatch(ctx context.Context, userID, batchID int64, req UpdateBatchRequest) (*model.HoneyBatch, error) {
+	if req.AmountGrams <= 0 || req.AmountGrams > maxAmountGrams {
+		return nil, ErrInvalidAmount
+	}
+	if req.HoneyType == "" {
 		return nil, ErrHoneyTypeRequired
 	}
-	if validation.TooLong(honeyType, validation.Small) {
+	if validation.TooLong(req.HoneyType, validation.Small) {
 		return nil, ErrHoneyTypeTooLong
 	}
+	if !model.IsValidProcessingMethod(req.ProcessingMethod) {
+		return nil, ErrInvalidProcessingMethod
+	}
+	if len(req.PDFData) > 0 {
+		if req.PDFMimeType != "application/pdf" {
+			return nil, ErrInvalidPDFType
+		}
+		if len(req.PDFData) > maxLabPDFBytes {
+			return nil, ErrPDFTooLarge
+		}
+	}
+
 	batch, err := s.ownedBatch(ctx, userID, batchID)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.batches.UpdateNotes(ctx, batchID, honeyType); err != nil {
-		return nil, fmt.Errorf("update honey type: %w", err)
+
+	locked, err := s.hasCertificationAttempt(ctx, batch.ID)
+	if err != nil {
+		return nil, err
 	}
-	batch.HoneyType = honeyType
+	if locked {
+		return nil, ErrBatchLocked
+	}
+
+	oldPDFFilename := batch.LabPDFURL
+	pdfChanged := len(req.PDFData) > 0 || req.RemovePDF
+	switch {
+	case len(req.PDFData) > 0:
+		if err := os.MkdirAll(s.pdfStoragePath, 0o755); err != nil {
+			return nil, fmt.Errorf("create pdf storage dir: %w", err)
+		}
+		filename := uuid.New().String() + ".pdf"
+		pdfPath := filepath.Join(s.pdfStoragePath, filename)
+		if err := os.WriteFile(pdfPath, req.PDFData, 0o644); err != nil {
+			return nil, fmt.Errorf("write pdf: %w", err)
+		}
+		pdfHash, err := blockchain.SHA256File(pdfPath)
+		if err != nil {
+			_ = os.Remove(pdfPath)
+			return nil, fmt.Errorf("hash pdf: %w", err)
+		}
+		batch.LabPDFURL = filename
+		batch.PDFFilename = req.PDFFilename
+		batch.PDFFileHash = hex.EncodeToString(pdfHash[:])
+	case req.RemovePDF:
+		batch.LabPDFURL = ""
+		batch.PDFFilename = ""
+		batch.PDFFileHash = ""
+	}
+
+	batch.GatheringDate = req.GatheringDate
+	batch.AmountGrams = req.AmountGrams
+	batch.ProcessingMethod = req.ProcessingMethod
+	batch.HoneyType = req.HoneyType
+	metadataHash := blockchain.CanonicalMetadataHash(batch)
+	batch.MetadataHash = hex.EncodeToString(metadataHash[:])
+
+	if err := s.batches.UpdateFields(ctx, batch); err != nil {
+		if len(req.PDFData) > 0 {
+			_ = os.Remove(s.FilePath(batch.LabPDFURL))
+		}
+		return nil, fmt.Errorf("update batch: %w", err)
+	}
+	if pdfChanged && oldPDFFilename != "" {
+		_ = os.Remove(s.FilePath(oldPDFFilename))
+	}
 	return batch, nil
 }
 

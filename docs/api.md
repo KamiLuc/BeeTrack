@@ -1696,6 +1696,7 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
   "processing_method": "raw",
   "honey_type": "Wildflower",
   "pdf_file_hash": "b7e2...",
+  "pdf_filename": "lab-report.pdf",
   "created_at": "2026-07-01T10:00:00Z",
   "updated_at": "2026-07-01T10:00:00Z",
   "certification": null
@@ -1705,6 +1706,7 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
 - `verification_token` — opaque UUID identifying the batch publicly; not yet exposed via any public endpoint
 - `processing_method` valid values: `raw`, `filtered`, `pasteurized`
 - `pdf_file_hash` — SHA-256 hex digest of the uploaded lab PDF
+- `pdf_filename` — original filename of the uploaded lab PDF
 - `certification` — `null` if certification was never requested; otherwise `{status, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}`. Right after `POST /honey-batches` with `request_certification=true`, this is a synthetic `{"status": "queued", ...}` placeholder (no certification row exists yet — the background worker creates one once it claims the job). On later reads it reflects the real row's latest status.
 
 ---
@@ -1786,14 +1788,17 @@ Returns a paginated list of the caller's batches, each with its latest certifica
 
 ### PATCH /honey-batches/{id} 🔒
 
-Updates a batch's `honey_type`, the only mutable field.
+Updates a batch's `gathering_date`, `amount_grams`, `processing_method`, and `honey_type` — all mutable fields. Recomputes `metadata_hash` from the new values. Request is `multipart/form-data` (not JSON), same field names as `POST /honey-batches`. Locked (409) once the batch has any certification attempt (any certification row, or a pending/unclaimed blockchain job).
 
-**Request**
-```json
-{
-  "honey_type": "Wildflower"
-}
-```
+**Form fields**
+| Field | Type | Description |
+|-------|------|-------------|
+| `gathering_date` | string | `YYYY-MM-DD` |
+| `amount_grams` | int | Grams of honey in the batch; must be > 0 and ≤ 100,000,000 |
+| `processing_method` | string | `raw`, `filtered`, or `pasteurized` |
+| `honey_type` | string | Free text, max 50 characters |
+| `lab_pdf` | file | Optional. If provided, replaces the batch's existing lab PDF (same validation as Create: content type must be `application/pdf`, max 10 MB). If omitted, the existing PDF is left untouched. |
+| `remove_pdf` | string | Optional. Set to `"true"` to clear the batch's existing lab PDF (`lab_pdf_url`, `pdf_filename`, `pdf_file_hash`) and delete the stored file. Ignored if `lab_pdf` is also provided — a new upload always takes precedence. |
 
 **Response** `200 OK` — updated honey batch object
 
@@ -1802,10 +1807,16 @@ Updates a batch's `honey_type`, the only mutable field.
 |------|--------|-------------|
 | `MISSING_TOKEN` | 401 | No Bearer token in header |
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
-| `INVALID_BODY` | 400 | Malformed JSON |
+| `INVALID_BODY` | 400 | Malformed multipart form |
+| `INVALID_DATE` | 400 | `gathering_date` is not `YYYY-MM-DD` |
+| `INVALID_AMOUNT` | 400 | `amount_grams` is not greater than 0 or exceeds 100,000,000 |
+| `INVALID_PROCESSING_METHOD` | 400 | `processing_method` is not one of `raw`, `filtered`, `pasteurized` |
 | `HONEY_TYPE_REQUIRED` | 400 | `honey_type` is empty |
 | `HONEY_TYPE_TOO_LONG` | 400 | `honey_type` exceeds 50 characters |
+| `INVALID_PDF_TYPE` | 400 | `lab_pdf` content type is not `application/pdf` |
+| `PDF_TOO_LARGE` | 413 | `lab_pdf` exceeds 10 MB |
 | `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `BATCH_LOCKED` | 409 | Batch has an existing certification attempt and can no longer be edited |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

@@ -8,6 +8,7 @@ class HoneyBatchModel {
   final int amountGrams;
   final ProcessingMethod processingMethod;
   final String honeyType;
+  final String pdfFilename;
   final String pdfFileHash;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,6 +21,7 @@ class HoneyBatchModel {
     required this.amountGrams,
     required this.processingMethod,
     required this.honeyType,
+    required this.pdfFilename,
     required this.pdfFileHash,
     required this.createdAt,
     required this.updatedAt,
@@ -37,6 +39,7 @@ class HoneyBatchModel {
       processingMethod:
           ProcessingMethod.fromJson(json['processing_method'] as String),
       honeyType: json['honey_type'] as String,
+      pdfFilename: json['pdf_filename'] as String? ?? '',
       pdfFileHash: json['pdf_file_hash'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),

@@ -122,15 +122,26 @@ func (r *HoneyBatchRepository) CountByUserID(ctx context.Context, userID int64) 
 	return count, err
 }
 
-// UpdateNotes overwrites the honey_type of the given batch — the only
-// user-editable field on honey_batches (see honey_batches schema, HC-DB-01).
-func (r *HoneyBatchRepository) UpdateNotes(ctx context.Context, id int64, honeyType string) error {
+// UpdateFields overwrites a batch's gathering date, amount, processing
+// method, honey type, PDF fields, and recomputed metadata hash — the fields
+// editable before certification has ever been requested (see
+// HoneyBatchService.UpdateBatch). Always writes the PDF columns from batch,
+// so callers that didn't change the PDF must pass its current values through
+// unchanged.
+func (r *HoneyBatchRepository) UpdateFields(ctx context.Context, batch *model.HoneyBatch) error {
 	return r.db.WithContext(ctx).
 		Model(&model.HoneyBatch{}).
-		Where("id = ? AND deleted_at IS NULL", id).
+		Where("id = ? AND deleted_at IS NULL", batch.ID).
 		Updates(map[string]any{
-			"honey_type": honeyType,
-			"updated_at": gorm.Expr("NOW()"),
+			"gathering_date":    batch.GatheringDate,
+			"amount_grams":      batch.AmountGrams,
+			"processing_method": batch.ProcessingMethod,
+			"honey_type":        batch.HoneyType,
+			"lab_pdf_url":       batch.LabPDFURL,
+			"pdf_filename":      batch.PDFFilename,
+			"pdf_file_hash":     batch.PDFFileHash,
+			"metadata_hash":     batch.MetadataHash,
+			"updated_at":        gorm.Expr("NOW()"),
 		}).Error
 }
 

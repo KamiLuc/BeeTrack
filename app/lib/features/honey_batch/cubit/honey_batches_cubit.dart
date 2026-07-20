@@ -76,4 +76,41 @@ class HoneyBatchesCubit extends Cubit<HoneyBatchesState> {
         .toList();
     emit(current.copyWith(batches: items));
   }
+
+  /// Replaces a single batch already in the current list with an updated
+  /// copy — used after a screen that made its own repository call (e.g. the
+  /// edit form, which runs outside this cubit's provider scope) returns the
+  /// fresh batch. No-ops if state isn't Loaded.
+  void replaceInList(HoneyBatchModel batch) {
+    final current = state;
+    if (current is! HoneyBatchesLoaded) return;
+    final items = current.batches
+        .map((b) => b.id == batch.id ? batch : b)
+        .toList();
+    emit(current.copyWith(batches: items));
+  }
+
+  /// Deletes a batch and reloads the current page, stepping back a page if
+  /// that page is now empty. Rethrows on failure without touching state.
+  Future<void> delete(int id) async {
+    final current = state;
+    if (current is! HoneyBatchesLoaded) return;
+    final currentPage = current.currentPage;
+    await _repo.deleteBatch(id);
+    final result = await _repo.listBatches(
+      limit: _pageSize,
+      offset: (currentPage - 1) * _pageSize,
+    );
+    final page = result.items.isEmpty && currentPage > 1
+        ? currentPage - 1
+        : currentPage;
+    if (page != currentPage) {
+      await _goToPage(page);
+    } else {
+      final totalPages = (result.total / _pageSize).ceil().clamp(1, 999999);
+      emit(
+        HoneyBatchesLoaded(result.items, currentPage: page, totalPages: totalPages),
+      );
+    }
+  }
 }

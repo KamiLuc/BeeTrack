@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -46,6 +45,7 @@ func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification) ma
 		"amount_grams":       b.AmountGrams,
 		"processing_method":  b.ProcessingMethod,
 		"honey_type":         b.HoneyType,
+		"pdf_filename":       b.PDFFilename,
 		"pdf_file_hash":      b.PDFFileHash,
 		"created_at":         b.CreatedAt,
 		"updated_at":         b.UpdatedAt,
@@ -77,6 +77,8 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "BATCH_ALREADY_CERTIFIED", err.Error())
 	case errors.Is(err, service.ErrBatchHasNoPDF):
 		respond.Error(w, http.StatusConflict, "BATCH_HAS_NO_PDF", err.Error())
+	case errors.Is(err, service.ErrBatchLocked):
+		respond.Error(w, http.StatusConflict, "BATCH_LOCKED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -117,7 +119,7 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// The lab PDF is only required up front when certification is requested
 	// immediately; otherwise it can be attached later via retry-certification.
-	var pdfMimeType string
+	var pdfMimeType, pdfFilename string
 	var pdfData []byte
 	file, header, ferr := r.FormFile("lab_pdf")
 	if ferr == nil {
@@ -128,6 +130,7 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		pdfMimeType = header.Header.Get("Content-Type")
+		pdfFilename = header.Filename
 		pdfData = data
 	} else if requestCertification {
 		respond.Error(w, http.StatusBadRequest, "MISSING_FILE", "field 'lab_pdf' is required when requesting certification")
@@ -141,6 +144,7 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		HoneyType:            r.FormValue("honey_type"),
 		PDFMimeType:          pdfMimeType,
 		PDFData:              pdfData,
+		PDFFilename:          pdfFilename,
 		RequestCertification: requestCertification,
 	}
 
@@ -216,11 +220,11 @@ func (h *HoneyBatchHandler) List(w http.ResponseWriter, r *http.Request) {
 	respond.JSON(w, http.StatusOK, map[string]any{"items": out, "total": total})
 }
 
-type updateHoneyBatchRequest struct {
-	HoneyType string `json:"honey_type"`
-}
-
-// Update handles PATCH /api/v1/honey-batches/{id} — updates a batch's honey_type, the only mutable field.
+// Update handles PATCH /api/v1/honey-batches/{id} — updates a batch's gathering
+// date, amount, processing method, honey type, and optionally replaces its lab
+// PDF (multipart form, same field name as Create — "lab_pdf" — but optional
+// here). Locked (409) once the batch has any certification attempt, since its
+// metadata hash may already be live.
 func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -234,13 +238,47 @@ func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req updateHoneyBatchRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if err := r.ParseMultipartForm(maxCreateHoneyBatchBytes); err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "could not parse multipart form")
 		return
 	}
 
-	if _, err := h.batches.UpdateHoneyType(r.Context(), userID, id, req.HoneyType); err != nil {
+	gatheringDate, err := time.Parse("2006-01-02", r.FormValue("gathering_date"))
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_DATE", "gathering_date must be YYYY-MM-DD")
+		return
+	}
+
+	amountGrams, err := strconv.ParseInt(r.FormValue("amount_grams"), 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_AMOUNT", "invalid amount_grams")
+		return
+	}
+
+	var pdfMimeType, pdfFilename string
+	var pdfData []byte
+	if file, header, ferr := r.FormFile("lab_pdf"); ferr == nil {
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not read file")
+			return
+		}
+		pdfMimeType = header.Header.Get("Content-Type")
+		pdfFilename = header.Filename
+		pdfData = data
+	}
+
+	if _, err := h.batches.UpdateBatch(r.Context(), userID, id, service.UpdateBatchRequest{
+		GatheringDate:    gatheringDate,
+		AmountGrams:      amountGrams,
+		ProcessingMethod: r.FormValue("processing_method"),
+		HoneyType:        r.FormValue("honey_type"),
+		PDFData:          pdfData,
+		PDFMimeType:      pdfMimeType,
+		PDFFilename:      pdfFilename,
+		RemovePDF:        r.FormValue("remove_pdf") == "true",
+	}); err != nil {
 		honeyBatchError(w, err)
 		return
 	}

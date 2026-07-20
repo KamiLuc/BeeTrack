@@ -2090,11 +2090,11 @@ abstract class AppLocalizations {
   /// **'Dodaj partię miodu'**
   String get honeyBatchAdd;
 
-  /// No description provided for @honeyBatchDetailTitle.
+  /// No description provided for @honeyBatchEditTitle.
   ///
   /// In pl, this message translates to:
-  /// **'Partia miodu'**
-  String get honeyBatchDetailTitle;
+  /// **'Edytuj partię miodu'**
+  String get honeyBatchEditTitle;
 
   /// No description provided for @honeyBatchHoneyType.
   ///
@@ -2162,29 +2162,29 @@ abstract class AppLocalizations {
   /// **'PDF z badania laboratoryjnego'**
   String get honeyBatchPdfLabel;
 
-  /// No description provided for @honeyBatchPdfRequired.
-  ///
-  /// In pl, this message translates to:
-  /// **'Dołącz PDF z badania laboratoryjnego'**
-  String get honeyBatchPdfRequired;
-
   /// No description provided for @honeyBatchNoPdf.
   ///
   /// In pl, this message translates to:
   /// **'Brak'**
   String get honeyBatchNoPdf;
 
-  /// No description provided for @honeyBatchCertifyToggle.
-  ///
-  /// In pl, this message translates to:
-  /// **'Certyfikuj'**
-  String get honeyBatchCertifyToggle;
-
   /// No description provided for @honeyBatchCertify.
   ///
   /// In pl, this message translates to:
   /// **'Certyfikuj'**
   String get honeyBatchCertify;
+
+  /// No description provided for @honeyBatchCertifyConfirmTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikować tę partię?'**
+  String get honeyBatchCertifyConfirmTitle;
+
+  /// No description provided for @honeyBatchCertifyConfirmMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Po certyfikacji tej partii miodu nie będzie już można jej edytować.'**
+  String get honeyBatchCertifyConfirmMessage;
 
   /// No description provided for @honeyBatchRetry.
   ///

@@ -1128,7 +1128,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get honeyBatchAdd => 'Dodaj partię miodu';
 
   @override
-  String get honeyBatchDetailTitle => 'Partia miodu';
+  String get honeyBatchEditTitle => 'Edytuj partię miodu';
 
   @override
   String get honeyBatchHoneyType => 'Rodzaj miodu';
@@ -1164,16 +1164,17 @@ class AppLocalizationsPl extends AppLocalizations {
   String get honeyBatchPdfLabel => 'PDF z badania laboratoryjnego';
 
   @override
-  String get honeyBatchPdfRequired => 'Dołącz PDF z badania laboratoryjnego';
-
-  @override
   String get honeyBatchNoPdf => 'Brak';
 
   @override
-  String get honeyBatchCertifyToggle => 'Certyfikuj';
+  String get honeyBatchCertify => 'Certyfikuj';
 
   @override
-  String get honeyBatchCertify => 'Certyfikuj';
+  String get honeyBatchCertifyConfirmTitle => 'Certyfikować tę partię?';
+
+  @override
+  String get honeyBatchCertifyConfirmMessage =>
+      'Po certyfikacji tej partii miodu nie będzie już można jej edytować.';
 
   @override
   String get honeyBatchRetry => 'Ponów certyfikację';
