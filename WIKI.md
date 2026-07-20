@@ -34,6 +34,7 @@ app/               # Flutter app
       treatment/   # treatment CRUD + history — Cubit pattern
       harvest/     # harvest CRUD + history — Cubit pattern
       marketplace/ # marketplace listings — search feed, create/edit, detail, my listings, favorites
+      honey_batch/ # honey batch data layer — models + repository wrapping honey batch/verification endpoints
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -46,6 +47,7 @@ app/               # Flutter app
       treatment/   # treatments_cubit_test.dart, treatment_form_fields_test.dart
       harvest/     # harvests_cubit_test.dart, harvest_form_fields_test.dart
       marketplace/ # listing_model_test.dart, marketplace_home_screen_test.dart
+      honey_batch/ # honey batch model + repository tests
 
 docker/            # Docker Compose config
 ```

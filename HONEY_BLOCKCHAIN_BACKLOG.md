@@ -122,10 +122,10 @@
 
 | ID        | Layer | Status | Title                              | Notes                                                                                                                   |
 | --------- | ----- | ------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| HC-FE-08  | `FE`  | `[ ]`  | `HoneyBatchModel` (Dart)           | `amountGrams` (int) is canonical; `amountKg` getter for display only. No blockchain fields — those live on HC-FE-08b.  |
-| HC-FE-08b | `FE`  | `[ ]`  | `HoneyBatchCertificationModel` (Dart) | New. `CertificationStatus` enum mirrors the Go/DB lifecycle 1:1 via explicit `fromJson`/`toJson`. `HoneyBatchModel.certification` is nullable — `null` means not yet certified, not an enum value. |
-| HC-FE-09  | `FE`  | `[ ]`  | `ProcessingMethodEnum` (Dart)      | raw, filtered, pasteurized + display labels                                                                             |
-| HC-FE-10  | `FE`  | `[ ]`  | `HoneyBatchRepository` (Dart)      | `createBatch` takes `requestCertification` (default false). Adds `requestCertification(id)` (certify-now or retry, same call) and `verifyByToken(token)` (public, no auth header) alongside standard CRUD. |
+| HC-FE-08  | `FE`  | `[x]`  | `HoneyBatchModel` (Dart)           | `amountGrams` (int) is canonical; `amountKg` getter for display only. No blockchain fields — those live on HC-FE-08b.  |
+| HC-FE-08b | `FE`  | `[x]`  | `HoneyBatchCertificationModel` (Dart) | New. `CertificationStatus` enum mirrors the Go/DB lifecycle 1:1 via explicit `fromJson`/`toJson`. `HoneyBatchModel.certification` is nullable — `null` means not yet certified, not an enum value. |
+| HC-FE-09  | `FE`  | `[x]`  | `ProcessingMethodEnum` (Dart)      | raw, filtered, pasteurized + display labels                                                                             |
+| HC-FE-10  | `FE`  | `[x]`  | `HoneyBatchRepository` (Dart)      | `createBatch` takes `requestCertification` (default false). Adds `requestCertification(id)` (certify-now or retry, same call) and `verifyByToken(token)` (public, no auth header) alongside standard CRUD. |
 
 ---
 
