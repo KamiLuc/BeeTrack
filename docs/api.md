@@ -1681,6 +1681,155 @@ Deletes a harvest record.
 
 ---
 
+## Honey Batches
+
+Honey batches record a harvest lot for certification. Every endpoint is scoped to the authenticated caller as owner — a batch belongs to whichever user created it, not to the apiary's other members.
+
+### Honey batch object
+
+```json
+{
+  "id": 1,
+  "apiary_id": 5,
+  "verification_token": "b2e1c9e0-....-....-....-............",
+  "gathering_date": "2026-07-01T00:00:00Z",
+  "amount_grams": 5000,
+  "processing_method": "raw",
+  "honey_type": "Wildflower",
+  "pdf_file_hash": "b7e2...",
+  "created_at": "2026-07-01T10:00:00Z",
+  "updated_at": "2026-07-01T10:00:00Z",
+  "certification": null
+}
+```
+
+- `verification_token` — opaque UUID identifying the batch publicly; not yet exposed via any public endpoint
+- `processing_method` valid values: `raw`, `filtered`, `pasteurized`
+- `pdf_file_hash` — SHA-256 hex digest of the uploaded lab PDF
+- `certification` — `null` if certification was never requested; otherwise `{status, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}`. Right after `POST /honey-batches` with `request_certification=true`, this is a synthetic `{"status": "queued", ...}` placeholder (no certification row exists yet — the background worker creates one once it claims the job). On later reads it reflects the real row's latest status.
+
+---
+
+### POST /honey-batches 🔒
+
+Creates a honey batch. Request is `multipart/form-data` (not JSON) because it includes the lab PDF file.
+
+**Form fields**
+| Field | Type | Description |
+|-------|------|-------------|
+| `apiary_id` | int | Apiary the batch belongs to; caller must be a member |
+| `gathering_date` | string | `YYYY-MM-DD` |
+| `amount_grams` | int | Grams of honey in the batch; must be > 0 and ≤ 100,000,000 |
+| `processing_method` | string | `raw`, `filtered`, or `pasteurized` |
+| `honey_type` | string | Free text, max 50 characters |
+| `request_certification` | string | `"true"` or `"false"`; defaults to `"false"` if omitted |
+| `lab_pdf` | file | Lab analysis PDF, content type must be `application/pdf`, max 10 MB |
+
+**Response** `201 Created` — honey batch object. `certification` is `null` unless `request_certification` was `"true"`, in which case it's the synthetic `{"status": "queued", ...}` placeholder described above.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_BODY` | 400 | Malformed multipart form |
+| `INVALID_ID` | 400 | `apiary_id` is not a valid integer |
+| `INVALID_DATE` | 400 | `gathering_date` is not `YYYY-MM-DD` |
+| `INVALID_AMOUNT` | 400 | `amount_grams` missing/not an integer, or out of range (0 < n ≤ 100,000,000) |
+| `HONEY_TYPE_REQUIRED` | 400 | `honey_type` is empty |
+| `HONEY_TYPE_TOO_LONG` | 400 | `honey_type` exceeds 50 characters |
+| `INVALID_PROCESSING_METHOD` | 400 | `processing_method` not one of the allowed values |
+| `MISSING_FILE` | 400 | `lab_pdf` field missing from form |
+| `INVALID_PDF_TYPE` | 400 | `lab_pdf` content type is not `application/pdf` |
+| `PDF_TOO_LARGE` | 413 | `lab_pdf` exceeds 10 MB |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or caller is not a member |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /honey-batches/{id} 🔒
+
+Returns a single batch owned by the caller.
+
+**Response** `200 OK` — honey batch object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /honey-batches 🔒
+
+Returns a paginated list of the caller's batches, each with its latest certification.
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [ /* honey batch objects */ ],
+  "total": 3
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### PATCH /honey-batches/{id} 🔒
+
+Updates a batch's `honey_type`, the only mutable field.
+
+**Request**
+```json
+{
+  "honey_type": "Wildflower"
+}
+```
+
+**Response** `200 OK` — updated honey batch object
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `HONEY_TYPE_REQUIRED` | 400 | `honey_type` is empty |
+| `HONEY_TYPE_TOO_LONG` | 400 | `honey_type` exceeds 50 characters |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /honey-batches/{id} 🔒
+
+Soft-deletes a batch owned by the caller. Any existing on-chain certification is untouched.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ## Marketplace Listings
 
 Listings are public classifieds posted by users. Auth is optional on read routes (`GET`) — an authenticated caller sees their own hidden listings and can filter to `mine=true`; anonymous callers only see visible listings.

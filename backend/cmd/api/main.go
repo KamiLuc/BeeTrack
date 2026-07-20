@@ -57,6 +57,9 @@ func main() {
 	harvestRepo := repository.NewHarvestRepository(db)
 	listingRepo := repository.NewListingRepository(db)
 	listingFavoriteRepo := repository.NewListingFavoriteRepository(db)
+	honeyBatchRepo := repository.NewHoneyBatchRepository(db)
+	honeyBatchCertificationRepo := repository.NewHoneyBatchCertificationRepository(db)
+	honeyBatchQRCodeRepo := repository.NewHoneyBatchQRCodeRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -73,6 +76,7 @@ func main() {
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
+	honeyBatchSvc := service.NewHoneyBatchService(apiaryRepo, honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchQRCodeRepo, cfg.AppURL, cfg.PDFStoragePath)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
@@ -87,6 +91,7 @@ func main() {
 	listingImageHandler := handler.NewListingImageHandler(listingImageSvc)
 	listingFavoriteHandler := handler.NewListingFavoriteHandler(listingFavoriteSvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	honeyBatchHandler := handler.NewHoneyBatchHandler(honeyBatchSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
 	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
@@ -182,6 +187,12 @@ func main() {
 	mux.Handle("POST /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Add)))
 	mux.Handle("DELETE /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Remove)))
 	mux.Handle("GET /api/v1/listings/{id}/favorite", auth(http.HandlerFunc(listingFavoriteHandler.Check)))
+
+	mux.Handle("POST /api/v1/honey-batches", auth(http.HandlerFunc(honeyBatchHandler.Create)))
+	mux.Handle("GET /api/v1/honey-batches", auth(http.HandlerFunc(honeyBatchHandler.List)))
+	mux.Handle("GET /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Get)))
+	mux.Handle("PATCH /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Update)))
+	mux.Handle("DELETE /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Delete)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

@@ -112,6 +112,16 @@ func (r *HoneyBatchRepository) ListByUserID(ctx context.Context, userID int64, l
 	return batches, err
 }
 
+// CountByUserID returns the number of non-deleted batches created by userID.
+func (r *HoneyBatchRepository) CountByUserID(ctx context.Context, userID int64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.HoneyBatch{}).
+		Where("user_id = ? AND deleted_at IS NULL", userID).
+		Count(&count).Error
+	return count, err
+}
+
 // ListByApiaryID returns non-deleted batches for apiaryID, ordered by
 // creation time descending, with pagination.
 func (r *HoneyBatchRepository) ListByApiaryID(ctx context.Context, apiaryID int64, limit, offset int) ([]*model.HoneyBatch, error) {

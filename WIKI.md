@@ -430,6 +430,11 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | DELETE | `/api/v1/listings/{id}/favorite` | Unfavorite a listing (auth; no-op if not favorited) |
 | GET | `/api/v1/listings/{id}/favorite` | Check whether caller has favorited a listing (auth) |
 | GET | `/api/v1/favorites` | List caller's favorited listings, most recently favorited first (auth) |
+| POST | `/api/v1/honey-batches` | Create honey batch (multipart with `lab_pdf`; optional certification request) |
+| GET | `/api/v1/honey-batches` | List caller's honey batches (paginated, each with latest certification) |
+| GET | `/api/v1/honey-batches/{id}` | Get honey batch |
+| PATCH | `/api/v1/honey-batches/{id}` | Update honey batch's `honey_type` (only mutable field) |
+| DELETE | `/api/v1/honey-batches/{id}` | Soft-delete honey batch |
 
 ---
 
