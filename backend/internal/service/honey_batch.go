@@ -32,17 +32,26 @@ var (
 	ErrBatchAlreadyCertified   = errors.New("honey batch already has a live certification")
 	ErrBatchHasNoPDF           = errors.New("honey batch has no lab PDF; a PDF is required to certify")
 	ErrBatchLocked             = errors.New("honey batch can no longer be edited once certification has been requested")
+	ErrCertificationRequestPending = errors.New("a certification request for this batch is already pending admin review")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
 type HoneyBatchRepository interface {
-	CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error
+	CreateWithCertificationRequest(ctx context.Context, b *model.HoneyBatch, certRequest *model.HoneyBatchCertificationRequest) error
 	GetByID(ctx context.Context, id int64) (*model.HoneyBatch, error)
 	GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error)
 	ListByUserID(ctx context.Context, userID int64, limit, offset int) ([]*model.HoneyBatch, error)
 	CountByUserID(ctx context.Context, userID int64) (int64, error)
 	UpdateFields(ctx context.Context, batch *model.HoneyBatch) error
 	SoftDelete(ctx context.Context, id int64) error
+}
+
+// HoneyBatchCertificationRequestRepository is the persistence interface for
+// the admin-review queue that gates blockchain_jobs creation.
+type HoneyBatchCertificationRequestRepository interface {
+	Create(ctx context.Context, req *model.HoneyBatchCertificationRequest) error
+	GetPendingForBatch(ctx context.Context, batchID int64) (*model.HoneyBatchCertificationRequest, error)
+	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertificationRequest, error)
 }
 
 // HoneyBatchCertificationRepository is the persistence interface for
@@ -67,6 +76,7 @@ type BlockchainJobRepository interface {
 type HoneyBatchService struct {
 	batches        HoneyBatchRepository
 	certifications HoneyBatchCertificationRepository
+	certRequests   HoneyBatchCertificationRequestRepository
 	qrCodes        HoneyBatchQRCodeRepository
 	jobs           BlockchainJobRepository
 	appURL         string
@@ -74,8 +84,8 @@ type HoneyBatchService struct {
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies. Lab PDFs are stored under pdfStoragePath.
-func NewHoneyBatchService(batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
-	return &HoneyBatchService{batches: batches, certifications: certifications, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
+func NewHoneyBatchService(batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, certRequests HoneyBatchCertificationRequestRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
+	return &HoneyBatchService{batches: batches, certifications: certifications, certRequests: certRequests, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch, including the raw lab PDF upload.
@@ -123,10 +133,11 @@ func validateCreateBatchRequest(req CreateBatchRequest) error {
 }
 
 // CreateBatch validates req, stores and hashes the lab PDF, and persists a
-// new honey batch. If req.RequestCertification is true, a "certify" job is
-// enqueued in the same transaction as the batch insert — no blockchain call
-// happens here. If false, the batch is created with no certification
-// attempt at all; the owner can request one later.
+// new honey batch. If req.RequestCertification is true, a pending
+// certification request is created in the same transaction as the batch
+// insert, awaiting admin approval before any blockchain_jobs row (and thus
+// any chain interaction) exists. If false, the batch is created with no
+// certification attempt at all; the owner can request one later.
 func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID int64, req CreateBatchRequest) (*model.HoneyBatch, error) {
 	if err := validateCreateBatchRequest(req); err != nil {
 		return nil, err
@@ -173,16 +184,15 @@ func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID int64, req C
 		PDFFileHash:       pdfHashHex,
 	}
 
-	var job *model.BlockchainJob
+	var certRequest *model.HoneyBatchCertificationRequest
 	if req.RequestCertification {
-		job = &model.BlockchainJob{
-			JobType:     "certify",
-			Status:      model.CertificationStatusQueued,
-			NextRetryAt: time.Now(),
+		certRequest = &model.HoneyBatchCertificationRequest{
+			RequestedBy: userID,
+			Status:      model.CertificationRequestStatusPending,
 		}
 	}
 
-	if err := s.batches.CreateWithCertificationJob(ctx, batch, job); err != nil {
+	if err := s.batches.CreateWithCertificationRequest(ctx, batch, certRequest); err != nil {
 		if filename != "" {
 			_ = os.Remove(s.FilePath(filename))
 		}
@@ -199,9 +209,14 @@ func (s *HoneyBatchService) FilePath(filename string) string {
 
 // BatchVerification is a batch plus its current certification state.
 // Certification is nil if the batch has never had certification requested.
+// CertificationRequest is the latest admin-review request regardless of
+// status (nil if none was ever created) — distinct from Certification,
+// which only reflects state once a request has been approved and the
+// worker has taken over.
 type BatchVerification struct {
-	Batch         *model.HoneyBatch
-	Certification *model.HoneyBatchCertification
+	Batch                 *model.HoneyBatch
+	Certification         *model.HoneyBatchCertification
+	CertificationRequest  *model.HoneyBatchCertificationRequest
 }
 
 // GetBatchWithVerification looks up a batch by its public verification token
@@ -271,7 +286,11 @@ func (s *HoneyBatchService) GetBatch(ctx context.Context, userID, batchID int64)
 	if err != nil {
 		return nil, err
 	}
-	return &BatchVerification{Batch: batch, Certification: cert}, nil
+	certRequest, err := s.certRequests.GetLatestByBatchID(ctx, batch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get latest certification request: %w", err)
+	}
+	return &BatchVerification{Batch: batch, Certification: cert, CertificationRequest: certRequest}, nil
 }
 
 // ListBatches returns a paginated slice of userID's batches (each paired with its latest certification) and the total count.
@@ -295,7 +314,11 @@ func (s *HoneyBatchService) ListBatches(ctx context.Context, userID int64, limit
 		if err != nil {
 			return nil, 0, err
 		}
-		items[i] = BatchVerification{Batch: b, Certification: cert}
+		certRequest, err := s.certRequests.GetLatestByBatchID(ctx, b.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("get latest certification request: %w", err)
+		}
+		items[i] = BatchVerification{Batch: b, Certification: cert, CertificationRequest: certRequest}
 	}
 	return items, total, nil
 }
@@ -318,9 +341,9 @@ type UpdateBatchRequest struct {
 }
 
 // hasCertificationAttempt reports whether batchID has any certification
-// history (including failed/reverted) or a queued/in-flight job — once
-// true, the batch is locked from further edits, since its metadata hash may
-// already be part of a submitted or on-chain attempt.
+// history, a queued/in-flight job, or a pending review request — once true,
+// the batch is locked from further edits, since its metadata hash may
+// already be part of a submitted, on-chain, or awaiting-approval attempt.
 func (s *HoneyBatchService) hasCertificationAttempt(ctx context.Context, batchID int64) (bool, error) {
 	cert, err := s.certifications.GetLatestByBatchID(ctx, batchID)
 	if err != nil {
@@ -333,7 +356,14 @@ func (s *HoneyBatchService) hasCertificationAttempt(ctx context.Context, batchID
 	if err != nil {
 		return false, fmt.Errorf("check pending job: %w", err)
 	}
-	return pending, nil
+	if pending {
+		return true, nil
+	}
+	pendingRequest, err := s.certRequests.GetPendingForBatch(ctx, batchID)
+	if err != nil {
+		return false, fmt.Errorf("check pending certification request: %w", err)
+	}
+	return pendingRequest != nil, nil
 }
 
 // UpdateBatch validates and overwrites a batch's gathering date, amount,
@@ -433,7 +463,14 @@ func (s *HoneyBatchService) DeleteBatch(ctx context.Context, userID, batchID int
 	return nil
 }
 
-// RetryCertification enqueues a "certify" job for a batch owned by userID — first-time certify if none was ever requested, or a retry if the latest attempt failed/reverted. Rejects with ErrBatchAlreadyCertified if a live certification already exists.
+// RetryCertification submits a batch owned by userID for admin certification
+// review — first-time request if none was ever made, or a resubmission if
+// the latest attempt failed/reverted/was rejected. Approval (by an admin,
+// see CertificationReviewService) is what actually enqueues the
+// blockchain_jobs row the worker picks up. Rejects with
+// ErrBatchAlreadyCertified if a live certification or in-flight job already
+// exists, or ErrCertificationRequestPending if a review request is still
+// awaiting a decision.
 func (s *HoneyBatchService) RetryCertification(ctx context.Context, userID, batchID int64) error {
 	batch, err := s.ownedBatch(ctx, userID, batchID)
 	if err != nil {
@@ -457,14 +494,18 @@ func (s *HoneyBatchService) RetryCertification(ctx context.Context, userID, batc
 	} else if pending {
 		return ErrBatchAlreadyCertified
 	}
-	job := &model.BlockchainJob{
-		BatchID:     batch.ID,
-		JobType:     "certify",
-		Status:      model.CertificationStatusQueued,
-		NextRetryAt: time.Now(),
+	if pendingRequest, err := s.certRequests.GetPendingForBatch(ctx, batch.ID); err != nil {
+		return fmt.Errorf("check pending certification request: %w", err)
+	} else if pendingRequest != nil {
+		return ErrCertificationRequestPending
 	}
-	if err := s.jobs.Create(ctx, job); err != nil {
-		return fmt.Errorf("create blockchain job: %w", err)
+	req := &model.HoneyBatchCertificationRequest{
+		BatchID:     batch.ID,
+		RequestedBy: userID,
+		Status:      model.CertificationRequestStatusPending,
+	}
+	if err := s.certRequests.Create(ctx, req); err != nil {
+		return fmt.Errorf("create certification request: %w", err)
 	}
 	return nil
 }
@@ -474,6 +515,23 @@ func (s *HoneyBatchService) GetBatchPDF(ctx context.Context, userID, batchID int
 	batch, err := s.ownedBatch(ctx, userID, batchID)
 	if err != nil {
 		return "", err
+	}
+	if batch.LabPDFURL == "" {
+		return "", ErrBatchHasNoPDF
+	}
+	return s.FilePath(batch.LabPDFURL), nil
+}
+
+// GetBatchPDFForAdmin returns the absolute file path of a batch's lab PDF for
+// an admin reviewer, bypassing the ownership check — callers must gate this
+// with RequireAdmin themselves.
+func (s *HoneyBatchService) GetBatchPDFForAdmin(ctx context.Context, batchID int64) (string, error) {
+	batch, err := s.batches.GetByID(ctx, batchID)
+	if err != nil {
+		return "", fmt.Errorf("get batch: %w", err)
+	}
+	if batch == nil {
+		return "", ErrBatchNotFound
 	}
 	if batch.LabPDFURL == "" {
 		return "", ErrBatchHasNoPDF

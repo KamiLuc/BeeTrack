@@ -26,12 +26,13 @@ func (r *HoneyBatchRepository) Create(ctx context.Context, b *model.HoneyBatch) 
 	return r.db.WithContext(ctx).Create(b).Error
 }
 
-// CreateWithCertificationJob inserts b and, if job is non-nil, job, in a
-// single transaction. CanonicalMetadataHash requires b's id, which doesn't
-// exist until after insert, so the hash is computed and persisted here
-// (between the insert and the job insert) rather than by the caller — this
-// is the only way to keep the batch, its hash, and its job atomic together.
-func (r *HoneyBatchRepository) CreateWithCertificationJob(ctx context.Context, b *model.HoneyBatch, job *model.BlockchainJob) error {
+// CreateWithCertificationRequest inserts b and, if certRequest is non-nil,
+// certRequest, in a single transaction. CanonicalMetadataHash requires b's
+// id, which doesn't exist until after insert, so the hash is computed and
+// persisted here (between the insert and the request insert) rather than by
+// the caller — this is the only way to keep the batch, its hash, and its
+// certification request atomic together.
+func (r *HoneyBatchRepository) CreateWithCertificationRequest(ctx context.Context, b *model.HoneyBatch, certRequest *model.HoneyBatchCertificationRequest) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(b).Error; err != nil {
 			return err
@@ -43,9 +44,9 @@ func (r *HoneyBatchRepository) CreateWithCertificationJob(ctx context.Context, b
 			return err
 		}
 
-		if job != nil {
-			job.BatchID = b.ID
-			if err := tx.Create(job).Error; err != nil {
+		if certRequest != nil {
+			certRequest.BatchID = b.ID
+			if err := tx.Create(certRequest).Error; err != nil {
 				return err
 			}
 		}

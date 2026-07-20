@@ -175,6 +175,7 @@ func (s *ListingService) Create(ctx context.Context, userID int64, params Listin
 		ApiaryID:     params.ApiaryID,
 		ContactPhone: params.ContactPhone,
 		ContactEmail: params.ContactEmail,
+		Status:       model.ListingStatusPending,
 		Images:       imagesFromURLs(params.ImageURLs),
 	}
 	if err := s.listings.Create(ctx, l); err != nil {
@@ -193,7 +194,7 @@ func (s *ListingService) Get(ctx context.Context, viewerUserID, listingID int64)
 		}
 		return nil, fmt.Errorf("get listing: %w", err)
 	}
-	if l.IsHidden && l.UserID != viewerUserID {
+	if (l.IsHidden || l.Status != model.ListingStatusApproved) && l.UserID != viewerUserID {
 		return nil, ErrListingNotFound
 	}
 	return l, nil

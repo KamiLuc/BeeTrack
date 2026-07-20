@@ -113,19 +113,19 @@
 
 | ID       | Layer   | Status | Title                                              | Notes                                                                 |
 | -------- | ------- | ------ | --------------------------------------------------- | ---------------------------------------------------------------------- |
-| AP-DB-01 | `BE`    | `[ ]`  | Add `role` column to `users`                        | Manual SQL only to promote to admin, no API path                       |
-| AP-DB-02 | `BE`    | `[ ]`  | Add moderation fields to `listings`                  | `status`, `rejection_reason`, `first_approved_at`, `reviewed_by/at`; backfill existing rows to `approved` |
-| AP-DB-03 | `BE`    | `[ ]`  | Create `honey_batch_certification_requests` table    | Review queue sitting upstream of `blockchain_jobs`                     |
-| AP-BE-01 | `BE`    | `[ ]`  | Extend `User` model with `Role`/`IsAdmin()`          |                                                                        |
-| AP-BE-02 | `BE`    | `[ ]`  | Extend `Listing` model with moderation fields         |                                                                        |
-| AP-BE-03 | `BE`    | `[ ]`  | Create `HoneyBatchCertificationRequest` model         |                                                                        |
-| AP-BE-04 | `BE`    | `[ ]`  | Repository support for moderation + review queues     |                                                                        |
+| AP-DB-01 | `BE`    | `[x]`  | Add `role` column to `users`                        | Manual SQL only to promote to admin, no API path                       |
+| AP-DB-02 | `BE`    | `[x]`  | Add moderation fields to `listings`                  | `status`, `rejection_reason`, `first_approved_at`, `reviewed_by/at`; backfill existing rows to `approved` |
+| AP-DB-03 | `BE`    | `[x]`  | Create `honey_batch_certification_requests` table    | Review queue sitting upstream of `blockchain_jobs`                     |
+| AP-BE-01 | `BE`    | `[x]`  | Extend `User` model with `Role`/`IsAdmin()`          |                                                                        |
+| AP-BE-02 | `BE`    | `[x]`  | Extend `Listing` model with moderation fields         |                                                                        |
+| AP-BE-03 | `BE`    | `[x]`  | Create `HoneyBatchCertificationRequest` model         |                                                                        |
+| AP-BE-04 | `BE`    | `[x]`  | Repository support for moderation + review queues     |                                                                        |
 | AP-BE-04b| `BE`    | `[ ]`  | Publish existing data + seed pending listings          | Backfill via AP-DB-02 migration; seed script approves its own listings and adds a few left `pending` for admin QA |
-| AP-BE-05 | `BE`    | `[ ]`  | `RequireAdmin` middleware                             | DB-checked role, not JWT-claimed — immediate revocation                |
-| AP-BE-06 | `BE`    | `[ ]`  | Listing create/edit defaults to `pending`             | Public reads filtered to `approved`; owner views unfiltered            |
-| AP-BE-07 | `BE`    | `[ ]`  | `ListingModerationService` (approve/reject)            | Reject requires a reason                                               |
-| AP-BE-08 | `BE`    | `[ ]`  | Certification review gate + `CertificationReviewService` | `RequestCertification` creates a review request, not a job directly |
-| AP-BE-09 | `BE`    | `[ ]`  | Admin PDF access bypass                                | Admin can view any batch's lab PDF regardless of ownership             |
+| AP-BE-05 | `BE`    | `[x]`  | `RequireAdmin` middleware                             | DB-checked role, not JWT-claimed — immediate revocation                |
+| AP-BE-06 | `BE`    | `[x]`  | Listing create/edit defaults to `pending`             | Public reads filtered to `approved`; owner views unfiltered            |
+| AP-BE-07 | `BE`    | `[x]`  | `ListingModerationService` (approve/reject)            | Reject requires a reason                                               |
+| AP-BE-08 | `BE`    | `[x]`  | Certification review gate + `CertificationReviewService` | `RequestCertification` creates a review request, not a job directly |
+| AP-BE-09 | `BE`    | `[x]`  | Admin PDF access bypass                                | Admin can view any batch's lab PDF regardless of ownership             |
 | AP-BE-10 | `BE`    | `[ ]`  | `GET /api/v1/admin/listings`                           | Includes computed `is_edit` flag                                       |
 | AP-BE-11 | `BE`    | `[ ]`  | `GET /api/v1/admin/listings/{id}`                      |                                                                        |
 | AP-BE-12 | `BE`    | `[ ]`  | `POST /api/v1/admin/listings/{id}/approve`             |                                                                        |
