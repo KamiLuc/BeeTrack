@@ -662,7 +662,7 @@ void main() {
         expect(find.text('Edit listing'), findsOneWidget);
         expect(find.text('Wildflower Honey'), findsWidgets);
 
-        final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -751,7 +751,7 @@ void main() {
         await tester.tap(find.byIcon(Icons.edit_outlined));
         await tester.pumpAndSettle();
 
-        final saveFinder = find.widgetWithText(ElevatedButton, 'Save');
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();

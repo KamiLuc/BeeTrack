@@ -97,7 +97,7 @@ func TestUploadImage_InvalidType(t *testing.T) {
 func TestUploadImage_TooLarge(t *testing.T) {
 	svc, _, _, _, _, _ := newTestImageService(t)
 
-	data := make([]byte, maxImageBytes+1)
+	data := make([]byte, MaxImageBytes+1)
 	_, err := svc.Upload(context.Background(), 1, 1, 10, 5, "image/jpeg", data)
 	if !errors.Is(err, ErrImageTooLarge) {
 		t.Errorf("expected ErrImageTooLarge, got %v", err)

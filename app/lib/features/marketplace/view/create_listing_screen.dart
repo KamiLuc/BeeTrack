@@ -14,6 +14,7 @@ import '../../../core/validation/gps_bounds.dart';
 import '../../../core/validation/size_tiers.dart';
 import '../../../core/widgets/location_picker_section.dart';
 import '../../../core/widgets/map_picker_screen.dart';
+import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/apiary/data/apiary_model.dart';
 import '../../../features/apiary/data/apiary_repository.dart';
@@ -153,7 +154,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   void _reviewLocationError() {
     if (_submitError == null) return;
-    if (_submitError != AppLocalizations.of(context)!.marketplaceLocationRequired) {
+    if (_submitError !=
+        AppLocalizations.of(context)!.marketplaceLocationRequired) {
       return;
     }
     if (_location != null) setState(() => _submitError = null);
@@ -223,7 +225,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       source = chosen;
     }
     final file = await picker.pickImage(source: source, imageQuality: 85);
-    if (file != null && mounted) setState(() => _pendingImages.add(file));
+    if (file == null || !mounted) return;
+    final sizeError = await validateImageFileSize(file, l10n);
+    if (sizeError != null) {
+      if (mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      return;
+    }
+    if (mounted) setState(() => _pendingImages.add(file));
   }
 
   void _removeImage(XFile file) {
@@ -357,277 +365,370 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         ),
         actions: const [ProfileIconButton()],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: AppLayout.formConstraints(context),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldTitle,
-                      counterText: SizeTier.medium.counterText,
-                    ),
-                    textInputAction: TextInputAction.next,
-                    maxLength: SizeTier.medium.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return l10n.marketplaceFieldTitleRequired;
-                      }
-                      return validateSizeTier(
-                        v,
-                        SizeTier.medium,
-                        l10n.marketplaceFieldTitle,
-                        l10n,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _category,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldCategory,
-                    ),
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    items: [
-                      for (final category in listingCategories)
-                        DropdownMenuItem(
-                          value: category,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(listingCategoryIcon(category), size: 20),
-                              const SizedBox(width: 8),
-                              Text(listingCategoryLabel(l10n, category)),
-                            ],
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: AppLayout.formConstraints(context),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextFormField(
+                            controller: _titleController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldTitle,
+                              counterText: SizeTier.medium.counterText,
+                            ),
+                            textInputAction: TextInputAction.next,
+                            maxLength: SizeTier.medium.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return l10n.marketplaceFieldTitleRequired;
+                              }
+                              return validateSizeTier(
+                                v,
+                                SizeTier.medium,
+                                l10n.marketplaceFieldTitle,
+                                l10n,
+                              );
+                            },
                           ),
-                        ),
-                    ],
-                    onChanged: (value) => setState(() => _category = value),
-                    validator: (v) => v == null
-                        ? l10n.marketplaceFieldCategoryRequired
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceDescriptionLabel,
-                    ),
-                    minLines: 3,
-                    maxLines: 6,
-                    maxLength: SizeTier.large.maxLength,
-                    textInputAction: TextInputAction.newline,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) => validateSizeTier(
-                      v,
-                      SizeTier.large,
-                      l10n.marketplaceDescriptionLabel,
-                      l10n,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _priceController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldPrice,
-                      counterText: SizeTier.small.counterText,
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                    inputFormatters: [_priceInputFormatter],
-                    maxLength: SizeTier.small.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return l10n.marketplaceFieldPriceRequired;
-                      }
-                      final parsed = double.tryParse(v.trim());
-                      if (parsed == null) {
-                        return l10n.marketplaceFieldPriceInvalid;
-                      }
-                      if (parsed >= 100000000) {
-                        return l10n.marketplaceFieldPriceTooLarge;
-                      }
-                      return validateSizeTier(
-                        v,
-                        SizeTier.small,
-                        l10n.marketplaceFieldPrice,
-                        l10n,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _quantityController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceQuantityLabel,
-                      counterText: SizeTier.small.counterText,
-                    ),
-                    textInputAction: TextInputAction.next,
-                    maxLength: SizeTier.small.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) => validateSizeTier(
-                      v,
-                      SizeTier.small,
-                      l10n.marketplaceQuantityLabel,
-                      l10n,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldAddress,
-                      counterText: SizeTier.medium.counterText,
-                    ),
-                    textInputAction: TextInputAction.next,
-                    maxLength: SizeTier.medium.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (v) => validateSizeTier(
-                      v,
-                      SizeTier.medium,
-                      l10n.marketplaceFieldAddress,
-                      l10n,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  LocationPickerSection(
-                    latController: _latController,
-                    lngController: _lngController,
-                    latLabel: l10n.marketplaceFieldLatitude,
-                    lngLabel: l10n.marketplaceFieldLongitude,
-                    locating: _locating,
-                    onGps: _useGps,
-                    onMap: _pickOnMap,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    l10n.marketplaceContactLabel,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldPhone,
-                      counterText: SizeTier.superSmall.counterText,
-                    ),
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.next,
-                    maxLength: SizeTier.superSmall.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    onChanged: (_) => _reviewContactError(),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      if (!_isValidPhone(v)) {
-                        return l10n.marketplaceFieldPhoneInvalid;
-                      }
-                      return validateSizeTier(
-                        v,
-                        SizeTier.superSmall,
-                        l10n.marketplaceFieldPhone,
-                        l10n,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: l10n.marketplaceFieldEmail,
-                      counterText: SizeTier.medium.counterText,
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    maxLength: SizeTier.medium.maxLength,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    onChanged: (_) => _reviewContactError(),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      if (!_isValidEmail(v)) return l10n.authInvalidEmail;
-                      return validateSizeTier(
-                        v,
-                        SizeTier.medium,
-                        l10n.marketplaceFieldEmail,
-                        l10n,
-                      );
-                    },
-                  ),
-                  if (_apiaries.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      l10n.marketplaceApiaryLabel,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<int?>(
-                      initialValue: _apiaryId,
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(l10n.marketplaceApiaryNone),
-                        ),
-                        for (final apiary in _apiaries)
-                          DropdownMenuItem(
-                            value: apiary.id,
-                            child: Text(apiary.name),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() => _apiaryId = value),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  _PhotosSection(
-                    existingImages: _existingImages,
-                    deletingImageIds: _deletingImageIds,
-                    pendingImages: _pendingImages,
-                    uploadProgress: _uploadProgress,
-                    totalCount: _totalPhotoCount,
-                    saving: _saving,
-                    onAdd: _pickImage,
-                    onRemove: _removeImage,
-                    onRemoveExisting: _removeExistingImage,
-                  ),
-                  const SizedBox(height: 24),
-                  if (_submitError != null) ...[
-                    Text(
-                      _submitError!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colorScheme.error),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Center(
-                    child: SizedBox(
-                      width: 200,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _submit,
-                        child: _saving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            initialValue: _category,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldCategory,
+                            ),
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            items: [
+                              for (final category in listingCategories)
+                                DropdownMenuItem(
+                                  value: category,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        listingCategoryIcon(category),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        listingCategoryLabel(l10n, category),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              )
-                            : Text(l10n.generalSave),
+                            ],
+                            onChanged: (value) =>
+                                setState(() => _category = value),
+                            validator: (v) => v == null
+                                ? l10n.marketplaceFieldCategoryRequired
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _descriptionController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceDescriptionLabel,
+                            ),
+                            minLines: 3,
+                            maxLines: 6,
+                            maxLength: SizeTier.large.maxLength,
+                            textInputAction: TextInputAction.newline,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (v) => validateSizeTier(
+                              v,
+                              SizeTier.large,
+                              l10n.marketplaceDescriptionLabel,
+                              l10n,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _priceController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldPrice,
+                              counterText: SizeTier.small.counterText,
+                            ),
+                            keyboardType: TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            textInputAction: TextInputAction.next,
+                            inputFormatters: [_priceInputFormatter],
+                            maxLength: SizeTier.small.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return l10n.marketplaceFieldPriceRequired;
+                              }
+                              final parsed = double.tryParse(v.trim());
+                              if (parsed == null) {
+                                return l10n.marketplaceFieldPriceInvalid;
+                              }
+                              if (parsed >= 100000000) {
+                                return l10n.marketplaceFieldPriceTooLarge;
+                              }
+                              return validateSizeTier(
+                                v,
+                                SizeTier.small,
+                                l10n.marketplaceFieldPrice,
+                                l10n,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _quantityController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceQuantityLabel,
+                              counterText: SizeTier.small.counterText,
+                            ),
+                            textInputAction: TextInputAction.next,
+                            maxLength: SizeTier.small.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (v) => validateSizeTier(
+                              v,
+                              SizeTier.small,
+                              l10n.marketplaceQuantityLabel,
+                              l10n,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _addressController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldAddress,
+                              counterText: SizeTier.medium.counterText,
+                            ),
+                            textInputAction: TextInputAction.next,
+                            maxLength: SizeTier.medium.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (v) => validateSizeTier(
+                              v,
+                              SizeTier.medium,
+                              l10n.marketplaceFieldAddress,
+                              l10n,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          LocationPickerSection(
+                            latController: _latController,
+                            lngController: _lngController,
+                            latLabel: l10n.marketplaceFieldLatitude,
+                            lngLabel: l10n.marketplaceFieldLongitude,
+                            locating: _locating,
+                            onGps: _useGps,
+                            onMap: _pickOnMap,
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            l10n.marketplaceContactLabel,
+                            style: textTheme.titleSmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _phoneController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldPhone,
+                              counterText: SizeTier.superSmall.counterText,
+                            ),
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            maxLength: SizeTier.superSmall.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            onChanged: (_) => _reviewContactError(),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return null;
+                              if (!_isValidPhone(v)) {
+                                return l10n.marketplaceFieldPhoneInvalid;
+                              }
+                              return validateSizeTier(
+                                v,
+                                SizeTier.superSmall,
+                                l10n.marketplaceFieldPhone,
+                                l10n,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: l10n.marketplaceFieldEmail,
+                              counterText: SizeTier.medium.counterText,
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            maxLength: SizeTier.medium.maxLength,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            onChanged: (_) => _reviewContactError(),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return null;
+                              if (!_isValidEmail(v))
+                                return l10n.authInvalidEmail;
+                              return validateSizeTier(
+                                v,
+                                SizeTier.medium,
+                                l10n.marketplaceFieldEmail,
+                                l10n,
+                              );
+                            },
+                          ),
+                          if (_apiaries.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            Text(
+                              l10n.marketplaceApiaryLabel,
+                              style: textTheme.titleSmall?.copyWith(
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<int?>(
+                              initialValue: _apiaryId,
+                              items: [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text(l10n.marketplaceApiaryNone),
+                                ),
+                                for (final apiary in _apiaries)
+                                  DropdownMenuItem(
+                                    value: apiary.id,
+                                    child: Text(apiary.name),
+                                  ),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => _apiaryId = value),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          _PhotosSection(
+                            existingImages: _existingImages,
+                            deletingImageIds: _deletingImageIds,
+                            pendingImages: _pendingImages,
+                            uploadProgress: _uploadProgress,
+                            totalCount: _totalPhotoCount,
+                            saving: _saving,
+                            onRemove: _removeImage,
+                            onRemoveExisting: _removeExistingImage,
+                          ),
+                          const SizedBox(height: 24),
+                          if (_submitError != null)
+                            Text(
+                              _submitError!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              ),
+            ),
+          ),
+          _ListingFormBanner(
+            loading: _saving,
+            pendingCount: _pendingImages.length,
+            atPhotoLimit: _totalPhotoCount >= _kMaxListingPhotos,
+            onSave: _submit,
+            onAddPhoto: _pickImage,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Amber banner: save + add-photo buttons ────────────────────────────────────
+
+class _ListingFormBanner extends StatelessWidget {
+  final bool loading;
+  final int pendingCount;
+  final bool atPhotoLimit;
+  final VoidCallback onSave;
+  final VoidCallback onAddPhoto;
+
+  const _ListingFormBanner({
+    required this.loading,
+    required this.pendingCount,
+    required this.atPhotoLimit,
+    required this.onSave,
+    required this.onAddPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final bannerWidth = AppLayout.bannerWidth(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Center(
+          child: SizedBox(
+            width: bannerWidth,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Badge(
+                    isLabelVisible: pendingCount > 0,
+                    label: Text('$pendingCount'),
+                    child: IconButton(
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      iconSize: 28,
+                      tooltip: l10n.marketplaceAddPhoto,
+                      onPressed: (atPhotoLimit || loading) ? null : onAddPhoto,
+                    ),
+                  ),
+                  loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.check),
+                          iconSize: 28,
+                          tooltip: l10n.generalSave,
+                          onPressed: onSave,
+                        ),
                 ],
               ),
             ),
@@ -645,7 +746,6 @@ class _PhotosSection extends StatelessWidget {
   final Map<XFile, double> uploadProgress;
   final int totalCount;
   final bool saving;
-  final VoidCallback onAdd;
   final ValueChanged<XFile> onRemove;
   final ValueChanged<ListingImage> onRemoveExisting;
 
@@ -656,7 +756,6 @@ class _PhotosSection extends StatelessWidget {
     required this.uploadProgress,
     required this.totalCount,
     required this.saving,
-    required this.onAdd,
     required this.onRemove,
     required this.onRemoveExisting,
   });
@@ -664,52 +763,59 @@ class _PhotosSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final atLimit = totalCount >= _kMaxListingPhotos;
     final baseUrl = context.read<ApiClient>().baseUrl;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${l10n.marketplacePhotosLabel}  $totalCount/$_kMaxListingPhotos',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            TextButton.icon(
-              onPressed: (atLimit || saving) ? null : onAdd,
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-              label: Text(l10n.marketplaceAddPhoto),
-            ),
-          ],
-        ),
-        if (existingImages.isNotEmpty || pendingImages.isNotEmpty)
-          SizedBox(
-            height: 100,
-            child: ListView(
-              shrinkWrap: true,
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final image in existingImages)
-                  _ExistingThumbnail(
-                    image: image,
-                    baseUrl: baseUrl,
-                    deleting: deletingImageIds.contains(image.id),
-                    disabled: saving,
-                    onRemove: () => onRemoveExisting(image),
-                  ),
-                for (final file in pendingImages)
-                  _PendingThumbnail(
-                    file: file,
-                    progress: saving ? uploadProgress[file] ?? 0 : null,
-                    onRemove: () => onRemove(file),
-                  ),
-              ],
+        if (totalCount > 0) ...[
+          Text(
+            '${l10n.marketplacePhotosLabel}  $totalCount/$_kMaxListingPhotos',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final size = kIsWeb ? 180.0 : 120.0;
+              return SizedBox(
+                height: size + 15,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final image in existingImages)
+                            _ExistingThumbnail(
+                              image: image,
+                              baseUrl: baseUrl,
+                              size: size,
+                              deleting: deletingImageIds.contains(image.id),
+                              disabled: saving,
+                              onRemove: () => onRemoveExisting(image),
+                            ),
+                          for (final file in pendingImages)
+                            _PendingThumbnail(
+                              file: file,
+                              size: size,
+                              progress: saving
+                                  ? uploadProgress[file] ?? 0
+                                  : null,
+                              onRemove: () => onRemove(file),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -718,6 +824,7 @@ class _PhotosSection extends StatelessWidget {
 class _ExistingThumbnail extends StatelessWidget {
   final ListingImage image;
   final String baseUrl;
+  final double size;
   final bool deleting;
   final bool disabled;
   final VoidCallback onRemove;
@@ -725,6 +832,7 @@ class _ExistingThumbnail extends StatelessWidget {
   const _ExistingThumbnail({
     required this.image,
     required this.baseUrl,
+    required this.size,
     required this.deleting,
     required this.disabled,
     required this.onRemove,
@@ -739,8 +847,8 @@ class _ExistingThumbnail extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: SizedBox(
-              width: 90,
-              height: 90,
+              width: size,
+              height: size,
               child: Image.network(
                 '$baseUrl${image.url}',
                 fit: BoxFit.cover,
@@ -791,6 +899,7 @@ class _ExistingThumbnail extends StatelessWidget {
 
 class _PendingThumbnail extends StatelessWidget {
   final XFile file;
+  final double size;
 
   /// Upload progress in [0, 1] while the listing is being saved, or null
   /// before submission (shows the remove button instead).
@@ -799,6 +908,7 @@ class _PendingThumbnail extends StatelessWidget {
 
   const _PendingThumbnail({
     required this.file,
+    required this.size,
     required this.progress,
     required this.onRemove,
   });
@@ -812,8 +922,8 @@ class _PendingThumbnail extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: SizedBox(
-              width: 90,
-              height: 90,
+              width: size,
+              height: size,
               child: FutureBuilder<Uint8List>(
                 future: file.readAsBytes(),
                 builder: (_, snapshot) {

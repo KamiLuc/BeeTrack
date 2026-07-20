@@ -271,6 +271,7 @@
   "generalLoadMore": "Load more",
   "generalFieldTooLong": "{field} must be at most {max} characters",
   "generalValueTooLarge": "{field} must be at most {max}",
+  "generalPhotoTooLarge": "Photo is too large. Maximum size is {max}.",
 
   "inspectionTitle": "Inspections",
   "inspectionAdd": "Add inspection",

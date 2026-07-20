@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -63,22 +62,8 @@ func (h *ListingImageHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(11 * 1024 * 1024); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "could not parse multipart form")
-		return
-	}
-
-	file, header, err := r.FormFile("image")
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "MISSING_FILE", "field 'image' is required")
-		return
-	}
-	defer file.Close()
-
-	mimeType := header.Header.Get("Content-Type")
-	data, err := io.ReadAll(file)
-	if err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not read file")
+	data, mimeType, ok := parseImageFile(w, r)
+	if !ok {
 		return
 	}
 

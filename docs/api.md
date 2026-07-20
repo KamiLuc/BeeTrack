@@ -1134,7 +1134,7 @@ Removes a disease from an inspection.
 
 ## Inspection Images
 
-Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **10 MB**.
+Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **5 MB**.
 
 Images are cascade-deleted when the parent inspection is deleted. File cleanup on disk is performed before the DB row is removed.
 
@@ -1163,7 +1163,7 @@ Uploads an image. Send as `multipart/form-data` with field name `image`.
 | `INVALID_ID` | 400 | Path id is not a valid integer |
 | `MISSING_FILE` | 400 | `image` field missing from form |
 | `INVALID_IMAGE_TYPE` | 400 | MIME type not allowed |
-| `IMAGE_TOO_LARGE` | 413 | File exceeds 10 MB |
+| `IMAGE_TOO_LARGE` | 413 | File exceeds 5 MB |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
 | `INSPECTION_NOT_FOUND` | 404 | Inspection does not exist for this hive |
@@ -2191,7 +2191,7 @@ Deletes a listing. Only the owner can delete. Images cascade.
 
 ## Listing Images
 
-Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **10 MB**. Maximum **3 images per listing**.
+Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **5 MB**. Maximum **3 images per listing**.
 
 Images are cascade-deleted when the parent listing is deleted.
 
@@ -2224,7 +2224,7 @@ Uploads an image. Send as `multipart/form-data` with field name `image`. Only th
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `MISSING_FILE` | 400 | `image` field missing from form |
 | `INVALID_IMAGE_TYPE` | 400 | MIME type not allowed |
-| `IMAGE_TOO_LARGE` | 413 | File exceeds 10 MB |
+| `IMAGE_TOO_LARGE` | 413 | File exceeds 5 MB |
 | `TOO_MANY_IMAGES` | 400 | Listing already has 3 images |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |

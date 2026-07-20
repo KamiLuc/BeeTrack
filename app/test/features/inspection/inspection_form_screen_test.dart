@@ -402,4 +402,45 @@ void main() {
       },
     );
   });
+
+  group('InspectionFormScreen queen status toggles', () {
+    testWidgets(
+        'marking queen added clears an already-selected queenless toggle',
+        (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        const InspectionFormScreen(apiaryId: 1, hive: _hive),
+      ));
+      await tester.pumpAndSettle();
+
+      final queenlessSwitch = find.descendant(
+        of: find
+            .ancestor(of: find.text(l10n.hiveQueenless), matching: find.byType(Row))
+            .first,
+        matching: find.byType(Switch),
+      );
+      final queenAddedSwitch = find.descendant(
+        of: find
+            .ancestor(
+                of: find.text(l10n.inspectionQueenAdded), matching: find.byType(Row))
+            .first,
+        matching: find.byType(Switch),
+      );
+
+      await tester.ensureVisible(queenlessSwitch);
+      await tester.tap(queenlessSwitch);
+      await tester.pump();
+      expect(tester.widget<Switch>(queenlessSwitch).value, isTrue);
+
+      await tester.ensureVisible(queenAddedSwitch);
+      await tester.tap(queenAddedSwitch);
+      await tester.pump();
+
+      expect(tester.widget<Switch>(queenAddedSwitch).value, isTrue);
+      expect(tester.widget<Switch>(queenlessSwitch).value, isFalse);
+      expect(tester.widget<Switch>(queenlessSwitch).onChanged, isNull);
+    });
+  });
 }

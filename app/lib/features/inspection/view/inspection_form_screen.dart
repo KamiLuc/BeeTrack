@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/validation/size_tiers.dart';
+import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
 import '../../hive/data/hive_repository.dart';
@@ -473,7 +474,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           _BoolRow(
                             label: l10n.inspectionQueenAdded,
                             value: _queenAdded,
-                            onChanged: (v) => setState(() => _queenAdded = v),
+                            onChanged: (v) => setState(() {
+                              _queenAdded = v;
+                              if (v) _hiveQueenless = false;
+                            }),
                           ),
                           const SizedBox(height: 12),
                           HiveDiseasesSection(
@@ -565,7 +569,14 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
       source = chosen;
     }
     final file = await picker.pickImage(source: source, imageQuality: 85);
-    if (file != null && mounted) setState(() => _pendingImages.add(file));
+    if (file == null || !mounted) return;
+    final sizeError =
+        await validateImageFileSize(file, AppLocalizations.of(context)!);
+    if (sizeError != null) {
+      if (mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      return;
+    }
+    if (mounted) setState(() => _pendingImages.add(file));
   }
 }
 

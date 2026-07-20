@@ -243,7 +243,7 @@ void main() {
         find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
         'Wildflower Honey',
       );
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      final saveFinder = find.byIcon(Icons.check);
       await tester.ensureVisible(saveFinder);
       await tester.tap(saveFinder);
       await tester.pumpAndSettle();
@@ -582,10 +582,7 @@ void main() {
         await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
         await tester.pumpAndSettle();
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -680,9 +677,9 @@ void main() {
 
         await _fillRequiredFields(tester);
 
-        final addPhotoFinder = find.widgetWithText(
-          TextButton,
-          l10n.marketplaceAddPhoto,
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
         );
         await tester.ensureVisible(addPhotoFinder);
         await tester.tap(addPhotoFinder);
@@ -690,10 +687,7 @@ void main() {
         await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
         await tester.pumpAndSettle();
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -727,10 +721,7 @@ void main() {
 
         await _fillRequiredFields(tester);
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -740,8 +731,8 @@ void main() {
         expect(find.byType(CreateListingScreen), findsOneWidget);
         expect(result, isNull);
 
-        final saveButton = tester.widget<ElevatedButton>(
-          find.widgetWithText(ElevatedButton, l10n.generalSave),
+        final saveButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.check),
         );
         expect(saveButton.onPressed, isNotNull);
       },
@@ -770,10 +761,7 @@ void main() {
           '42.50',
         );
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -821,10 +809,7 @@ void main() {
           '123456789',
         );
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
@@ -887,7 +872,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      final saveFinder = find.widgetWithText(ElevatedButton, l10n.generalSave);
+      final saveFinder = find.byIcon(Icons.check);
       await tester.ensureVisible(saveFinder);
       await tester.tap(saveFinder);
       await tester.pumpAndSettle();
@@ -934,8 +919,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('${l10n.marketplacePhotosLabel}  0/3'),
-          findsOneWidget,
+          find.textContaining(l10n.marketplacePhotosLabel),
+          findsNothing,
         );
         final deleteRequests = adapter.requests.where(
           (r) =>
@@ -959,9 +944,9 @@ void main() {
       await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
       await tester.pumpAndSettle();
 
-      final addPhotoFinder = find.widgetWithText(
-        TextButton,
-        l10n.marketplaceAddPhoto,
+      final addPhotoFinder = find.widgetWithIcon(
+        IconButton,
+        Icons.add_photo_alternate_outlined,
       );
       for (var i = 0; i < 3; i++) {
         await tester.ensureVisible(addPhotoFinder);
@@ -974,8 +959,8 @@ void main() {
       expect(find.text('${l10n.marketplacePhotosLabel}  3/3'), findsOneWidget);
       expect(imagePicker.pickCount, 3);
 
-      final addPhotoButton = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, l10n.marketplaceAddPhoto),
+      final addPhotoButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.add_photo_alternate_outlined),
       );
       expect(addPhotoButton.onPressed, isNull);
 
@@ -1002,9 +987,9 @@ void main() {
 
         await _fillRequiredFieldsStandalone(tester, l10n);
 
-        final addPhotoFinder = find.widgetWithText(
-          TextButton,
-          l10n.marketplaceAddPhoto,
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
         );
         await tester.ensureVisible(addPhotoFinder);
         await tester.tap(addPhotoFinder);
@@ -1017,10 +1002,7 @@ void main() {
         expect(find.byIcon(Icons.close), findsOneWidget);
         expect(find.byType(CircularProgressIndicator), findsNothing);
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
+        final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
         await tester.tap(saveFinder);
         // A single pump (not pumpAndSettle) catches the mid-upload frame
@@ -1030,7 +1012,7 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsWidgets);
         expect(find.byIcon(Icons.close), findsNothing);
 
-        final addPhotoButton = tester.widget<TextButton>(addPhotoFinder);
+        final addPhotoButton = tester.widget<IconButton>(addPhotoFinder);
         expect(addPhotoButton.onPressed, isNull);
 
         await tester.pumpAndSettle();
@@ -1038,40 +1020,36 @@ void main() {
       },
     );
 
-    testWidgets(
-      'hides the existing-image remove button while saving',
-      (tester) async {
-        final adapter = _RecordingHttpClientAdapter();
-        final apiClient = await _fakeApiClient(adapter);
-        final image = ListingImage(
-          id: 3,
-          listingId: 5,
-          url: '/uploads/a.jpg',
-          displayOrder: 0,
-          createdAt: DateTime(2026, 1, 1),
-        );
-        final listing = _existingListing(images: [image]);
+    testWidgets('hides the existing-image remove button while saving', (
+      tester,
+    ) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+      final image = ListingImage(
+        id: 3,
+        listingId: 5,
+        url: '/uploads/a.jpg',
+        displayOrder: 0,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final listing = _existingListing(images: [image]);
 
-        await tester.pumpWidget(
-          _wrap(apiClient, CreateListingScreen(existingListing: listing)),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
 
-        final saveFinder = find.widgetWithText(
-          ElevatedButton,
-          l10n.generalSave,
-        );
-        await tester.ensureVisible(saveFinder);
-        await tester.tap(saveFinder);
-        await tester.pump();
+      final saveFinder = find.byIcon(Icons.check);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pump();
 
-        expect(find.byIcon(Icons.close), findsNothing);
+      expect(find.byIcon(Icons.close), findsNothing);
 
-        await tester.pumpAndSettle();
-      },
-    );
+      await tester.pumpAndSettle();
+    });
   });
 }
 
@@ -1104,15 +1082,17 @@ Future<void> _fillRequiredFieldsStandalone(
 /// user taps GPS or picks a point on the map, which aren't drivable here.
 void _setLocationFields(WidgetTester tester, AppLocalizations l10n) {
   tester
-      .widget<TextFormField>(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldLatitude),
-      )
-      .controller!
-      .text = '52.229700';
+          .widget<TextFormField>(
+            find.widgetWithText(TextFormField, l10n.marketplaceFieldLatitude),
+          )
+          .controller!
+          .text =
+      '52.229700';
   tester
-      .widget<TextFormField>(
-        find.widgetWithText(TextFormField, l10n.marketplaceFieldLongitude),
-      )
-      .controller!
-      .text = '21.012200';
+          .widget<TextFormField>(
+            find.widgetWithText(TextFormField, l10n.marketplaceFieldLongitude),
+          )
+          .controller!
+          .text =
+      '21.012200';
 }

@@ -723,6 +723,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String generalPhotoTooLarge(String max) {
+    return 'Photo is too large. Maximum size is $max.';
+  }
+
+  @override
   String get inspectionTitle => 'Inspections';
 
   @override

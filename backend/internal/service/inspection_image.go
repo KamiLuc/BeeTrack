@@ -15,11 +15,12 @@ import (
 var (
 	ErrImageNotFound    = errors.New("image not found")
 	ErrInvalidImageType = errors.New("unsupported image type; allowed: image/jpeg, image/png, image/webp")
-	ErrImageTooLarge    = errors.New("image exceeds 10 MB limit")
+	ErrImageTooLarge    = errors.New("image exceeds 5 MB limit")
 	ErrMaxImagesReached = errors.New("inspection already has the maximum of 6 images")
 )
 
-const maxImageBytes = 10 * 1024 * 1024
+// MaxImageBytes is the largest image file accepted for inspection and listing uploads.
+const MaxImageBytes = 5 * 1024 * 1024
 const maxImagesPerInspection = 6
 
 var allowedMIME = map[string]string{
@@ -71,7 +72,7 @@ func (s *InspectionImageService) FilePath(filename string) string {
 
 // Upload validates access, writes the file to disk, and creates the DB record.
 func (s *InspectionImageService) Upload(ctx context.Context, userID, apiaryID, hiveID, inspectionID int64, mimeType string, data []byte) (*model.InspectionImage, error) {
-	if len(data) > maxImageBytes {
+	if len(data) > MaxImageBytes {
 		return nil, ErrImageTooLarge
 	}
 	ext, ok := allowedMIME[mimeType]

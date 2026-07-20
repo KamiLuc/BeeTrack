@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 import '../../l10n/app_localizations.dart';
 
 /// A named text-length limit shared across all form validation, so fields
@@ -52,4 +54,18 @@ const double maxHarvestKilograms = 1000.0;
 String? validatePasswordLength(String? value, AppLocalizations l10n) {
   if (value == null || value.length <= maxPasswordLength) return null;
   return l10n.generalFieldTooLong(l10n.authPassword, maxPasswordLength);
+}
+
+/// Largest image file accepted for inspection and listing photo uploads.
+/// Mirrors `MaxImageBytes` in the backend's `internal/service/inspection_image.go`.
+const int maxImageBytes = 5 * 1024 * 1024;
+
+/// Human-readable form of [maxImageBytes] for error messages, e.g. "5 MB".
+final String maxImageSizeLabel = '${maxImageBytes ~/ (1024 * 1024)} MB';
+
+/// Returns the localized "photo too large" error if [file] exceeds [maxImageBytes], else null.
+Future<String?> validateImageFileSize(XFile file, AppLocalizations l10n) async {
+  final size = await file.length();
+  if (size <= maxImageBytes) return null;
+  return l10n.generalPhotoTooLarge(maxImageSizeLabel);
 }

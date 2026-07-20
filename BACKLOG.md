@@ -94,6 +94,7 @@
 | INF-05-BE | `BE`  | `[ ]`  | REST API — OpenAPI / Swagger spec             |       |
 | INF-06-BE | `BE`  | `[ ]`  | Input validation & structured error responses |       |
 | INF-07-BE | `BE`  | `[ ]`  | Structured JSON logging                       |       |
+| INF-08-BE | `BE`  | `[ ]`  | Server-side re-compression of uploaded inspection/listing images | Client already caps uploads at 5 MB (`generalPhotoTooLarge` guard); re-encode on the backend after upload to shrink stored file size regardless of client behavior (gallery picks, PNG/WebP, web). Needs a Go image-decode/re-encode dependency, a target quality/resolution, and EXIF orientation handling. |
 
 ---
 

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/validation/size_tiers.dart';
+import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/inspection_image_model.dart';
 import '../data/inspection_image_repository.dart';
@@ -199,7 +201,17 @@ class InspectionImagesSection extends StatelessWidget {
       source = chosen;
     }
     final file = await picker.pickImage(source: source, imageQuality: 85);
-    if (file != null) onAddPending(file);
+    if (file == null) return;
+    if (!context.mounted) return;
+    final sizeError = await validateImageFileSize(
+      file,
+      AppLocalizations.of(context)!,
+    );
+    if (sizeError != null) {
+      if (context.mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      return;
+    }
+    onAddPending(file);
   }
 
   Future<ImageSource?> _chooseSource(BuildContext context) {

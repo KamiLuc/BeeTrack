@@ -86,7 +86,7 @@ func (s *ListingImageService) ownedListing(ctx context.Context, userID, listingI
 
 // Upload validates ownership and the file, writes it to disk, and creates the DB record.
 func (s *ListingImageService) Upload(ctx context.Context, userID, listingID int64, mimeType string, data []byte) (*model.ListingImage, error) {
-	if len(data) > maxImageBytes {
+	if len(data) > MaxImageBytes {
 		return nil, ErrImageTooLarge
 	}
 	ext, ok := listingAllowedMIME[mimeType]

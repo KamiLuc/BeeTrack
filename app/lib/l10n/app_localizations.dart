@@ -1436,6 +1436,12 @@ abstract class AppLocalizations {
   /// **'{field} musi być mniejsze lub równe {max}'**
   String generalValueTooLarge(String field, String max);
 
+  /// No description provided for @generalPhotoTooLarge.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zdjęcie jest za duże. Maksymalny rozmiar to {max}.'**
+  String generalPhotoTooLarge(String max);
+
   /// No description provided for @inspectionTitle.
   ///
   /// In pl, this message translates to:

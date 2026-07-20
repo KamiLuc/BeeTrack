@@ -107,7 +107,7 @@ func TestListingImageUpload_TooLarge(t *testing.T) {
 	svc, reader, _, _ := newTestListingImageService(t)
 	reader.listing = &model.Listing{ID: 5, UserID: 3}
 
-	_, err := svc.Upload(context.Background(), 3, 5, "image/jpeg", make([]byte, maxImageBytes+1))
+	_, err := svc.Upload(context.Background(), 3, 5, "image/jpeg", make([]byte, MaxImageBytes+1))
 	if !errors.Is(err, ErrImageTooLarge) {
 		t.Errorf("expected ErrImageTooLarge, got %v", err)
 	}

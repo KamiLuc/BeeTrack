@@ -283,6 +283,12 @@
       "max": { "type": "String" }
     }
   },
+  "generalPhotoTooLarge": "Zdjęcie jest za duże. Maksymalny rozmiar to {max}.",
+  "@generalPhotoTooLarge": {
+    "placeholders": {
+      "max": { "type": "String" }
+    }
+  },
 
   "inspectionTitle": "Inspekcje",
   "inspectionAdd": "Dodaj inspekcję",
