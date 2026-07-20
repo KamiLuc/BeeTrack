@@ -120,7 +120,7 @@
 | AP-BE-02 | `BE`    | `[x]`  | Extend `Listing` model with moderation fields         |                                                                        |
 | AP-BE-03 | `BE`    | `[x]`  | Create `HoneyBatchCertificationRequest` model         |                                                                        |
 | AP-BE-04 | `BE`    | `[x]`  | Repository support for moderation + review queues     |                                                                        |
-| AP-BE-04b| `BE`    | `[ ]`  | Publish existing data + seed pending listings          | Backfill via AP-DB-02 migration; seed script approves its own listings and adds a few left `pending` for admin QA |
+| AP-BE-04b| `BE`    | `[x]`  | Publish existing data + seed pending listings          | Backfill via AP-DB-02 migration; seed script approves its own listings and adds a few left `pending` for admin QA. Also surfaced (and fixed) a real bug: `User.Role`/`Listing.Status` need `gorm:"default:..."` tags so direct struct construction doesn't insert an empty string against the new CHECK constraints |
 | AP-BE-05 | `BE`    | `[x]`  | `RequireAdmin` middleware                             | DB-checked role, not JWT-claimed — immediate revocation                |
 | AP-BE-06 | `BE`    | `[x]`  | Listing create/edit defaults to `pending`             | Public reads filtered to `approved`; owner views unfiltered            |
 | AP-BE-07 | `BE`    | `[x]`  | `ListingModerationService` (approve/reject)            | Reject requires a reason                                               |

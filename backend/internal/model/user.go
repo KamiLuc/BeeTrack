@@ -13,7 +13,7 @@ type User struct {
 	Name         string
 	PasswordHash string
 	Verified     bool
-	Role         string
+	Role         string `gorm:"default:user"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

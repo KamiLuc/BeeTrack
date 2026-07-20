@@ -24,7 +24,7 @@ type Listing struct {
 	ContactPhone    string
 	ContactEmail    string
 	IsHidden        bool
-	Status          string
+	Status          string `gorm:"default:pending"`
 	RejectionReason *string
 	FirstApprovedAt *time.Time
 	ReviewedBy      *int64

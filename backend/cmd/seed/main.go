@@ -118,7 +118,6 @@ func main() {
 	log.Printf("created %d hives, %d inspections, %d treatments, %d feedings, %d harvests", len(allHives), inspectionCount, treatmentCount, feedingCount, harvestCount)
 
 	listings := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
-	log.Printf("created %d listings", len(listings))
 
 	images := listImageFiles(*imagesDir)
 	if len(images) == 0 {
@@ -492,6 +491,22 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 			ApiaryID: &apiaries[1].ID, ContactPhone: "+48 600 100 200", ContactEmail: email,
 		},
 	}
+	// Left pending (not auto-approved below) so the admin review queue has
+	// something to show right after seeding, without a human creating one by hand.
+	pendingSpecs := []*model.Listing{
+		{
+			Title: "Świeży miód akacjowy", Description: "Jasny miód akacjowy, dopiero co odwirowany, czeka na zatwierdzenie.",
+			Category: "HONEY", Price: price(38), Quantity: "6 słoików 0.9kg", Address: "Kraków",
+			ContactPhone: "+48 600 100 200", ContactEmail: email,
+		},
+		{
+			Title: "Matki pszczele reprodukcyjne", Description: "Matki pszczele czystej rasy, tegoroczny chów.",
+			Category: "QUEEN_BEES", Price: price(150), Quantity: "3 szt.", Address: "Wieliczka",
+			ContactPhone: "+48 600 100 200", ContactEmail: email,
+		},
+	}
+
+	approved := 0
 	for _, l := range specs {
 		l.UserID = userID
 		if coords, ok := cityCoords[l.Address]; ok {
@@ -505,8 +520,29 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 		if err := repo.Create(ctx, l); err != nil {
 			log.Fatalf("create listing %q: %v", l.Title, err)
 		}
+		if err := repo.Approve(ctx, l.ID, userID); err != nil {
+			log.Fatalf("approve listing %q: %v", l.Title, err)
+		}
+		approved++
 	}
-	return specs
+	for _, l := range pendingSpecs {
+		l.UserID = userID
+		if coords, ok := cityCoords[l.Address]; ok {
+			l.Lat, l.Lng = jitterCoord(coords[0], coords[1])
+		}
+		if l.Price != nil {
+			jittered := jitterPrice(*l.Price)
+			l.Price = &jittered
+		}
+		l.Quantity = jitterQuantity(l.Quantity)
+		if err := repo.Create(ctx, l); err != nil {
+			log.Fatalf("create listing %q: %v", l.Title, err)
+		}
+	}
+
+	all := append(specs, pendingSpecs...)
+	log.Printf("created %d listings (%d approved, %d pending review)", len(all), approved, len(pendingSpecs))
+	return all
 }
 
 var imageExtensions = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
