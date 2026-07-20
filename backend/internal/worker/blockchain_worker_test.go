@@ -23,6 +23,7 @@ type mockJobRepo struct {
 	pendingList      []*model.BlockchainJob
 	sweptCalled      bool
 	sweptCount       int64
+	stuckList        []*model.BlockchainJob
 }
 
 func (m *mockJobRepo) ClaimNext(ctx context.Context) (*model.BlockchainJob, error) {
@@ -59,6 +60,9 @@ func (m *mockJobRepo) ListPendingConfirmation(ctx context.Context) ([]*model.Blo
 func (m *mockJobRepo) SweepStuckSubmitting(ctx context.Context, olderThan time.Duration) (int64, error) {
 	m.sweptCalled = true
 	return m.sweptCount, nil
+}
+func (m *mockJobRepo) ListStuckConfirming(ctx context.Context, olderThan time.Duration) ([]*model.BlockchainJob, error) {
+	return m.stuckList, nil
 }
 
 type mockCertRepo struct {
@@ -369,6 +373,73 @@ func TestPollSubmittedJobs_MissingCertificationIDCollectsError(t *testing.T) {
 
 	if err := w.PollSubmittedJobs(context.Background()); err == nil {
 		t.Fatal("expected an error for a job with no certification id")
+	}
+}
+
+func TestSweepStuckConfirming_FailsStuckJobAndCertification(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5), AttemptCount: 0}
+	jobs := &mockJobRepo{stuckList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	if err := w.SweepStuckConfirming(context.Background()); err == nil {
+		t.Fatal("expected SweepStuckConfirming to report the stuck job as failed")
+	}
+	if jobs.failedErr == "" {
+		t.Error("expected job marked failed with a reason")
+	}
+	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusFailed {
+		t.Errorf("expected certification marked failed, got %+v", certs.updates)
+	}
+}
+
+func TestSweepStuckConfirming_NoStuckJobs(t *testing.T) {
+	jobs := &mockJobRepo{}
+	certs := &mockCertRepo{}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	if err := w.SweepStuckConfirming(context.Background()); err != nil {
+		t.Fatalf("SweepStuckConfirming() error = %v", err)
+	}
+	if len(certs.updates) != 0 {
+		t.Errorf("expected no updates, got %+v", certs.updates)
+	}
+}
+
+func TestSweepStuckConfirming_MultipleStuckJobsAllFailed(t *testing.T) {
+	jobA := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5), AttemptCount: 0}
+	jobB := &model.BlockchainJob{ID: 2, BatchID: 8, CertificationID: idPtr(6), AttemptCount: 0}
+	jobs := &mockJobRepo{stuckList: []*model.BlockchainJob{jobA, jobB}}
+	certs := &mockCertRepo{}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	if err := w.SweepStuckConfirming(context.Background()); err == nil {
+		t.Fatal("expected SweepStuckConfirming to report the stuck jobs as failed")
+	}
+	if len(certs.updates) != 2 {
+		t.Fatalf("expected both certifications marked failed, got %+v", certs.updates)
+	}
+	for _, u := range certs.updates {
+		if u.status != model.CertificationStatusFailed {
+			t.Errorf("expected status failed, got %v", u.status)
+		}
+	}
+	if certs.updates[0].id != 5 || certs.updates[1].id != 6 {
+		t.Errorf("expected certifications 5 and 6 updated, got %+v", certs.updates)
+	}
+}
+
+func TestSweepStuckConfirming_JobAtMaxAttemptsGetsFarFutureRetry(t *testing.T) {
+	job := &model.BlockchainJob{ID: 1, BatchID: 7, CertificationID: idPtr(5), AttemptCount: maxAttempts - 1}
+	jobs := &mockJobRepo{stuckList: []*model.BlockchainJob{job}}
+	certs := &mockCertRepo{}
+	w := newWorker(jobs, certs, &mockBatchReader{}, &mockWriter{}, &mockReader{})
+
+	if err := w.SweepStuckConfirming(context.Background()); err == nil {
+		t.Fatal("expected SweepStuckConfirming to report the stuck job as failed")
+	}
+	if jobs.failedNextRetry.Before(time.Now().AddDate(50, 0, 0)) {
+		t.Errorf("expected far-future retry once maxAttempts is reached, got %v", jobs.failedNextRetry)
 	}
 }
 

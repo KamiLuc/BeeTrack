@@ -181,3 +181,17 @@ func (r *BlockchainJobRepository) ListPendingConfirmation(ctx context.Context) (
 		Find(&jobs).Error
 	return jobs, err
 }
+
+// ListStuckConfirming returns submitted/pending_confirmation jobs that haven't
+// changed state in longer than olderThan — e.g. a transaction dropped from the
+// mempool or an RPC endpoint that stopped returning it, which PollSubmittedJobs
+// alone would otherwise wait on forever.
+func (r *BlockchainJobRepository) ListStuckConfirming(ctx context.Context, olderThan time.Duration) ([]*model.BlockchainJob, error) {
+	var jobs []*model.BlockchainJob
+	err := r.db.WithContext(ctx).
+		Where("status IN (?, ?) AND updated_at < ?",
+			model.CertificationStatusSubmitted, model.CertificationStatusPendingConfirmation,
+			time.Now().Add(-olderThan)).
+		Find(&jobs).Error
+	return jobs, err
+}

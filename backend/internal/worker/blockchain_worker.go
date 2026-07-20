@@ -20,6 +20,7 @@ import (
 const (
 	maxAttempts            = 3
 	stuckSubmittingTimeout = 5 * time.Minute
+	stuckConfirmingTimeout = 30 * time.Minute
 )
 
 // JobRepository is the durable job queue interface used by BlockchainWorker.
@@ -33,6 +34,7 @@ type JobRepository interface {
 	MarkFailed(ctx context.Context, id int64, lastErr string, nextRetryAt time.Time) error
 	ListPendingConfirmation(ctx context.Context) ([]*model.BlockchainJob, error)
 	SweepStuckSubmitting(ctx context.Context, olderThan time.Duration) (int64, error)
+	ListStuckConfirming(ctx context.Context, olderThan time.Duration) ([]*model.BlockchainJob, error)
 }
 
 // CertificationRepository is the certification history interface used by BlockchainWorker.
@@ -145,6 +147,9 @@ func (w *BlockchainWorker) runConfirmationLoop(ctx context.Context, interval tim
 	for {
 		select {
 		case <-ticker.C:
+			if err := w.SweepStuckConfirming(ctx); err != nil {
+				log.Printf("blockchain worker: sweep stuck confirming jobs: %v", err)
+			}
 			if err := w.PollSubmittedJobs(ctx); err != nil {
 				log.Printf("blockchain worker: poll submitted jobs: %v", err)
 			}
@@ -152,6 +157,31 @@ func (w *BlockchainWorker) runConfirmationLoop(ctx context.Context, interval tim
 			return
 		}
 	}
+}
+
+// SweepStuckConfirming fails out submitted/pending_confirmation jobs that
+// haven't advanced in longer than stuckConfirmingTimeout — e.g. a transaction
+// dropped from the mempool or an RPC endpoint that stopped reporting it.
+// Without this, such a job (and its certification) would sit "live" forever,
+// and HasPendingJob would keep blocking the owner from retrying. Each stuck
+// job goes through the same failJob backoff/max-attempts path as any other
+// failure, so it becomes retryable (or exhausts its attempts) like normal.
+func (w *BlockchainWorker) SweepStuckConfirming(ctx context.Context) error {
+	jobs, err := w.jobs.ListStuckConfirming(ctx, stuckConfirmingTimeout)
+	if err != nil {
+		return fmt.Errorf("list stuck confirming jobs: %w", err)
+	}
+	if len(jobs) > 0 {
+		log.Printf("blockchain worker: found %d stuck confirming job(s)", len(jobs))
+	}
+	var errs []error
+	for _, job := range jobs {
+		cause := fmt.Errorf("no confirmation after %s", stuckConfirmingTimeout)
+		if err := w.failJob(ctx, job, job.CertificationID, cause); err != nil {
+			errs = append(errs, fmt.Errorf("job %d: %w", job.ID, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // ProcessNextJob claims and processes one runnable job. Returns processed=false
