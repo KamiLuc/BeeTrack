@@ -20,6 +20,7 @@ type ListingFilter struct {
 	NearLng     *float64
 	RadiusKm    *float64
 	HasApiary   bool
+	Status      string
 	Limit       int
 	Offset      int
 }
@@ -158,23 +159,29 @@ func (r *ListingRepository) List(ctx context.Context, f ListingFilter) ([]*model
 	return listings, nil
 }
 
-// Update persists all mutable fields of l.
+// Update persists all mutable fields of l and resets moderation status to
+// pending — an edit must be re-approved, but first_approved_at is untouched
+// so the admin queue can still tell an edit apart from a brand-new listing.
 func (r *ListingRepository) Update(ctx context.Context, l *model.Listing) error {
 	return r.db.WithContext(ctx).
 		Model(l).
 		Updates(map[string]any{
-			"title":         l.Title,
-			"description":   l.Description,
-			"category":      l.Category,
-			"price":         l.Price,
-			"quantity":      l.Quantity,
-			"address":       l.Address,
-			"lat":           l.Lat,
-			"lng":           l.Lng,
-			"apiary_id":     l.ApiaryID,
-			"contact_phone": l.ContactPhone,
-			"contact_email": l.ContactEmail,
-			"updated_at":    gorm.Expr("NOW()"),
+			"title":            l.Title,
+			"description":      l.Description,
+			"category":         l.Category,
+			"price":            l.Price,
+			"quantity":         l.Quantity,
+			"address":          l.Address,
+			"lat":              l.Lat,
+			"lng":              l.Lng,
+			"apiary_id":        l.ApiaryID,
+			"contact_phone":    l.ContactPhone,
+			"contact_email":    l.ContactEmail,
+			"status":           model.ListingStatusPending,
+			"rejection_reason": nil,
+			"reviewed_by":      nil,
+			"reviewed_at":      nil,
+			"updated_at":       gorm.Expr("NOW()"),
 		}).Error
 }
 
@@ -186,6 +193,50 @@ func (r *ListingRepository) SetHidden(ctx context.Context, id int64, hidden bool
 		Updates(map[string]any{
 			"is_hidden":  hidden,
 			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}
+
+// ListPendingReview returns pending listings ordered oldest-first, for the admin queue.
+func (r *ListingRepository) ListPendingReview(ctx context.Context, limit, offset int) ([]*model.Listing, int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&model.Listing{}).
+		Where("status = ?", model.ListingStatusPending).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var listings []*model.Listing
+	err := r.db.WithContext(ctx).
+		Where("status = ?", model.ListingStatusPending).
+		Order("created_at ASC").
+		Limit(limit).
+		Offset(offset).
+		Find(&listings).Error
+	return listings, total, err
+}
+
+// Approve sets a listing's status to approved and stamps the reviewer, also
+// setting first_approved_at if this is its first approval.
+func (r *ListingRepository) Approve(ctx context.Context, id, reviewerID int64) error {
+	return r.db.WithContext(ctx).Model(&model.Listing{}).Where("id = ?", id).
+		Updates(map[string]any{
+			"status":            model.ListingStatusApproved,
+			"rejection_reason":  nil,
+			"reviewed_by":       reviewerID,
+			"reviewed_at":       gorm.Expr("NOW()"),
+			"first_approved_at": gorm.Expr("COALESCE(first_approved_at, NOW())"),
+			"updated_at":        gorm.Expr("NOW()"),
+		}).Error
+}
+
+// Reject sets a listing's status to rejected with the given reason and stamps the reviewer.
+func (r *ListingRepository) Reject(ctx context.Context, id, reviewerID int64, reason string) error {
+	return r.db.WithContext(ctx).Model(&model.Listing{}).Where("id = ?", id).
+		Updates(map[string]any{
+			"status":           model.ListingStatusRejected,
+			"rejection_reason": reason,
+			"reviewed_by":      reviewerID,
+			"reviewed_at":      gorm.Expr("NOW()"),
+			"updated_at":       gorm.Expr("NOW()"),
 		}).Error
 }
 
@@ -286,10 +337,13 @@ func (r *ListingRepository) applyFilterAliased(q *gorm.DB, f ListingFilter) *gor
 
 // buildFilter applies shared listing filter conditions using the given column prefix.
 func (r *ListingRepository) buildFilter(q *gorm.DB, f ListingFilter, p string) *gorm.DB {
-	if f.OwnerUserID != nil {
+	switch {
+	case f.OwnerUserID != nil:
 		q = q.Where(p+"user_id = ?", *f.OwnerUserID)
-	} else {
-		q = q.Where(p + "is_hidden = FALSE")
+	case f.Status != "":
+		q = q.Where(p+"status = ?", f.Status)
+	default:
+		q = q.Where(p+"is_hidden = FALSE").Where(p+"status = ?", model.ListingStatusApproved)
 	}
 	if f.Category != "" {
 		q = q.Where(p+"category = ?", f.Category)

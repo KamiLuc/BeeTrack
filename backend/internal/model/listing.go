@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+const (
+	ListingStatusPending  = "pending"
+	ListingStatusApproved = "approved"
+	ListingStatusRejected = "rejected"
+)
+
 // Listing represents a marketplace sale announcement posted by a user.
 type Listing struct {
 	ID              int64
@@ -18,6 +24,11 @@ type Listing struct {
 	ContactPhone    string
 	ContactEmail    string
 	IsHidden        bool
+	Status          string
+	RejectionReason *string
+	FirstApprovedAt *time.Time
+	ReviewedBy      *int64
+	ReviewedAt      *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Images          []ListingImage `gorm:"-"`
@@ -26,4 +37,10 @@ type Listing struct {
 	ApiaryLng       *float64       `gorm:"-"`
 	ApiaryHiveCount int            `gorm:"-"`
 	DistanceKm      *float64       `gorm:"-"`
+}
+
+// IsEdit distinguishes an edit of a previously-approved listing from a
+// brand-new one — both sit at ListingStatusPending otherwise.
+func (l *Listing) IsEdit() bool {
+	return l.FirstApprovedAt != nil
 }
