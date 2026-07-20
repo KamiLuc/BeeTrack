@@ -7,6 +7,8 @@ export const translations = {
       previous: "Previous",
       next: "Next",
       paginationRange: "{{from}}-{{to}} of {{total}}",
+      reasonPickerPlaceholder: "Pick a common reason…",
+      reasonPickerNoMatch: "No matching reason",
     },
     nav: {
       listings: "Listings",
@@ -80,6 +82,8 @@ export const translations = {
       previous: "Poprzednia",
       next: "Następna",
       paginationRange: "{{from}}-{{to}} z {{total}}",
+      reasonPickerPlaceholder: "Wybierz częsty powód…",
+      reasonPickerNoMatch: "Brak pasującego powodu",
     },
     nav: {
       listings: "Ogłoszenia",
@@ -148,6 +152,50 @@ export const translations = {
     },
   },
 } as const;
+
+export const listingRejectReasons: Record<Lang, string[]> = {
+  en: [
+    "Photo quality too low",
+    "Inappropriate or explicit photos",
+    "Offensive or inappropriate language",
+    "Misleading or false information",
+    "Prohibited or restricted item",
+    "Duplicate listing",
+    "Incomplete information",
+    "Suspected fraud",
+    "Price seems incorrect",
+  ],
+  pl: [
+    "Niska jakość zdjęć",
+    "Nieodpowiednie lub nieprzyzwoite zdjęcia",
+    "Obraźliwy lub nieodpowiedni język",
+    "Wprowadzające w błąd lub fałszywe informacje",
+    "Zakazany lub ograniczony produkt",
+    "Zduplikowane ogłoszenie",
+    "Niekompletne informacje",
+    "Podejrzenie oszustwa",
+    "Cena wydaje się nieprawidłowa",
+  ],
+};
+
+export const certificationRejectReasons: Record<Lang, string[]> = {
+  en: [
+    "Lab PDF illegible or missing pages",
+    "Batch weight doesn't match records",
+    "Missing lab signature or stamp",
+    "Suspected fraudulent certificate",
+    "Gathering date inconsistent with batch",
+    "Incomplete information",
+  ],
+  pl: [
+    "Nieczytelny lub niekompletny PDF z laboratorium",
+    "Waga partii nie zgadza się z danymi",
+    "Brak podpisu lub pieczęci laboratorium",
+    "Podejrzenie sfałszowanego certyfikatu",
+    "Data pozyskania niezgodna z partią",
+    "Niekompletne informacje",
+  ],
+};
 
 export type TranslationKey = {
   [NS in keyof (typeof translations)["en"]]: {

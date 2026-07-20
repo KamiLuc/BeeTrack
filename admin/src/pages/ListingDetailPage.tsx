@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, resourceUrl } from "../api/client";
 import { approveListing, getListing, rejectListing, type AdminListing } from "../api/listings";
+import { ReasonPicker } from "../components/ReasonPicker";
 import { useI18n } from "../i18n/I18nContext";
+import { listingRejectReasons } from "../i18n/translations";
 import { isValidRejectionReason, MAX_REJECTION_REASON_LENGTH } from "../validation";
 
 export function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const [listing, setListing] = useState<AdminListing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -85,6 +87,7 @@ export function ListingDetailPage() {
       <div className="card" style={{ marginTop: "1rem" }}>
         <div className="field">
           <label htmlFor="reason">{t("listingDetail.rejectionReason")}</label>
+          <ReasonPicker options={listingRejectReasons[lang]} onSelect={setReason} />
           <textarea
             id="reason"
             rows={3}

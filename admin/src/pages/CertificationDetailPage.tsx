@@ -7,7 +7,9 @@ import {
   rejectCertificationRequest,
   type CertificationRequest,
 } from "../api/certifications";
+import { ReasonPicker } from "../components/ReasonPicker";
 import { useI18n } from "../i18n/I18nContext";
+import { certificationRejectReasons } from "../i18n/translations";
 import { isValidRejectionReason, MAX_REJECTION_REASON_LENGTH } from "../validation";
 
 // <embed src=...> can't send an auth header, so fetch the PDF and use a blob: URL instead.
@@ -112,6 +114,7 @@ export function CertificationDetailPage() {
       <div className="card" style={{ marginTop: "1rem" }}>
         <div className="field">
           <label htmlFor="reason">{t("certificationDetail.rejectionReason")}</label>
+          <ReasonPicker options={certificationRejectReasons[lang]} onSelect={setReason} />
           <textarea
             id="reason"
             rows={3}
