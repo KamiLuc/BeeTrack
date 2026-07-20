@@ -5,7 +5,7 @@ import '../../features/auth/bloc/auth_bloc.dart';
 import '../../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 
-enum AppSection { apiaries, marketplace }
+enum AppSection { apiaries, marketplace, honeyBatches }
 
 /// A navigation-drawer list tile with an explicit, consistent "active
 /// section" highlight — used by both drawers so the selected indicator
@@ -83,6 +83,12 @@ class AuthenticatedAppDrawer extends StatelessWidget {
               onTap: () => _select(context, AppSection.apiaries),
             ),
             _DrawerNavTile(
+              icon: Icons.hexagon_outlined,
+              label: l10n.honeyBatchTitle,
+              selected: current == AppSection.honeyBatches,
+              onTap: () => _select(context, AppSection.honeyBatches),
+            ),
+            _DrawerNavTile(
               icon: Icons.storefront_outlined,
               label: l10n.marketplaceTitle,
               selected: current == AppSection.marketplace,
@@ -105,9 +111,9 @@ class AuthenticatedAppDrawer extends StatelessWidget {
 }
 
 /// A navigation drawer for unauthenticated users, shown on both the public
-/// marketplace and the login screen. Marketplace is browsable; Apiaries is
-/// shown but gated — tapping it (or the login entry) calls [onLogin].
-/// [isLogin] marks whether the login view is currently shown.
+/// marketplace and the login screen. Marketplace is browsable; Apiaries and
+/// Honey Batches are shown but gated — tapping either (or the login entry)
+/// calls [onLogin]. [isLogin] marks whether the login view is currently shown.
 class UnauthenticatedAppDrawer extends StatelessWidget {
   final bool isLogin;
   final VoidCallback onMarketplace;
@@ -145,6 +151,13 @@ class UnauthenticatedAppDrawer extends StatelessWidget {
             _DrawerNavTile(
               icon: Icons.hive_outlined,
               label: l10n.apiaryTitle,
+              trailing: const Icon(Icons.lock_outline, size: 18),
+              selected: false,
+              onTap: () => _go(context, onLogin, isCurrent: false),
+            ),
+            _DrawerNavTile(
+              icon: Icons.hexagon_outlined,
+              label: l10n.honeyBatchTitle,
               trailing: const Icon(Icons.lock_outline, size: 18),
               selected: false,
               onTap: () => _go(context, onLogin, isCurrent: false),

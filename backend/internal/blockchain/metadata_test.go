@@ -14,7 +14,6 @@ import (
 func TestCanonicalMetadataHash_Golden(t *testing.T) {
 	batch := &model.HoneyBatch{
 		ID:               42,
-		ApiaryID:         7,
 		GatheringDate:    time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC),
 		AmountGrams:      15000,
 		ProcessingMethod: "raw",
@@ -22,7 +21,7 @@ func TestCanonicalMetadataHash_Golden(t *testing.T) {
 		PDFFileHash:      "abc123",
 	}
 
-	want := "cf86220ecd8f403200488ac7cf758d14bbf7e434c1c4a1cd6866d67bcef41bc6"
+	want := "a93889e0bb3e26b147d9c2d9c60de3ff609bcff22fa73b5fd280ca640a757363"
 	got := CanonicalMetadataHash(batch)
 
 	if gotHex := hex.EncodeToString(got[:]); gotHex != want {
@@ -33,7 +32,6 @@ func TestCanonicalMetadataHash_Golden(t *testing.T) {
 func TestCanonicalMetadataHash_Deterministic(t *testing.T) {
 	batch := &model.HoneyBatch{
 		ID:               1,
-		ApiaryID:         2,
 		GatheringDate:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		AmountGrams:      1000,
 		ProcessingMethod: "filtered",
@@ -51,7 +49,6 @@ func TestCanonicalMetadataHash_Deterministic(t *testing.T) {
 func TestCanonicalMetadataHash_DifferentAmountDifferentHash(t *testing.T) {
 	base := &model.HoneyBatch{
 		ID:               1,
-		ApiaryID:         2,
 		GatheringDate:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		ProcessingMethod: "raw",
 		HoneyType:        "Rzepakowy",

@@ -2071,6 +2071,204 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Przez {name}'**
   String harvestHarvestedBy(String name);
+
+  /// No description provided for @honeyBatchTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Partie miodu'**
+  String get honeyBatchTitle;
+
+  /// No description provided for @honeyBatchEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak partii miodu'**
+  String get honeyBatchEmpty;
+
+  /// No description provided for @honeyBatchAdd.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj partię miodu'**
+  String get honeyBatchAdd;
+
+  /// No description provided for @honeyBatchDetailTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Partia miodu'**
+  String get honeyBatchDetailTitle;
+
+  /// No description provided for @honeyBatchHoneyType.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rodzaj miodu'**
+  String get honeyBatchHoneyType;
+
+  /// No description provided for @honeyBatchHoneyTypeRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rodzaj miodu jest wymagany'**
+  String get honeyBatchHoneyTypeRequired;
+
+  /// No description provided for @honeyBatchProcessingMethod.
+  ///
+  /// In pl, this message translates to:
+  /// **'Metoda przetwarzania'**
+  String get honeyBatchProcessingMethod;
+
+  /// No description provided for @honeyBatchMethodRaw.
+  ///
+  /// In pl, this message translates to:
+  /// **'Surowy'**
+  String get honeyBatchMethodRaw;
+
+  /// No description provided for @honeyBatchMethodFiltered.
+  ///
+  /// In pl, this message translates to:
+  /// **'Filtrowany'**
+  String get honeyBatchMethodFiltered;
+
+  /// No description provided for @honeyBatchMethodPasteurized.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pasteryzowany'**
+  String get honeyBatchMethodPasteurized;
+
+  /// No description provided for @honeyBatchGatheringDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Data pozyskania'**
+  String get honeyBatchGatheringDate;
+
+  /// No description provided for @honeyBatchAmountKg.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ilość (kg)'**
+  String get honeyBatchAmountKg;
+
+  /// No description provided for @honeyBatchAmountRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ilość jest wymagana'**
+  String get honeyBatchAmountRequired;
+
+  /// No description provided for @honeyBatchAmountInvalid.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podaj prawidłową ilość'**
+  String get honeyBatchAmountInvalid;
+
+  /// No description provided for @honeyBatchPdfLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'PDF z badania laboratoryjnego'**
+  String get honeyBatchPdfLabel;
+
+  /// No description provided for @honeyBatchPdfRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dołącz PDF z badania laboratoryjnego'**
+  String get honeyBatchPdfRequired;
+
+  /// No description provided for @honeyBatchNoPdf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak'**
+  String get honeyBatchNoPdf;
+
+  /// No description provided for @honeyBatchCertifyToggle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikuj'**
+  String get honeyBatchCertifyToggle;
+
+  /// No description provided for @honeyBatchCertify.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikuj'**
+  String get honeyBatchCertify;
+
+  /// No description provided for @honeyBatchRetry.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ponów certyfikację'**
+  String get honeyBatchRetry;
+
+  /// No description provided for @honeyBatchNotCertified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Niecertyfikowane'**
+  String get honeyBatchNotCertified;
+
+  /// No description provided for @honeyBatchInProgress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikacja w toku'**
+  String get honeyBatchInProgress;
+
+  /// No description provided for @honeyBatchDeleteConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć partię miodu?'**
+  String get honeyBatchDeleteConfirm;
+
+  /// No description provided for @honeyBatchDeleteWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta operacja trwale usunie wpis partii miodu.'**
+  String get honeyBatchDeleteWarning;
+
+  /// No description provided for @honeyBatchStatusQueued.
+  ///
+  /// In pl, this message translates to:
+  /// **'W kolejce'**
+  String get honeyBatchStatusQueued;
+
+  /// No description provided for @honeyBatchStatusSubmitting.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wysyłanie'**
+  String get honeyBatchStatusSubmitting;
+
+  /// No description provided for @honeyBatchStatusSubmitted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wysłano'**
+  String get honeyBatchStatusSubmitted;
+
+  /// No description provided for @honeyBatchStatusPendingConfirmation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Oczekuje na potwierdzenie'**
+  String get honeyBatchStatusPendingConfirmation;
+
+  /// No description provided for @honeyBatchStatusConfirmed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdzono'**
+  String get honeyBatchStatusConfirmed;
+
+  /// No description provided for @honeyBatchStatusFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Niepowodzenie'**
+  String get honeyBatchStatusFailed;
+
+  /// No description provided for @honeyBatchStatusReverted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wycofano'**
+  String get honeyBatchStatusReverted;
+
+  /// No description provided for @honeyBatchViewQr.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż kod QR'**
+  String get honeyBatchViewQr;
+
+  /// No description provided for @honeyBatchDownloadQr.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pobierz kod QR'**
+  String get honeyBatchDownloadQr;
 }
 
 class _AppLocalizationsDelegate

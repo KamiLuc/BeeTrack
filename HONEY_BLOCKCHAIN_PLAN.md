@@ -24,6 +24,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
    - Indexes: (user_id, created_at DESC), (apiary_id, created_at DESC), UNIQUE (verification_token)
    - FK constraints: user_id → users(id), apiary_id → apiaries(id) ON DELETE CASCADE
    - Timestamps: TIMESTAMPTZ with DEFAULT NOW()
+   - **Deviation:** `apiary_id` was later dropped entirely (`034_remove_honey_batch_apiary.sql`) — a batch belongs only to `user_id`, no apiary scoping. The column, its index, and its FK described above no longer exist.
 
 2. **HC-DB-02: Create `honey_batch_qr_codes` table migration**
    - File: `backend/migrations/030_create_honey_batch_qr_codes.sql`
@@ -70,6 +71,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 5. **HC-BE-07: Create HoneyBatch model**
    - File: `backend/internal/model/honey_batch.go`
    - Struct fields match DB schema: ID, UserID, ApiaryID, VerificationToken (string, UUID), GatheringDate, AmountGrams (int64), ProcessingMethod, HoneyType, LabPDFURL, PDFFileHash, MetadataHash, DeletedAt (*time.Time), CreatedAt, UpdatedAt
+   - **Deviation:** `ApiaryID` was later removed from the struct (see HC-DB-01 deviation note).
    - No blockchain fields on this struct — see HoneyBatchCertification (HC-BE-07b)
    - ProcessingMethod as string type (raw, filtered, pasteurized)
 
@@ -99,6 +101,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 9. **HC-BE-09 to HC-BE-12: Create HoneyBatchRepository**
    - File: `backend/internal/repository/honey_batch.go`
    - Methods: Create(ctx, batch) error, GetByID(ctx, id) (*HoneyBatch, error), GetByVerificationToken(ctx, token) (*HoneyBatch, error), ListByUserID(ctx, userID, limit, offset), ListByApiaryID(ctx, apiaryID, limit, offset), UpdateNotes(ctx, id, notes, honeyType) error, SoftDelete(ctx, id) error
+   - **Deviation:** `ListByApiaryID` was later removed as dead code once `apiary_id` was dropped from `honey_batches` (see HC-DB-01 deviation note).
    - Use GORM pattern (receiver *HoneyBatchRepository(db *gorm.DB))
    - Follow error handling: return nil, nil for not found; return error otherwise
    - `Create` runs in a transaction together with the initial `blockchain_jobs` row insert (see HC-BE-13), so a batch is never persisted without a corresponding certification job.
@@ -171,6 +174,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       5. `processing_method` — exact enum string (`"raw"` / `"filtered"` / `"pasteurized"`)
       6. `honey_type` — UTF-8, NFC-normalized, as stored (no trimming/casing changes at hash time — normalization happens once at write time in the service layer so the hash always matches what's persisted)
       7. `pdf_file_hash` — lowercase hex string of the PDF's SHA256 (from `SHA256File`)
+    - **Deviation:** field 2 (`apiary_id`) was later dropped along with the column (see HC-DB-01 deviation note), leaving 6 fields (`batch_id`, `gathering_date`, `amount_grams`, `processing_method`, `honey_type`, `pdf_file_hash`) in the same relative order.
     - **Construction:** join the seven fields with the ASCII unit separator `\x1f` (0x1F) in the exact order above, encode the resulting string as UTF-8 bytes, then `sha256.Sum256(...)`. The unit separator (rather than e.g. `,` or `|`) is chosen because it cannot legally appear in any of the field values, so there is no ambiguity/injection risk between fields (e.g. a honey_type containing a comma can't shift field boundaries).
     - Output is stored as a lowercase hex string in `honey_batches.metadata_hash` and passed on-chain as `bytes32`.
     - This function is pure and deterministic: same `HoneyBatch` row → same hash, on any machine, any time, in Go or (if ever reimplemented) any other language — the spec above is the language-agnostic contract, not "read the Go source".
@@ -190,6 +194,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - User owns apiary (via apiary repo)
       - Apiary exists
       - AmountGrams > 0 and <= 100,000,000 (100,000 kg / 100 tonnes reasonable upper bound, expressed in grams — a sanity guard against typos/garbage input, not a realistic per-batch limit)
+    - **Deviation:** `apiaryID` and the apiary-ownership/existence checks above were later removed — `CreateBatch(ctx, userID, req)` no longer takes an apiary param at all (see HC-DB-01 deviation note).
       - HoneyType not empty, <= 100 chars
       - Processing method is valid
       - PDF file provided and accessible
@@ -278,6 +283,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - Auth required
     - Query params: apiary_id, honey_type, limit, offset
     - Return paginated list: `{items: [], total: int}` — each item includes its latest certification status for the list-view badge
+    - **Deviation:** the `apiary_id` query param no longer applies — the handler doesn't parse/return `apiary_id` at all (see HC-DB-01 deviation note).
 
 29. **HC-BE-21: Handler — GET /api/v1/verify/{token}/qr-code** *(moved under the token-scoped verify path)*
     - File: `backend/internal/handler/honey_batch.go`
@@ -351,6 +357,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
     - fromJson factory: parses API response
     - Fields: id, userId, apiaryId, verificationToken, gatheringDate, amountGrams (int), processingMethod, honeyType, labPdfUrl, pdfFileHash, createdAt, updatedAt — **no blockchainStatus/blockchainTxHash fields here**; those live on `HoneyBatchCertification` (HC-FE-08b)
     - `amountKg` getter (`amountGrams / 1000.0`) purely for display formatting — the canonical value passed around the app remains the integer `amountGrams`
+    - **Deviation:** `apiaryId` was later removed from `HoneyBatchModel` (see HC-DB-01 deviation note).
 
 38. **HC-FE-08b: HoneyBatchCertificationModel (Dart)** *(new)*
     - File: `app/lib/features/honey/data/honey_batch_certification_model.dart`
@@ -370,6 +377,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - listBatches(apiaryId, {limit, offset}) → Future<(items: List<HoneyBatch>, total: int)>
       - getBatch(id) → Future<HoneyBatch> (owner-scoped, numeric id)
       - createBatch(data, pdfFile, {requestCertification = false}) → Future<HoneyBatch> (multipart upload)
+      - **Deviation:** `listBatches`/`createBatch` no longer take an `apiaryId` param (see HC-DB-01 deviation note).
       - updateBatch(id, data) → Future<HoneyBatch>
       - deleteBatch(id) → Future<void>
       - requestCertification(id) → Future<void> (calls HC-BE-24c; also used to retry a failed/reverted certification, same endpoint)
@@ -391,6 +399,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - requestCertification(id) → re-enqueue (works whether `certification` is currently `null` or `failed`/`reverted`) and optimistically update the item's badge to "queued"
       - setApiaryFilter(apiaryId) → reload
     - Pagination: track offset, hasMore flag
+    - **Deviation:** no apiary filter/param exists — `load()`/`create()` don't take `apiaryId` and there's no `setApiaryFilter` (see HC-DB-01 deviation note).
 
 ### Phase 9: Frontend Core Screens (7 tasks)
 **Goals:** User-facing UI for creating, viewing, and verifying batches.
@@ -411,7 +420,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
       - Amount in kg (text input, numeric, decimal allowed for entry — converted to whole grams via `(kg * 1000).round()` before hitting the repository/API; the form validates the input still resolves to a positive integer gram amount)
       - Processing method (dropdown: raw/filtered/pasteurized)
       - Honey type (text input, autocomplete suggestions)
-      - Apiary selector (dropdown, pre-filled if from apiary detail)
+      - Apiary selector (dropdown, pre-filled if from apiary detail) — **removed**; the create form has no apiary picker at all (see HC-DB-01 deviation note)
       - PDF upload (file picker, show file name + size)
       - "Certify on the blockchain" toggle/checkbox — **off by default**, since certification is opt-in; when off, the batch is created with no certification attempt at all (`certification` stays `null`, certifiable later from the detail screen)
     - Submit button: calls cubit.create(), shows progress
@@ -420,7 +429,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 
 44. **HC-FE-03: Honey batch detail screen**
     - File: `app/lib/features/honey/view/honey_batch_detail_screen.dart`
-    - Displays: all batch info, gathering date, amount (formatted from `amountGrams` as kg), processing method, honey type, apiary name
+    - Displays: all batch info, gathering date, amount (formatted from `amountGrams` as kg), processing method, honey type, apiary name — **deviation:** no apiary name, batches have no apiary link (see HC-DB-01 deviation note)
     - PDF section: preview/download link (owner-scoped endpoint)
     - QR code section: display QR image (encodes the verification token URL), "Share" button — hidden/disabled while `certification` is `null`, since there's nothing on-chain yet to verify
     - Certification status section: badge shows a distinct "Not certified yet" indicator when `certification` is `null`, otherwise reflects the full lifecycle (queued/submitting/submitted/pending confirmation/confirmed/failed/reverted) + details button; when `null`, shows a "Certify" action, and if `failed`/`reverted`, shows a "Retry" action — both wired to the same `requestCertification` call
@@ -548,7 +557,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 62. **HC-10-10: Database indexing (backend)**
     - File: covered by the migrations in Phase 1 directly (HC-DB-01 through HC-DB-04) rather than a bolt-on later migration
     - Indexes in place:
-      - honey_batches: (user_id, created_at DESC), (apiary_id, created_at DESC), UNIQUE (verification_token)
+      - honey_batches: (user_id, created_at DESC), (apiary_id, created_at DESC), UNIQUE (verification_token) — **deviation:** the `apiary_id` index no longer exists, `apiary_id` was dropped (see HC-DB-01 deviation note)
       - blockchain_jobs: (status, next_retry_at) — the worker's claim query
       - honey_batch_certifications: (batch_id, created_at DESC), partial UNIQUE (batch_id) WHERE status IN ('submitted','pending_confirmation','confirmed')
 
@@ -678,7 +687,7 @@ Epic 9 ("Honey Certification & Blockchain") from BACKLOG.md aims to create an im
 2. ✅ Certification status transitions, observed via `/verify/{token}`: queued → submitting → submitted → pending_confirmation → confirmed
 3. ✅ Verify batch: hash matches, tx confirmed
 4. ✅ Generate & scan QR code — scanned URL contains a verification token, not a numeric id
-5. ✅ List batches by apiary + pagination
+5. ✅ List batches by user + pagination — **deviation:** no apiary scoping, batches list per-user only (see HC-DB-01 deviation note)
 6. ✅ Edit batch notes (no certification changes)
 7. ✅ Delete batch (soft delete; on-chain record untouched)
 8. ✅ Offline: batch listed, certification status shows last-known state

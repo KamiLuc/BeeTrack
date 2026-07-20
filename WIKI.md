@@ -34,7 +34,7 @@ app/               # Flutter app
       treatment/   # treatment CRUD + history — Cubit pattern
       harvest/     # harvest CRUD + history — Cubit pattern
       marketplace/ # marketplace listings — search feed, create/edit, detail, my listings, favorites
-      honey_batch/ # honey batch data layer — models + repository wrapping honey batch/verification endpoints
+      honey_batch/ # honey batch list + create/certify — Cubit pattern, wrapping honey batch/verification endpoints
       home/        # HomeScreen (shell after login)
     l10n/          # ARB files (app_en.arb, app_pl.arb) + generated classes
     main.dart
@@ -47,7 +47,7 @@ app/               # Flutter app
       treatment/   # treatments_cubit_test.dart, treatment_form_fields_test.dart
       harvest/     # harvests_cubit_test.dart, harvest_form_fields_test.dart
       marketplace/ # listing_model_test.dart, marketplace_home_screen_test.dart
-      honey_batch/ # honey batch model + repository tests
+      honey_batch/ # honey batch model, repository, and cubit tests
 
 docker/            # Docker Compose config
 ```
@@ -293,7 +293,7 @@ type InspectionImage struct {
 - Imperative `Navigator.push` / `MaterialPageRoute` for screen-to-screen navigation within a section — no named routes, no GoRouter.
 - Top-level navigation (switching between Apiaries, Marketplace, and the login screen) is handled differently: it's driven by app state, not by pushing routes, so logging in or out always lands you in the right place.
 - Apiaries is the app's main section, but it requires being logged in. A visitor who isn't logged in lands on the login screen by default; Marketplace is public and can be browsed without an account by choosing it from the navigation drawer.
-- A navigation drawer (opened from the hamburger icon in the top-left) lets you switch between Apiaries and Marketplace, and log out, when signed in. When signed out, the drawer instead offers Marketplace (browsable) and a way to log in — Apiaries is visible but shown as locked until you sign in.
+- A navigation drawer (opened from the hamburger icon in the top-left) lets you switch between Apiaries, Honey Batches, and Marketplace, and log out, when signed in. When signed out, the drawer instead offers Marketplace (browsable) and a way to log in — Apiaries is visible but shown as locked until you sign in (Honey Batches is not shown to signed-out visitors).
 - The bottom amber banner pattern (see below) is reserved for actions on the current screen (add, filter, etc.), not for switching between top-level sections.
 - Pattern after returning from a pushed screen:
   ```dart
@@ -332,7 +332,7 @@ type InspectionImage struct {
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
 | `app/lib/features/inspection/data/inspection_image_model.dart` | `InspectionImage` — id, inspectionId, mimeType, createdAt; `fromJson` factory |
 | `app/lib/features/inspection/data/inspection_image_repository.dart` | `listImages`, `uploadImage` (multipart via Dio), `deleteImage`, `imageUrl()` (builds full URL from `apiClient.baseUrl`), `authHeaders()` |
-| `app/lib/core/widgets/app_drawer.dart` | `AuthenticatedAppDrawer(current, onSelect)` and `UnauthenticatedAppDrawer(isLogin, onMarketplace, onLogin)` — top-level nav Drawer variants, both built on shared private `_DrawerNavTile`; `AppSection` enum (`apiaries`, `marketplace`); authenticated variant highlights `current` section and calls `onSelect` (mutates `AuthWrapper` state, no `Navigator`), plus logout; unauthenticated variant shows Apiaries highlighted-but-locked, Marketplace, and Log in, used on both `MarketplaceHomeScreen` and `LoginScreen` |
+| `app/lib/core/widgets/app_drawer.dart` | `AuthenticatedAppDrawer(current, onSelect)` and `UnauthenticatedAppDrawer(isLogin, onMarketplace, onLogin)` — top-level nav Drawer variants, both built on shared private `_DrawerNavTile`; `AppSection` enum (`apiaries`, `marketplace`, `honeyBatches`); authenticated variant highlights `current` section and calls `onSelect` (mutates `AuthWrapper` state, no `Navigator`), plus logout; unauthenticated variant shows Apiaries highlighted-but-locked, Marketplace, and Log in, used on both `MarketplaceHomeScreen` and `LoginScreen` |
 | `app/lib/l10n/app_en.arb` | Source of truth for all UI strings |
 
 ---
@@ -554,6 +554,22 @@ ApiariesScreen (shown once logged in)
                       │     • ← prev / page number buttons / next → (hidden when only 1 page)
                       │   Page numbers show: 1 … currentPage … lastPage (ellipsis condenses middle).
                           └── InspectionFormScreen (add button in banner)
+
+HoneyBatchesHomeScreen (signed-in only — reached from the drawer's "Honey Batches" option)
+  │   Lists the caller's honey batches, newest first, page by page (same pagination
+  │   pattern as InspectionHistoryScreen). Each card shows gathering date, honey type,
+  │   processing method, amount, and a certification status badge. Bottom amber banner:
+  │   + (add) → CreateHoneyBatchScreen; empty state shows just the banner's + button.
+  ├── CreateHoneyBatchScreen (+ button in banner)
+  │   │   Form: gathering date, amount (kg), processing method, honey type, required
+  │   │   lab PDF upload (via file_picker), and a toggle to request certification
+  │   │   immediately on creation. Batches belong only to their creator — no apiary
+  │   │   link.
+  └── HoneyBatchDetailScreen (tap a card)
+      │   Shows batch details, certification status badge, and a certify/retry action
+      │   (button label and behaviour depend on certification status: none yet →
+      │   "Certify"; failed/reverted → "Retry"; confirmed → view/download QR buttons;
+      │   otherwise shows an in-progress spinner). AppBar delete icon removes the batch.
 
 MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option)
   │   Search bar + category dropdown + page-based listing feed (20 per page, same

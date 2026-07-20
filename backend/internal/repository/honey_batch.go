@@ -122,19 +122,6 @@ func (r *HoneyBatchRepository) CountByUserID(ctx context.Context, userID int64) 
 	return count, err
 }
 
-// ListByApiaryID returns non-deleted batches for apiaryID, ordered by
-// creation time descending, with pagination.
-func (r *HoneyBatchRepository) ListByApiaryID(ctx context.Context, apiaryID int64, limit, offset int) ([]*model.HoneyBatch, error) {
-	var batches []*model.HoneyBatch
-	err := r.db.WithContext(ctx).
-		Where("apiary_id = ? AND deleted_at IS NULL", apiaryID).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&batches).Error
-	return batches, err
-}
-
 // UpdateNotes overwrites the honey_type of the given batch — the only
 // user-editable field on honey_batches (see honey_batches schema, HC-DB-01).
 func (r *HoneyBatchRepository) UpdateNotes(ctx context.Context, id int64, honeyType string) error {

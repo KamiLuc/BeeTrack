@@ -14,6 +14,7 @@ import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/view/login_screen.dart';
 import 'features/apiary/view/apiaries_screen.dart';
+import 'features/honey_batch/view/honey_batches_home_screen.dart';
 import 'features/marketplace/view/marketplace_home_screen.dart';
 import 'l10n/app_localizations.dart';
 
@@ -106,6 +107,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   onSelectSection: (s) => setState(() => _section = s),
                 ),
               AppSection.marketplace => MarketplaceHomeScreen(
+                  onSelectSection: (s) => setState(() => _section = s),
+                ),
+              AppSection.honeyBatches => HoneyBatchesHomeScreen(
                   onSelectSection: (s) => setState(() => _section = s),
                 ),
             };

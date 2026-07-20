@@ -25,6 +25,24 @@ func (r *BlockchainJobRepository) Create(ctx context.Context, j *model.Blockchai
 	return r.db.WithContext(ctx).Create(j).Error
 }
 
+// HasPendingJob reports whether batchID already has a job that's still in
+// flight (queued, submitting, submitted, or pending_confirmation) — used to
+// stop RetryCertification from enqueuing a second job on top of one the
+// worker hasn't claimed/resolved yet.
+func (r *BlockchainJobRepository) HasPendingJob(ctx context.Context, batchID int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.BlockchainJob{}).
+		Where("batch_id = ? AND status IN ?", batchID, []model.CertificationStatus{
+			model.CertificationStatusQueued,
+			model.CertificationStatusSubmitting,
+			model.CertificationStatusSubmitted,
+			model.CertificationStatusPendingConfirmation,
+		}).
+		Count(&count).Error
+	return count > 0, err
+}
+
 // ClaimNext atomically selects and claims one runnable job (queued or failed,
 // due for retry), so multiple worker instances can run against the same queue
 // safely. Claiming immediately transitions the job to "submitting" within the

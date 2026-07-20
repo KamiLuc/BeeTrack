@@ -3,7 +3,6 @@ import 'processing_method.dart';
 
 class HoneyBatchModel {
   final int id;
-  final int apiaryId;
   final String verificationToken;
   final DateTime gatheringDate;
   final int amountGrams;
@@ -16,7 +15,6 @@ class HoneyBatchModel {
 
   const HoneyBatchModel({
     required this.id,
-    required this.apiaryId,
     required this.verificationToken,
     required this.gatheringDate,
     required this.amountGrams,
@@ -33,7 +31,6 @@ class HoneyBatchModel {
   factory HoneyBatchModel.fromJson(Map<String, dynamic> json) {
     return HoneyBatchModel(
       id: json['id'] as int,
-      apiaryId: json['apiary_id'] as int,
       verificationToken: json['verification_token'] as String,
       gatheringDate: DateTime.parse(json['gathering_date'] as String).toLocal(),
       amountGrams: json['amount_grams'] as int,

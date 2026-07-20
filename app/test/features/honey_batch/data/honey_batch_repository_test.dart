@@ -42,7 +42,6 @@ class _RecordingAdapter implements HttpClientAdapter {
 
 Map<String, dynamic> _batchJson({int id = 1}) => {
       'id': id,
-      'apiary_id': 2,
       'verification_token': 'tok-123',
       'gathering_date': '2024-05-01T00:00:00Z',
       'amount_grams': 2500,
@@ -101,7 +100,6 @@ void main() {
       adapter.responseData = _batchJson();
 
       final batch = await repository.createBatch(
-        apiaryId: 2,
         gatheringDate: DateTime(2024, 5, 1),
         amountGrams: 2500,
         processingMethod: ProcessingMethod.pasteurized,
@@ -116,7 +114,6 @@ void main() {
 
       final data = adapter.lastOptions!.data as FormData;
       final fields = {for (final f in data.fields) f.key: f.value};
-      expect(fields['apiary_id'], '2');
       expect(fields['gathering_date'], '2024-05-01');
       expect(fields['amount_grams'], '2500');
       expect(fields['processing_method'], 'pasteurized');

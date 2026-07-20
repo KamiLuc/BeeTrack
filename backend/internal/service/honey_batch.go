@@ -13,7 +13,6 @@ import (
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/validation"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 const maxAmountGrams = 100_000_000
@@ -31,6 +30,7 @@ var (
 	ErrBatchNotFound           = errors.New("honey batch not found")
 	ErrBatchNotCertified       = errors.New("honey batch does not have a confirmed certification yet")
 	ErrBatchAlreadyCertified   = errors.New("honey batch already has a live certification")
+	ErrBatchHasNoPDF           = errors.New("honey batch has no lab PDF; a PDF is required to certify")
 )
 
 // HoneyBatchRepository is the persistence interface for honey batches used by HoneyBatchService.
@@ -59,11 +59,11 @@ type HoneyBatchQRCodeRepository interface {
 // BlockchainJobRepository is the persistence interface for enqueuing certification jobs used by HoneyBatchService.
 type BlockchainJobRepository interface {
 	Create(ctx context.Context, j *model.BlockchainJob) error
+	HasPendingJob(ctx context.Context, batchID int64) (bool, error)
 }
 
 // HoneyBatchService handles business logic for honey batch certification.
 type HoneyBatchService struct {
-	apiaries       ApiaryMembershipReader
 	batches        HoneyBatchRepository
 	certifications HoneyBatchCertificationRepository
 	qrCodes        HoneyBatchQRCodeRepository
@@ -73,8 +73,8 @@ type HoneyBatchService struct {
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies. Lab PDFs are stored under pdfStoragePath.
-func NewHoneyBatchService(apiaries ApiaryMembershipReader, batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
-	return &HoneyBatchService{apiaries: apiaries, batches: batches, certifications: certifications, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
+func NewHoneyBatchService(batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
+	return &HoneyBatchService{batches: batches, certifications: certifications, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch, including the raw lab PDF upload.
@@ -88,6 +88,10 @@ type CreateBatchRequest struct {
 	RequestCertification bool
 }
 
+// validateCreateBatchRequest checks req's fields. The lab PDF is only
+// required when RequestCertification is true — a batch can be created
+// without one and certified later, at which point a PDF must be attached.
+// If a PDF is provided at all, it's always validated regardless of the flag.
 func validateCreateBatchRequest(req CreateBatchRequest) error {
 	if req.AmountGrams <= 0 || req.AmountGrams > maxAmountGrams {
 		return ErrInvalidAmount
@@ -102,7 +106,10 @@ func validateCreateBatchRequest(req CreateBatchRequest) error {
 		return ErrInvalidProcessingMethod
 	}
 	if len(req.PDFData) == 0 {
-		return ErrPDFRequired
+		if req.RequestCertification {
+			return ErrPDFRequired
+		}
+		return nil
 	}
 	if req.PDFMimeType != "application/pdf" {
 		return ErrInvalidPDFType
@@ -118,48 +125,44 @@ func validateCreateBatchRequest(req CreateBatchRequest) error {
 // enqueued in the same transaction as the batch insert — no blockchain call
 // happens here. If false, the batch is created with no certification
 // attempt at all; the owner can request one later.
-func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID, apiaryID int64, req CreateBatchRequest) (*model.HoneyBatch, error) {
+func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID int64, req CreateBatchRequest) (*model.HoneyBatch, error) {
 	if err := validateCreateBatchRequest(req); err != nil {
 		return nil, err
 	}
-	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrApiaryNotFound
+
+	var filename, pdfHashHex string
+	if len(req.PDFData) > 0 {
+		if err := os.MkdirAll(s.pdfStoragePath, 0o755); err != nil {
+			return nil, fmt.Errorf("create pdf storage dir: %w", err)
 		}
-		return nil, fmt.Errorf("get apiary: %w", err)
-	}
+		filename = uuid.New().String() + ".pdf"
+		pdfPath := filepath.Join(s.pdfStoragePath, filename)
+		if err := os.WriteFile(pdfPath, req.PDFData, 0o644); err != nil {
+			return nil, fmt.Errorf("write pdf: %w", err)
+		}
 
-	if err := os.MkdirAll(s.pdfStoragePath, 0o755); err != nil {
-		return nil, fmt.Errorf("create pdf storage dir: %w", err)
-	}
-	filename := uuid.New().String() + ".pdf"
-	pdfPath := filepath.Join(s.pdfStoragePath, filename)
-	if err := os.WriteFile(pdfPath, req.PDFData, 0o644); err != nil {
-		return nil, fmt.Errorf("write pdf: %w", err)
-	}
-
-	pdfHash, err := blockchain.SHA256File(pdfPath)
-	if err != nil {
-		_ = os.Remove(pdfPath)
-		return nil, fmt.Errorf("hash pdf: %w", err)
+		pdfHash, err := blockchain.SHA256File(pdfPath)
+		if err != nil {
+			_ = os.Remove(pdfPath)
+			return nil, fmt.Errorf("hash pdf: %w", err)
+		}
+		pdfHashHex = hex.EncodeToString(pdfHash[:])
 	}
 
 	token, err := uuid.NewRandom()
 	if err != nil {
-		_ = os.Remove(pdfPath)
 		return nil, fmt.Errorf("generate verification token: %w", err)
 	}
 
 	batch := &model.HoneyBatch{
 		UserID:            userID,
-		ApiaryID:          apiaryID,
 		VerificationToken: token.String(),
 		GatheringDate:     req.GatheringDate,
 		AmountGrams:       req.AmountGrams,
 		ProcessingMethod:  req.ProcessingMethod,
 		HoneyType:         req.HoneyType,
 		LabPDFURL:         filename,
-		PDFFileHash:       hex.EncodeToString(pdfHash[:]),
+		PDFFileHash:       pdfHashHex,
 	}
 
 	var job *model.BlockchainJob
@@ -172,7 +175,9 @@ func (s *HoneyBatchService) CreateBatch(ctx context.Context, userID, apiaryID in
 	}
 
 	if err := s.batches.CreateWithCertificationJob(ctx, batch, job); err != nil {
-		_ = os.Remove(pdfPath)
+		if filename != "" {
+			_ = os.Remove(s.FilePath(filename))
+		}
 		return nil, fmt.Errorf("create honey batch: %w", err)
 	}
 
@@ -295,11 +300,22 @@ func (s *HoneyBatchService) RetryCertification(ctx context.Context, userID, batc
 	if err != nil {
 		return err
 	}
+	if batch.PDFFileHash == "" {
+		return ErrBatchHasNoPDF
+	}
 	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
 	if err != nil {
 		return fmt.Errorf("get latest certification: %w", err)
 	}
 	if cert != nil && cert.Status.IsLive() {
+		return ErrBatchAlreadyCertified
+	}
+	// A queued/in-flight job may not have a certification row yet (the worker
+	// only creates one once it claims the job), so the cert.IsLive() check
+	// above can't catch a duplicate retry click during that window.
+	if pending, err := s.jobs.HasPendingJob(ctx, batch.ID); err != nil {
+		return fmt.Errorf("check pending job: %w", err)
+	} else if pending {
 		return ErrBatchAlreadyCertified
 	}
 	job := &model.BlockchainJob{
@@ -319,6 +335,9 @@ func (s *HoneyBatchService) GetBatchPDF(ctx context.Context, userID, batchID int
 	batch, err := s.ownedBatch(ctx, userID, batchID)
 	if err != nil {
 		return "", err
+	}
+	if batch.LabPDFURL == "" {
+		return "", ErrBatchHasNoPDF
 	}
 	return s.FilePath(batch.LabPDFURL), nil
 }

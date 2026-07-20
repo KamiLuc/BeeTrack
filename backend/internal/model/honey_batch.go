@@ -27,7 +27,6 @@ func IsValidProcessingMethod(method string) bool {
 type HoneyBatch struct {
 	ID                int64
 	UserID            int64
-	ApiaryID          int64
 	VerificationToken string
 	GatheringDate     time.Time
 	AmountGrams       int64

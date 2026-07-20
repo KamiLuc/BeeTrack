@@ -77,7 +77,7 @@ func main() {
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
-	honeyBatchSvc := service.NewHoneyBatchService(apiaryRepo, honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.AppURL, cfg.PDFStoragePath)
+	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.AppURL, cfg.PDFStoragePath)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)

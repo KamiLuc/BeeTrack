@@ -6,7 +6,6 @@ import 'package:app/features/honey_batch/data/processing_method.dart';
 void main() {
   Map<String, dynamic> baseJson({Object? certification}) => {
         'id': 1,
-        'apiary_id': 2,
         'verification_token': 'tok-123',
         'gathering_date': '2024-05-01T00:00:00Z',
         'amount_grams': 2500,
@@ -22,7 +21,6 @@ void main() {
     test('parses fields with certification absent', () {
       final m = HoneyBatchModel.fromJson(baseJson());
       expect(m.id, 1);
-      expect(m.apiaryId, 2);
       expect(m.verificationToken, 'tok-123');
       expect(
         m.gatheringDate.isAtSameMomentAs(DateTime.parse('2024-05-01T00:00:00Z')),

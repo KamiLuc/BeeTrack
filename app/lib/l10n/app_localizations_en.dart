@@ -1100,4 +1100,104 @@ class AppLocalizationsEn extends AppLocalizations {
   String harvestHarvestedBy(String name) {
     return 'By $name';
   }
+
+  @override
+  String get honeyBatchTitle => 'Honey Batches';
+
+  @override
+  String get honeyBatchEmpty => 'No honey batches yet';
+
+  @override
+  String get honeyBatchAdd => 'Add honey batch';
+
+  @override
+  String get honeyBatchDetailTitle => 'Honey Batch';
+
+  @override
+  String get honeyBatchHoneyType => 'Honey type';
+
+  @override
+  String get honeyBatchHoneyTypeRequired => 'Honey type is required';
+
+  @override
+  String get honeyBatchProcessingMethod => 'Processing method';
+
+  @override
+  String get honeyBatchMethodRaw => 'Raw';
+
+  @override
+  String get honeyBatchMethodFiltered => 'Filtered';
+
+  @override
+  String get honeyBatchMethodPasteurized => 'Pasteurized';
+
+  @override
+  String get honeyBatchGatheringDate => 'Gathering date';
+
+  @override
+  String get honeyBatchAmountKg => 'Amount (kg)';
+
+  @override
+  String get honeyBatchAmountRequired => 'Amount is required';
+
+  @override
+  String get honeyBatchAmountInvalid => 'Enter a valid amount';
+
+  @override
+  String get honeyBatchPdfLabel => 'Lab PDF';
+
+  @override
+  String get honeyBatchPdfRequired => 'Attach the lab PDF';
+
+  @override
+  String get honeyBatchNoPdf => 'None';
+
+  @override
+  String get honeyBatchCertifyToggle => 'Certify on the blockchain';
+
+  @override
+  String get honeyBatchCertify => 'Certify on blockchain';
+
+  @override
+  String get honeyBatchRetry => 'Retry certification';
+
+  @override
+  String get honeyBatchNotCertified => 'Not certified';
+
+  @override
+  String get honeyBatchInProgress => 'Certification in progress';
+
+  @override
+  String get honeyBatchDeleteConfirm => 'Delete honey batch?';
+
+  @override
+  String get honeyBatchDeleteWarning =>
+      'This will permanently delete the honey batch record.';
+
+  @override
+  String get honeyBatchStatusQueued => 'Queued';
+
+  @override
+  String get honeyBatchStatusSubmitting => 'Submitting';
+
+  @override
+  String get honeyBatchStatusSubmitted => 'Submitted';
+
+  @override
+  String get honeyBatchStatusPendingConfirmation => 'Pending confirmation';
+
+  @override
+  String get honeyBatchStatusConfirmed => 'Confirmed';
+
+  @override
+  String get honeyBatchStatusFailed => 'Failed';
+
+  @override
+  String get honeyBatchStatusReverted => 'Reverted';
+
+  @override
+  String get honeyBatchViewQr => 'View QR code';
+
+  @override
+  String get honeyBatchDownloadQr => 'Download QR code';
 }

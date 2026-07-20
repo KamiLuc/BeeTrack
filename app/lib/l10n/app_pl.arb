@@ -444,5 +444,39 @@
     "placeholders": {
       "name": { "type": "String" }
     }
-  }
+  },
+
+  "honeyBatchTitle": "Partie miodu",
+  "honeyBatchEmpty": "Brak partii miodu",
+  "honeyBatchAdd": "Dodaj partię miodu",
+  "honeyBatchDetailTitle": "Partia miodu",
+  "honeyBatchHoneyType": "Rodzaj miodu",
+  "honeyBatchHoneyTypeRequired": "Rodzaj miodu jest wymagany",
+  "honeyBatchProcessingMethod": "Metoda przetwarzania",
+  "honeyBatchMethodRaw": "Surowy",
+  "honeyBatchMethodFiltered": "Filtrowany",
+  "honeyBatchMethodPasteurized": "Pasteryzowany",
+  "honeyBatchGatheringDate": "Data pozyskania",
+  "honeyBatchAmountKg": "Ilość (kg)",
+  "honeyBatchAmountRequired": "Ilość jest wymagana",
+  "honeyBatchAmountInvalid": "Podaj prawidłową ilość",
+  "honeyBatchPdfLabel": "PDF z badania laboratoryjnego",
+  "honeyBatchPdfRequired": "Dołącz PDF z badania laboratoryjnego",
+  "honeyBatchNoPdf": "Brak",
+  "honeyBatchCertifyToggle": "Certyfikuj",
+  "honeyBatchCertify": "Certyfikuj",
+  "honeyBatchRetry": "Ponów certyfikację",
+  "honeyBatchNotCertified": "Niecertyfikowane",
+  "honeyBatchInProgress": "Certyfikacja w toku",
+  "honeyBatchDeleteConfirm": "Usunąć partię miodu?",
+  "honeyBatchDeleteWarning": "Ta operacja trwale usunie wpis partii miodu.",
+  "honeyBatchStatusQueued": "W kolejce",
+  "honeyBatchStatusSubmitting": "Wysyłanie",
+  "honeyBatchStatusSubmitted": "Wysłano",
+  "honeyBatchStatusPendingConfirmation": "Oczekuje na potwierdzenie",
+  "honeyBatchStatusConfirmed": "Potwierdzono",
+  "honeyBatchStatusFailed": "Niepowodzenie",
+  "honeyBatchStatusReverted": "Wycofano",
+  "honeyBatchViewQr": "Pokaż kod QR",
+  "honeyBatchDownloadQr": "Pobierz kod QR"
 }

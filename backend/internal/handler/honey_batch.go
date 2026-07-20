@@ -41,7 +41,6 @@ func certificationJSON(c *model.HoneyBatchCertification) any {
 func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification) map[string]any {
 	return map[string]any{
 		"id":                 b.ID,
-		"apiary_id":          b.ApiaryID,
 		"verification_token": b.VerificationToken,
 		"gathering_date":     b.GatheringDate,
 		"amount_grams":       b.AmountGrams,
@@ -58,8 +57,6 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrBatchNotFound):
 		respond.Error(w, http.StatusNotFound, "BATCH_NOT_FOUND", "honey batch not found")
-	case errors.Is(err, service.ErrApiaryNotFound):
-		respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
 	case errors.Is(err, service.ErrInvalidAmount):
 		respond.Error(w, http.StatusBadRequest, "INVALID_AMOUNT", err.Error())
 	case errors.Is(err, service.ErrHoneyTypeRequired):
@@ -78,6 +75,8 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "BATCH_NOT_CERTIFIED", err.Error())
 	case errors.Is(err, service.ErrBatchAlreadyCertified):
 		respond.Error(w, http.StatusConflict, "BATCH_ALREADY_CERTIFIED", err.Error())
+	case errors.Is(err, service.ErrBatchHasNoPDF):
+		respond.Error(w, http.StatusConflict, "BATCH_HAS_NO_PDF", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -102,12 +101,6 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.FormValue("apiary_id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary_id")
-		return
-	}
-
 	gatheringDate, err := time.Parse("2006-01-02", r.FormValue("gathering_date"))
 	if err != nil {
 		respond.Error(w, http.StatusBadRequest, "INVALID_DATE", "gathering_date must be YYYY-MM-DD")
@@ -120,16 +113,24 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, header, err := r.FormFile("lab_pdf")
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "MISSING_FILE", "field 'lab_pdf' is required")
-		return
-	}
-	defer file.Close()
+	requestCertification := r.FormValue("request_certification") == "true"
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not read file")
+	// The lab PDF is only required up front when certification is requested
+	// immediately; otherwise it can be attached later via retry-certification.
+	var pdfMimeType string
+	var pdfData []byte
+	file, header, ferr := r.FormFile("lab_pdf")
+	if ferr == nil {
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not read file")
+			return
+		}
+		pdfMimeType = header.Header.Get("Content-Type")
+		pdfData = data
+	} else if requestCertification {
+		respond.Error(w, http.StatusBadRequest, "MISSING_FILE", "field 'lab_pdf' is required when requesting certification")
 		return
 	}
 
@@ -138,12 +139,12 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		AmountGrams:          amountGrams,
 		ProcessingMethod:     r.FormValue("processing_method"),
 		HoneyType:            r.FormValue("honey_type"),
-		PDFMimeType:          header.Header.Get("Content-Type"),
-		PDFData:              data,
-		RequestCertification: r.FormValue("request_certification") == "true",
+		PDFMimeType:          pdfMimeType,
+		PDFData:              pdfData,
+		RequestCertification: requestCertification,
 	}
 
-	batch, err := h.batches.CreateBatch(r.Context(), userID, apiaryID, req)
+	batch, err := h.batches.CreateBatch(r.Context(), userID, req)
 	if err != nil {
 		honeyBatchError(w, err)
 		return

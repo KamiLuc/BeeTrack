@@ -123,6 +123,7 @@ func (m *mockHoneyBatchQRCodeRepo) Create(ctx context.Context, q *model.HoneyBat
 type mockHoneyBatchJobRepo struct {
 	created *model.BlockchainJob
 	err     error
+	pending bool
 }
 
 func (m *mockHoneyBatchJobRepo) Create(ctx context.Context, j *model.BlockchainJob) error {
@@ -133,15 +134,19 @@ func (m *mockHoneyBatchJobRepo) Create(ctx context.Context, j *model.BlockchainJ
 	return nil
 }
 
-const testAppURL = "https://app.example.com"
+func (m *mockHoneyBatchJobRepo) HasPendingJob(ctx context.Context, batchID int64) (bool, error) {
+	return m.pending, nil
+}
 
-func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockApiaryMembershipReader, *mockHoneyBatchRepo) {
+const testAppURL = "https://app.example.com"
+const testPDFHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+
+func newTestHoneyBatchService(t *testing.T) (*HoneyBatchService, *mockHoneyBatchRepo) {
 	t.Helper()
-	apiaries := &mockApiaryMembershipReader{apiary: &model.Apiary{ID: 1}, role: "member"}
 	batches := &mockHoneyBatchRepo{}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	return NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir()), apiaries, batches
+	return NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir()), batches
 }
 
 func validCreateBatchRequest() CreateBatchRequest {
@@ -156,10 +161,10 @@ func validCreateBatchRequest() CreateBatchRequest {
 }
 
 func TestCreateBatch_NoJobByDefault(t *testing.T) {
-	svc, _, repo := newTestHoneyBatchService(t)
+	svc, repo := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 
-	batch, err := svc.CreateBatch(context.Background(), 42, 1, req)
+	batch, err := svc.CreateBatch(context.Background(), 42, req)
 	if err != nil {
 		t.Fatalf("CreateBatch() error = %v", err)
 	}
@@ -178,11 +183,11 @@ func TestCreateBatch_NoJobByDefault(t *testing.T) {
 }
 
 func TestCreateBatch_RequestCertification(t *testing.T) {
-	svc, _, repo := newTestHoneyBatchService(t)
+	svc, repo := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.RequestCertification = true
 
-	batch, err := svc.CreateBatch(context.Background(), 42, 1, req)
+	batch, err := svc.CreateBatch(context.Background(), 42, req)
 	if err != nil {
 		t.Fatalf("CreateBatch() error = %v", err)
 	}
@@ -198,80 +203,89 @@ func TestCreateBatch_RequestCertification(t *testing.T) {
 }
 
 func TestCreateBatch_InvalidAmount(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.AmountGrams = 0
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrInvalidAmount {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrInvalidAmount {
 		t.Errorf("expected ErrInvalidAmount, got %v", err)
 	}
 }
 
 func TestCreateBatch_HoneyTypeRequired(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.HoneyType = ""
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrHoneyTypeRequired {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrHoneyTypeRequired {
 		t.Errorf("expected ErrHoneyTypeRequired, got %v", err)
 	}
 }
 
 func TestCreateBatch_InvalidProcessingMethod(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.ProcessingMethod = "boiled"
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrInvalidProcessingMethod {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrInvalidProcessingMethod {
 		t.Errorf("expected ErrInvalidProcessingMethod, got %v", err)
 	}
 }
 
 func TestCreateBatch_PDFRequired(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.PDFData = nil
+	req.RequestCertification = true
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrPDFRequired {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrPDFRequired {
 		t.Errorf("expected ErrPDFRequired, got %v", err)
 	}
 }
 
+func TestCreateBatch_NoPDFAllowedWithoutCertification(t *testing.T) {
+	svc, repo := newTestHoneyBatchService(t)
+	req := validCreateBatchRequest()
+	req.PDFData = nil
+	req.PDFMimeType = ""
+
+	batch, err := svc.CreateBatch(context.Background(), 42, req)
+	if err != nil {
+		t.Fatalf("CreateBatch() error = %v", err)
+	}
+	if batch.PDFFileHash != "" || batch.LabPDFURL != "" {
+		t.Errorf("expected no PDF stored, got hash=%q url=%q", batch.PDFFileHash, batch.LabPDFURL)
+	}
+	if repo.createdJob != nil {
+		t.Error("expected no blockchain job when RequestCertification is false")
+	}
+}
+
 func TestCreateBatch_InvalidPDFType(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.PDFMimeType = "image/png"
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrInvalidPDFType {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrInvalidPDFType {
 		t.Errorf("expected ErrInvalidPDFType, got %v", err)
 	}
 }
 
 func TestCreateBatch_PDFTooLarge(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
+	svc, _ := newTestHoneyBatchService(t)
 	req := validCreateBatchRequest()
 	req.PDFData = make([]byte, maxLabPDFBytes+1)
 
-	if _, err := svc.CreateBatch(context.Background(), 42, 1, req); err != ErrPDFTooLarge {
+	if _, err := svc.CreateBatch(context.Background(), 42, req); err != ErrPDFTooLarge {
 		t.Errorf("expected ErrPDFTooLarge, got %v", err)
 	}
 }
 
-func TestCreateBatch_ApiaryNotFound(t *testing.T) {
-	svc, _, _ := newTestHoneyBatchService(t)
-	req := validCreateBatchRequest()
-
-	if _, err := svc.CreateBatch(context.Background(), 42, 999, req); err != ErrApiaryNotFound {
-		t.Errorf("expected ErrApiaryNotFound, got %v", err)
-	}
-}
-
 func TestGetBatchWithVerification_NeverCertified(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
 	certifications := &mockHoneyBatchCertificationRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
 	if err != nil {
@@ -286,12 +300,11 @@ func TestGetBatchWithVerification_NeverCertified(t *testing.T) {
 }
 
 func TestGetBatchWithVerification_WithCertification(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
 	cert := &model.HoneyBatchCertification{ID: 5, BatchID: 1, Status: model.CertificationStatusConfirmed}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: cert}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	result, err := svc.GetBatchWithVerification(context.Background(), "tok-1")
 	if err != nil {
@@ -303,10 +316,9 @@ func TestGetBatchWithVerification_WithCertification(t *testing.T) {
 }
 
 func TestGetBatchWithVerification_TokenNotFound(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
 	certifications := &mockHoneyBatchCertificationRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatchWithVerification(context.Background(), "unknown-token"); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -314,12 +326,11 @@ func TestGetBatchWithVerification_TokenNotFound(t *testing.T) {
 }
 
 func TestGetBatch_Owned(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42, VerificationToken: "tok-1"}
 	cert := &model.HoneyBatchCertification{ID: 5, BatchID: 1, Status: model.CertificationStatusQueued}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: cert}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	result, err := svc.GetBatch(context.Background(), 42, 1)
 	if err != nil {
@@ -331,10 +342,9 @@ func TestGetBatch_Owned(t *testing.T) {
 }
 
 func TestGetBatch_NotOwner(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatch(context.Background(), 999, 1); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound for a non-owner, got %v", err)
@@ -342,9 +352,8 @@ func TestGetBatch_NotOwner(t *testing.T) {
 }
 
 func TestGetBatch_NotFound(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatch(context.Background(), 42, 999); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -352,13 +361,12 @@ func TestGetBatch_NotFound(t *testing.T) {
 }
 
 func TestListBatches(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	b1 := &model.HoneyBatch{ID: 1, UserID: 42}
 	b2 := &model.HoneyBatch{ID: 2, UserID: 42}
 	cert1 := &model.HoneyBatchCertification{ID: 10, BatchID: 1, Status: model.CertificationStatusConfirmed}
 	batches := &mockHoneyBatchRepo{byUser: map[int64][]*model.HoneyBatch{42: {b1, b2}}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: cert1}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	items, total, err := svc.ListBatches(context.Background(), 42, 20, 0)
 	if err != nil {
@@ -376,10 +384,9 @@ func TestListBatches(t *testing.T) {
 }
 
 func TestUpdateHoneyType_Owned(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42, HoneyType: "Lipowy"}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	updated, err := svc.UpdateHoneyType(context.Background(), 42, 1, "Gryczany")
 	if err != nil {
@@ -394,10 +401,9 @@ func TestUpdateHoneyType_Owned(t *testing.T) {
 }
 
 func TestUpdateHoneyType_NotOwner(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.UpdateHoneyType(context.Background(), 999, 1, "Gryczany"); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -405,9 +411,8 @@ func TestUpdateHoneyType_NotOwner(t *testing.T) {
 }
 
 func TestUpdateHoneyType_Required(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.UpdateHoneyType(context.Background(), 42, 1, ""); err != ErrHoneyTypeRequired {
 		t.Errorf("expected ErrHoneyTypeRequired, got %v", err)
@@ -415,10 +420,9 @@ func TestUpdateHoneyType_Required(t *testing.T) {
 }
 
 func TestDeleteBatch_Owned(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if err := svc.DeleteBatch(context.Background(), 42, 1); err != nil {
 		t.Fatalf("DeleteBatch() error = %v", err)
@@ -429,10 +433,9 @@ func TestDeleteBatch_Owned(t *testing.T) {
 }
 
 func TestDeleteBatch_NotOwner(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if err := svc.DeleteBatch(context.Background(), 999, 1); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -443,11 +446,10 @@ func TestDeleteBatch_NotOwner(t *testing.T) {
 }
 
 func TestRetryCertification_NeverCertified(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
-	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	jobs := &mockHoneyBatchJobRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
 
 	if err := svc.RetryCertification(context.Background(), 42, 1); err != nil {
 		t.Fatalf("RetryCertification() error = %v", err)
@@ -461,12 +463,11 @@ func TestRetryCertification_NeverCertified(t *testing.T) {
 }
 
 func TestRetryCertification_AfterFailed(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
-	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusFailed}}}
 	jobs := &mockHoneyBatchJobRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
 
 	if err := svc.RetryCertification(context.Background(), 42, 1); err != nil {
 		t.Fatalf("RetryCertification() error = %v", err)
@@ -477,12 +478,11 @@ func TestRetryCertification_AfterFailed(t *testing.T) {
 }
 
 func TestRetryCertification_AfterReverted(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
-	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusReverted}}}
 	jobs := &mockHoneyBatchJobRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
 
 	if err := svc.RetryCertification(context.Background(), 42, 1); err != nil {
 		t.Fatalf("RetryCertification() error = %v", err)
@@ -493,12 +493,11 @@ func TestRetryCertification_AfterReverted(t *testing.T) {
 }
 
 func TestRetryCertification_AlreadyLive(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
-	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
 	jobs := &mockHoneyBatchJobRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
 
 	if err := svc.RetryCertification(context.Background(), 42, 1); err != ErrBatchAlreadyCertified {
 		t.Errorf("expected ErrBatchAlreadyCertified, got %v", err)
@@ -508,12 +507,25 @@ func TestRetryCertification_AlreadyLive(t *testing.T) {
 	}
 }
 
+func TestRetryCertification_AlreadyPending(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	jobs := &mockHoneyBatchJobRepo{pending: true}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+
+	if err := svc.RetryCertification(context.Background(), 42, 1); err != ErrBatchAlreadyCertified {
+		t.Errorf("expected ErrBatchAlreadyCertified, got %v", err)
+	}
+	if jobs.created != nil {
+		t.Error("expected no second job to be enqueued while one is still queued/in-flight")
+	}
+}
+
 func TestRetryCertification_NotOwner(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	jobs := &mockHoneyBatchJobRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
 
 	if err := svc.RetryCertification(context.Background(), 999, 1); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -523,11 +535,24 @@ func TestRetryCertification_NotOwner(t *testing.T) {
 	}
 }
 
+func TestRetryCertification_NoPDF(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	jobs := &mockHoneyBatchJobRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, jobs, testAppURL, t.TempDir())
+
+	if err := svc.RetryCertification(context.Background(), 42, 1); err != ErrBatchHasNoPDF {
+		t.Errorf("expected ErrBatchHasNoPDF, got %v", err)
+	}
+	if jobs.created != nil {
+		t.Error("expected no job to be enqueued when the batch has no PDF")
+	}
+}
+
 func TestGetBatchPDF_Owned(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42, LabPDFURL: "abc.pdf"}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, "/data/pdfs")
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, "/data/pdfs")
 
 	path, err := svc.GetBatchPDF(context.Background(), 42, 1)
 	if err != nil {
@@ -539,22 +564,30 @@ func TestGetBatchPDF_Owned(t *testing.T) {
 }
 
 func TestGetBatchPDF_NotOwner(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, UserID: 42}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatchPDF(context.Background(), 999, 1); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
 	}
 }
 
+func TestGetBatchPDF_NoPDF(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.GetBatchPDF(context.Background(), 42, 1); err != ErrBatchHasNoPDF {
+		t.Errorf("expected ErrBatchHasNoPDF, got %v", err)
+	}
+}
+
 func TestGetBatchPDFByToken_Confirmed(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1", LabPDFURL: "abc.pdf"}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, "/data/pdfs")
+	svc := NewHoneyBatchService(batches, certifications, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, "/data/pdfs")
 
 	path, err := svc.GetBatchPDFByToken(context.Background(), "tok-1")
 	if err != nil {
@@ -566,10 +599,9 @@ func TestGetBatchPDFByToken_Confirmed(t *testing.T) {
 }
 
 func TestGetBatchPDFByToken_NotCertified(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatchPDFByToken(context.Background(), "tok-1"); err != ErrBatchNotCertified {
 		t.Errorf("expected ErrBatchNotCertified, got %v", err)
@@ -577,9 +609,8 @@ func TestGetBatchPDFByToken_NotCertified(t *testing.T) {
 }
 
 func TestGetBatchPDFByToken_NotFound(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GetBatchPDFByToken(context.Background(), "unknown"); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -587,12 +618,11 @@ func TestGetBatchPDFByToken_NotFound(t *testing.T) {
 }
 
 func TestGenerateQRCodeDataByToken_Confirmed(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}, byID: map[int64]*model.HoneyBatch{1: batch}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	data, err := svc.GenerateQRCodeDataByToken(context.Background(), "tok-1")
 	if err != nil {
@@ -605,9 +635,8 @@ func TestGenerateQRCodeDataByToken_Confirmed(t *testing.T) {
 }
 
 func TestGenerateQRCodeDataByToken_TokenNotFound(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
-	svc := NewHoneyBatchService(apiaries, batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeDataByToken(context.Background(), "unknown"); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -615,11 +644,10 @@ func TestGenerateQRCodeDataByToken_TokenNotFound(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_FirstCallCreatesRow(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	data, err := svc.GenerateQRCodeData(context.Background(), 1)
 	if err != nil {
@@ -635,12 +663,11 @@ func TestGenerateQRCodeData_FirstCallCreatesRow(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_ReusesExistingRow(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	existing := &model.HoneyBatchQRCode{ID: 9, BatchID: 1, QRCodeData: testAppURL + "/verify/tok-1"}
 	qrCodes := &mockHoneyBatchQRCodeRepo{byBatchID: map[int64]*model.HoneyBatchQRCode{1: existing}}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	data, err := svc.GenerateQRCodeData(context.Background(), 1)
 	if err != nil {
@@ -655,11 +682,10 @@ func TestGenerateQRCodeData_ReusesExistingRow(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_BatchNotFound(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{}}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 999); err != ErrBatchNotFound {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
@@ -667,11 +693,10 @@ func TestGenerateQRCodeData_BatchNotFound(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_NotCertifiedYet(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusSubmitted}}}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
 		t.Errorf("expected ErrBatchNotCertified, got %v", err)
@@ -682,11 +707,10 @@ func TestGenerateQRCodeData_NotCertifiedYet(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_NeverCertified(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
 		t.Errorf("expected ErrBatchNotCertified, got %v", err)
@@ -694,11 +718,10 @@ func TestGenerateQRCodeData_NeverCertified(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_Reverted(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusReverted}}}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err != ErrBatchNotCertified {
 		t.Errorf("expected ErrBatchNotCertified, got %v", err)
@@ -709,11 +732,10 @@ func TestGenerateQRCodeData_Reverted(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_CertificationRepoError(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{err: errors.New("db down")}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
 		t.Error("expected error, got nil")
@@ -721,11 +743,10 @@ func TestGenerateQRCodeData_CertificationRepoError(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_QRRepoLookupError(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	qrCodes := &mockHoneyBatchQRCodeRepo{err: errors.New("db down")}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
 		t.Error("expected error, got nil")
@@ -733,11 +754,10 @@ func TestGenerateQRCodeData_QRRepoLookupError(t *testing.T) {
 }
 
 func TestGenerateQRCodeData_BatchRepoError(t *testing.T) {
-	apiaries := &mockApiaryMembershipReader{}
 	batches := &mockHoneyBatchRepo{err: errors.New("db down")}
 	certifications := &mockHoneyBatchCertificationRepo{}
 	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(apiaries, batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+	svc := NewHoneyBatchService(batches, certifications, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
 		t.Error("expected error, got nil")

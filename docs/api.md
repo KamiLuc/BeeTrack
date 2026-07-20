@@ -1683,14 +1683,13 @@ Deletes a harvest record.
 
 ## Honey Batches
 
-Honey batches record a harvest lot for certification. Every endpoint is scoped to the authenticated caller as owner — a batch belongs to whichever user created it, not to the apiary's other members.
+Honey batches record a harvest lot for certification. Every endpoint is scoped to the authenticated caller as owner — a batch belongs to whichever user created it, with no apiary scoping.
 
 ### Honey batch object
 
 ```json
 {
   "id": 1,
-  "apiary_id": 5,
   "verification_token": "b2e1c9e0-....-....-....-............",
   "gathering_date": "2026-07-01T00:00:00Z",
   "amount_grams": 5000,
@@ -1717,7 +1716,6 @@ Creates a honey batch. Request is `multipart/form-data` (not JSON) because it in
 **Form fields**
 | Field | Type | Description |
 |-------|------|-------------|
-| `apiary_id` | int | Apiary the batch belongs to; caller must be a member |
 | `gathering_date` | string | `YYYY-MM-DD` |
 | `amount_grams` | int | Grams of honey in the batch; must be > 0 and ≤ 100,000,000 |
 | `processing_method` | string | `raw`, `filtered`, or `pasteurized` |
@@ -1732,7 +1730,6 @@ Creates a honey batch. Request is `multipart/form-data` (not JSON) because it in
 |------|--------|-------------|
 | `MISSING_TOKEN` | 401 | No Bearer token in header |
 | `INVALID_BODY` | 400 | Malformed multipart form |
-| `INVALID_ID` | 400 | `apiary_id` is not a valid integer |
 | `INVALID_DATE` | 400 | `gathering_date` is not `YYYY-MM-DD` |
 | `INVALID_AMOUNT` | 400 | `amount_grams` missing/not an integer, or out of range (0 < n ≤ 100,000,000) |
 | `HONEY_TYPE_REQUIRED` | 400 | `honey_type` is empty |
@@ -1741,7 +1738,6 @@ Creates a honey batch. Request is `multipart/form-data` (not JSON) because it in
 | `MISSING_FILE` | 400 | `lab_pdf` field missing from form |
 | `INVALID_PDF_TYPE` | 400 | `lab_pdf` content type is not `application/pdf` |
 | `PDF_TOO_LARGE` | 413 | `lab_pdf` exceeds 10 MB |
-| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or caller is not a member |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---

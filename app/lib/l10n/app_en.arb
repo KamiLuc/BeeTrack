@@ -432,5 +432,39 @@
     "placeholders": {
       "name": { "type": "String" }
     }
-  }
+  },
+
+  "honeyBatchTitle": "Honey Batches",
+  "honeyBatchEmpty": "No honey batches yet",
+  "honeyBatchAdd": "Add honey batch",
+  "honeyBatchDetailTitle": "Honey Batch",
+  "honeyBatchHoneyType": "Honey type",
+  "honeyBatchHoneyTypeRequired": "Honey type is required",
+  "honeyBatchProcessingMethod": "Processing method",
+  "honeyBatchMethodRaw": "Raw",
+  "honeyBatchMethodFiltered": "Filtered",
+  "honeyBatchMethodPasteurized": "Pasteurized",
+  "honeyBatchGatheringDate": "Gathering date",
+  "honeyBatchAmountKg": "Amount (kg)",
+  "honeyBatchAmountRequired": "Amount is required",
+  "honeyBatchAmountInvalid": "Enter a valid amount",
+  "honeyBatchPdfLabel": "Lab PDF",
+  "honeyBatchPdfRequired": "Attach the lab PDF",
+  "honeyBatchNoPdf": "None",
+  "honeyBatchCertifyToggle": "Certify on the blockchain",
+  "honeyBatchCertify": "Certify on blockchain",
+  "honeyBatchRetry": "Retry certification",
+  "honeyBatchNotCertified": "Not certified",
+  "honeyBatchInProgress": "Certification in progress",
+  "honeyBatchDeleteConfirm": "Delete honey batch?",
+  "honeyBatchDeleteWarning": "This will permanently delete the honey batch record.",
+  "honeyBatchStatusQueued": "Queued",
+  "honeyBatchStatusSubmitting": "Submitting",
+  "honeyBatchStatusSubmitted": "Submitted",
+  "honeyBatchStatusPendingConfirmation": "Pending confirmation",
+  "honeyBatchStatusConfirmed": "Confirmed",
+  "honeyBatchStatusFailed": "Failed",
+  "honeyBatchStatusReverted": "Reverted",
+  "honeyBatchViewQr": "View QR code",
+  "honeyBatchDownloadQr": "Download QR code"
 }

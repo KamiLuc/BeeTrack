@@ -1117,4 +1117,104 @@ class AppLocalizationsPl extends AppLocalizations {
   String harvestHarvestedBy(String name) {
     return 'Przez $name';
   }
+
+  @override
+  String get honeyBatchTitle => 'Partie miodu';
+
+  @override
+  String get honeyBatchEmpty => 'Brak partii miodu';
+
+  @override
+  String get honeyBatchAdd => 'Dodaj partię miodu';
+
+  @override
+  String get honeyBatchDetailTitle => 'Partia miodu';
+
+  @override
+  String get honeyBatchHoneyType => 'Rodzaj miodu';
+
+  @override
+  String get honeyBatchHoneyTypeRequired => 'Rodzaj miodu jest wymagany';
+
+  @override
+  String get honeyBatchProcessingMethod => 'Metoda przetwarzania';
+
+  @override
+  String get honeyBatchMethodRaw => 'Surowy';
+
+  @override
+  String get honeyBatchMethodFiltered => 'Filtrowany';
+
+  @override
+  String get honeyBatchMethodPasteurized => 'Pasteryzowany';
+
+  @override
+  String get honeyBatchGatheringDate => 'Data pozyskania';
+
+  @override
+  String get honeyBatchAmountKg => 'Ilość (kg)';
+
+  @override
+  String get honeyBatchAmountRequired => 'Ilość jest wymagana';
+
+  @override
+  String get honeyBatchAmountInvalid => 'Podaj prawidłową ilość';
+
+  @override
+  String get honeyBatchPdfLabel => 'PDF z badania laboratoryjnego';
+
+  @override
+  String get honeyBatchPdfRequired => 'Dołącz PDF z badania laboratoryjnego';
+
+  @override
+  String get honeyBatchNoPdf => 'Brak';
+
+  @override
+  String get honeyBatchCertifyToggle => 'Certyfikuj';
+
+  @override
+  String get honeyBatchCertify => 'Certyfikuj';
+
+  @override
+  String get honeyBatchRetry => 'Ponów certyfikację';
+
+  @override
+  String get honeyBatchNotCertified => 'Niecertyfikowane';
+
+  @override
+  String get honeyBatchInProgress => 'Certyfikacja w toku';
+
+  @override
+  String get honeyBatchDeleteConfirm => 'Usunąć partię miodu?';
+
+  @override
+  String get honeyBatchDeleteWarning =>
+      'Ta operacja trwale usunie wpis partii miodu.';
+
+  @override
+  String get honeyBatchStatusQueued => 'W kolejce';
+
+  @override
+  String get honeyBatchStatusSubmitting => 'Wysyłanie';
+
+  @override
+  String get honeyBatchStatusSubmitted => 'Wysłano';
+
+  @override
+  String get honeyBatchStatusPendingConfirmation => 'Oczekuje na potwierdzenie';
+
+  @override
+  String get honeyBatchStatusConfirmed => 'Potwierdzono';
+
+  @override
+  String get honeyBatchStatusFailed => 'Niepowodzenie';
+
+  @override
+  String get honeyBatchStatusReverted => 'Wycofano';
+
+  @override
+  String get honeyBatchViewQr => 'Pokaż kod QR';
+
+  @override
+  String get honeyBatchDownloadQr => 'Pobierz kod QR';
 }

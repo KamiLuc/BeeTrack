@@ -41,7 +41,7 @@
 
 | ID       | Layer | Status | Title                                     | Notes                                                                                                                                                                                            |
 | -------- | ----- | ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HC-DB-01 | `DB`  | `[x]`  | Create `honey_batches` table              | `backend/migrations/029_...`. No blockchain fields — those live in HC-DB-04. Includes `verification_token` (UUID, UNIQUE) and `amount_grams` (BIGINT, not float). `deleted_at` for soft delete. |
+| HC-DB-01 | `DB`  | `[x]`  | Create `honey_batches` table              | `backend/migrations/029_...`. No blockchain fields — those live in HC-DB-04. Includes `verification_token` (UUID, UNIQUE) and `amount_grams` (BIGINT, not float). `deleted_at` for soft delete. `apiary_id` was later dropped entirely (`034_remove_honey_batch_apiary.sql`) — a batch belongs only to its creating user, no apiary scoping (plan text was stale on this). |
 | HC-DB-02 | `DB`  | `[x]`  | Create `honey_batch_qr_codes` table       | `backend/migrations/030_...`. `qr_code_data` encodes `/verify/{verification_token}`, never the numeric id.                                                                                     |
 | HC-DB-03 | `DB`  | `[x]`  | Create `blockchain_jobs` table            | `backend/migrations/031_...`. Durable queue: status, attempt_count, next_retry_at, last_error. Index (status, next_retry_at) for the worker's claim query.                                     |
 | HC-DB-04 | `DB`  | `[x]`  | Create `honey_batch_certifications` table | `backend/migrations/032_...`. Append-only per-batch history (chain_id, contract_address, tx_hash, block_number, status, gas_used). Partial UNIQUE (batch_id) WHERE status is "live" — idempotency guard. |
@@ -58,7 +58,7 @@
 | HC-BE-07c | `BE`  | `[x]`  | Model: `BlockchainJob` struct                     | Reuses `CertificationStatus` for its own status field.                                                                      |
 | HC-BE-09  | `BE`  | `[x]`  | Repository: `HoneyBatchRepository` — Create        | Runs in a transaction together with the initial `blockchain_jobs` insert (HC-BE-13) — a batch is never persisted without a job. |
 | HC-BE-10  | `BE`  | `[x]`  | Repository: Get by ID / by verification token      | `GetByID` (owner-scoped), `GetByVerificationToken` (public path)                                                            |
-| HC-BE-11  | `BE`  | `[x]`  | Repository: List batches by user/apiary            | `ListByUserID`, `ListByApiaryID`, paginated                                                                                 |
+| HC-BE-11  | `BE`  | `[x]`  | Repository: List batches by user/apiary            | `ListByUserID`, paginated. `ListByApiaryID` was later removed as dead code once `apiary_id` was dropped from `honey_batches` (see HC-DB-01) — plan text was stale on this. |
 | HC-BE-12  | `BE`  | `[x]`  | Repository: Update notes / soft delete             | `UpdateNotes`, `SoftDelete` — no status/blockchain mutation methods here anymore. `UpdateNotes` only touches `honey_type`; there's no `notes` column on `honey_batches` (plan text was stale on this). |
 | HC-BE-12b | `BE`  | `[x]`  | Repository: `HoneyBatchCertificationRepository` + `BlockchainJobRepository` | Certification repo: Create, GetLatestByBatchID, ListByBatchID, UpdateStatus. Job repo: Create, `ClaimNext` (SELECT...FOR UPDATE SKIP LOCKED, atomically flips claimed job to `submitting` in the same tx), MarkSubmitting/Submitted/Failed, ListPendingConfirmation. |
 
@@ -74,7 +74,7 @@
 | HC-BE-04  | `BE`  | `[x]`  | Blockchain writer                    | `CertifyBatch(...)` — called **only** by the worker (HC-BE-15b), never from the HTTP path. Returns tx hash immediately, doesn't wait for confirmation. |
 | HC-BE-05  | `BE`  | `[x]`  | Blockchain reader                    | `VerifyBatch(...)` + `GetTransactionStatus(txHash)` (confirmed/reverted/blockNumber/gasUsed) — used by the confirmation-polling loop (HC-BE-15c).  |
 | HC-BE-06  | `BE`  | `[x]`  | Hash utilities — PDF                 | `SHA256File(filePath)` for PDF hashing.                                                                                                            |
-| HC-BE-06b | `BE`  | `[x]`  | Canonical metadata hashing           | `CanonicalMetadataHash(batch)` — exact 7-field order, `\x1f`-joined, UTF-8, SHA256. No `fmt.Sprintf`/struct-JSON. See plan §HC-BE-06b for the full field spec — this is the language-agnostic contract, not "read the Go source." |
+| HC-BE-06b | `BE`  | `[x]`  | Canonical metadata hashing           | `CanonicalMetadataHash(batch)` — exact 6-field order, `\x1f`-joined, UTF-8, SHA256. No `fmt.Sprintf`/struct-JSON. `apiary_id` was dropped from the field list once `honey_batches.apiary_id` was removed (see HC-DB-01) — plan text (7 fields) was stale on this. See plan §HC-BE-06b for the full field spec — this is the language-agnostic contract, not "read the Go source." |
 
 ---
 
@@ -82,7 +82,7 @@
 
 | ID        | Layer | Status | Title                                    | Notes                                                                                                                                                          |
 | --------- | ----- | ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HC-BE-13  | `BE`  | `[x]`  | Service: Create honey batch              | Validate → hash PDF → generate verification token → compute metadata hash → **in one transaction**: insert batch, and only if `RequestCertification` is true, insert `blockchain_jobs` row (`status=queued`) → return. No blockchain call here. Default is **not** to certify. |
+| HC-BE-13  | `BE`  | `[x]`  | Service: Create honey batch              | `CreateBatch(ctx, userID, req)` — no `apiaryID` param and no apiary-membership check (plan text was stale on this; a batch belongs only to `user_id`, see HC-DB-01). Validate → hash PDF → generate verification token → compute metadata hash → **in one transaction**: insert batch, and only if `RequestCertification` is true, insert `blockchain_jobs` row (`status=queued`) → return. No blockchain call here. Default is **not** to certify. |
 | HC-BE-14  | `BE`  | `[x]`  | Service: Get batch + verify              | `GetBatchWithVerification(token)` — reads latest certification from DB (kept fresh by the worker), not a live RPC call per request. No row → nil certification field, not an error. No DB-only hash-comparison field (schema doesn't store the on-chain hash to compare against). |
 | HC-BE-15b | `BE`  | `[x]`  | Worker: process certify jobs             | `ProcessNextJob` — claim job → idempotency check (skip if a "live" certification already exists) → submit tx → update certification/job status. Retry via exponential backoff (1s/2s/4s/8s, capped) on failure. |
 | HC-BE-15c | `BE`  | `[x]`  | Worker: poll for confirmations           | `PollSubmittedJobs` — for submitted/pending_confirmation jobs, check tx status; move to confirmed/reverted once mined & enough confirmations, or leave pending. |
@@ -133,7 +133,7 @@
 
 | ID       | Layer | Status | Title              | Notes                                                                                                    |
 | -------- | ----- | ------ | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| HC-FE-19 | `FE`  | `[ ]`  | Honey BLoC/Cubit    | `create()` takes `requestCertification` (default false); resulting batch's `certification` is `queued` or stays `null`. Adds `requestCertification(id)` method (certify-now or retry). |
+| HC-FE-19 | `FE`  | `[x]`  | Honey BLoC/Cubit    | `create()` takes `requestCertification` (default false); resulting batch's `certification` is `queued` or stays `null`. Adds `requestCertification(id)` method (certify-now or retry). |
 
 ---
 
@@ -141,13 +141,13 @@
 
 | ID       | Layer | Status | Title                                     | Notes                                                                                                                             |
 | -------- | ----- | ------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| HC-FE-01 | `FE`  | `[ ]`  | Honey batches home screen                 | List badges reflect full lifecycle, not just pending/confirmed/failed.                                                            |
-| HC-FE-02 | `FE`  | `[ ]`  | Create honey batch screen                 | Amount entered in kg, converted to whole grams (`(kg*1000).round()`) before hitting the API. Adds a "Certify on the blockchain" toggle, off by default. Success message depends on the toggle. |
-| HC-FE-03 | `FE`  | `[ ]`  | Honey batch detail screen                 | Owner view (numeric id). Shows "Certify" action when `certification` is `null`, "Retry" when `failed`/`reverted`. QR/share hidden while `null`. |
+| HC-FE-01 | `FE`  | `[x]`  | Honey batches home screen                 | List badges reflect full lifecycle, not just pending/confirmed/failed. New top-level `AppSection.honeyBatches` drawer entry (not hive/apiary-scoped — mirrors the repository, which lists all of the user's batches). |
+| HC-FE-02 | `FE`  | `[x]`  | Create honey batch screen                 | Amount entered in kg, converted to whole grams (`(kg*1000).round()`) before hitting the API. Adds a "Certify on the blockchain" toggle, off by default. Success message depends on the toggle. PDF picked via `file_picker` (added as a new dependency; `withData: true` for web). |
+| HC-FE-03 | `FE`  | `[x]`  | Honey batch detail screen                 | Owner view (numeric id). Shows "Certify" action when `certification` is `null`, "Retry" when `failed`/`reverted`. QR/share buttons shown once `confirmed`, wired to TODO stubs pending HC-FE-05. |
 | HC-FE-04 | `FE`  | `[ ]`  | Honey batch verification screen           | Loaded via `verifyByToken` — public, no auth. Refresh re-fetches DB state, not a live RPC call.                                   |
 | HC-FE-05 | `FE`  | `[ ]`  | QR code display screen                    | Shows the QR via `/verify/{token}/qr-code` (inline). Add a "Download" action that links/saves `/verify/{token}/qr-code/download` instead — same image, forces a save dialog for printing. |
 | HC-FE-06 | `FE`  | `[ ]`  | QR code scanner screen                    | Extracts the **verification token** (UUID string) from the scanned URL, not a numeric id.                                        |
-| HC-FE-18 | `FE`  | `[ ]`  | Add Honey Batches section to hive detail  | Unchanged from original plan.                                                                                                     |
+| HC-FE-18 | `FE`  | `[ ]`  | Add Honey Batches section to hive detail  | Plan text is stale: batches no longer have an `apiary_id`/hive link at all (see HC-DB-01), so "batches from this hive" no longer applies — batches are only scoped to their owning user. |
 
 ---
 

@@ -12,11 +12,5 @@ void main() {
     test('fromJson falls back to raw for unknown value', () {
       expect(ProcessingMethod.fromJson('unknown'), ProcessingMethod.raw);
     });
-
-    test('label returns human-readable text', () {
-      expect(ProcessingMethod.raw.label, 'Raw');
-      expect(ProcessingMethod.filtered.label, 'Filtered');
-      expect(ProcessingMethod.pasteurized.label, 'Pasteurized');
-    });
   });
 }

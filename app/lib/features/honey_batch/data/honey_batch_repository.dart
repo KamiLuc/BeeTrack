@@ -41,28 +41,27 @@ class HoneyBatchRepository {
   }
 
   Future<HoneyBatchModel> createBatch({
-    required int apiaryId,
     required DateTime gatheringDate,
     required int amountGrams,
     required ProcessingMethod processingMethod,
     required String honeyType,
-    required List<int> pdfBytes,
-    required String pdfFilename,
+    List<int>? pdfBytes,
+    String? pdfFilename,
     bool requestCertification = false,
   }) async {
     try {
       final formData = FormData.fromMap({
-        'apiary_id': apiaryId.toString(),
         'gathering_date': DateFormat('yyyy-MM-dd').format(gatheringDate),
         'amount_grams': amountGrams.toString(),
         'processing_method': processingMethod.toJson(),
         'honey_type': honeyType,
         'request_certification': requestCertification.toString(),
-        'lab_pdf': MultipartFile.fromBytes(
-          pdfBytes,
-          filename: pdfFilename,
-          contentType: DioMediaType.parse('application/pdf'),
-        ),
+        if (pdfBytes != null)
+          'lab_pdf': MultipartFile.fromBytes(
+            pdfBytes,
+            filename: pdfFilename,
+            contentType: DioMediaType.parse('application/pdf'),
+          ),
       });
       final response = await _api.dio.post(
         '/api/v1/honey-batches',

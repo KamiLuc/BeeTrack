@@ -1,3 +1,5 @@
+import '../../../l10n/app_localizations.dart';
+
 enum ProcessingMethod {
   raw('raw'),
   filtered('filtered'),
@@ -15,10 +17,12 @@ enum ProcessingMethod {
   }
 
   String toJson() => value;
+}
 
-  String get label => switch (this) {
-        ProcessingMethod.raw => 'Raw',
-        ProcessingMethod.filtered => 'Filtered',
-        ProcessingMethod.pasteurized => 'Pasteurized',
-      };
+String processingMethodLabel(AppLocalizations l10n, ProcessingMethod method) {
+  return switch (method) {
+    ProcessingMethod.raw => l10n.honeyBatchMethodRaw,
+    ProcessingMethod.filtered => l10n.honeyBatchMethodFiltered,
+    ProcessingMethod.pasteurized => l10n.honeyBatchMethodPasteurized,
+  };
 }
