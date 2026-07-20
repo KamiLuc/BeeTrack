@@ -3,15 +3,17 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
 type mockCertificationRequestStore struct {
-	byID           map[int64]*model.HoneyBatchCertificationRequest
-	pending        []*model.HoneyBatchCertificationRequest
+	byID           map[int64]*model.HoneyBatchCertificationRequestDetail
+	pending        []*model.HoneyBatchCertificationRequestDetail
 	total          int64
 	approvedID     int64
 	approvedBy     int64
@@ -23,14 +25,14 @@ type mockCertificationRequestStore struct {
 	err            error
 }
 
-func (m *mockCertificationRequestStore) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequest, int64, error) {
+func (m *mockCertificationRequestStore) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
 	if m.err != nil {
 		return nil, 0, m.err
 	}
 	return m.pending, m.total, nil
 }
 
-func (m *mockCertificationRequestStore) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequest, error) {
+func (m *mockCertificationRequestStore) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -58,7 +60,10 @@ func (m *mockCertificationRequestStore) Reject(ctx context.Context, id, reviewer
 
 func TestCertificationReview_ListPending(t *testing.T) {
 	store := &mockCertificationRequestStore{
-		pending: []*model.HoneyBatchCertificationRequest{{ID: 1}, {ID: 2}},
+		pending: []*model.HoneyBatchCertificationRequestDetail{
+			{HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1}},
+			{HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 2}},
+		},
 		total:   2,
 	}
 	svc := NewCertificationReviewService(store)
@@ -73,7 +78,7 @@ func TestCertificationReview_ListPending(t *testing.T) {
 }
 
 func TestCertificationReview_Get_NotFound(t *testing.T) {
-	store := &mockCertificationRequestStore{byID: map[int64]*model.HoneyBatchCertificationRequest{}}
+	store := &mockCertificationRequestStore{byID: map[int64]*model.HoneyBatchCertificationRequestDetail{}}
 	svc := NewCertificationReviewService(store)
 
 	if _, err := svc.Get(context.Background(), 999); err != ErrCertificationRequestNotFound {
@@ -82,8 +87,8 @@ func TestCertificationReview_Get_NotFound(t *testing.T) {
 }
 
 func TestCertificationReview_Get_Found(t *testing.T) {
-	req := &model.HoneyBatchCertificationRequest{ID: 1, BatchID: 5}
-	store := &mockCertificationRequestStore{byID: map[int64]*model.HoneyBatchCertificationRequest{1: req}}
+	req := &model.HoneyBatchCertificationRequestDetail{HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1, BatchID: 5}}
+	store := &mockCertificationRequestStore{byID: map[int64]*model.HoneyBatchCertificationRequestDetail{1: req}}
 	svc := NewCertificationReviewService(store)
 
 	got, err := svc.Get(context.Background(), 1)
@@ -155,5 +160,44 @@ func TestCertificationReview_Reject_Success(t *testing.T) {
 	}
 	if store.rejectedID != 1 || store.rejectedBy != 7 || store.rejectedReason != "bad pdf" {
 		t.Errorf("expected Reject(1, 7, %q), got Reject(%d, %d, %q)", "bad pdf", store.rejectedID, store.rejectedBy, store.rejectedReason)
+	}
+}
+
+func TestCertificationReview_Reject_WhitespaceOnlyReason(t *testing.T) {
+	store := &mockCertificationRequestStore{}
+	svc := NewCertificationReviewService(store)
+
+	if err := svc.Reject(context.Background(), 7, 1, "   "); err != ErrRejectionReasonRequired {
+		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
+	}
+	if store.rejectedID != 0 {
+		t.Error("expected no reject call to the store")
+	}
+}
+
+func TestCertificationReview_Reject_ReasonLength(t *testing.T) {
+	tests := []struct {
+		name    string
+		reason  string
+		wantErr error
+	}{
+		{"too short", "ab", ErrRejectionReasonTooShort},
+		{"exactly min length", "abc", nil},
+		{"too long", strings.Repeat("a", validation.Large.MaxLength()+1), ErrRejectionReasonTooLong},
+		{"exactly max length", strings.Repeat("a", validation.Large.MaxLength()), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockCertificationRequestStore{}
+			svc := NewCertificationReviewService(store)
+
+			err := svc.Reject(context.Background(), 7, 1, tt.reason)
+			if err != tt.wantErr {
+				t.Errorf("Reject() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil && store.rejectedID != 0 {
+				t.Error("expected no reject call to the store")
+			}
+		})
 	}
 }

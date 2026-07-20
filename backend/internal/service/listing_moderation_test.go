@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
@@ -143,6 +145,45 @@ func TestListingModeration_Reject_Success(t *testing.T) {
 	}
 	if store.rejectedID != 1 || store.rejectedBy != 7 || store.rejectedReason != "bad photos" {
 		t.Errorf("expected Reject(1, 7, %q), got Reject(%d, %d, %q)", "bad photos", store.rejectedID, store.rejectedBy, store.rejectedReason)
+	}
+}
+
+func TestListingModeration_Reject_WhitespaceOnlyReason(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Reject(context.Background(), 7, 1, "   "); err != ErrRejectionReasonRequired {
+		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
+	}
+	if store.rejectedID != 0 {
+		t.Error("expected no reject call to the store")
+	}
+}
+
+func TestListingModeration_Reject_ReasonLength(t *testing.T) {
+	tests := []struct {
+		name    string
+		reason  string
+		wantErr error
+	}{
+		{"too short", "ab", ErrRejectionReasonTooShort},
+		{"exactly min length", "abc", nil},
+		{"too long", strings.Repeat("a", validation.Large.MaxLength()+1), ErrRejectionReasonTooLong},
+		{"exactly max length", strings.Repeat("a", validation.Large.MaxLength()), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
+			svc := NewListingModerationService(store)
+
+			err := svc.Reject(context.Background(), 7, 1, tt.reason)
+			if err != tt.wantErr {
+				t.Errorf("Reject() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil && store.rejectedID != 0 {
+				t.Error("expected no reject call to the store")
+			}
+		})
 	}
 }
 

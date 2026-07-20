@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin",
+      "runtimeExecutable": "C:\\Dev\\nodejs\\node.exe",
+      "runtimeArgs": ["C:\\Dev\\repos\\BeeTrack\\admin\\node_modules\\vite\\bin\\vite.js", "C:\\Dev\\repos\\BeeTrack\\admin"],
+      "port": 5174
+    }
+  ]
+}

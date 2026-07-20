@@ -24,16 +24,22 @@ func (r *HoneyBatchCertificationRequestRepository) Create(ctx context.Context, r
 	return r.db.WithContext(ctx).Create(req).Error
 }
 
-func (r *HoneyBatchCertificationRequestRepository) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequest, error) {
-	var req model.HoneyBatchCertificationRequest
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&req).Error
+func (r *HoneyBatchCertificationRequestRepository) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error) {
+	var detail model.HoneyBatchCertificationRequestDetail
+	err := r.db.WithContext(ctx).
+		Table("honey_batch_certification_requests cr").
+		Select("cr.*, b.gathering_date, b.amount_grams, b.honey_type, u.email AS requester_email").
+		Joins("JOIN honey_batches b ON b.id = cr.batch_id").
+		Joins("JOIN users u ON u.id = cr.requested_by").
+		Where("cr.id = ?", id).
+		First(&detail).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &req, nil
+	return &detail, nil
 }
 
 // GetPendingForBatch returns batchID's pending request, or nil if none — used
@@ -69,17 +75,21 @@ func (r *HoneyBatchCertificationRequestRepository) GetLatestByBatchID(ctx contex
 
 // ListPending returns pending requests oldest-first, for the admin queue,
 // along with the total pending count.
-func (r *HoneyBatchCertificationRequestRepository) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequest, int64, error) {
+func (r *HoneyBatchCertificationRequestRepository) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).Model(&model.HoneyBatchCertificationRequest{}).
 		Where("status = ?", model.CertificationRequestStatusPending).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var reqs []*model.HoneyBatchCertificationRequest
+	var reqs []*model.HoneyBatchCertificationRequestDetail
 	err := r.db.WithContext(ctx).
-		Where("status = ?", model.CertificationRequestStatusPending).
-		Order("created_at ASC").
+		Table("honey_batch_certification_requests cr").
+		Select("cr.*, b.gathering_date, b.amount_grams, b.honey_type, u.email AS requester_email").
+		Joins("JOIN honey_batches b ON b.id = cr.batch_id").
+		Joins("JOIN users u ON u.id = cr.requested_by").
+		Where("cr.status = ?", model.CertificationRequestStatusPending).
+		Order("cr.created_at ASC").
 		Limit(limit).
 		Offset(offset).
 		Find(&reqs).Error

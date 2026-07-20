@@ -21,3 +21,12 @@ type HoneyBatchCertificationRequest struct {
 	BlockchainJobID *int64
 	CreatedAt       time.Time
 }
+
+// HoneyBatchCertificationRequestDetail adds the batch/requester fields the admin queue/detail views need.
+type HoneyBatchCertificationRequestDetail struct {
+	HoneyBatchCertificationRequest
+	GatheringDate  time.Time
+	AmountGrams    int64
+	HoneyType      string
+	RequesterEmail string
+}

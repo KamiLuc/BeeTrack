@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -23,15 +24,20 @@ func NewAdminCertificationHandler(review *service.CertificationReviewService, ba
 	return &AdminCertificationHandler{review: review, batches: batches}
 }
 
-func certificationRequestJSON(req *model.HoneyBatchCertificationRequest) map[string]any {
+func certificationRequestJSON(req *model.HoneyBatchCertificationRequestDetail) map[string]any {
 	return map[string]any{
 		"id":                req.ID,
 		"batch_id":          req.BatchID,
 		"requested_by":      req.RequestedBy,
+		"requester_email":   req.RequesterEmail,
 		"status":            req.Status,
 		"rejection_reason":  req.RejectionReason,
 		"blockchain_job_id": req.BlockchainJobID,
 		"created_at":        req.CreatedAt,
+		"gathering_date":    req.GatheringDate,
+		"amount_grams":      req.AmountGrams,
+		"honey_type":        req.HoneyType,
+		"pdf_url":           fmt.Sprintf("/api/v1/admin/honey-batches/%d/pdf", req.BatchID),
 	}
 }
 
@@ -43,6 +49,10 @@ func adminCertificationError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "CERTIFICATION_REQUEST_NOT_PENDING", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonRequired):
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrRejectionReasonTooShort):
+		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_SHORT", err.Error())
+	case errors.Is(err, service.ErrRejectionReasonTooLong):
+		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_LONG", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

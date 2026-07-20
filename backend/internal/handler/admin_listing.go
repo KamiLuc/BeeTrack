@@ -60,6 +60,10 @@ func adminListingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "LISTING_NOT_PENDING", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonRequired):
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrRejectionReasonTooShort):
+		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_SHORT", err.Error())
+	case errors.Is(err, service.ErrRejectionReasonTooLong):
+		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_LONG", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

@@ -49,6 +49,14 @@ app/               # Flutter app
       marketplace/ # listing_model_test.dart, marketplace_home_screen_test.dart
       honey_batch/ # honey batch model, repository, and cubit tests
 
+admin/             # React admin panel (separate SPA, not part of the Flutter app)
+  src/
+    api/           # Fetch wrapper + typed calls: client, auth, listings, certifications
+    auth/          # AuthContext (login state) + RequireAuth (route guard, checks role==='admin')
+    components/    # Layout (nav shell)
+    pages/         # LoginPage, ListingsQueuePage, ListingDetailPage, CertificationQueuePage, CertificationDetailPage
+    App.tsx        # React Router routes: /login, /listings, /listings/:id, /certifications, /certifications/:id
+
 docker/            # Docker Compose config
 ```
 

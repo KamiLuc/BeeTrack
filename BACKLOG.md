@@ -137,16 +137,16 @@
 | AP-BE-18 | `BE`    | `[x]`  | `GET /api/v1/admin/honey-batches/{id}/pdf`             |                                                                        |
 | AP-BE-19 | `BE`    | `[x]`  | Include `role` in `GET /api/v1/users/me`               | Client-side UX only, not a security boundary                           |
 | AP-BE-20 | `BE`    | `[x]`  | Wire admin middleware + routes into `main.go`, CORS    |                                                                        |
-| AP-FE-01 | `ADMIN` | `[ ]`  | React admin panel project scaffold                      | New `admin/` directory, Vite + React + TS                              |
-| AP-FE-02 | `ADMIN` | `[ ]`  | API client + auth/listings/certifications modules       |                                                                        |
-| AP-FE-03 | `ADMIN` | `[ ]`  | Auth context + route guard                              |                                                                        |
-| AP-FE-04 | `ADMIN` | `[ ]`  | Login page                                              |                                                                        |
-| AP-FE-05 | `ADMIN` | `[ ]`  | App shell + nav                                         |                                                                        |
-| AP-FE-06 | `ADMIN` | `[ ]`  | Listings queue page                                      | "New" vs "Edited" badge                                                |
-| AP-FE-07 | `ADMIN` | `[ ]`  | Listing detail/review page                               | Photos + approve/reject (reason)                                       |
-| AP-FE-08 | `ADMIN` | `[ ]`  | Certification requests queue page                        |                                                                        |
-| AP-FE-09 | `ADMIN` | `[ ]`  | Certification detail/review page                         | Embedded lab PDF via fetch-then-blob-URL                               |
-| AP-FE-10 | `ADMIN` | `[ ]`  | Docker/dev wiring + README section                        |                                                                        |
+| AP-FE-01 | `ADMIN` | `[x]`  | React admin panel project scaffold                      | New `admin/` directory, Vite + React + TS                              |
+| AP-FE-02 | `ADMIN` | `[x]`  | API client + auth/listings/certifications modules       |                                                                        |
+| AP-FE-03 | `ADMIN` | `[x]`  | Auth context + route guard                              |                                                                        |
+| AP-FE-04 | `ADMIN` | `[x]`  | Login page                                              |                                                                        |
+| AP-FE-05 | `ADMIN` | `[x]`  | App shell + nav                                         |                                                                        |
+| AP-FE-06 | `ADMIN` | `[x]`  | Listings queue page                                      | "New" vs "Edited" badge                                                |
+| AP-FE-07 | `ADMIN` | `[x]`  | Listing detail/review page                               | Photos + approve/reject (reason)                                       |
+| AP-FE-08 | `ADMIN` | `[x]`  | Certification requests queue page                        |                                                                        |
+| AP-FE-09 | `ADMIN` | `[x]`  | Certification detail/review page                         | Embedded lab PDF via fetch-then-blob-URL                               |
+| AP-FE-10 | `ADMIN` | `[x]`  | Docker/dev wiring + README section                        |                                                                        |
 | AP-10-01 | `FE`    | `[ ]`  | Listing status badge on My Listings screen (Flutter)      | Pending / Rejected (+reason) / Live                                     |
 | AP-10-02 | `FE`    | `[ ]`  | Certification request status on honey batch card (Flutter) | "Pending admin review" / "Rejected by admin" states                    |
 | AP-10-03 | `FE`    | `[ ]`  | Localization for new statuses                             | `app_en.arb` + `app_pl.arb`                                             |

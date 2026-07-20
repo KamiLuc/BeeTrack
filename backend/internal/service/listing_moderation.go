@@ -4,15 +4,37 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/validation"
 	"gorm.io/gorm"
 )
 
+// MinRejectionReasonLength rules out an empty click-through rejection.
+const MinRejectionReasonLength = 3
+
 var (
 	ErrRejectionReasonRequired = errors.New("rejection reason is required")
+	ErrRejectionReasonTooShort = fmt.Errorf("rejection reason must be at least %d characters", MinRejectionReasonLength)
+	ErrRejectionReasonTooLong  = fmt.Errorf("rejection reason must be at most %d characters", validation.Large.MaxLength())
 	ErrListingNotPending       = errors.New("listing is not pending review")
 )
+
+// validateRejectionReason is shared by listing and certification-request rejection.
+func validateRejectionReason(reason string) error {
+	trimmed := strings.TrimSpace(reason)
+	switch {
+	case trimmed == "":
+		return ErrRejectionReasonRequired
+	case len([]rune(trimmed)) < MinRejectionReasonLength:
+		return ErrRejectionReasonTooShort
+	case validation.TooLong(trimmed, validation.Large):
+		return ErrRejectionReasonTooLong
+	default:
+		return nil
+	}
+}
 
 // ListingModerationStore is the persistence interface for the admin listing review queue.
 type ListingModerationStore interface {
@@ -67,8 +89,8 @@ func (s *ListingModerationService) Approve(ctx context.Context, reviewerID, list
 }
 
 func (s *ListingModerationService) Reject(ctx context.Context, reviewerID, listingID int64, reason string) error {
-	if reason == "" {
-		return ErrRejectionReasonRequired
+	if err := validateRejectionReason(reason); err != nil {
+		return err
 	}
 	if _, err := s.pendingListing(ctx, listingID); err != nil {
 		return err

@@ -17,8 +17,8 @@ var (
 // CertificationRequestStore is the persistence interface for the admin
 // certification-request review queue.
 type CertificationRequestStore interface {
-	ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequest, int64, error)
-	GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequest, error)
+	ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error)
+	GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error)
 	Approve(ctx context.Context, id, reviewerID int64) (*model.BlockchainJob, error)
 	Reject(ctx context.Context, id, reviewerID int64, reason string) error
 }
@@ -31,11 +31,11 @@ func NewCertificationReviewService(requests CertificationRequestStore) *Certific
 	return &CertificationReviewService{requests: requests}
 }
 
-func (s *CertificationReviewService) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequest, int64, error) {
+func (s *CertificationReviewService) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
 	return s.requests.ListPending(ctx, limit, offset)
 }
 
-func (s *CertificationReviewService) Get(ctx context.Context, requestID int64) (*model.HoneyBatchCertificationRequest, error) {
+func (s *CertificationReviewService) Get(ctx context.Context, requestID int64) (*model.HoneyBatchCertificationRequestDetail, error) {
 	req, err := s.requests.GetByID(ctx, requestID)
 	if err != nil {
 		return nil, fmt.Errorf("get certification request: %w", err)
@@ -60,8 +60,8 @@ func (s *CertificationReviewService) Approve(ctx context.Context, reviewerID, re
 }
 
 func (s *CertificationReviewService) Reject(ctx context.Context, reviewerID, requestID int64, reason string) error {
-	if reason == "" {
-		return ErrRejectionReasonRequired
+	if err := validateRejectionReason(reason); err != nil {
+		return err
 	}
 	if err := s.requests.Reject(ctx, requestID, reviewerID, reason); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

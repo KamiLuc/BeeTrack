@@ -2445,15 +2445,22 @@ Rejects a pending listing with a reason. The listing stays invisible to the publ
   "id": 1,
   "batch_id": 5,
   "requested_by": 3,
+  "requester_email": "beekeeper@example.com",
   "status": "pending",
   "rejection_reason": null,
   "blockchain_job_id": null,
-  "created_at": "2026-07-01T10:00:00Z"
+  "created_at": "2026-07-01T10:00:00Z",
+  "gathering_date": "2026-06-15T00:00:00Z",
+  "amount_grams": 2500,
+  "honey_type": "Wildflower",
+  "pdf_url": "/api/v1/admin/honey-batches/5/pdf"
 }
 ```
 
 - `status` — `"pending"`, `"approved"`, or `"rejected"`
 - `blockchain_job_id` — nullable; set once approval enqueues the `blockchain_jobs` row the Epic 9 worker picks up
+- `requester_email`, `gathering_date`, `amount_grams`, `honey_type` — joined from the batch and requesting user, for display in the admin queue/detail views
+- `pdf_url` — convenience field pointing at `GET /api/v1/admin/honey-batches/{id}/pdf`
 
 ---
 
