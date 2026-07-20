@@ -74,8 +74,6 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "INVALID_PDF_TYPE", err.Error())
 	case errors.Is(err, service.ErrPDFTooLarge):
 		respond.Error(w, http.StatusRequestEntityTooLarge, "PDF_TOO_LARGE", err.Error())
-	case errors.Is(err, service.ErrBatchNotCertified):
-		respond.Error(w, http.StatusConflict, "BATCH_NOT_CERTIFIED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -271,28 +269,4 @@ func (h *HoneyBatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// PDF handles GET /api/v1/honey-batches/{id}/pdf — serves the lab PDF for a batch owned by the caller.
-func (h *HoneyBatchHandler) PDF(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
-	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
-		return
-	}
-
-	id, err := parseHoneyBatchID(r)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid honey batch id")
-		return
-	}
-
-	path, err := h.batches.GetBatchPDF(r.Context(), userID, id)
-	if err != nil {
-		honeyBatchError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/pdf")
-	http.ServeFile(w, r, path)
 }
