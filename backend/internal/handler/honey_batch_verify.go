@@ -29,7 +29,7 @@ func (h *HoneyBatchVerifyHandler) Verify(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, nil))
 }
 
 // qrCodePNG generates the PNG bytes for a batch's QR code, resolved via its public verification token.

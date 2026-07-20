@@ -382,6 +382,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/auth/reset-password-form?token=&lang=` | HTML password reset form (called from email link) |
 | POST | `/api/v1/auth/reset-password-form` | Submit HTML reset form (form-encoded) |
 | POST | `/api/v1/auth/reset-password` | Reset password via JSON — for mobile clients |
+| GET | `/api/v1/users/me` | Get caller's own profile, including `role` (client-side UX only — every admin route is still enforced server-side) |
 | PATCH | `/api/v1/users/me/name` | Update display name |
 | GET | `/api/v1/apiaries` | List apiaries (includes hive_count + last_inspected_at per apiary) |
 | POST | `/api/v1/apiaries` | Create apiary |
@@ -419,10 +420,10 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Get harvest |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Update harvest |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Delete harvest |
-| POST | `/api/v1/listings` | Create marketplace listing |
-| GET | `/api/v1/listings` | Search/filter listings (public; `mine=true` requires auth) |
-| GET | `/api/v1/listings/{id}` | Get listing (public; hidden listings 404 unless owner) |
-| PATCH | `/api/v1/listings/{id}` | Update listing (owner only) |
+| POST | `/api/v1/listings` | Create marketplace listing — starts out pending admin approval, invisible to public search until then |
+| GET | `/api/v1/listings` | Search/filter listings (public; `mine=true` requires auth); only approved listings are visible to non-owners |
+| GET | `/api/v1/listings/{id}` | Get listing (public; hidden or not-yet-approved listings 404 unless owner) |
+| PATCH | `/api/v1/listings/{id}` | Update listing (owner only) — an already-approved listing goes back to pending review |
 | PATCH | `/api/v1/listings/{id}/hide` | Toggle listing visibility (owner only) |
 | DELETE | `/api/v1/listings/{id}` | Delete listing (owner only) |
 | POST | `/api/v1/listings/{id}/images` | Upload listing image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 3 per listing; owner only) |
@@ -438,11 +439,20 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | PATCH | `/api/v1/honey-batches/{id}` | Update honey batch (gathering date, amount, processing method, honey type; multipart, with an optional `lab_pdf` to replace the existing PDF, or `remove_pdf` to clear it); locked once certification has been attempted |
 | DELETE | `/api/v1/honey-batches/{id}` | Soft-delete honey batch |
 | GET | `/api/v1/honey-batches/{id}/pdf` | Serve honey batch's lab PDF (owner-scoped, auth required) |
-| POST | `/api/v1/honey-batches/{id}/retry-certification` | Enqueue certification (first attempt or retry after failure) for a batch owned by the caller |
+| POST | `/api/v1/honey-batches/{id}/retry-certification` | Submit a batch (first attempt or retry after failure) for admin certification review; the actual blockchain job is only enqueued once an admin approves the request |
 | GET | `/api/v1/verify/{token}` | Public lookup of a honey batch by its verification token; returns batch + certification status |
 | GET | `/api/v1/verify/{token}/qr-code` | Public PNG QR code encoding the verification URL (requires confirmed certification) |
 | GET | `/api/v1/verify/{token}/qr-code/download` | Same QR code PNG, forced as a browser download for saving/printing |
 | GET | `/api/v1/verify/{token}/pdf` | Public lab PDF for a batch (requires confirmed certification) |
+| GET | `/api/v1/admin/listings` | Admin-only: list pending marketplace listings (new + edited), paginated |
+| GET | `/api/v1/admin/listings/{id}` | Admin-only: get a single listing regardless of status |
+| POST | `/api/v1/admin/listings/{id}/approve` | Admin-only: approve a pending listing |
+| POST | `/api/v1/admin/listings/{id}/reject` | Admin-only: reject a pending listing with a reason |
+| GET | `/api/v1/admin/certification-requests` | Admin-only: list pending honey batch certification review requests, paginated |
+| GET | `/api/v1/admin/certification-requests/{id}` | Admin-only: get a single certification request |
+| POST | `/api/v1/admin/certification-requests/{id}/approve` | Admin-only: approve a certification request, which enqueues the blockchain job |
+| POST | `/api/v1/admin/certification-requests/{id}/reject` | Admin-only: reject a certification request with a reason |
+| GET | `/api/v1/admin/honey-batches/{id}/pdf` | Admin-only: serve a batch's lab PDF regardless of ownership |
 
 ---
 

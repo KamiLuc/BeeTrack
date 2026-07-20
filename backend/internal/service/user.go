@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/validation"
 )
 
@@ -15,6 +16,10 @@ type UserService struct {
 // NewUserService creates a UserService with the given dependencies.
 func NewUserService(users UserRepository) *UserService {
 	return &UserService{users: users}
+}
+
+func (s *UserService) Me(ctx context.Context, userID int64) (*model.User, error) {
+	return s.users.GetByID(ctx, userID)
 }
 
 // UpdateName validates and persists a user's display name.

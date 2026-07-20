@@ -28,6 +28,15 @@ func (m *mockUserRepo) Create(ctx context.Context, u *model.User) error {
 	return nil
 }
 
+func (m *mockUserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
+	for _, u := range m.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, nil
+}
+
 func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	u, ok := m.users[email]
 	if !ok {

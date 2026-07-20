@@ -126,17 +126,17 @@
 | AP-BE-07 | `BE`    | `[x]`  | `ListingModerationService` (approve/reject)            | Reject requires a reason                                               |
 | AP-BE-08 | `BE`    | `[x]`  | Certification review gate + `CertificationReviewService` | `RequestCertification` creates a review request, not a job directly |
 | AP-BE-09 | `BE`    | `[x]`  | Admin PDF access bypass                                | Admin can view any batch's lab PDF regardless of ownership             |
-| AP-BE-10 | `BE`    | `[ ]`  | `GET /api/v1/admin/listings`                           | Includes computed `is_edit` flag                                       |
-| AP-BE-11 | `BE`    | `[ ]`  | `GET /api/v1/admin/listings/{id}`                      |                                                                        |
-| AP-BE-12 | `BE`    | `[ ]`  | `POST /api/v1/admin/listings/{id}/approve`             |                                                                        |
-| AP-BE-13 | `BE`    | `[ ]`  | `POST /api/v1/admin/listings/{id}/reject`              | Requires `reason`                                                      |
-| AP-BE-14 | `BE`    | `[ ]`  | `GET /api/v1/admin/certification-requests`             |                                                                        |
-| AP-BE-15 | `BE`    | `[ ]`  | `GET /api/v1/admin/certification-requests/{id}`        |                                                                        |
-| AP-BE-16 | `BE`    | `[ ]`  | `POST /api/v1/admin/certification-requests/{id}/approve` | Enqueues the `blockchain_jobs` row — Epic 9 worker takes over unchanged |
-| AP-BE-17 | `BE`    | `[ ]`  | `POST /api/v1/admin/certification-requests/{id}/reject` | Requires `reason`                                                      |
-| AP-BE-18 | `BE`    | `[ ]`  | `GET /api/v1/admin/honey-batches/{id}/pdf`             |                                                                        |
-| AP-BE-19 | `BE`    | `[ ]`  | Include `role` in `GET /api/v1/users/me`               | Client-side UX only, not a security boundary                           |
-| AP-BE-20 | `BE`    | `[ ]`  | Wire admin middleware + routes into `main.go`, CORS    |                                                                        |
+| AP-BE-10 | `BE`    | `[x]`  | `GET /api/v1/admin/listings`                           | Includes computed `is_edit` flag                                       |
+| AP-BE-11 | `BE`    | `[x]`  | `GET /api/v1/admin/listings/{id}`                      |                                                                        |
+| AP-BE-12 | `BE`    | `[x]`  | `POST /api/v1/admin/listings/{id}/approve`             |                                                                        |
+| AP-BE-13 | `BE`    | `[x]`  | `POST /api/v1/admin/listings/{id}/reject`              | Requires `reason`                                                      |
+| AP-BE-14 | `BE`    | `[x]`  | `GET /api/v1/admin/certification-requests`             |                                                                        |
+| AP-BE-15 | `BE`    | `[x]`  | `GET /api/v1/admin/certification-requests/{id}`        |                                                                        |
+| AP-BE-16 | `BE`    | `[x]`  | `POST /api/v1/admin/certification-requests/{id}/approve` | Enqueues the `blockchain_jobs` row — Epic 9 worker takes over unchanged |
+| AP-BE-17 | `BE`    | `[x]`  | `POST /api/v1/admin/certification-requests/{id}/reject` | Requires `reason`                                                      |
+| AP-BE-18 | `BE`    | `[x]`  | `GET /api/v1/admin/honey-batches/{id}/pdf`             |                                                                        |
+| AP-BE-19 | `BE`    | `[x]`  | Include `role` in `GET /api/v1/users/me`               | Client-side UX only, not a security boundary                           |
+| AP-BE-20 | `BE`    | `[x]`  | Wire admin middleware + routes into `main.go`, CORS    |                                                                        |
 | AP-FE-01 | `ADMIN` | `[ ]`  | React admin panel project scaffold                      | New `admin/` directory, Vite + React + TS                              |
 | AP-FE-02 | `ADMIN` | `[ ]`  | API client + auth/listings/certifications modules       |                                                                        |
 | AP-FE-03 | `ADMIN` | `[ ]`  | Auth context + route guard                              |                                                                        |

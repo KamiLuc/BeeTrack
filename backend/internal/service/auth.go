@@ -66,6 +66,7 @@ type TokenRepository interface {
 
 type UserRepository interface {
 	Create(ctx context.Context, u *model.User) error
+	GetByID(ctx context.Context, id int64) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	SetVerified(ctx context.Context, userID int64) error
 	UpdateName(ctx context.Context, userID int64, name string) error

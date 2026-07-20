@@ -15,6 +15,9 @@ type mockUpdateNameRepo struct {
 }
 
 func (m *mockUpdateNameRepo) Create(ctx context.Context, u *model.User) error { return nil }
+func (m *mockUpdateNameRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
+	return nil, nil
+}
 func (m *mockUpdateNameRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	return nil, nil
 }

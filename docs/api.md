@@ -830,6 +830,33 @@ Removes a disease from a hive.
 
 ## Users
 
+### GET /users/me 🔒
+
+Returns the authenticated caller's own profile.
+
+**Response** `200 OK`
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "name": "John",
+  "role": "user",
+  "verified": true
+}
+```
+
+- `role` — `"user"` or `"admin"`. Client-side UX only (e.g. gating the admin panel's login screen) — every admin route is still enforced server-side by `RequireAdmin`.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `USER_NOT_FOUND` | 404 | Caller's user record no longer exists |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### PATCH /users/me/name 🔒
 
 Updates the authenticated user's display name.
@@ -1699,7 +1726,8 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
   "pdf_filename": "lab-report.pdf",
   "created_at": "2026-07-01T10:00:00Z",
   "updated_at": "2026-07-01T10:00:00Z",
-  "certification": null
+  "certification": null,
+  "certification_request": null
 }
 ```
 
@@ -1707,7 +1735,8 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
 - `processing_method` valid values: `raw`, `filtered`, `pasteurized`
 - `pdf_file_hash` — SHA-256 hex digest of the uploaded lab PDF
 - `pdf_filename` — original filename of the uploaded lab PDF
-- `certification` — `null` if certification was never requested; otherwise `{status, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}`. Right after `POST /honey-batches` with `request_certification=true`, this is a synthetic `{"status": "queued", ...}` placeholder (no certification row exists yet — the background worker creates one once it claims the job). On later reads it reflects the real row's latest status.
+- `certification` — `null` until an admin approves a certification request (see `certification_request` below) and the background worker claims the resulting blockchain job; otherwise `{status, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}` reflecting the real row's latest status.
+- `certification_request` — `null` if certification was never requested; otherwise `{status, rejection_reason, created_at}` describing the pending/approved/rejected admin review request. `status` is `"pending"` immediately after requesting certification (via `POST /honey-batches` with `request_certification=true` or `POST /honey-batches/{id}/retry-certification`); it's only once an admin approves the request that a `blockchain_jobs` row is enqueued and `certification` starts reflecting real on-chain progress.
 
 ---
 
@@ -1725,7 +1754,7 @@ Creates a honey batch. Request is `multipart/form-data` (not JSON) because it in
 | `request_certification` | string | `"true"` or `"false"`; defaults to `"false"` if omitted |
 | `lab_pdf` | file | Lab analysis PDF, content type must be `application/pdf`, max 10 MB |
 
-**Response** `201 Created` — honey batch object. `certification` is `null` unless `request_certification` was `"true"`, in which case it's the synthetic `{"status": "queued", ...}` placeholder described above.
+**Response** `201 Created` — honey batch object. `certification` is always `null` on creation (never enqueued directly). `certification_request` is `null` unless `request_certification` was `"true"`, in which case it's `{"status": "pending", ...}` — an admin must approve it before any blockchain job is enqueued.
 
 **Errors**
 | Code | Status | Description |
@@ -1855,9 +1884,9 @@ Serves the lab PDF for a batch owned by the caller. Not gated on certification s
 
 ### POST /honey-batches/{id}/retry-certification 🔒
 
-Enqueues a blockchain certification job for a batch owned by the caller — a first-time certify if certification was never requested, or a retry if the latest attempt is `failed`/`reverted`. No request body.
+Submits a batch owned by the caller for admin certification review — a first-time request if certification was never requested, or a retry if the latest attempt is `failed`/`reverted`. Creates a `HoneyBatchCertificationRequest` awaiting admin approval; it no longer enqueues a blockchain job directly. No request body.
 
-**Response** `200 OK` — honey batch object. `certification` is the synthetic `{"status": "queued", ...}` placeholder described above (no certification row exists yet until the background worker claims the job).
+**Response** `200 OK` — honey batch object. `certification_request` is `{"status": "pending", ...}`.
 
 **Errors**
 | Code | Status | Description |
@@ -1866,6 +1895,7 @@ Enqueues a blockchain certification job for a batch owned by the caller — a fi
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
 | `BATCH_ALREADY_CERTIFIED` | 409 | Batch already has a live certification (`submitted`, `pending_confirmation`, or `confirmed`) |
+| `CERTIFICATION_REQUEST_PENDING` | 409 | Batch already has a certification request awaiting admin review |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -1931,7 +1961,9 @@ Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed 
 
 ## Marketplace Listings
 
-Listings are public classifieds posted by users. Auth is optional on read routes (`GET`) — an authenticated caller sees their own hidden listings and can filter to `mine=true`; anonymous callers only see visible listings.
+Listings are public classifieds posted by users. Auth is optional on read routes (`GET`) — an authenticated caller sees their own hidden and pending listings and can filter to `mine=true`; anonymous callers only see visible, approved listings.
+
+New listings default to a `pending` moderation status and are hidden from public search/`GET` until an admin approves them (see [Admin: Marketplace Listing Moderation](#admin-marketplace-listing-moderation)). Editing an already-approved listing resets its status back to `pending`. The listing object returned by these routes does not include the `status`/`rejection_reason` fields — those are only exposed on the admin endpoints.
 
 ### Listing object
 
@@ -1978,7 +2010,7 @@ Listings are public classifieds posted by users. Auth is optional on read routes
 
 ### POST /listings 🔒
 
-Creates a listing owned by the authenticated user.
+Creates a listing owned by the authenticated user. The listing starts in `pending` status and is invisible to other users until an admin approves it.
 
 **Request**
 ```json
@@ -2083,7 +2115,7 @@ Returns a single listing. Public — auth optional. Hidden listings return `404`
 
 ### PATCH /listings/{id} 🔒
 
-Updates a listing. Only the owner can edit. Same body as create; when `image_urls` is provided, it replaces the existing images.
+Updates a listing. Only the owner can edit. Same body as create; when `image_urls` is provided, it replaces the existing images. If the listing was previously `approved`, editing resets it back to `pending` admin review.
 
 **Request** — same shape as POST
 
@@ -2295,6 +2327,227 @@ Reports whether the caller has favorited the listing.
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
+
+## Admin
+
+All routes below require both a valid JWT (`Authorization: Bearer`) and the caller's user having `role = "admin"` in the database (set manually via SQL — there is no self-service promotion path).
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `NOT_ADMIN` | 403 | Caller is authenticated but not an admin |
+
+### Admin: Marketplace Listing Moderation
+
+Admin listing objects have the same shape as the public listing object (see [Listing object](#listing-object)), plus two extra fields:
+
+```json
+{
+  "...": "...",
+  "status": "pending",
+  "rejection_reason": null,
+  "is_edit": false
+}
+```
+
+- `status` — `"pending"`, `"approved"`, or `"rejected"`
+- `rejection_reason` — nullable string, set when `status` is `"rejected"`
+- `is_edit` — `true` if this is an edit of a previously-approved listing (as opposed to a brand-new one); both sit at `status: "pending"` otherwise
+
+---
+
+### GET /admin/listings
+
+Returns pending marketplace listings (new and edited), ordered oldest-first.
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [ /* admin listing objects */ ],
+  "total": 3
+}
+```
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /admin/listings/{id}
+
+Returns a single listing regardless of status.
+
+**Response** `200 OK` — admin listing object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/listings/{id}/approve
+
+Approves a pending listing, making it publicly visible.
+
+**Response** `200 OK` — updated admin listing object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `LISTING_NOT_PENDING` | 409 | Listing is not currently pending review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/listings/{id}/reject
+
+Rejects a pending listing with a reason. The listing stays invisible to the public.
+
+**Request**
+```json
+{ "reason": "Photos don't match the description" }
+```
+
+**Response** `200 OK` — updated admin listing object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `REJECTION_REASON_REQUIRED` | 400 | `reason` is empty |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `LISTING_NOT_PENDING` | 409 | Listing is not currently pending review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### Admin: Honey Batch Certification Review
+
+### Certification request object
+
+```json
+{
+  "id": 1,
+  "batch_id": 5,
+  "requested_by": 3,
+  "status": "pending",
+  "rejection_reason": null,
+  "blockchain_job_id": null,
+  "created_at": "2026-07-01T10:00:00Z"
+}
+```
+
+- `status` — `"pending"`, `"approved"`, or `"rejected"`
+- `blockchain_job_id` — nullable; set once approval enqueues the `blockchain_jobs` row the Epic 9 worker picks up
+
+---
+
+### GET /admin/certification-requests
+
+Returns pending honey batch certification requests, ordered oldest-first.
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [ /* certification request objects */ ],
+  "total": 2
+}
+```
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /admin/certification-requests/{id}
+
+Returns a single certification request.
+
+**Response** `200 OK` — certification request object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CERTIFICATION_REQUEST_NOT_FOUND` | 404 | Certification request does not exist |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/certification-requests/{id}/approve
+
+Approves a pending certification request. This is what actually creates the `blockchain_jobs` row the existing Epic 9 worker picks up — worker, idempotency, and retry logic are unchanged.
+
+**Response** `200 OK` — updated certification request object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CERTIFICATION_REQUEST_NOT_FOUND` | 404 | Certification request does not exist |
+| `CERTIFICATION_REQUEST_NOT_PENDING` | 409 | Request is not currently pending review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/certification-requests/{id}/reject
+
+Rejects a pending certification request with a reason. No blockchain job is enqueued.
+
+**Request**
+```json
+{ "reason": "Lab PDF is unreadable" }
+```
+
+**Response** `200 OK` — updated certification request object
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `REJECTION_REASON_REQUIRED` | 400 | `reason` is empty |
+| `CERTIFICATION_REQUEST_NOT_FOUND` | 404 | Certification request does not exist |
+| `CERTIFICATION_REQUEST_NOT_PENDING` | 409 | Request is not currently pending review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /admin/honey-batches/{id}/pdf
+
+Serves a batch's lab PDF regardless of ownership, for admin review.
+
+**Response** `200 OK` — `application/pdf` binary
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ### GET /favorites 🔒
 

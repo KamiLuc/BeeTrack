@@ -37,19 +37,31 @@ func certificationJSON(c *model.HoneyBatchCertification) any {
 	}
 }
 
-func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification) map[string]any {
+func certificationRequestSummaryJSON(req *model.HoneyBatchCertificationRequest) any {
+	if req == nil {
+		return nil
+	}
 	return map[string]any{
-		"id":                 b.ID,
-		"verification_token": b.VerificationToken,
-		"gathering_date":     b.GatheringDate,
-		"amount_grams":       b.AmountGrams,
-		"processing_method":  b.ProcessingMethod,
-		"honey_type":         b.HoneyType,
-		"pdf_filename":       b.PDFFilename,
-		"pdf_file_hash":      b.PDFFileHash,
-		"created_at":         b.CreatedAt,
-		"updated_at":         b.UpdatedAt,
-		"certification":      certificationJSON(cert),
+		"status":           req.Status,
+		"rejection_reason": req.RejectionReason,
+		"created_at":       req.CreatedAt,
+	}
+}
+
+func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification, certRequest *model.HoneyBatchCertificationRequest) map[string]any {
+	return map[string]any{
+		"id":                     b.ID,
+		"verification_token":     b.VerificationToken,
+		"gathering_date":         b.GatheringDate,
+		"amount_grams":           b.AmountGrams,
+		"processing_method":      b.ProcessingMethod,
+		"honey_type":             b.HoneyType,
+		"pdf_filename":           b.PDFFilename,
+		"pdf_file_hash":          b.PDFFileHash,
+		"created_at":             b.CreatedAt,
+		"updated_at":             b.UpdatedAt,
+		"certification":          certificationJSON(cert),
+		"certification_request":  certificationRequestSummaryJSON(certRequest),
 	}
 }
 
@@ -75,6 +87,8 @@ func honeyBatchError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "BATCH_NOT_CERTIFIED", err.Error())
 	case errors.Is(err, service.ErrBatchAlreadyCertified):
 		respond.Error(w, http.StatusConflict, "BATCH_ALREADY_CERTIFIED", err.Error())
+	case errors.Is(err, service.ErrCertificationRequestPending):
+		respond.Error(w, http.StatusConflict, "CERTIFICATION_REQUEST_PENDING", err.Error())
 	case errors.Is(err, service.ErrBatchHasNoPDF):
 		respond.Error(w, http.StatusConflict, "BATCH_HAS_NO_PDF", err.Error())
 	case errors.Is(err, service.ErrBatchLocked):
@@ -154,12 +168,13 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// No certification row exists yet — the worker creates one once it claims the job — so a synthetic "queued" placeholder reflects it here.
-	var cert *model.HoneyBatchCertification
+	// No blockchain job exists yet — admin approval of the certification
+	// request is what creates one (see CertificationReviewService.Approve).
+	var certRequest *model.HoneyBatchCertificationRequest
 	if req.RequestCertification {
-		cert = &model.HoneyBatchCertification{Status: model.CertificationStatusQueued}
+		certRequest = &model.HoneyBatchCertificationRequest{Status: model.CertificationRequestStatusPending}
 	}
-	respond.JSON(w, http.StatusCreated, honeyBatchJSON(batch, cert))
+	respond.JSON(w, http.StatusCreated, honeyBatchJSON(batch, nil, certRequest))
 }
 
 // Get handles GET /api/v1/honey-batches/{id} — returns a single batch owned by the caller.
@@ -182,7 +197,7 @@ func (h *HoneyBatchHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
 }
 
 // List handles GET /api/v1/honey-batches — returns the caller's paginated batches, each with its latest certification status.
@@ -214,7 +229,7 @@ func (h *HoneyBatchHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]map[string]any, len(items))
 	for i, it := range items {
-		out[i] = honeyBatchJSON(it.Batch, it.Certification)
+		out[i] = honeyBatchJSON(it.Batch, it.Certification, it.CertificationRequest)
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{"items": out, "total": total})
@@ -289,7 +304,7 @@ func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
 }
 
 // Delete handles DELETE /api/v1/honey-batches/{id} — soft-deletes a batch owned by the caller.
@@ -338,7 +353,8 @@ func (h *HoneyBatchHandler) PDF(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-// RetryCertification handles POST /api/v1/honey-batches/{id}/retry-certification — enqueues a certify job for a batch owned by the caller.
+// RetryCertification handles POST /api/v1/honey-batches/{id}/retry-certification
+// — submits a batch for admin certification review.
 func (h *HoneyBatchHandler) RetryCertification(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -362,11 +378,5 @@ func (h *HoneyBatchHandler) RetryCertification(w http.ResponseWriter, r *http.Re
 		honeyBatchError(w, err)
 		return
 	}
-
-	// No new certification row exists yet — the worker creates one once it claims the job — so a synthetic "queued" placeholder reflects it here.
-	cert := result.Certification
-	if cert == nil || !cert.Status.IsLive() {
-		cert = &model.HoneyBatchCertification{Status: model.CertificationStatusQueued}
-	}
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, cert))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
 }

@@ -79,6 +79,8 @@ func main() {
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
 	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.AppURL, cfg.PDFStoragePath)
+	listingModerationSvc := service.NewListingModerationService(listingRepo)
+	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
@@ -95,9 +97,12 @@ func main() {
 	userHandler := handler.NewUserHandler(userSvc)
 	honeyBatchHandler := handler.NewHoneyBatchHandler(honeyBatchSvc)
 	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc)
+	adminListingHandler := handler.NewAdminListingHandler(listingModerationSvc)
+	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
 	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
+	admin := func(h http.Handler) http.Handler { return auth(middleware.RequireAdmin(userRepo)(h)) }
 
 	mux := http.NewServeMux()
 
@@ -112,6 +117,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/reset-password-form", authHandler.ResetPasswordForm)
 	mux.HandleFunc("GET /api/v1/auth/verify-email", authHandler.VerifyEmail)
 
+	mux.Handle("GET /api/v1/users/me", auth(http.HandlerFunc(userHandler.Me)))
 	mux.Handle("PATCH /api/v1/users/me/name", auth(http.HandlerFunc(userHandler.UpdateName)))
 
 	mux.Handle("POST /api/v1/apiaries", auth(http.HandlerFunc(apiaryHandler.Create)))
@@ -202,6 +208,16 @@ func main() {
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code", honeyBatchVerifyHandler.QRCode)
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code/download", honeyBatchVerifyHandler.QRCodeDownload)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
+
+	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.ListPending)))
+	mux.Handle("GET /api/v1/admin/listings/{id}", admin(http.HandlerFunc(adminListingHandler.Get)))
+	mux.Handle("POST /api/v1/admin/listings/{id}/approve", admin(http.HandlerFunc(adminListingHandler.Approve)))
+	mux.Handle("POST /api/v1/admin/listings/{id}/reject", admin(http.HandlerFunc(adminListingHandler.Reject)))
+	mux.Handle("GET /api/v1/admin/certification-requests", admin(http.HandlerFunc(adminCertificationHandler.ListPending)))
+	mux.Handle("GET /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Get)))
+	mux.Handle("POST /api/v1/admin/certification-requests/{id}/approve", admin(http.HandlerFunc(adminCertificationHandler.Approve)))
+	mux.Handle("POST /api/v1/admin/certification-requests/{id}/reject", admin(http.HandlerFunc(adminCertificationHandler.Reject)))
+	mux.Handle("GET /api/v1/admin/honey-batches/{id}/pdf", admin(http.HandlerFunc(adminCertificationHandler.PDF)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

@@ -17,7 +17,7 @@ func TestHoneyBatchJSON_NilCertification(t *testing.T) {
 		HoneyType:        "Lipowy",
 	}
 
-	got := honeyBatchJSON(b, nil)
+	got := honeyBatchJSON(b, nil, nil)
 
 	if got["certification"] != nil {
 		t.Errorf("expected nil certification, got %v", got["certification"])
@@ -37,7 +37,7 @@ func TestHoneyBatchJSON_WithCertification(t *testing.T) {
 		BlockNumber:     &blockNum,
 	}
 
-	got := honeyBatchJSON(b, cert)
+	got := honeyBatchJSON(b, cert, nil)
 
 	certJSON, ok := got["certification"].(map[string]any)
 	if !ok {
