@@ -92,6 +92,7 @@ func main() {
 	listingFavoriteHandler := handler.NewListingFavoriteHandler(listingFavoriteSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	honeyBatchHandler := handler.NewHoneyBatchHandler(honeyBatchSvc)
+	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
 	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
@@ -193,6 +194,10 @@ func main() {
 	mux.Handle("GET /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Get)))
 	mux.Handle("PATCH /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Update)))
 	mux.Handle("DELETE /api/v1/honey-batches/{id}", auth(http.HandlerFunc(honeyBatchHandler.Delete)))
+	mux.Handle("GET /api/v1/honey-batches/{id}/pdf", auth(http.HandlerFunc(honeyBatchHandler.PDF)))
+	mux.HandleFunc("GET /api/v1/verify/{token}", honeyBatchVerifyHandler.Verify)
+	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code", honeyBatchVerifyHandler.QRCode)
+	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 

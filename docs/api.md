@@ -1830,6 +1830,66 @@ Soft-deletes a batch owned by the caller. Any existing on-chain certification is
 
 ---
 
+### GET /honey-batches/{id}/pdf 🔒
+
+Serves the lab PDF for a batch owned by the caller. Not gated on certification status.
+
+**Response** `200 OK` — `application/pdf` binary
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /verify/{token}
+
+Public, no authentication. Looks up a batch by its public `verification_token` (opaque UUID, not the numeric `id`) and returns the same honey batch object shape as `GET /honey-batches/{id}`.
+
+**Response** `200 OK` — honey batch object. `certification` is `null`, or the real certification object reflecting its full lifecycle status (`queued`, `submitting`, `submitted`, `pending_confirmation`, `confirmed`, `failed`, `reverted`).
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `BATCH_NOT_FOUND` | 404 | Token does not resolve to a batch |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /verify/{token}/qr-code
+
+Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL `{appURL}/verify/{token}`. Requires the batch to have a confirmed certification — a QR pointing at an uncertified batch would be misleading.
+
+**Response** `200 OK` — `image/png` binary, `Cache-Control: public, max-age=31536000, immutable`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `BATCH_NOT_FOUND` | 404 | Token does not resolve to a batch |
+| `BATCH_NOT_CERTIFIED` | 409 | Batch has no confirmed certification |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /verify/{token}/pdf
+
+Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed certification — no public exposure of lab data for an uncertified batch.
+
+**Response** `200 OK` — `application/pdf` binary, `Cache-Control: public, max-age=86400`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `BATCH_NOT_FOUND` | 404 | Token does not resolve to a batch |
+| `BATCH_NOT_CERTIFIED` | 409 | Batch has no confirmed certification |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ## Marketplace Listings
 
 Listings are public classifieds posted by users. Auth is optional on read routes (`GET`) — an authenticated caller sees their own hidden listings and can filter to `mine=true`; anonymous callers only see visible listings.
