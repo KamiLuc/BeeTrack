@@ -22,6 +22,22 @@ class ListingImage {
       );
 }
 
+enum ListingStatus {
+  pending('pending'),
+  approved('approved'),
+  rejected('rejected');
+
+  final String value;
+
+  const ListingStatus(this.value);
+
+  factory ListingStatus.fromJson(String value) {
+    return ListingStatus.values.firstWhere((s) => s.value == value);
+  }
+
+  String toJson() => value;
+}
+
 class Listing {
   final int id;
   final int userId;
@@ -41,6 +57,8 @@ class Listing {
   final String contactPhone;
   final String contactEmail;
   final bool isHidden;
+  final ListingStatus status;
+  final String? rejectionReason;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<ListingImage> images;
@@ -65,6 +83,8 @@ class Listing {
     required this.contactPhone,
     required this.contactEmail,
     required this.isHidden,
+    this.status = ListingStatus.approved,
+    this.rejectionReason,
     required this.createdAt,
     required this.updatedAt,
     required this.images,
@@ -90,6 +110,10 @@ class Listing {
         contactPhone: json['contact_phone'] as String? ?? '',
         contactEmail: json['contact_email'] as String? ?? '',
         isHidden: json['is_hidden'] as bool? ?? false,
+        status: json['status'] != null
+            ? ListingStatus.fromJson(json['status'] as String)
+            : ListingStatus.approved,
+        rejectionReason: json['rejection_reason'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
         updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
         images: (json['images'] as List<dynamic>? ?? [])

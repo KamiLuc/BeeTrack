@@ -510,6 +510,28 @@ void main() {
     );
 
     testWidgets(
+      'shows how many listings are loaded out of the total',
+      (tester) async {
+        final adapter = _ListingsHttpClientAdapter(total: 45, itemsPerPage: 20);
+        final apiClient = await _fakeApiClientWithListings(adapter: adapter);
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(find.text('20/45'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'shows a bottom loading spinner when there are more listings to load',
       (tester) async {
         final adapter = _ListingsHttpClientAdapter(total: 45);

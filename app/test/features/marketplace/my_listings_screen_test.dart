@@ -147,6 +147,8 @@ Map<String, dynamic> _listingJson({
   int id = 1,
   String title = 'Wildflower Honey',
   bool isHidden = false,
+  String status = 'approved',
+  String? rejectionReason,
 }) => {
   'id': id,
   'user_id': 1,
@@ -159,6 +161,8 @@ Map<String, dynamic> _listingJson({
   'contact_phone': '123456789',
   'contact_email': 'seller@example.com',
   'is_hidden': isHidden,
+  'status': status,
+  'rejection_reason': rejectionReason,
   'created_at': DateTime(2026, 1, 1).toIso8601String(),
   'updated_at': DateTime(2026, 1, 1).toIso8601String(),
   'images': [],
@@ -217,6 +221,51 @@ void main() {
       expect(find.text(l10n.marketplaceHiddenBadge), findsOneWidget);
     });
 
+    testWidgets('shows the live badge for an approved listing', (
+      tester,
+    ) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      adapter.listings = [_listingJson(status: 'approved')];
+
+      await tester.pumpWidget(_wrap(apiClient));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceStatusApproved), findsOneWidget);
+    });
+
+    testWidgets('shows the pending badge for a pending listing', (
+      tester,
+    ) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      adapter.listings = [_listingJson(status: 'pending')];
+
+      await tester.pumpWidget(_wrap(apiClient));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceStatusPending), findsOneWidget);
+    });
+
+    testWidgets(
+      'shows the rejected badge with the reason as a tooltip',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [
+          _listingJson(status: 'rejected', rejectionReason: 'Blurry photos'),
+        ];
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceStatusRejected), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Tooltip && w.message == 'Blurry photos',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
     testWidgets('no pagination banner when everything fits on one page', (
       tester,
     ) async {
@@ -257,7 +306,7 @@ void main() {
       },
     );
 
-    testWidgets('tapping a card does nothing — edit is only via the menu', (
+    testWidgets('tapping a card opens the listing detail view', (
       tester,
     ) async {
       final (apiClient, adapter) = await _fakeApiClient();
@@ -269,9 +318,8 @@ void main() {
       await tester.tap(find.text('Wildflower Honey'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ListingDetailScreen), findsNothing);
+      expect(find.byType(ListingDetailScreen), findsOneWidget);
       expect(find.byType(CreateListingScreen), findsNothing);
-      expect(find.byType(MyListingsScreen), findsOneWidget);
     });
 
     testWidgets(

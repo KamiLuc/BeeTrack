@@ -10,19 +10,20 @@ import (
 
 // ListingFilter holds optional criteria for searching listings.
 type ListingFilter struct {
-	Category    string
-	Keyword     string
-	PriceMin    *float64
-	PriceMax    *float64
-	PostedAfter *string
-	OwnerUserID *int64
-	NearLat     *float64
-	NearLng     *float64
-	RadiusKm    *float64
-	HasApiary   bool
-	Status      string
-	Limit       int
-	Offset      int
+	Category           string
+	Keyword            string
+	PriceMin           *float64
+	PriceMax           *float64
+	PostedAfter        *string
+	OwnerUserID        *int64
+	ExcludeOwnerUserID *int64
+	NearLat            *float64
+	NearLng            *float64
+	RadiusKm           *float64
+	HasApiary          bool
+	Status             string
+	Limit              int
+	Offset             int
 }
 
 // hasNearFilter reports whether f carries a complete distance filter — all of
@@ -159,9 +160,9 @@ func (r *ListingRepository) List(ctx context.Context, f ListingFilter) ([]*model
 	return listings, nil
 }
 
-// Update persists all mutable fields of l and resets moderation status to
-// pending — an edit must be re-approved, but first_approved_at is untouched
-// so the admin queue can still tell an edit apart from a brand-new listing.
+// Update persists all mutable fields of l, including its moderation status —
+// the caller (service layer) decides whether an edit's content actually
+// changed enough to reset status back to pending for re-approval.
 func (r *ListingRepository) Update(ctx context.Context, l *model.Listing) error {
 	return r.db.WithContext(ctx).
 		Model(l).
@@ -177,10 +178,10 @@ func (r *ListingRepository) Update(ctx context.Context, l *model.Listing) error 
 			"apiary_id":        l.ApiaryID,
 			"contact_phone":    l.ContactPhone,
 			"contact_email":    l.ContactEmail,
-			"status":           model.ListingStatusPending,
-			"rejection_reason": nil,
-			"reviewed_by":      nil,
-			"reviewed_at":      nil,
+			"status":           l.Status,
+			"rejection_reason": l.RejectionReason,
+			"reviewed_by":      l.ReviewedBy,
+			"reviewed_at":      l.ReviewedAt,
 			"updated_at":       gorm.Expr("NOW()"),
 		}).Error
 }
@@ -367,6 +368,9 @@ func (r *ListingRepository) buildFilter(q *gorm.DB, f ListingFilter, p string) *
 	}
 	if f.HasApiary {
 		q = q.Where(p + "apiary_id IS NOT NULL")
+	}
+	if f.ExcludeOwnerUserID != nil {
+		q = q.Where(p+"user_id != ?", *f.ExcludeOwnerUserID)
 	}
 	return q
 }

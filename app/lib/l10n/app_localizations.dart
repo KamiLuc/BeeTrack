@@ -554,6 +554,12 @@ abstract class AppLocalizations {
   /// **'Brak ogłoszeń'**
   String get marketplaceEmpty;
 
+  /// No description provided for @marketplaceResultsCount.
+  ///
+  /// In pl, this message translates to:
+  /// **'{loaded}/{total}'**
+  String marketplaceResultsCount(int loaded, int total);
+
   /// No description provided for @marketplaceMapTooltip.
   ///
   /// In pl, this message translates to:
@@ -1033,6 +1039,24 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Prywatne'**
   String get marketplaceHiddenBadge;
+
+  /// No description provided for @marketplaceStatusPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Oczekuje na weryfikację'**
+  String get marketplaceStatusPending;
+
+  /// No description provided for @marketplaceStatusApproved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aktywne'**
+  String get marketplaceStatusApproved;
+
+  /// No description provided for @marketplaceStatusRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzucone'**
+  String get marketplaceStatusRejected;
 
   /// No description provided for @marketplaceHideListing.
   ///

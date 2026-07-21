@@ -249,6 +249,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceEmpty => 'Brak ogłoszeń';
 
   @override
+  String marketplaceResultsCount(int loaded, int total) {
+    return '$loaded/$total';
+  }
+
+  @override
   String get marketplaceMapTooltip => 'Mapa ogłoszeń';
 
   @override
@@ -497,6 +502,15 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get marketplaceHiddenBadge => 'Prywatne';
+
+  @override
+  String get marketplaceStatusPending => 'Oczekuje na weryfikację';
+
+  @override
+  String get marketplaceStatusApproved => 'Aktywne';
+
+  @override
+  String get marketplaceStatusRejected => 'Odrzucone';
 
   @override
   String get marketplaceHideListing => 'Ustaw jako prywatne';

@@ -94,6 +94,13 @@
   "marketplaceComingSoon": "Wkrótce",
   "marketplaceSearchHint": "Szukaj ogłoszeń",
   "marketplaceEmpty": "Brak ogłoszeń",
+  "marketplaceResultsCount": "{loaded}/{total}",
+  "@marketplaceResultsCount": {
+    "placeholders": {
+      "loaded": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "marketplaceMapTooltip": "Mapa ogłoszeń",
   "marketplaceMapTitle": "Mapa ogłoszeń",
   "marketplaceMapEmpty": "Brak ogłoszeń z lokalizacją pasującą do filtrów",
@@ -188,6 +195,9 @@
   "favoritesTitle": "Ulubione",
   "favoritesEmpty": "Nie masz jeszcze żadnych ulubionych ogłoszeń",
   "marketplaceHiddenBadge": "Prywatne",
+  "marketplaceStatusPending": "Oczekuje na weryfikację",
+  "marketplaceStatusApproved": "Aktywne",
+  "marketplaceStatusRejected": "Odrzucone",
   "marketplaceHideListing": "Ustaw jako prywatne",
   "marketplaceShowListing": "Ustaw jako publiczne",
   "marketplaceDeleteConfirm": "Usunąć to ogłoszenie?",

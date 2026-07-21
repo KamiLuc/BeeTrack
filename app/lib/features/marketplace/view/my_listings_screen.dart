@@ -13,6 +13,8 @@ import '../data/listing_model.dart';
 import '../data/listing_price.dart';
 import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
+import 'listing_detail_screen.dart';
+import 'listing_status_badge.dart';
 
 const int _pageSize = 20;
 
@@ -66,6 +68,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _openDetail(Listing listing) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
+    );
+    if (mounted) _goToPage(_currentPage);
   }
 
   Future<void> _openEdit(Listing listing) async {
@@ -197,6 +206,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 child: _MyListingCard(
                   listing: listing,
                   busy: _busy.contains(listing.id),
+                  onTap: () => _openDetail(listing),
                   onEdit: () => _openEdit(listing),
                   onToggleHidden: () => _toggleHidden(listing),
                   onDelete: () => _confirmDelete(listing),
@@ -359,6 +369,7 @@ enum _CardAction { edit, toggleHidden, delete }
 class _MyListingCard extends StatelessWidget {
   final Listing listing;
   final bool busy;
+  final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onToggleHidden;
   final VoidCallback onDelete;
@@ -366,6 +377,7 @@ class _MyListingCard extends StatelessWidget {
   const _MyListingCard({
     required this.listing,
     required this.busy,
+    required this.onTap,
     required this.onEdit,
     required this.onToggleHidden,
     required this.onDelete,
@@ -380,112 +392,119 @@ class _MyListingCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _MyListingThumbnail(listing: listing),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 92,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            listing.title,
-                            style: textTheme.titleMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 4,
-                            children: [
-                              _Chip(
-                                icon: listingCategoryIcon(listing.category),
-                                label: listingCategoryLabel(
-                                  l10n,
-                                  listing.category,
-                                ),
-                              ),
-                              if (listing.isHidden)
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _MyListingThumbnail(listing: listing),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 92,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 40),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              listing.title,
+                              style: textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 4,
+                              children: [
                                 _Chip(
-                                  icon: Icons.visibility_off_outlined,
-                                  label: l10n.marketplaceHiddenBadge,
-                                  color: colorScheme.error,
+                                  icon: listingCategoryIcon(listing.category),
+                                  label: listingCategoryLabel(
+                                    l10n,
+                                    listing.category,
+                                  ),
                                 ),
-                            ],
-                          ),
-                        ],
+                                ListingStatusBadge(
+                                  status: listing.status,
+                                  rejectionReason: listing.rejectionReason,
+                                ),
+                                if (listing.isHidden)
+                                  _Chip(
+                                    icon: Icons.visibility_off_outlined,
+                                    label: l10n.marketplaceHiddenBadge,
+                                    color: colorScheme.error,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Text(
-              listingPriceLabel(l10n, listing.price),
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.primary,
+                ],
               ),
             ),
-          ),
-          Positioned(
-            top: busy ? 14 : 4,
-            right: busy ? 16 : 4,
-            child: busy
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : PopupMenuButton<_CardAction>(
-                    onSelected: (action) {
-                      switch (action) {
-                        case _CardAction.edit:
-                          onEdit();
-                        case _CardAction.toggleHidden:
-                          onToggleHidden();
-                        case _CardAction.delete:
-                          onDelete();
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: _CardAction.edit,
-                        child: Text(l10n.generalEdit),
-                      ),
-                      PopupMenuItem(
-                        value: _CardAction.toggleHidden,
-                        child: Text(
-                          listing.isHidden
-                              ? l10n.marketplaceShowListing
-                              : l10n.marketplaceHideListing,
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Text(
+                listingPriceLabel(l10n, listing.price),
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ),
+            Positioned(
+              top: busy ? 14 : 4,
+              right: busy ? 16 : 4,
+              child: busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : PopupMenuButton<_CardAction>(
+                      onSelected: (action) {
+                        switch (action) {
+                          case _CardAction.edit:
+                            onEdit();
+                          case _CardAction.toggleHidden:
+                            onToggleHidden();
+                          case _CardAction.delete:
+                            onDelete();
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: _CardAction.edit,
+                          child: Text(l10n.generalEdit),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: _CardAction.delete,
-                        child: Text(
-                          l10n.generalDelete,
-                          style: TextStyle(color: colorScheme.error),
+                        PopupMenuItem(
+                          value: _CardAction.toggleHidden,
+                          child: Text(
+                            listing.isHidden
+                                ? l10n.marketplaceShowListing
+                                : l10n.marketplaceHideListing,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-          ),
-        ],
+                        PopupMenuItem(
+                          value: _CardAction.delete,
+                          child: Text(
+                            l10n.generalDelete,
+                            style: TextStyle(color: colorScheme.error),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

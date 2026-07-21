@@ -34,6 +34,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   int _imagePage = 0;
   bool _showPhone = false;
   bool _showEmail = false;
+  bool _hideBusy = false;
 
   @override
   void initState() {
@@ -152,6 +153,25 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleHidden() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _hideBusy = true);
+    try {
+      final updated = await ListingRepository(
+        api: context.read<ApiClient>(),
+      ).hideListing(_listing.id, hidden: !_listing.isHidden);
+      if (mounted) setState(() => _listing = updated);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.generalError)));
+      }
+    } finally {
+      if (mounted) setState(() => _hideBusy = false);
+    }
   }
 
   Future<void> _delete() async {
@@ -417,7 +437,14 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               ),
             ),
           ),
-          if (isOwner) _EditBanner(onEdit: _openEdit, onDelete: _delete),
+          if (isOwner)
+            _EditBanner(
+              onEdit: _openEdit,
+              onDelete: _delete,
+              isHidden: listing.isHidden,
+              hideBusy: _hideBusy,
+              onToggleHidden: _toggleHidden,
+            ),
         ],
       ),
     );
@@ -427,8 +454,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 class _EditBanner extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isHidden;
+  final bool hideBusy;
+  final VoidCallback onToggleHidden;
 
-  const _EditBanner({required this.onEdit, required this.onDelete});
+  const _EditBanner({
+    required this.onEdit,
+    required this.onDelete,
+    required this.isHidden,
+    required this.hideBusy,
+    required this.onToggleHidden,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -466,6 +502,27 @@ class _EditBanner extends StatelessWidget {
                     tooltip: l10n.generalEdit,
                     onPressed: onEdit,
                   ),
+                  hideBusy
+                      ? const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Padding(
+                            padding: EdgeInsets.all(2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: Icon(
+                            isHidden
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          iconSize: 28,
+                          tooltip: isHidden
+                              ? l10n.marketplaceShowListing
+                              : l10n.marketplaceHideListing,
+                          onPressed: onToggleHidden,
+                        ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
                     iconSize: 28,

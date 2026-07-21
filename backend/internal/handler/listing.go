@@ -100,6 +100,8 @@ func listingJSON(l *model.Listing) map[string]any {
 		"contact_phone":     l.ContactPhone,
 		"contact_email":     l.ContactEmail,
 		"is_hidden":         l.IsHidden,
+		"status":            l.Status,
+		"rejection_reason":  l.RejectionReason,
 		"created_at":        l.CreatedAt,
 		"updated_at":        l.UpdatedAt,
 		"images":            images,
@@ -242,6 +244,7 @@ func (h *ListingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Search handles GET /api/v1/listings — returns paginated listings matching the query filters.
 // With mine=true (auth required) it returns the caller's own listings, including hidden ones.
+// Otherwise, if authenticated, the caller's own listings are excluded from the results.
 func (h *ListingHandler) Search(w http.ResponseWriter, r *http.Request) {
 	viewerID, _ := middleware.UserIDFromContext(r.Context())
 
@@ -252,6 +255,8 @@ func (h *ListingHandler) Search(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		filter.OwnerUserID = &viewerID
+	} else if viewerID != 0 {
+		filter.ExcludeOwnerUserID = &viewerID
 	}
 
 	listings, total, err := h.listings.Search(r.Context(), filter)

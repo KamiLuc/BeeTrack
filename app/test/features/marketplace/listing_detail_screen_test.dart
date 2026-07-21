@@ -50,6 +50,7 @@ class _RecordingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   List<Map<String, dynamic>> favoriteItems = [];
   bool failMutations = false;
+  bool failHide = false;
   Map<String, dynamic>? refetchedListingJson;
 
   @override
@@ -91,6 +92,23 @@ class _RecordingAdapter implements HttpClientAdapter {
       }
       return ResponseBody.fromString(
         jsonEncode({}),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (options.path.contains('/hide') && options.method == 'PATCH') {
+      if (failHide) {
+        throw DioException(
+          requestOptions: options,
+          response: Response(requestOptions: options, statusCode: 500),
+        );
+      }
+      final hidden = (options.data as Map<String, dynamic>)['hidden'] as bool;
+      return ResponseBody.fromString(
+        jsonEncode({..._listingJson(_listing()), 'is_hidden': hidden}),
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -770,6 +788,77 @@ void main() {
           ),
         );
         expect(leftArrowAfter.onTap, isNull);
+      },
+    );
+
+    testWidgets(
+      'owner: shows a "make private" button for a public listing that hides '
+      'it, then swaps to "make public"',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+        expect(find.byTooltip(l10n.marketplaceHideListing), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.visibility_off_outlined));
+        await tester.pumpAndSettle();
+
+        expect(
+          adapter.requests.any(
+            (r) =>
+                r.method == 'PATCH' &&
+                r.path.contains('/listings/${listing.id}/hide'),
+          ),
+          isTrue,
+        );
+        expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+        expect(find.byTooltip(l10n.marketplaceShowListing), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'owner: toggle-visibility failure shows an error snackbar and keeps '
+      'the previous state',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient(userId: 5);
+        adapter.failHide = true;
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.visibility_off_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'non-owner: no visibility toggle button shown',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient(userId: 99);
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing()),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
+        expect(find.byIcon(Icons.visibility_outlined), findsNothing);
       },
     );
 

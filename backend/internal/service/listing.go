@@ -213,7 +213,53 @@ func (s *ListingService) Search(ctx context.Context, f repository.ListingFilter)
 	return listings, total, nil
 }
 
+// listingContentChanged reports whether params differ from l's current mutable
+// fields. An edit that resubmits identical content must not re-enter moderation.
+func listingContentChanged(l *model.Listing, params ListingParams) bool {
+	if l.Title != params.Title ||
+		l.Description != params.Description ||
+		l.Category != params.Category ||
+		l.Quantity != params.Quantity ||
+		l.Address != params.Address ||
+		l.ContactPhone != params.ContactPhone ||
+		l.ContactEmail != params.ContactEmail ||
+		l.Lat != *params.Lat ||
+		l.Lng != *params.Lng ||
+		!int64PtrEqual(l.ApiaryID, params.ApiaryID) ||
+		!float64PtrEqual(l.Price, defaultPrice(params.Price)) {
+		return true
+	}
+	return params.ImageURLs != nil && !imageURLsEqual(l.Images, params.ImageURLs)
+}
+
+func int64PtrEqual(a, b *int64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func float64PtrEqual(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func imageURLsEqual(images []model.ListingImage, urls []string) bool {
+	if len(images) != len(urls) {
+		return false
+	}
+	for i, img := range images {
+		if img.ImageURL != urls[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Update validates params, verifies ownership, overwrites mutable fields, and replaces images.
+// Content that is identical to what's already stored does not re-enter moderation.
 func (s *ListingService) Update(ctx context.Context, userID, listingID int64, params ListingParams) (*model.Listing, error) {
 	if err := validateListingParams(params); err != nil {
 		return nil, err
@@ -224,6 +270,12 @@ func (s *ListingService) Update(ctx context.Context, userID, listingID int64, pa
 	}
 	if err := s.checkApiaryAccess(ctx, params.ApiaryID, userID); err != nil {
 		return nil, err
+	}
+	if listingContentChanged(l, params) {
+		l.Status = model.ListingStatusPending
+		l.RejectionReason = nil
+		l.ReviewedBy = nil
+		l.ReviewedAt = nil
 	}
 	l.Title = params.Title
 	l.Description = params.Description

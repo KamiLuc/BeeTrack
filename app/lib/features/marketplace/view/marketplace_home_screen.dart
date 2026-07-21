@@ -106,7 +106,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
   void _openMap(BuildContext context, List<Listing> listings) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => MarketplaceMapScreen(listings: listings)),
+      MaterialPageRoute(
+        builder: (_) => MarketplaceMapScreen(listings: listings),
+      ),
     );
   }
 
@@ -338,6 +340,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.outline),
           borderRadius: BorderRadius.circular(12),
@@ -346,6 +349,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
           isExpanded: true,
           value: selectedCategory,
           underline: const SizedBox(),
+          borderRadius: BorderRadius.circular(12),
           onChanged: (category) {
             FocusScope.of(context).unfocus();
             context.read<MarketplaceCubit>().setCategory(category);
@@ -779,6 +783,7 @@ class _PostedWithinDropdown extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.outline),
           borderRadius: BorderRadius.circular(12),
@@ -787,6 +792,7 @@ class _PostedWithinDropdown extends StatelessWidget {
           isExpanded: true,
           value: value,
           underline: const SizedBox(),
+          borderRadius: BorderRadius.circular(12),
           onChanged: (days) {
             FocusScope.of(context).unfocus();
             onChanged(days);
@@ -847,6 +853,7 @@ class _RadiusDropdown extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.outline),
           borderRadius: BorderRadius.circular(12),
@@ -855,6 +862,7 @@ class _RadiusDropdown extends StatelessWidget {
           isExpanded: true,
           value: enabled ? value : null,
           underline: const SizedBox(),
+          borderRadius: BorderRadius.circular(12),
           onChanged: enabled
               ? (radiusKm) {
                   FocusScope.of(context).unfocus();
@@ -936,35 +944,53 @@ class _ListingsFeedState extends State<_ListingsFeed> {
       if (state.items.isEmpty) {
         return Center(child: Text(l10n.marketplaceEmpty));
       }
-      return RefreshIndicator(
-        onRefresh: () => context.read<MarketplaceCubit>().load(),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: AppLayout.formConstraints(context),
-            child: ListView.builder(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              itemCount: state.items.length + (state.hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= state.items.length) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final listing = state.items[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _ListingCard(
-                    listing: listing,
-                    isFavorite: state.favoriteIds.contains(listing.id),
-                  ),
-                );
-              },
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                l10n.marketplaceResultsCount(state.items.length, state.total),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
-        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => context.read<MarketplaceCubit>().load(),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: AppLayout.formConstraints(context),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    itemCount: state.items.length + (state.hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= state.items.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final listing = state.items[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _ListingCard(
+                          listing: listing,
+                          isFavorite: state.favoriteIds.contains(listing.id),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
     return const SizedBox.shrink();

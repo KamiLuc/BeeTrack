@@ -94,6 +94,13 @@
   "marketplaceComingSoon": "Coming soon",
   "marketplaceSearchHint": "Search listings",
   "marketplaceEmpty": "No listings yet",
+  "marketplaceResultsCount": "{loaded}/{total}",
+  "@marketplaceResultsCount": {
+    "placeholders": {
+      "loaded": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "marketplaceMapTooltip": "Map view",
   "marketplaceMapTitle": "Marketplace map",
   "marketplaceMapEmpty": "No listings with a location match your filters",
@@ -188,6 +195,9 @@
   "favoritesTitle": "Favorites",
   "favoritesEmpty": "You haven't saved any favorites yet",
   "marketplaceHiddenBadge": "Private",
+  "marketplaceStatusPending": "Pending review",
+  "marketplaceStatusApproved": "Live",
+  "marketplaceStatusRejected": "Rejected",
   "marketplaceHideListing": "Make private",
   "marketplaceShowListing": "Make public",
   "marketplaceDeleteConfirm": "Delete this listing?",

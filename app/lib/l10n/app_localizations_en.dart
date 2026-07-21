@@ -249,6 +249,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceEmpty => 'No listings yet';
 
   @override
+  String marketplaceResultsCount(int loaded, int total) {
+    return '$loaded/$total';
+  }
+
+  @override
   String get marketplaceMapTooltip => 'Map view';
 
   @override
@@ -495,6 +500,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get marketplaceHiddenBadge => 'Private';
+
+  @override
+  String get marketplaceStatusPending => 'Pending review';
+
+  @override
+  String get marketplaceStatusApproved => 'Live';
+
+  @override
+  String get marketplaceStatusRejected => 'Rejected';
 
   @override
   String get marketplaceHideListing => 'Make private';

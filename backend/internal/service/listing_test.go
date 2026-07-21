@@ -600,6 +600,85 @@ func TestListingUpdate_ReplacesImages(t *testing.T) {
 	}
 }
 
+func TestListingUpdate_NoContentChange_KeepsApprovedStatus(t *testing.T) {
+	zero := 0.0
+	existing := &model.Listing{
+		ID:       5,
+		UserID:   3,
+		Title:    "Raw wildflower honey",
+		Category: "HONEY",
+		Lat:      52.2297,
+		Lng:      21.0122,
+		Price:    &zero,
+		Status:   model.ListingStatusApproved,
+	}
+	store := &mockListingStore{listing: existing}
+	svc := newListingSvc(store)
+
+	l, err := svc.Update(context.Background(), 3, 5, validListingParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Status != model.ListingStatusApproved {
+		t.Errorf("expected status to stay approved, got %q", l.Status)
+	}
+}
+
+func TestListingUpdate_NoContentChange_KeepsRejectionReason(t *testing.T) {
+	zero := 0.0
+	reason := "blurry photos"
+	existing := &model.Listing{
+		ID:              5,
+		UserID:          3,
+		Title:           "Raw wildflower honey",
+		Category:        "HONEY",
+		Lat:             52.2297,
+		Lng:             21.0122,
+		Price:           &zero,
+		Status:          model.ListingStatusRejected,
+		RejectionReason: &reason,
+	}
+	store := &mockListingStore{listing: existing}
+	svc := newListingSvc(store)
+
+	l, err := svc.Update(context.Background(), 3, 5, validListingParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Status != model.ListingStatusRejected {
+		t.Errorf("expected status to stay rejected, got %q", l.Status)
+	}
+	if l.RejectionReason == nil || *l.RejectionReason != reason {
+		t.Errorf("expected rejection reason to be kept, got %v", l.RejectionReason)
+	}
+}
+
+func TestListingUpdate_ContentChange_ResetsToPending(t *testing.T) {
+	zero := 0.0
+	existing := &model.Listing{
+		ID:       5,
+		UserID:   3,
+		Title:    "old title",
+		Category: "HONEY",
+		Lat:      52.2297,
+		Lng:      21.0122,
+		Price:    &zero,
+		Status:   model.ListingStatusApproved,
+	}
+	store := &mockListingStore{listing: existing}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.Title = "new title"
+	l, err := svc.Update(context.Background(), 3, 5, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Status != model.ListingStatusPending {
+		t.Errorf("expected status reset to pending, got %q", l.Status)
+	}
+}
+
 func TestListingSetHidden(t *testing.T) {
 	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
 	svc := newListingSvc(store)
