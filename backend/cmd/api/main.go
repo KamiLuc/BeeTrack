@@ -215,7 +215,7 @@ func main() {
 	mux.Handle("POST /api/v1/admin/listings/{id}/reject", admin(http.HandlerFunc(adminListingHandler.Reject)))
 	mux.Handle("POST /api/v1/admin/listings/{id}/remove", admin(http.HandlerFunc(adminListingHandler.Remove)))
 	mux.Handle("POST /api/v1/admin/listings/{id}/restore", admin(http.HandlerFunc(adminListingHandler.Restore)))
-	mux.Handle("GET /api/v1/admin/certification-requests", admin(http.HandlerFunc(adminCertificationHandler.ListPending)))
+	mux.Handle("GET /api/v1/admin/certification-requests", admin(http.HandlerFunc(adminCertificationHandler.List)))
 	mux.Handle("GET /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Get)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/approve", admin(http.HandlerFunc(adminCertificationHandler.Approve)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/reject", admin(http.HandlerFunc(adminCertificationHandler.Reject)))

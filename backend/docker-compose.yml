@@ -44,6 +44,7 @@ services:
       APP_URL: http://localhost:5000
       DATABASE_URL: postgres://postgres:password@db:5432/beetrack?sslmode=disable
       IMAGE_STORAGE_PATH: /data/images
+      PDF_STORAGE_PATH: /data/pdfs
       SMTP_FROM: noreply@beetrack.app
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
@@ -51,7 +52,9 @@ services:
       - "8080:8080"
     volumes:
       - images_data:/data/images
+      - pdfs_data:/data/pdfs
 
 volumes:
   postgres_data:
   images_data:
+  pdfs_data:

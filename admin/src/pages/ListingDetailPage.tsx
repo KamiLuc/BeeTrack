@@ -208,7 +208,11 @@ export function ListingDetailPage() {
       <div className="actions">
         {isPending && (
           <>
-            <button className="btn-approve" disabled={submitting} onClick={handleApprove}>
+            <button
+              className="btn-approve"
+              disabled={submitting || reason.trim().length > 0}
+              onClick={handleApprove}
+            >
               {t("listingDetail.approve")}
             </button>
             <button

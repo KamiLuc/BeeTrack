@@ -157,3 +157,11 @@ func (r *HoneyBatchRepository) SoftDelete(ctx context.Context, id int64) error {
 			"updated_at": gorm.Expr("NOW()"),
 		}).Error
 }
+
+// HardDelete permanently removes the batch row. Only safe for a batch that
+// was never certified on-chain — cascades (ON DELETE CASCADE) wipe its
+// honey_batch_certification_requests, blockchain_jobs, honey_batch_certifications,
+// and honey_batch_qr_codes rows along with it.
+func (r *HoneyBatchRepository) HardDelete(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.HoneyBatch{}, id).Error
+}

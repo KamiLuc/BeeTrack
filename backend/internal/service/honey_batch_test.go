@@ -28,6 +28,7 @@ type mockHoneyBatchRepo struct {
 	updatedPDFFilename      string
 	updatedPDFFileHash      string
 	deletedID               int64
+	hardDeletedID           int64
 }
 
 func (m *mockHoneyBatchRepo) GetByID(ctx context.Context, id int64) (*model.HoneyBatch, error) {
@@ -95,6 +96,14 @@ func (m *mockHoneyBatchRepo) SoftDelete(ctx context.Context, id int64) error {
 		return m.err
 	}
 	m.deletedID = id
+	return nil
+}
+
+func (m *mockHoneyBatchRepo) HardDelete(ctx context.Context, id int64) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.hardDeletedID = id
 	return nil
 }
 
@@ -670,15 +679,18 @@ func TestUpdateBatch_LockedWhenCertificationRequestPending(t *testing.T) {
 }
 
 func TestDeleteBatch_Owned(t *testing.T) {
-	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFilename: "lab.pdf"}
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
 	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if err := svc.DeleteBatch(context.Background(), 42, 1); err != nil {
 		t.Fatalf("DeleteBatch() error = %v", err)
 	}
-	if batches.deletedID != 1 {
-		t.Errorf("expected batch 1 to be soft-deleted, got %d", batches.deletedID)
+	if batches.hardDeletedID != 1 {
+		t.Errorf("expected batch 1 to be hard-deleted, got %d", batches.hardDeletedID)
+	}
+	if batches.deletedID != 0 {
+		t.Errorf("expected no soft-delete to occur, got %d", batches.deletedID)
 	}
 }
 
@@ -691,7 +703,78 @@ func TestDeleteBatch_NotOwner(t *testing.T) {
 		t.Errorf("expected ErrBatchNotFound, got %v", err)
 	}
 	if batches.deletedID != 0 {
-		t.Error("expected no delete to occur for a non-owner")
+		t.Error("expected no soft-delete to occur for a non-owner")
+	}
+	if batches.hardDeletedID != 0 {
+		t.Error("expected no hard-delete to occur for a non-owner")
+	}
+}
+
+func TestDeleteBatch_NoCertRequest_HardDeletes(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if err := svc.DeleteBatch(context.Background(), 42, 1); err != nil {
+		t.Fatalf("DeleteBatch() error = %v", err)
+	}
+	if batches.hardDeletedID != 1 {
+		t.Errorf("expected batch 1 to be hard-deleted, got %d", batches.hardDeletedID)
+	}
+	if batches.deletedID != 0 {
+		t.Errorf("expected no soft-delete, got %d", batches.deletedID)
+	}
+}
+
+func TestDeleteBatch_NeverApprovedCertRequest_HardDeletes(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certRequests := &mockCertRequestRepo{latest: &model.HoneyBatchCertificationRequest{BatchID: 1, BlockchainJobID: nil}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, certRequests, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if err := svc.DeleteBatch(context.Background(), 42, 1); err != nil {
+		t.Fatalf("DeleteBatch() error = %v", err)
+	}
+	if batches.hardDeletedID != 1 {
+		t.Errorf("expected batch 1 to be hard-deleted, got %d", batches.hardDeletedID)
+	}
+	if batches.deletedID != 0 {
+		t.Errorf("expected no soft-delete, got %d", batches.deletedID)
+	}
+}
+
+func TestDeleteBatch_ApprovedCertRequest_SoftDeletesOnly(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	jobID := int64(7)
+	certRequests := &mockCertRequestRepo{latest: &model.HoneyBatchCertificationRequest{BatchID: 1, BlockchainJobID: &jobID}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, certRequests, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if err := svc.DeleteBatch(context.Background(), 42, 1); err != nil {
+		t.Fatalf("DeleteBatch() error = %v", err)
+	}
+	if batches.deletedID != 1 {
+		t.Errorf("expected batch 1 to be soft-deleted, got %d", batches.deletedID)
+	}
+	if batches.hardDeletedID != 0 {
+		t.Errorf("expected no hard-delete, got %d", batches.hardDeletedID)
+	}
+}
+
+func TestDeleteBatch_GetLatestCertRequestError(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certRequests := &mockCertRequestRepo{err: errors.New("db down")}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, certRequests, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if err := svc.DeleteBatch(context.Background(), 42, 1); err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if batches.deletedID != 0 {
+		t.Errorf("expected no soft-delete, got %d", batches.deletedID)
+	}
+	if batches.hardDeletedID != 0 {
+		t.Errorf("expected no hard-delete, got %d", batches.hardDeletedID)
 	}
 }
 

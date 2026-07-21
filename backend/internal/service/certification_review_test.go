@@ -13,7 +13,7 @@ import (
 
 type mockCertificationRequestStore struct {
 	byID           map[int64]*model.HoneyBatchCertificationRequestDetail
-	pending        []*model.HoneyBatchCertificationRequestDetail
+	items          []*model.HoneyBatchCertificationRequestDetail
 	total          int64
 	approvedID     int64
 	approvedBy     int64
@@ -23,13 +23,24 @@ type mockCertificationRequestStore struct {
 	rejectedReason string
 	rejectErr      error
 	err            error
+
+	gotStatus  string
+	gotKeyword string
+	gotSortDir string
+	gotLimit   int
+	gotOffset  int
 }
 
-func (m *mockCertificationRequestStore) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
+func (m *mockCertificationRequestStore) List(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
+	m.gotStatus = status
+	m.gotKeyword = keyword
+	m.gotSortDir = sortDir
+	m.gotLimit = limit
+	m.gotOffset = offset
 	if m.err != nil {
 		return nil, 0, m.err
 	}
-	return m.pending, m.total, nil
+	return m.items, m.total, nil
 }
 
 func (m *mockCertificationRequestStore) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error) {
@@ -58,22 +69,35 @@ func (m *mockCertificationRequestStore) Reject(ctx context.Context, id, reviewer
 	return nil
 }
 
-func TestCertificationReview_ListPending(t *testing.T) {
+func TestCertificationReview_List(t *testing.T) {
 	store := &mockCertificationRequestStore{
-		pending: []*model.HoneyBatchCertificationRequestDetail{
+		items: []*model.HoneyBatchCertificationRequestDetail{
 			{HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1}},
 			{HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 2}},
 		},
-		total:   2,
+		total: 2,
 	}
 	svc := NewCertificationReviewService(store)
 
-	items, total, err := svc.ListPending(context.Background(), 20, 0)
+	items, total, err := svc.List(context.Background(), "", "", "asc", 20, 0)
 	if err != nil {
-		t.Fatalf("ListPending() error = %v", err)
+		t.Fatalf("List() error = %v", err)
 	}
 	if total != 2 || len(items) != 2 {
 		t.Fatalf("expected 2 items, got total=%d len=%d", total, len(items))
+	}
+}
+
+func TestCertificationReview_List_ForwardsArgsToStore(t *testing.T) {
+	store := &mockCertificationRequestStore{}
+	svc := NewCertificationReviewService(store)
+
+	if _, _, err := svc.List(context.Background(), "approved", "clover", "desc", 10, 5); err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if store.gotStatus != "approved" || store.gotKeyword != "clover" || store.gotSortDir != "desc" || store.gotLimit != 10 || store.gotOffset != 5 {
+		t.Errorf("List() did not forward args, got status=%q keyword=%q sortDir=%q limit=%d offset=%d",
+			store.gotStatus, store.gotKeyword, store.gotSortDir, store.gotLimit, store.gotOffset)
 	}
 }
 

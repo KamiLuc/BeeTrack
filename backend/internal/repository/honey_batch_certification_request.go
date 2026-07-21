@@ -24,13 +24,26 @@ func (r *HoneyBatchCertificationRequestRepository) Create(ctx context.Context, r
 	return r.db.WithContext(ctx).Create(req).Error
 }
 
-func (r *HoneyBatchCertificationRequestRepository) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error) {
-	var detail model.HoneyBatchCertificationRequestDetail
-	err := r.db.WithContext(ctx).
+// certificationRequestDetailJoins joins in the batch/requester fields plus,
+// via the nullable blockchain_job_id/certification_id chain, the current
+// blockchain job status and (once submitted) on-chain attempt details.
+func (r *HoneyBatchCertificationRequestRepository) certificationRequestDetailJoins(ctx context.Context) *gorm.DB {
+	return r.db.WithContext(ctx).
 		Table("honey_batch_certification_requests cr").
-		Select("cr.*, b.gathering_date, b.amount_grams, b.honey_type, u.email AS requester_email").
 		Joins("JOIN honey_batches b ON b.id = cr.batch_id").
 		Joins("JOIN users u ON u.id = cr.requested_by").
+		Joins("LEFT JOIN blockchain_jobs bj ON bj.id = cr.blockchain_job_id").
+		Joins("LEFT JOIN honey_batch_certifications hbc ON hbc.id = bj.certification_id")
+}
+
+const certificationRequestDetailSelect = "cr.*, b.gathering_date, b.amount_grams, b.honey_type, b.processing_method, u.email AS requester_email, " +
+	"bj.status AS job_status, bj.last_error AS job_last_error, " +
+	"hbc.transaction_hash, hbc.block_number, hbc.confirmation_timestamp"
+
+func (r *HoneyBatchCertificationRequestRepository) GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error) {
+	var detail model.HoneyBatchCertificationRequestDetail
+	err := r.certificationRequestDetailJoins(ctx).
+		Select(certificationRequestDetailSelect).
 		Where("cr.id = ?", id).
 		First(&detail).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -73,23 +86,34 @@ func (r *HoneyBatchCertificationRequestRepository) GetLatestByBatchID(ctx contex
 	return &req, nil
 }
 
-// ListPending returns pending requests oldest-first, for the admin queue,
-// along with the total pending count.
-func (r *HoneyBatchCertificationRequestRepository) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
+// List returns certification requests for the admin queue, optionally filtered
+// by status (empty means all) and by keyword (matched against honey type and
+// requester email), ordered by created_at according to sortDir ("asc" or
+// "desc", default "asc") — mirrors ListingRepository.ListReview.
+func (r *HoneyBatchCertificationRequestRepository) List(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
+	order := "cr.created_at ASC"
+	if sortDir == "desc" {
+		order = "cr.created_at DESC"
+	}
+
+	base := r.certificationRequestDetailJoins(ctx)
+	if status != "" {
+		base = base.Where("cr.status = ?", status)
+	}
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		base = base.Where("(b.honey_type ILIKE ? OR u.email ILIKE ?)", like, like)
+	}
+
 	var total int64
-	if err := r.db.WithContext(ctx).Model(&model.HoneyBatchCertificationRequest{}).
-		Where("status = ?", model.CertificationRequestStatusPending).
-		Count(&total).Error; err != nil {
+	if err := base.Session(&gorm.Session{}).Model(&model.HoneyBatchCertificationRequest{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+
 	var reqs []*model.HoneyBatchCertificationRequestDetail
-	err := r.db.WithContext(ctx).
-		Table("honey_batch_certification_requests cr").
-		Select("cr.*, b.gathering_date, b.amount_grams, b.honey_type, u.email AS requester_email").
-		Joins("JOIN honey_batches b ON b.id = cr.batch_id").
-		Joins("JOIN users u ON u.id = cr.requested_by").
-		Where("cr.status = ?", model.CertificationRequestStatusPending).
-		Order("cr.created_at ASC").
+	err := base.Session(&gorm.Session{}).
+		Select(certificationRequestDetailSelect).
+		Order(order).
 		Limit(limit).
 		Offset(offset).
 		Find(&reqs).Error

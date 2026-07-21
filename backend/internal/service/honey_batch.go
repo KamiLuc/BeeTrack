@@ -44,6 +44,7 @@ type HoneyBatchRepository interface {
 	CountByUserID(ctx context.Context, userID int64) (int64, error)
 	UpdateFields(ctx context.Context, batch *model.HoneyBatch) error
 	SoftDelete(ctx context.Context, id int64) error
+	HardDelete(ctx context.Context, id int64) error
 }
 
 // HoneyBatchCertificationRequestRepository is the persistence interface for
@@ -452,11 +453,35 @@ func (s *HoneyBatchService) UpdateBatch(ctx context.Context, userID, batchID int
 	return batch, nil
 }
 
-// DeleteBatch soft-deletes a batch owned by userID. The on-chain certification, if any, is untouched.
+// DeleteBatch removes a batch owned by userID. A batch that was never
+// approved for on-chain certification (no certification request ever reached
+// blockchain_jobs) is hard-deleted — its lab PDF is removed from disk and the
+// row's cascading deletes wipe any dangling certification_requests, so it
+// can't linger in the admin panel pointing at a PDF that no longer exists.
+// A batch that was approved (certification in flight or already confirmed
+// on-chain) is only soft-deleted, preserving that audit trail untouched.
 func (s *HoneyBatchService) DeleteBatch(ctx context.Context, userID, batchID int64) error {
-	if _, err := s.ownedBatch(ctx, userID, batchID); err != nil {
+	batch, err := s.ownedBatch(ctx, userID, batchID)
+	if err != nil {
 		return err
 	}
+
+	certRequest, err := s.certRequests.GetLatestByBatchID(ctx, batchID)
+	if err != nil {
+		return fmt.Errorf("get latest certification request: %w", err)
+	}
+	everApprovedForCertification := certRequest != nil && certRequest.BlockchainJobID != nil
+
+	if !everApprovedForCertification {
+		if err := s.batches.HardDelete(ctx, batchID); err != nil {
+			return fmt.Errorf("delete batch: %w", err)
+		}
+		if batch.PDFFilename != "" {
+			_ = os.Remove(s.FilePath(batch.PDFFilename))
+		}
+		return nil
+	}
+
 	if err := s.batches.SoftDelete(ctx, batchID); err != nil {
 		return fmt.Errorf("delete batch: %w", err)
 	}

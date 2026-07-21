@@ -17,7 +17,7 @@ var (
 // CertificationRequestStore is the persistence interface for the admin
 // certification-request review queue.
 type CertificationRequestStore interface {
-	ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error)
+	List(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error)
 	GetByID(ctx context.Context, id int64) (*model.HoneyBatchCertificationRequestDetail, error)
 	Approve(ctx context.Context, id, reviewerID int64) (*model.BlockchainJob, error)
 	Reject(ctx context.Context, id, reviewerID int64, reason string) error
@@ -31,8 +31,8 @@ func NewCertificationReviewService(requests CertificationRequestStore) *Certific
 	return &CertificationReviewService{requests: requests}
 }
 
-func (s *CertificationReviewService) ListPending(ctx context.Context, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
-	return s.requests.ListPending(ctx, limit, offset)
+func (s *CertificationReviewService) List(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.HoneyBatchCertificationRequestDetail, int64, error) {
+	return s.requests.List(ctx, status, keyword, sortDir, limit, offset)
 }
 
 func (s *CertificationReviewService) Get(ctx context.Context, requestID int64) (*model.HoneyBatchCertificationRequestDetail, error) {

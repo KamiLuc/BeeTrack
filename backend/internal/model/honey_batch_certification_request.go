@@ -22,11 +22,20 @@ type HoneyBatchCertificationRequest struct {
 	CreatedAt       time.Time
 }
 
-// HoneyBatchCertificationRequestDetail adds the batch/requester fields the admin queue/detail views need.
+// HoneyBatchCertificationRequestDetail adds the batch/requester fields the admin
+// queue/detail views need, plus (once approved) the linked blockchain_jobs and
+// honey_batch_certifications state so the admin panel can show on-chain progress
+// without a separate lookup.
 type HoneyBatchCertificationRequestDetail struct {
 	HoneyBatchCertificationRequest
-	GatheringDate  time.Time
-	AmountGrams    int64
-	HoneyType      string
-	RequesterEmail string
+	GatheringDate         time.Time
+	AmountGrams           int64
+	HoneyType             string
+	ProcessingMethod      string
+	RequesterEmail        string
+	JobStatus             *CertificationStatus
+	JobLastError          *string
+	TransactionHash       *string
+	BlockNumber           *int64
+	ConfirmationTimestamp *time.Time
 }

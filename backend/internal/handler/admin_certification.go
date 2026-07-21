@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
@@ -26,19 +27,49 @@ func NewAdminCertificationHandler(review *service.CertificationReviewService, ba
 
 func certificationRequestJSON(req *model.HoneyBatchCertificationRequestDetail) map[string]any {
 	return map[string]any{
-		"id":                req.ID,
-		"batch_id":          req.BatchID,
-		"requested_by":      req.RequestedBy,
-		"requester_email":   req.RequesterEmail,
-		"status":            req.Status,
-		"rejection_reason":  req.RejectionReason,
-		"blockchain_job_id": req.BlockchainJobID,
-		"created_at":        req.CreatedAt,
-		"gathering_date":    req.GatheringDate,
-		"amount_grams":      req.AmountGrams,
-		"honey_type":        req.HoneyType,
-		"pdf_url":           fmt.Sprintf("/api/v1/admin/honey-batches/%d/pdf", req.BatchID),
+		"id":                     req.ID,
+		"batch_id":               req.BatchID,
+		"requested_by":           req.RequestedBy,
+		"requester_email":        req.RequesterEmail,
+		"status":                 req.Status,
+		"rejection_reason":       req.RejectionReason,
+		"blockchain_job_id":      req.BlockchainJobID,
+		"created_at":             req.CreatedAt,
+		"gathering_date":         req.GatheringDate,
+		"amount_grams":           req.AmountGrams,
+		"honey_type":             req.HoneyType,
+		"processing_method":      req.ProcessingMethod,
+		"pdf_url":                fmt.Sprintf("/api/v1/admin/honey-batches/%d/pdf", req.BatchID),
+		"job_status":             req.JobStatus,
+		"job_last_error":         req.JobLastError,
+		"transaction_hash":       req.TransactionHash,
+		"block_number":           req.BlockNumber,
+		"confirmation_timestamp": req.ConfirmationTimestamp,
 	}
+}
+
+// allowedCertificationRequestStatuses are the values the admin panel's status
+// filter accepts; empty means no filter (all statuses).
+var allowedCertificationRequestStatuses = map[string]bool{
+	"":                                       true,
+	model.CertificationRequestStatusPending:  true,
+	model.CertificationRequestStatusApproved: true,
+	model.CertificationRequestStatusRejected: true,
+}
+
+// parseCertificationReviewQuery reads the "status", "q", and "sort" query params
+// for the admin certifications queue, mirroring parseListingReviewQuery.
+func parseCertificationReviewQuery(r *http.Request) (status, keyword, sortDir string, ok bool) {
+	status = r.URL.Query().Get("status")
+	if !allowedCertificationRequestStatuses[status] {
+		return "", "", "", false
+	}
+	keyword = strings.TrimSpace(r.URL.Query().Get("q"))
+	sortDir = r.URL.Query().Get("sort")
+	if sortDir != "desc" {
+		sortDir = "asc"
+	}
+	return status, keyword, sortDir, true
 }
 
 func adminCertificationError(w http.ResponseWriter, err error) {
@@ -62,11 +93,19 @@ func parseCertificationRequestID(r *http.Request) (int64, error) {
 	return strconv.ParseInt(r.PathValue("id"), 10, 64)
 }
 
-// ListPending handles GET /api/v1/admin/certification-requests.
-func (h *AdminCertificationHandler) ListPending(w http.ResponseWriter, r *http.Request) {
+// List handles GET /api/v1/admin/certification-requests — returns certification
+// requests for the review queue, optionally filtered by ?status=
+// (pending/approved/rejected, default all), by ?q= (keyword matched against
+// honey type and requester email), and ordered by ?sort= (asc/desc, default asc).
+func (h *AdminCertificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parsePagination(r)
+	status, keyword, sortDir, ok := parseCertificationReviewQuery(r)
+	if !ok {
+		respond.Error(w, http.StatusBadRequest, "INVALID_STATUS", "invalid status filter")
+		return
+	}
 
-	items, total, err := h.review.ListPending(r.Context(), limit, offset)
+	items, total, err := h.review.List(r.Context(), status, keyword, sortDir, limit, offset)
 	if err != nil {
 		adminCertificationError(w, err)
 		return

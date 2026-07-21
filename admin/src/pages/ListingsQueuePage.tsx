@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import {
   listListings,
@@ -35,6 +35,7 @@ function persist(next: URLSearchParams): URLSearchParams {
 
 export function ListingsQueuePage() {
   const { lang, t } = useI18n();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   // Defaults to "all" statuses when nothing is set (fresh visit with no remembered filters).
@@ -174,12 +175,15 @@ export function ListingsQueuePage() {
               <th>{t("listingsQueue.colStatus")}</th>
               <th>{t("listingsQueue.colSubmitted")}</th>
               <th></th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {items.map((listing) => (
-              <tr key={listing.id}>
+              <tr
+                key={listing.id}
+                className="clickable-row"
+                onClick={() => navigate(`/listings/${listing.id}?${params.toString()}`)}
+              >
                 <td>{listing.title}</td>
                 <td>{listingCategoryLabel(lang, listing.category)}</td>
                 <td>{listing.owner_email}</td>
@@ -195,9 +199,6 @@ export function ListingsQueuePage() {
                       {listing.is_edit ? t("listingsQueue.badgeEdited") : t("listingsQueue.badgeNew")}
                     </span>
                   )}
-                </td>
-                <td>
-                  <Link to={`/listings/${listing.id}?${params.toString()}`}>{t("listingsQueue.review")}</Link>
                 </td>
               </tr>
             ))}
