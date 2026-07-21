@@ -98,7 +98,10 @@ class _HoneyBatchesView extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           for (final batch in batches) ...[
-                            HoneyBatchCard(batch: batch),
+                            HoneyBatchCard(
+                              key: ValueKey(batch.id),
+                              batch: batch,
+                            ),
                             const SizedBox(height: 8),
                           ],
                         ],

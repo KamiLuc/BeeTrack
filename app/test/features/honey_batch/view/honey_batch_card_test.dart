@@ -87,6 +87,7 @@ Future<ApiClient> _fakeApiClient({Map<String, dynamic>? patchResponse}) async {
 }
 
 HoneyBatchModel _batch({
+  int id = 1,
   ProcessingMethod processingMethod = ProcessingMethod.raw,
   String honeyType = 'Wildflower',
   int amountGrams = 1500,
@@ -95,7 +96,7 @@ HoneyBatchModel _batch({
   HoneyBatchCertificationRequestModel? certificationRequest,
 }) =>
     HoneyBatchModel(
-      id: 1,
+      id: id,
       verificationToken: 'token-1',
       gatheringDate: DateTime(2025, 6, 1),
       amountGrams: amountGrams,
@@ -408,6 +409,69 @@ void main() {
 
       expect(find.text(l10n.honeyBatchViewQr), findsOneWidget);
       expect(find.text(l10n.honeyBatchDownloadQr), findsOneWidget);
+    });
+  });
+
+  group('HoneyBatchCard in a list', () {
+    // ApiClient is provided above MaterialApp, same as wrap() above.
+    Widget wrapList() => RepositoryProvider<ApiClient>.value(
+          value: apiClient,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: Scaffold(
+              body: BlocProvider<HoneyBatchesCubit>.value(
+                value: cubit,
+                child: BlocBuilder<HoneyBatchesCubit, HoneyBatchesState>(
+                  builder: (context, state) {
+                    final batches = (state as HoneyBatchesLoaded).batches;
+                    return Column(
+                      children: [
+                        for (final batch in batches)
+                          HoneyBatchCard(key: ValueKey(batch.id), batch: batch),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+    testWidgets(
+        'regression: deleting one card does not leave the card that shifts '
+        'into its list position stuck showing a spinner', (tester) async {
+      final batchA = _batch(id: 1, honeyType: 'Wildflower');
+      final batchB = _batch(id: 2, honeyType: 'Acacia');
+
+      when(
+        () => repo.listBatches(
+            limit: any(named: 'limit'), offset: any(named: 'offset')),
+      ).thenAnswer((_) async => (items: [batchA, batchB], total: 2));
+      await cubit.load();
+
+      when(() => repo.deleteBatch(1)).thenAnswer((_) async {});
+      when(
+        () => repo.listBatches(
+            limit: any(named: 'limit'), offset: any(named: 'offset')),
+      ).thenAnswer((_) async => (items: [batchB], total: 1));
+
+      await tester.pumpWidget(wrapList());
+      expect(find.byIcon(Icons.more_vert), findsNWidgets(2));
+
+      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.generalDelete));
+      await tester.pumpAndSettle();
+      await _solvePuzzle(tester, l10n.generalDelete);
+
+      // Only batch B remains, and it must still show its own menu button —
+      // not a spinner inherited from batch A's now-removed card.
+      expect(find.textContaining('Acacia'), findsOneWidget);
+      expect(find.textContaining('Wildflower'), findsNothing);
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }
