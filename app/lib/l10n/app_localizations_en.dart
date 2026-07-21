@@ -511,6 +511,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceStatusRejected => 'Rejected';
 
   @override
+  String get marketplaceStatusRemoved => 'Removed by admin';
+
+  @override
   String get marketplaceHideListing => 'Make private';
 
   @override

@@ -103,6 +103,33 @@ func (r *ListingRepository) GetByID(ctx context.Context, id int64) (*model.Listi
 	return &listing, nil
 }
 
+// GetByIDForReview returns the listing with the given id for the admin queue,
+// including its images and the owner account's email.
+func (r *ListingRepository) GetByIDForReview(ctx context.Context, id int64) (*model.Listing, error) {
+	type row struct {
+		model.Listing
+		OwnerEmail string `gorm:"column:owner_email"`
+	}
+	var result row
+	err := r.db.WithContext(ctx).
+		Table("listings l").
+		Select("l.*, u.email AS owner_email").
+		Joins("JOIN users u ON u.id = l.user_id").
+		Where("l.id = ?", id).
+		First(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	listing := result.Listing
+	listing.OwnerEmail = result.OwnerEmail
+	images, err := r.listImages(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	listing.Images = images
+	return &listing, nil
+}
+
 // Count returns the number of listings matching the filter.
 func (r *ListingRepository) Count(ctx context.Context, f ListingFilter) (int64, error) {
 	var count int64
@@ -197,22 +224,52 @@ func (r *ListingRepository) SetHidden(ctx context.Context, id int64, hidden bool
 		}).Error
 }
 
-// ListPendingReview returns pending listings ordered oldest-first, for the admin queue.
-func (r *ListingRepository) ListPendingReview(ctx context.Context, limit, offset int) ([]*model.Listing, int64, error) {
+// ListReview returns listings for the admin queue with each row's owner account
+// email joined in, optionally filtered by status (empty means all statuses) and
+// by keyword (matched against title and owner email), ordered by created_at
+// according to sortDir ("asc" or "desc", default "asc").
+func (r *ListingRepository) ListReview(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.Listing, int64, error) {
+	order := "l.created_at ASC"
+	if sortDir == "desc" {
+		order = "l.created_at DESC"
+	}
+
+	base := r.db.WithContext(ctx).
+		Table("listings l").
+		Joins("JOIN users u ON u.id = l.user_id")
+	if status != "" {
+		base = base.Where("l.status = ?", status)
+	}
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		base = base.Where("(l.title ILIKE ? OR u.email ILIKE ?)", like, like)
+	}
+
 	var total int64
-	if err := r.db.WithContext(ctx).Model(&model.Listing{}).
-		Where("status = ?", model.ListingStatusPending).
-		Count(&total).Error; err != nil {
+	if err := base.Session(&gorm.Session{}).Model(&model.Listing{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	var listings []*model.Listing
-	err := r.db.WithContext(ctx).
-		Where("status = ?", model.ListingStatusPending).
-		Order("created_at ASC").
+
+	type row struct {
+		model.Listing
+		OwnerEmail string `gorm:"column:owner_email"`
+	}
+	var rows []row
+	if err := base.Session(&gorm.Session{}).
+		Select("l.*, u.email AS owner_email").
+		Order(order).
 		Limit(limit).
 		Offset(offset).
-		Find(&listings).Error
-	return listings, total, err
+		Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	listings := make([]*model.Listing, len(rows))
+	for i, rr := range rows {
+		l := rr.Listing
+		l.OwnerEmail = rr.OwnerEmail
+		listings[i] = &l
+	}
+	return listings, total, nil
 }
 
 // Approve sets a listing's status to approved and stamps the reviewer, also
@@ -235,6 +292,30 @@ func (r *ListingRepository) Reject(ctx context.Context, id, reviewerID int64, re
 		Updates(map[string]any{
 			"status":           model.ListingStatusRejected,
 			"rejection_reason": reason,
+			"reviewed_by":      reviewerID,
+			"reviewed_at":      gorm.Expr("NOW()"),
+			"updated_at":       gorm.Expr("NOW()"),
+		}).Error
+}
+
+// Remove sets a live listing's status to removed with the given reason and stamps the reviewer.
+func (r *ListingRepository) Remove(ctx context.Context, id, reviewerID int64, reason string) error {
+	return r.db.WithContext(ctx).Model(&model.Listing{}).Where("id = ?", id).
+		Updates(map[string]any{
+			"status":           model.ListingStatusRemoved,
+			"rejection_reason": reason,
+			"reviewed_by":      reviewerID,
+			"reviewed_at":      gorm.Expr("NOW()"),
+			"updated_at":       gorm.Expr("NOW()"),
+		}).Error
+}
+
+// Restore sets a removed listing's status back to approved and stamps the reviewer.
+func (r *ListingRepository) Restore(ctx context.Context, id, reviewerID int64) error {
+	return r.db.WithContext(ctx).Model(&model.Listing{}).Where("id = ?", id).
+		Updates(map[string]any{
+			"status":           model.ListingStatusApproved,
+			"rejection_reason": nil,
 			"reviewed_by":      reviewerID,
 			"reviewed_at":      gorm.Expr("NOW()"),
 			"updated_at":       gorm.Expr("NOW()"),

@@ -12,25 +12,30 @@ import (
 )
 
 type mockListingModerationStore struct {
-	byID          map[int64]*model.Listing
-	pending       []*model.Listing
-	total         int64
-	approvedID    int64
-	approvedBy    int64
-	rejectedID    int64
-	rejectedBy    int64
+	byID           map[int64]*model.Listing
+	pending        []*model.Listing
+	total          int64
+	approvedID     int64
+	approvedBy     int64
+	rejectedID     int64
+	rejectedBy     int64
 	rejectedReason string
-	err           error
+	removedID      int64
+	removedBy      int64
+	removedReason  string
+	restoredID     int64
+	restoredBy     int64
+	err            error
 }
 
-func (m *mockListingModerationStore) ListPendingReview(ctx context.Context, limit, offset int) ([]*model.Listing, int64, error) {
+func (m *mockListingModerationStore) ListReview(ctx context.Context, status, keyword, sortDir string, limit, offset int) ([]*model.Listing, int64, error) {
 	if m.err != nil {
 		return nil, 0, m.err
 	}
 	return m.pending, m.total, nil
 }
 
-func (m *mockListingModerationStore) GetByID(ctx context.Context, id int64) (*model.Listing, error) {
+func (m *mockListingModerationStore) GetByIDForReview(ctx context.Context, id int64) (*model.Listing, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -60,16 +65,35 @@ func (m *mockListingModerationStore) Reject(ctx context.Context, id, reviewerID 
 	return nil
 }
 
-func TestListingModeration_ListPending(t *testing.T) {
+func (m *mockListingModerationStore) Remove(ctx context.Context, id, reviewerID int64, reason string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.removedID = id
+	m.removedBy = reviewerID
+	m.removedReason = reason
+	return nil
+}
+
+func (m *mockListingModerationStore) Restore(ctx context.Context, id, reviewerID int64) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.restoredID = id
+	m.restoredBy = reviewerID
+	return nil
+}
+
+func TestListingModeration_List(t *testing.T) {
 	store := &mockListingModerationStore{
 		pending: []*model.Listing{{ID: 1}, {ID: 2}},
 		total:   2,
 	}
 	svc := NewListingModerationService(store)
 
-	items, total, err := svc.ListPending(context.Background(), 20, 0)
+	items, total, err := svc.List(context.Background(), "pending", "", "asc", 20, 0)
 	if err != nil {
-		t.Fatalf("ListPending() error = %v", err)
+		t.Fatalf("List() error = %v", err)
 	}
 	if total != 2 || len(items) != 2 {
 		t.Fatalf("expected 2 items, got total=%d len=%d", total, len(items))
@@ -191,7 +215,61 @@ func TestListingModeration_RepoError(t *testing.T) {
 	store := &mockListingModerationStore{err: errors.New("db down")}
 	svc := NewListingModerationService(store)
 
-	if _, _, err := svc.ListPending(context.Background(), 20, 0); err == nil {
+	if _, _, err := svc.List(context.Background(), "pending", "", "asc", 20, 0); err == nil {
 		t.Error("expected error, got nil")
+	}
+}
+
+func TestListingModeration_Remove_Success(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Remove(context.Background(), 7, 1, "seller requested takedown"); err != nil {
+		t.Fatalf("Remove() error = %v", err)
+	}
+	if store.removedID != 1 || store.removedBy != 7 || store.removedReason != "seller requested takedown" {
+		t.Errorf("expected Remove(1, 7, %q), got Remove(%d, %d, %q)", "seller requested takedown", store.removedID, store.removedBy, store.removedReason)
+	}
+}
+
+func TestListingModeration_Remove_NotApproved(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Remove(context.Background(), 7, 1, "seller requested takedown"); err != ErrListingNotApproved {
+		t.Errorf("expected ErrListingNotApproved, got %v", err)
+	}
+}
+
+func TestListingModeration_Remove_RequiresReason(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Remove(context.Background(), 7, 1, ""); err != ErrRejectionReasonRequired {
+		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
+	}
+	if store.removedID != 0 {
+		t.Error("expected no remove call to the store")
+	}
+}
+
+func TestListingModeration_Restore_Success(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusRemoved}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Restore(context.Background(), 7, 1); err != nil {
+		t.Fatalf("Restore() error = %v", err)
+	}
+	if store.restoredID != 1 || store.restoredBy != 7 {
+		t.Errorf("expected Restore(1, 7), got Restore(%d, %d)", store.restoredID, store.restoredBy)
+	}
+}
+
+func TestListingModeration_Restore_NotRemoved(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Restore(context.Background(), 7, 1); err != ErrListingNotRemoved {
+		t.Errorf("expected ErrListingNotRemoved, got %v", err)
 	}
 }

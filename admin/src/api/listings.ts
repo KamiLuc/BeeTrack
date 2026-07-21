@@ -11,6 +11,7 @@ export type ListingImage = {
 export type AdminListing = {
   id: number;
   user_id: number;
+  owner_email: string;
   title: string;
   description: string;
   category: string;
@@ -21,7 +22,7 @@ export type AdminListing = {
   lng: number | null;
   contact_phone: string;
   contact_email: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "removed";
   rejection_reason: string | null;
   is_edit: boolean;
   created_at: string;
@@ -31,8 +32,19 @@ export type AdminListing = {
 
 export type Page<T> = { items: T[]; total: number };
 
-export function listPendingListings(limit: number, offset: number): Promise<Page<AdminListing>> {
-  return request<Page<AdminListing>>("/admin/listings", { query: { status: "pending", limit, offset } });
+export type ListingStatusFilter = "" | "pending" | "approved" | "rejected" | "removed";
+export type SortDir = "asc" | "desc";
+
+export function listListings(
+  status: ListingStatusFilter,
+  query: string,
+  sort: SortDir,
+  limit: number,
+  offset: number,
+): Promise<Page<AdminListing>> {
+  return request<Page<AdminListing>>("/admin/listings", {
+    query: { status: status || undefined, q: query || undefined, sort, limit, offset },
+  });
 }
 
 export function getListing(id: number): Promise<AdminListing> {
@@ -48,4 +60,15 @@ export function rejectListing(id: number, reason: string): Promise<AdminListing>
     method: "POST",
     body: { reason },
   });
+}
+
+export function removeListing(id: number, reason: string): Promise<AdminListing> {
+  return request<AdminListing>(`/admin/listings/${id}/remove`, {
+    method: "POST",
+    body: { reason },
+  });
+}
+
+export function restoreListing(id: number): Promise<AdminListing> {
+  return request<AdminListing>(`/admin/listings/${id}/restore`, { method: "POST" });
 }

@@ -6,6 +6,7 @@ const (
 	ListingStatusPending  = "pending"
 	ListingStatusApproved = "approved"
 	ListingStatusRejected = "rejected"
+	ListingStatusRemoved  = "removed"
 )
 
 // Listing represents a marketplace sale announcement posted by a user.
@@ -37,6 +38,7 @@ type Listing struct {
 	ApiaryLng       *float64       `gorm:"-"`
 	ApiaryHiveCount int            `gorm:"-"`
 	DistanceKm      *float64       `gorm:"-"`
+	OwnerEmail      string         `gorm:"-"`
 }
 
 // IsEdit distinguishes an edit of a previously-approved listing from a

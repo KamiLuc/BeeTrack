@@ -198,6 +198,7 @@
   "marketplaceStatusPending": "Oczekuje na weryfikację",
   "marketplaceStatusApproved": "Aktywne",
   "marketplaceStatusRejected": "Odrzucone",
+  "marketplaceStatusRemoved": "Usunięte przez administratora",
   "marketplaceHideListing": "Ustaw jako prywatne",
   "marketplaceShowListing": "Ustaw jako publiczne",
   "marketplaceDeleteConfirm": "Usunąć to ogłoszenie?",

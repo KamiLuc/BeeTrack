@@ -1058,6 +1058,12 @@ abstract class AppLocalizations {
   /// **'Odrzucone'**
   String get marketplaceStatusRejected;
 
+  /// No description provided for @marketplaceStatusRemoved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięte przez administratora'**
+  String get marketplaceStatusRemoved;
+
   /// No description provided for @marketplaceHideListing.
   ///
   /// In pl, this message translates to:

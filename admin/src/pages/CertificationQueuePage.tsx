@@ -72,21 +72,23 @@ export function CertificationQueuePage() {
           </tbody>
         </table>
       )}
-      <div className="pagination">
-        <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-          {t("common.previous")}
-        </button>
-        <span>
-          {t("common.paginationRange", {
-            from: total === 0 ? 0 : offset + 1,
-            to: Math.min(offset + PAGE_SIZE, total),
-            total,
-          })}
-        </span>
-        <button disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-          {t("common.next")}
-        </button>
-      </div>
+      {total > 0 && (
+        <div className="pagination">
+          <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
+            {t("common.previous")}
+          </button>
+          <span>
+            {t("common.paginationRange", {
+              from: offset + 1,
+              to: Math.min(offset + PAGE_SIZE, total),
+              total,
+            })}
+          </span>
+          <button disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
+            {t("common.next")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

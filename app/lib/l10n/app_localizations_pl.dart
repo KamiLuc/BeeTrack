@@ -513,6 +513,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceStatusRejected => 'Odrzucone';
 
   @override
+  String get marketplaceStatusRemoved => 'Usunięte przez administratora';
+
+  @override
   String get marketplaceHideListing => 'Ustaw jako prywatne';
 
   @override

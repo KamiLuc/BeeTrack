@@ -198,6 +198,7 @@
   "marketplaceStatusPending": "Pending review",
   "marketplaceStatusApproved": "Live",
   "marketplaceStatusRejected": "Rejected",
+  "marketplaceStatusRemoved": "Removed by admin",
   "marketplaceHideListing": "Make private",
   "marketplaceShowListing": "Make public",
   "marketplaceDeleteConfirm": "Delete this listing?",

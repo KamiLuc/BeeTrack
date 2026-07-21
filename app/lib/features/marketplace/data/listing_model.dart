@@ -25,7 +25,8 @@ class ListingImage {
 enum ListingStatus {
   pending('pending'),
   approved('approved'),
-  rejected('rejected');
+  rejected('rejected'),
+  removed('removed');
 
   final String value;
 

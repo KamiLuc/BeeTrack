@@ -209,10 +209,12 @@ func main() {
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code/download", honeyBatchVerifyHandler.QRCodeDownload)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
 
-	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.ListPending)))
+	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.List)))
 	mux.Handle("GET /api/v1/admin/listings/{id}", admin(http.HandlerFunc(adminListingHandler.Get)))
 	mux.Handle("POST /api/v1/admin/listings/{id}/approve", admin(http.HandlerFunc(adminListingHandler.Approve)))
 	mux.Handle("POST /api/v1/admin/listings/{id}/reject", admin(http.HandlerFunc(adminListingHandler.Reject)))
+	mux.Handle("POST /api/v1/admin/listings/{id}/remove", admin(http.HandlerFunc(adminListingHandler.Remove)))
+	mux.Handle("POST /api/v1/admin/listings/{id}/restore", admin(http.HandlerFunc(adminListingHandler.Restore)))
 	mux.Handle("GET /api/v1/admin/certification-requests", admin(http.HandlerFunc(adminCertificationHandler.ListPending)))
 	mux.Handle("GET /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Get)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/approve", admin(http.HandlerFunc(adminCertificationHandler.Approve)))

@@ -22,11 +22,12 @@ class ListingStatusBadge extends StatelessWidget {
       ListingStatus.pending => (l10n.marketplaceStatusPending, Colors.amber),
       ListingStatus.approved => (l10n.marketplaceStatusApproved, Colors.green),
       ListingStatus.rejected => (l10n.marketplaceStatusRejected, colorScheme.error),
+      ListingStatus.removed => (l10n.marketplaceStatusRemoved, colorScheme.error),
     };
 
     final badge = _badge(context, label: label, bg: color.withValues(alpha: 0.15), fg: color);
 
-    if (status == ListingStatus.rejected &&
+    if ((status == ListingStatus.rejected || status == ListingStatus.removed) &&
         rejectionReason != null &&
         rejectionReason!.isNotEmpty) {
       return Tooltip(message: rejectionReason!, child: badge);
