@@ -1227,7 +1227,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get honeyBatchStatusPendingConfirmation => 'Oczekuje na potwierdzenie';
 
   @override
-  String get honeyBatchStatusConfirmed => 'Potwierdzono';
+  String get honeyBatchStatusConfirmed => 'Certyfikowano';
 
   @override
   String get honeyBatchStatusFailed => 'Niepowodzenie';
@@ -1240,4 +1240,15 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get honeyBatchDownloadQr => 'Pobierz kod QR';
+
+  @override
+  String get honeyBatchCertRequestStatusPending =>
+      'Oczekuje na weryfikację przez administratora';
+
+  @override
+  String get honeyBatchCertRequestStatusApproved => 'Zatwierdzono';
+
+  @override
+  String get honeyBatchCertRequestStatusRejected =>
+      'Odrzucone przez administratora';
 }

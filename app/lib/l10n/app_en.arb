@@ -478,5 +478,8 @@
   "honeyBatchStatusFailed": "Failed",
   "honeyBatchStatusReverted": "Reverted",
   "honeyBatchViewQr": "View QR code",
-  "honeyBatchDownloadQr": "Download QR code"
+  "honeyBatchDownloadQr": "Download QR code",
+  "honeyBatchCertRequestStatusPending": "Pending admin review",
+  "honeyBatchCertRequestStatusApproved": "Approved",
+  "honeyBatchCertRequestStatusRejected": "Rejected by admin"
 }

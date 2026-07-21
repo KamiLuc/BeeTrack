@@ -22,15 +22,21 @@ class CertificationStatusBadge extends StatelessWidget {
       );
     }
 
+    if (!status!.isTerminal) {
+      return _badge(
+        context,
+        label: l10n.honeyBatchInProgress,
+        bg: Colors.amber.withValues(alpha: 0.15),
+        fg: Colors.amber,
+        showSpinner: true,
+      );
+    }
+
     final (label, color) = switch (status!) {
-      CertificationStatus.queued => (l10n.honeyBatchStatusQueued, Colors.amber),
-      CertificationStatus.submitting => (l10n.honeyBatchStatusSubmitting, Colors.amber),
-      CertificationStatus.submitted => (l10n.honeyBatchStatusSubmitted, Colors.amber),
-      CertificationStatus.pendingConfirmation =>
-        (l10n.honeyBatchStatusPendingConfirmation, Colors.amber),
       CertificationStatus.confirmed => (l10n.honeyBatchStatusConfirmed, Colors.green),
       CertificationStatus.failed => (l10n.honeyBatchStatusFailed, colorScheme.error),
       CertificationStatus.reverted => (l10n.honeyBatchStatusReverted, colorScheme.error),
+      _ => throw StateError('unreachable: $status is not terminal'),
     };
 
     return _badge(context, label: label, bg: color.withValues(alpha: 0.15), fg: color);
@@ -41,16 +47,30 @@ class CertificationStatusBadge extends StatelessWidget {
     required String label,
     required Color bg,
     required Color fg,
+    bool showSpinner = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(
-        label,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showSpinner) ...[
+            SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(strokeWidth: 1.5, color: fg),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

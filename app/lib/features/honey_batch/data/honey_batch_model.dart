@@ -1,4 +1,5 @@
 import 'honey_batch_certification_model.dart';
+import 'honey_batch_certification_request_model.dart';
 import 'processing_method.dart';
 
 class HoneyBatchModel {
@@ -13,6 +14,7 @@ class HoneyBatchModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final HoneyBatchCertificationModel? certification;
+  final HoneyBatchCertificationRequestModel? certificationRequest;
 
   const HoneyBatchModel({
     required this.id,
@@ -26,6 +28,7 @@ class HoneyBatchModel {
     required this.createdAt,
     required this.updatedAt,
     this.certification,
+    this.certificationRequest,
   });
 
   double get amountKg => amountGrams / 1000;
@@ -46,6 +49,10 @@ class HoneyBatchModel {
       certification: json['certification'] != null
           ? HoneyBatchCertificationModel.fromJson(
               json['certification'] as Map<String, dynamic>)
+          : null,
+      certificationRequest: json['certification_request'] != null
+          ? HoneyBatchCertificationRequestModel.fromJson(
+              json['certification_request'] as Map<String, dynamic>)
           : null,
     );
   }

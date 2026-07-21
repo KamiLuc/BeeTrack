@@ -12,9 +12,11 @@ import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../cubit/honey_batches_cubit.dart';
 import '../data/honey_batch_certification_model.dart';
+import '../data/honey_batch_certification_request_model.dart';
 import '../data/honey_batch_model.dart';
 import '../data/honey_batch_repository.dart';
 import '../data/processing_method.dart';
+import 'certification_request_status_badge.dart';
 import 'certification_status_badge.dart';
 import 'create_honey_batch_screen.dart';
 
@@ -213,6 +215,11 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
     final pdfDisplay =
         batch.pdfFilename.isEmpty ? l10n.honeyBatchNoPdf : batch.pdfFilename;
     final canEdit = batch.certification == null;
+    final certRequest = batch.certificationRequest;
+    final showRequestBadge = batch.certification == null &&
+        certRequest != null &&
+        (certRequest.status == CertificationRequestStatus.pending ||
+            certRequest.status == CertificationRequestStatus.rejected);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -229,7 +236,12 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                     style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
-                CertificationStatusBadge(status: batch.certification?.status),
+                showRequestBadge
+                    ? CertificationRequestStatusBadge(
+                        status: certRequest.status,
+                        rejectionReason: certRequest.rejectionReason,
+                      )
+                    : CertificationStatusBadge(status: batch.certification?.status),
                 _deleting
                     ? const Padding(
                         padding: EdgeInsets.all(8),
@@ -275,6 +287,7 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
             const SizedBox(height: 12),
             _CertificationAction(
               cert: batch.certification,
+              certRequest: certRequest,
               certifying: _certifying,
               onCertify: _certify,
             ),
@@ -287,11 +300,13 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
 
 class _CertificationAction extends StatelessWidget {
   final HoneyBatchCertificationModel? cert;
+  final HoneyBatchCertificationRequestModel? certRequest;
   final bool certifying;
   final VoidCallback onCertify;
 
   const _CertificationAction({
     required this.cert,
+    required this.certRequest,
     required this.certifying,
     required this.onCertify,
   });
@@ -311,6 +326,10 @@ class _CertificationAction extends StatelessWidget {
           ),
         ),
       );
+    }
+
+    if (cert == null && certRequest?.status == CertificationRequestStatus.pending) {
+      return const SizedBox.shrink();
     }
 
     if (cert == null) {
@@ -363,17 +382,7 @@ class _CertificationAction extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: [
-        const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        const SizedBox(width: 10),
-        Text(l10n.honeyBatchInProgress),
-      ],
-    );
+    return const SizedBox.shrink();
   }
 }
 

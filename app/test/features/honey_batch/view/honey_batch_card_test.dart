@@ -12,6 +12,7 @@ import 'package:app/core/api/api_client.dart';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/honey_batch/cubit/honey_batches_cubit.dart';
 import 'package:app/features/honey_batch/data/honey_batch_certification_model.dart';
+import 'package:app/features/honey_batch/data/honey_batch_certification_request_model.dart';
 import 'package:app/features/honey_batch/data/honey_batch_model.dart';
 import 'package:app/features/honey_batch/data/honey_batch_repository.dart';
 import 'package:app/features/honey_batch/data/processing_method.dart';
@@ -91,6 +92,7 @@ HoneyBatchModel _batch({
   int amountGrams = 1500,
   String pdfFilename = 'lab-report.pdf',
   HoneyBatchCertificationModel? certification,
+  HoneyBatchCertificationRequestModel? certificationRequest,
 }) =>
     HoneyBatchModel(
       id: 1,
@@ -102,6 +104,7 @@ HoneyBatchModel _batch({
       pdfFilename: pdfFilename,
       pdfFileHash: 'hash-1',
       certification: certification,
+      certificationRequest: certificationRequest,
       createdAt: DateTime(2025, 6, 1),
       updatedAt: DateTime(2025, 6, 1),
     );
@@ -335,6 +338,61 @@ void main() {
       await tester.pump();
 
       verifyNever(() => repo.requestCertification(1));
+    });
+
+    testWidgets(
+        'shows the pending certification request badge and hides the '
+        'Certify button', (tester) async {
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: null,
+          certificationRequest: const HoneyBatchCertificationRequestModel(
+            status: CertificationRequestStatus.pending,
+          ),
+        )),
+      );
+
+      expect(find.text(l10n.honeyBatchCertRequestStatusPending), findsOneWidget);
+      expect(find.text(l10n.honeyBatchNotCertified), findsNothing);
+      expect(find.text(l10n.honeyBatchCertify), findsNothing);
+    });
+
+    testWidgets(
+        'shows the rejected certification request badge with the rejection '
+        'reason as a tooltip, and still allows re-requesting certification', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: null,
+          certificationRequest: const HoneyBatchCertificationRequestModel(
+            status: CertificationRequestStatus.rejected,
+            rejectionReason: 'Missing lab report',
+          ),
+        )),
+      );
+
+      expect(find.text(l10n.honeyBatchCertRequestStatusRejected), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Tooltip && w.message == 'Missing lab report',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.honeyBatchCertify), findsOneWidget);
+
+      when(() => repo.requestCertification(1)).thenAnswer(
+        (_) async => _batch(
+          certification:
+              const HoneyBatchCertificationModel(status: CertificationStatus.queued),
+        ),
+      );
+      await tester.tap(find.text(l10n.honeyBatchCertify));
+      await tester.pumpAndSettle();
+      await _solvePuzzle(tester, l10n.generalConfirm);
+      await tester.pump();
+
+      verify(() => repo.requestCertification(1)).called(1);
     });
 
     testWidgets('shows View/Download QR buttons when confirmed', (

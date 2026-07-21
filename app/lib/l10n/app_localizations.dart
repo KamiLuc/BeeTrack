@@ -2279,7 +2279,7 @@ abstract class AppLocalizations {
   /// No description provided for @honeyBatchStatusConfirmed.
   ///
   /// In pl, this message translates to:
-  /// **'Potwierdzono'**
+  /// **'Certyfikowano'**
   String get honeyBatchStatusConfirmed;
 
   /// No description provided for @honeyBatchStatusFailed.
@@ -2305,6 +2305,24 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Pobierz kod QR'**
   String get honeyBatchDownloadQr;
+
+  /// No description provided for @honeyBatchCertRequestStatusPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Oczekuje na weryfikację przez administratora'**
+  String get honeyBatchCertRequestStatusPending;
+
+  /// No description provided for @honeyBatchCertRequestStatusApproved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zatwierdzono'**
+  String get honeyBatchCertRequestStatusApproved;
+
+  /// No description provided for @honeyBatchCertRequestStatusRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzucone przez administratora'**
+  String get honeyBatchCertRequestStatusRejected;
 }
 
 class _AppLocalizationsDelegate

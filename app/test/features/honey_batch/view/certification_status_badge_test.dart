@@ -29,11 +29,10 @@ void main() {
     });
 
     final expectedLabels = {
-      CertificationStatus.queued: (l) => l.honeyBatchStatusQueued,
-      CertificationStatus.submitting: (l) => l.honeyBatchStatusSubmitting,
-      CertificationStatus.submitted: (l) => l.honeyBatchStatusSubmitted,
-      CertificationStatus.pendingConfirmation: (l) =>
-          l.honeyBatchStatusPendingConfirmation,
+      CertificationStatus.queued: (l) => l.honeyBatchInProgress,
+      CertificationStatus.submitting: (l) => l.honeyBatchInProgress,
+      CertificationStatus.submitted: (l) => l.honeyBatchInProgress,
+      CertificationStatus.pendingConfirmation: (l) => l.honeyBatchInProgress,
       CertificationStatus.confirmed: (l) => l.honeyBatchStatusConfirmed,
       CertificationStatus.failed: (l) => l.honeyBatchStatusFailed,
       CertificationStatus.reverted: (l) => l.honeyBatchStatusReverted,

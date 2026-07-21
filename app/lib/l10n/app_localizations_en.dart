@@ -1223,4 +1223,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get honeyBatchDownloadQr => 'Download QR code';
+
+  @override
+  String get honeyBatchCertRequestStatusPending => 'Pending admin review';
+
+  @override
+  String get honeyBatchCertRequestStatusApproved => 'Approved';
+
+  @override
+  String get honeyBatchCertRequestStatusRejected => 'Rejected by admin';
 }

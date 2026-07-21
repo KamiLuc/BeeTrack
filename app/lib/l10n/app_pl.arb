@@ -491,9 +491,12 @@
   "honeyBatchStatusSubmitting": "Wysyłanie",
   "honeyBatchStatusSubmitted": "Wysłano",
   "honeyBatchStatusPendingConfirmation": "Oczekuje na potwierdzenie",
-  "honeyBatchStatusConfirmed": "Potwierdzono",
+  "honeyBatchStatusConfirmed": "Certyfikowano",
   "honeyBatchStatusFailed": "Niepowodzenie",
   "honeyBatchStatusReverted": "Wycofano",
   "honeyBatchViewQr": "Pokaż kod QR",
-  "honeyBatchDownloadQr": "Pobierz kod QR"
+  "honeyBatchDownloadQr": "Pobierz kod QR",
+  "honeyBatchCertRequestStatusPending": "Oczekuje na weryfikację przez administratora",
+  "honeyBatchCertRequestStatusApproved": "Zatwierdzono",
+  "honeyBatchCertRequestStatusRejected": "Odrzucone przez administratora"
 }
