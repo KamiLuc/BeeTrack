@@ -8,20 +8,36 @@
   (migrations run automatically on API startup), seeds sample data for each
   user via cmd/seed, then promotes the first user to the admin role.
 
+.PARAMETER Count
+  How many extra numbered kamil emails to create, on top of kamil@op.pl
+  (which is always created and promoted to admin). kamil1@op.pl..kamilN@op.pl
+  are added for Count = N. Defaults to 0 (just kamil@op.pl). Ignored if
+  -Emails is passed explicitly.
+
 .PARAMETER Emails
-  Users to create, in order. The first one becomes admin.
+  Explicit list of users to create, in order, overriding -Count. The first
+  one becomes admin.
 
 .PARAMETER Password
   Password set on every seeded user.
 
 .EXAMPLE
   ./reset-dev-db.ps1
+  ./reset-dev-db.ps1 -Count 3
   ./reset-dev-db.ps1 -Emails alice@example.com,bob@example.com -Password test1234
 #>
 param(
-    [string[]]$Emails = @("kamil@op.pl", "kamil2@op.pl", "kamil3@op.pl", "kamil4@op.pl"),
+    [int]$Count = 0,
+    [string[]]$Emails,
     [string]$Password = "lion12345"
 )
+
+if (-not $Emails) {
+    $Emails = @("kamil@op.pl")
+    if ($Count -gt 0) {
+        $Emails += 1..$Count | ForEach-Object { "kamil$_@op.pl" }
+    }
+}
 
 $ErrorActionPreference = "Stop"
 $backendDir = Split-Path -Parent $PSScriptRoot

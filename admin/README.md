@@ -16,10 +16,10 @@ Runs on http://localhost:5174 by default. `VITE_API_BASE_URL` in `.env` must poi
 
 ## Resetting local test data
 
-`backend/scripts/reset-dev-db.ps1` wipes the local Postgres/images volumes, brings db/api/mailpit back up, and seeds a fixed set of test users (`kamil@op.pl` / `kamil2@op.pl` / `kamil3@op.pl` / `kamil4@op.pl`, all password `lion12345`), promoting `kamil@op.pl` to admin. Run it from anywhere:
+`backend/scripts/reset-dev-db.ps1` wipes the local Postgres/images volumes, brings db/api/mailpit back up, and seeds `kamil@op.pl` (password `lion12345`), promoted to admin. Run it from anywhere:
 
 ```
 ./backend/scripts/reset-dev-db.ps1
 ```
 
-Pass `-Emails` / `-Password` to override the defaults.
+Pass `-Count N` to also create `kamil1@op.pl`..`kamilN@op.pl`, or `-Emails` / `-Password` to fully override the defaults.
