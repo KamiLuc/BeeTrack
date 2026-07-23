@@ -2353,6 +2353,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.'**
   String get honeyBatchAlreadyCertifiedError;
+
+  /// No description provided for @honeyBatchOpenPublicPage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Otwórz publiczną stronę weryfikacji'**
+  String get honeyBatchOpenPublicPage;
 }
 
 class _AppLocalizationsDelegate

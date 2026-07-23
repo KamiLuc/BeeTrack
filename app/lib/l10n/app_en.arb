@@ -486,5 +486,6 @@
   "honeyBatchCertRequestStatusApproved": "Approved",
   "honeyBatchCertRequestStatusRejected": "Rejected by admin",
   "honeyBatchCertificationRequestPending": "A certification request for this batch is already pending admin review.",
-  "honeyBatchAlreadyCertifiedError": "This honey batch is already certified or being certified."
+  "honeyBatchAlreadyCertifiedError": "This honey batch is already certified or being certified.",
+  "honeyBatchOpenPublicPage": "Open public verification page"
 }

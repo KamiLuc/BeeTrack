@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -32,14 +34,32 @@ func qrCodeDownloadFilename(batch *model.HoneyBatch) string {
 	return fmt.Sprintf("%s_%s_%skg.png", date, honeyType, weightKg)
 }
 
+// ChainCertReader reads a batch's on-chain certification record — satisfied
+// by *blockchain.HoneyCertReader; an interface here so VerifyPage's live
+// hash-comparison logic can be tested without a real RPC connection.
+//
+// Callers passing a possibly-nil *blockchain.HoneyCertReader (see
+// cmd/api/main.go, where blockchain config is optional) must explicitly
+// convert a nil pointer to a nil ChainCertReader rather than relying on
+// Go's implicit conversion — a nil *HoneyCertReader wrapped directly in
+// this interface is a non-nil interface value, and calling GetCertification
+// on it would panic instead of hitting the certReader == nil check below.
+type ChainCertReader interface {
+	GetCertification(ctx context.Context, batchID int64) (*blockchain.CertificationRecord, error)
+}
+
 // HoneyBatchVerifyHandler handles public, token-scoped honey batch verification requests.
 type HoneyBatchVerifyHandler struct {
 	batches *service.HoneyBatchService
+	// certReader is used by VerifyPage to live-check a confirmed batch's
+	// hashes against the on-chain record. Optional — nil if blockchain isn't
+	// configured (see cmd/api/main.go); VerifyPage degrades gracefully.
+	certReader ChainCertReader
 }
 
-// NewHoneyBatchVerifyHandler creates a HoneyBatchVerifyHandler backed by svc.
-func NewHoneyBatchVerifyHandler(batches *service.HoneyBatchService) *HoneyBatchVerifyHandler {
-	return &HoneyBatchVerifyHandler{batches: batches}
+// NewHoneyBatchVerifyHandler creates a HoneyBatchVerifyHandler backed by svc. certReader may be nil.
+func NewHoneyBatchVerifyHandler(batches *service.HoneyBatchService, certReader ChainCertReader) *HoneyBatchVerifyHandler {
+	return &HoneyBatchVerifyHandler{batches: batches, certReader: certReader}
 }
 
 // Verify handles GET /api/v1/verify/{token} — public, returns the batch and its full certification lifecycle status.
@@ -50,7 +70,7 @@ func (h *HoneyBatchVerifyHandler) Verify(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, nil))
+	respond.JSON(w, http.StatusOK, publicHoneyBatchJSON(result.Batch, result.Certification, h.batches.VerificationURL(result.Batch.VerificationToken)))
 }
 
 // qrCodePNG generates the PNG bytes for a batch's QR code, resolved via its public verification token, together with the batch itself.

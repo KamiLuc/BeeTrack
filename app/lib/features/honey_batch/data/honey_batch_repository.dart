@@ -141,15 +141,6 @@ class HoneyBatchRepository {
     }
   }
 
-  Future<HoneyBatchModel> verifyByToken(String token) async {
-    try {
-      final response = await _api.dio.get('/api/v1/verify/$token');
-      return HoneyBatchModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    }
-  }
-
   String qrCodeImageUrl(String token) =>
       '${_api.baseUrl}/api/v1/verify/$token/qr-code';
 

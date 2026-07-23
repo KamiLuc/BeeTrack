@@ -81,13 +81,13 @@ type HoneyBatchService struct {
 	certRequests   HoneyBatchCertificationRequestRepository
 	qrCodes        HoneyBatchQRCodeRepository
 	jobs           BlockchainJobRepository
-	appURL         string
+	publicBaseURL  string // base URL this service's own /verify/{token} page is reachable at; see VerificationURL.
 	pdfStoragePath string
 }
 
 // NewHoneyBatchService creates a HoneyBatchService with the given dependencies. Lab PDFs are stored under pdfStoragePath.
-func NewHoneyBatchService(batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, certRequests HoneyBatchCertificationRequestRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, appURL, pdfStoragePath string) *HoneyBatchService {
-	return &HoneyBatchService{batches: batches, certifications: certifications, certRequests: certRequests, qrCodes: qrCodes, jobs: jobs, appURL: appURL, pdfStoragePath: pdfStoragePath}
+func NewHoneyBatchService(batches HoneyBatchRepository, certifications HoneyBatchCertificationRepository, certRequests HoneyBatchCertificationRequestRepository, qrCodes HoneyBatchQRCodeRepository, jobs BlockchainJobRepository, publicBaseURL, pdfStoragePath string) *HoneyBatchService {
+	return &HoneyBatchService{batches: batches, certifications: certifications, certRequests: certRequests, qrCodes: qrCodes, jobs: jobs, publicBaseURL: publicBaseURL, pdfStoragePath: pdfStoragePath}
 }
 
 // CreateBatchRequest holds the mutable fields for creating a honey batch, including the raw lab PDF upload.
@@ -613,9 +613,14 @@ func (s *HoneyBatchService) GenerateQRCodeData(ctx context.Context, batchID int6
 		return "", ErrBatchNotCertified
 	}
 
-	data := s.appURL + "/verify/" + batch.VerificationToken
+	data := s.VerificationURL(batch.VerificationToken)
 	if err := s.qrCodes.Create(ctx, &model.HoneyBatchQRCode{BatchID: batchID, QRCodeData: data}); err != nil {
 		return "", fmt.Errorf("create qr code: %w", err)
 	}
 	return data, nil
+}
+
+// VerificationURL builds the public, token-scoped verification page URL for token — the same URL encoded in the batch's QR code, served directly by this backend's own VerifyPage handler (see honey_batch_verify_page.go).
+func (s *HoneyBatchService) VerificationURL(token string) string {
+	return s.publicBaseURL + "/verify/" + token
 }

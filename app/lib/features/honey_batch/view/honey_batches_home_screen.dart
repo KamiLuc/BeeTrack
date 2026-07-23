@@ -173,6 +173,7 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
       title: AppLocalizations.of(context)!.honeyBatchViewQr,
       imageUrl: repo.qrCodeImageUrl(widget.batch.verificationToken),
       downloadUrl: repo.qrCodeDownloadUrl(widget.batch.verificationToken),
+      verificationUrl: widget.batch.verificationUrl,
     );
   }
 

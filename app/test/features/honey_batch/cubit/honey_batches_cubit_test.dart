@@ -12,6 +12,7 @@ class MockHoneyBatchRepository extends Mock implements HoneyBatchRepository {}
 HoneyBatchModel _fakeBatch({int id = 1}) => HoneyBatchModel(
       id: id,
       verificationToken: 'token-$id',
+      verificationUrl: 'https://example.com/verify/token-$id',
       gatheringDate: DateTime(2025, 6, 1),
       amountGrams: 1000,
       processingMethod: ProcessingMethod.raw,

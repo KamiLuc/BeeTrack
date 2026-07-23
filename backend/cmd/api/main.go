@@ -42,7 +42,14 @@ func main() {
 
 	ctx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stopSignals()
-	startHoneyCertificationWorker(ctx, db)
+	// Explicit nil check rather than a direct assignment: a nil
+	// *blockchain.HoneyCertReader wrapped straight into the
+	// handler.ChainCertReader interface would be a non-nil interface value
+	// (Go's typed-nil trap), defeating VerifyPage's certReader == nil check.
+	var verifyChainReader handler.ChainCertReader
+	if certReader := startHoneyCertificationWorker(ctx, db); certReader != nil {
+		verifyChainReader = certReader
+	}
 
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
@@ -78,7 +85,7 @@ func main() {
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
-	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.AppURL, cfg.PDFStoragePath)
+	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.APIURL, cfg.PDFStoragePath)
 	listingModerationSvc := service.NewListingModerationService(listingRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 
@@ -96,7 +103,7 @@ func main() {
 	listingFavoriteHandler := handler.NewListingFavoriteHandler(listingFavoriteSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	honeyBatchHandler := handler.NewHoneyBatchHandler(honeyBatchSvc)
-	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc)
+	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc, verifyChainReader)
 	adminListingHandler := handler.NewAdminListingHandler(listingModerationSvc)
 	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc)
 
@@ -208,6 +215,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code", honeyBatchVerifyHandler.QRCode)
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code/download", honeyBatchVerifyHandler.QRCodeDownload)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
+	mux.HandleFunc("GET /verify/{token}", honeyBatchVerifyHandler.VerifyPage)
 
 	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.List)))
 	mux.Handle("GET /api/v1/admin/listings/{id}", admin(http.HandlerFunc(adminListingHandler.Get)))
@@ -231,24 +239,26 @@ func main() {
 
 // startHoneyCertificationWorker wires and starts the honey batch blockchain
 // worker if blockchain env vars are configured. It's optional rather than
-// fatal: this feature isn't wired into any HTTP handler yet, so a missing
-// blockchain config shouldn't prevent the rest of the API from starting.
-func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) {
+// fatal: a missing blockchain config shouldn't prevent the rest of the API
+// from starting. Returns the reader it built (or nil if blockchain isn't
+// configured) so the caller can also hand it to HoneyBatchVerifyHandler for
+// the public verification page's live on-chain hash check.
+func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain.HoneyCertReader {
 	blockchainCfg, err := config.LoadBlockchainConfig()
 	if err != nil {
 		log.Printf("Blockchain config not set, honey certification worker disabled: %v", err)
-		return
+		return nil
 	}
 
 	certWriter, err := blockchain.NewHoneyCertWriter(blockchainCfg)
 	if err != nil {
 		log.Printf("Failed to create blockchain writer, honey certification worker disabled: %v", err)
-		return
+		return nil
 	}
 	certReader, err := blockchain.NewHoneyCertReader(blockchainCfg)
 	if err != nil {
 		log.Printf("Failed to create blockchain reader, honey certification worker disabled: %v", err)
-		return
+		return nil
 	}
 
 	blockchainWorker := worker.NewBlockchainWorker(
@@ -263,4 +273,5 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) {
 	)
 	go blockchainWorker.Run(ctx, blockchainCfg.JobPollInterval, blockchainCfg.ConfirmationPollInterval)
 	log.Println("Honey certification worker started")
+	return certReader
 }

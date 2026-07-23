@@ -43,6 +43,7 @@ class _RecordingAdapter implements HttpClientAdapter {
 Map<String, dynamic> _batchJson({int id = 1}) => {
       'id': id,
       'verification_token': 'tok-123',
+      'verification_url': 'https://example.com/verify/tok-123',
       'gathering_date': '2024-05-01T00:00:00Z',
       'amount_grams': 2500,
       'processing_method': 'raw',
@@ -220,17 +221,6 @@ void main() {
         adapter.lastOptions!.path,
         '/api/v1/honey-batches/1/retry-certification',
       );
-    });
-  });
-
-  group('verifyByToken', () {
-    test('sends GET to /verify/:token and parses batch', () async {
-      adapter.responseData = _batchJson();
-
-      await repository.verifyByToken('tok-123');
-
-      expect(adapter.lastOptions!.method, 'GET');
-      expect(adapter.lastOptions!.path, '/api/v1/verify/tok-123');
     });
   });
 }

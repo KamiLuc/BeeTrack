@@ -1251,4 +1251,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get honeyBatchAlreadyCertifiedError =>
       'This honey batch is already certified or being certified.';
+
+  @override
+  String get honeyBatchOpenPublicPage => 'Open public verification page';
 }

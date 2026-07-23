@@ -7,6 +7,7 @@ void main() {
   Map<String, dynamic> baseJson({Object? certification}) => {
         'id': 1,
         'verification_token': 'tok-123',
+        'verification_url': 'https://example.com/verify/tok-123',
         'gathering_date': '2024-05-01T00:00:00Z',
         'amount_grams': 2500,
         'processing_method': 'filtered',

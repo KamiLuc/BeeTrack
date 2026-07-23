@@ -1724,12 +1724,14 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
 {
   "id": 1,
   "verification_token": "b2e1c9e0-....-....-....-............",
+  "verification_url": "http://localhost:8080/verify/b2e1c9e0-....-....-....-............",
   "gathering_date": "2026-07-01T00:00:00Z",
   "amount_grams": 5000,
   "processing_method": "raw",
   "honey_type": "Wildflower",
   "pdf_file_hash": "b7e2...",
   "pdf_filename": "lab-report.pdf",
+  "metadata_hash": "9f1a...",
   "created_at": "2026-07-01T10:00:00Z",
   "updated_at": "2026-07-01T10:00:00Z",
   "certification": null,
@@ -1737,11 +1739,13 @@ Honey batches record a harvest lot for certification. Every endpoint is scoped t
 }
 ```
 
-- `verification_token` — opaque UUID identifying the batch publicly; not yet exposed via any public endpoint
+- `verification_token` — opaque UUID identifying the batch publicly
+- `verification_url` — the public verification page URL for this batch, i.e. `GET /verify/{token}` (see below); built from the server's own public base URL
 - `processing_method` valid values: `raw`, `filtered`, `pasteurized`
 - `pdf_file_hash` — SHA-256 hex digest of the uploaded lab PDF
 - `pdf_filename` — original filename of the uploaded lab PDF
-- `certification` — `null` until an admin approves a certification request (see `certification_request` below) and the background worker claims the resulting blockchain job; otherwise `{status, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}` reflecting the real row's latest status.
+- `metadata_hash` — SHA-256 hex digest of the batch's certifiable metadata, recomputed whenever mutable fields change
+- `certification` — `null` until an admin approves a certification request (see `certification_request` below) and the background worker claims the resulting blockchain job; otherwise `{status, chain_id, contract_address, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}` reflecting the real row's latest status.
 - `certification_request` — `null` if certification was never requested; otherwise `{status, rejection_reason, created_at}` describing the pending/approved/rejected admin review request. `status` is `"pending"` immediately after requesting certification (via `POST /honey-batches` with `request_certification=true` or `POST /honey-batches/{id}/retry-certification`); it's only once an admin approves the request that a `blockchain_jobs` row is enqueued and `certification` starts reflecting real on-chain progress.
 
 ---
@@ -1908,9 +1912,28 @@ Submits a batch owned by the caller for admin certification review — a first-t
 
 ### GET /verify/{token}
 
-Public, no authentication. Looks up a batch by its public `verification_token` (opaque UUID, not the numeric `id`) and returns the same honey batch object shape as `GET /honey-batches/{id}`.
+Public, no authentication. Looks up a batch by its public `verification_token` (opaque UUID, not the numeric `id`) and returns the batch's public representation — same fields as the honey batch object above, minus the internal numeric `id` and `certification_request` (that state is owner-only).
 
-**Response** `200 OK` — honey batch object. `certification` is `null`, or the real certification object reflecting its full lifecycle status (`queued`, `submitting`, `submitted`, `pending_confirmation`, `confirmed`, `failed`, `reverted`).
+**Response** `200 OK`:
+
+```json
+{
+  "verification_token": "b2e1c9e0-....-....-....-............",
+  "verification_url": "http://localhost:8080/verify/b2e1c9e0-....-....-....-............",
+  "gathering_date": "2026-07-01T00:00:00Z",
+  "amount_grams": 5000,
+  "processing_method": "raw",
+  "honey_type": "Wildflower",
+  "pdf_file_hash": "b7e2...",
+  "pdf_filename": "lab-report.pdf",
+  "metadata_hash": "9f1a...",
+  "created_at": "2026-07-01T10:00:00Z",
+  "updated_at": "2026-07-01T10:00:00Z",
+  "certification": null
+}
+```
+
+`certification` is `null`, or the real certification object (`{status, chain_id, contract_address, transaction_hash, block_number, gas_used, confirmation_timestamp, created_at}`) reflecting its full lifecycle status (`queued`, `submitting`, `submitted`, `pending_confirmation`, `confirmed`, `failed`, `reverted`).
 
 **Errors**
 | Code | Status | Description |
@@ -1920,9 +1943,25 @@ Public, no authentication. Looks up a batch by its public `verification_token` (
 
 ---
 
+### GET /verify/{token} (HTML page)
+
+**Not under the `/api/v1` base URL** — a plain top-level route: `GET {apiURL}/verify/{token}` (`apiURL` is the backend's own public URL, e.g. `http://localhost:8080/verify/{token}`). Public, no authentication.
+
+This is the exact URL encoded in a batch's QR code and its "verification_url" field — a self-contained, dependency-free HTML page (Go `html/template`, no JS, no SPA) so the link opens directly in any browser, including one launched straight from a phone's stock camera app scanning the QR. There is no in-app QR scanner or Flutter verification screen; this page is the entire verification experience.
+
+Shows honey type, processing method, gathering date, amount, batch ID (the verification token, never the internal numeric id), certification status, lab PDF hash, and metadata hash. Once the certification is confirmed, also shows the contract address, block number, transaction hash, and a link to the Polygon Amoy block explorer (`https://amoy.polygonscan.com/tx/{hash}`).
+
+An intro paragraph above the hashes (and a one-line explainer under each) explains what the two hashes are and why the live check below matters. Once the certification is confirmed, the page also does a live read against the deployed smart contract (bounded by a 5-second timeout so a slow RPC never hangs the page) and shows a badge under each hash: "Matches the record on the blockchain" (green) if it equals the on-chain value, "Does not match — data may have changed" (red) if it doesn't, or "Live check unavailable right now" (grey) if blockchain isn't configured on the server or the RPC call errors/times out. This live check never causes the page itself to fail — it only affects the badges.
+
+Bilingual: `?lang=pl` or `?lang=en` query param overrides the language; otherwise the `Accept-Language` header is sniffed for `pl`, defaulting to English.
+
+**Response** `200 OK` (or `404 Not Found` if the token doesn't resolve) — `text/html; charset=utf-8`
+
+---
+
 ### GET /verify/{token}/qr-code
 
-Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL `{appURL}/verify/{token}`. Requires the batch to have a confirmed certification — a QR pointing at an uncertified batch would be misleading.
+Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL `{apiURL}/verify/{token}` (the HTML page above). Requires the batch to have a confirmed certification — a QR pointing at an uncertified batch would be misleading.
 
 **Response** `200 OK` — `image/png` binary, `Cache-Control: public, max-age=31536000, immutable`
 

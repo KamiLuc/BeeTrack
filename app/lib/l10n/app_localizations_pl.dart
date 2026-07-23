@@ -1270,4 +1270,7 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get honeyBatchAlreadyCertifiedError =>
       'Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.';
+
+  @override
+  String get honeyBatchOpenPublicPage => 'Otwórz publiczną stronę weryfikacji';
 }

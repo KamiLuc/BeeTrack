@@ -508,5 +508,6 @@
   "honeyBatchCertRequestStatusApproved": "Zatwierdzono",
   "honeyBatchCertRequestStatusRejected": "Odrzucone przez administratora",
   "honeyBatchCertificationRequestPending": "Wniosek o certyfikację tej partii oczekuje już na weryfikację przez administratora.",
-  "honeyBatchAlreadyCertifiedError": "Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku."
+  "honeyBatchAlreadyCertifiedError": "Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.",
+  "honeyBatchOpenPublicPage": "Otwórz publiczną stronę weryfikacji"
 }

@@ -5,6 +5,7 @@ import 'processing_method.dart';
 class HoneyBatchModel {
   final int id;
   final String verificationToken;
+  final String verificationUrl;
   final DateTime gatheringDate;
   final int amountGrams;
   final ProcessingMethod processingMethod;
@@ -19,6 +20,7 @@ class HoneyBatchModel {
   const HoneyBatchModel({
     required this.id,
     required this.verificationToken,
+    required this.verificationUrl,
     required this.gatheringDate,
     required this.amountGrams,
     required this.processingMethod,
@@ -37,6 +39,7 @@ class HoneyBatchModel {
     return HoneyBatchModel(
       id: json['id'] as int,
       verificationToken: json['verification_token'] as String,
+      verificationUrl: json['verification_url'] as String,
       gatheringDate: DateTime.parse(json['gathering_date'] as String).toLocal(),
       amountGrams: json['amount_grams'] as int,
       processingMethod:

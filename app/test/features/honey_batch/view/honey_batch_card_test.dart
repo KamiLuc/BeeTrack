@@ -100,6 +100,7 @@ HoneyBatchModel _batch({
     HoneyBatchModel(
       id: id,
       verificationToken: 'token-1',
+      verificationUrl: 'https://example.com/verify/token-1',
       gatheringDate: DateTime(2025, 6, 1),
       amountGrams: amountGrams,
       processingMethod: processingMethod,
@@ -255,6 +256,7 @@ void main() {
         patchResponse: {
           'id': 1,
           'verification_token': 'token-1',
+          'verification_url': 'https://example.com/verify/token-1',
           'gathering_date': '2025-06-01T00:00:00Z',
           'amount_grams': 1500,
           'processing_method': 'raw',

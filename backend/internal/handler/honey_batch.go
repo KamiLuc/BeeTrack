@@ -29,6 +29,8 @@ func certificationJSON(c *model.HoneyBatchCertification) any {
 	}
 	return map[string]any{
 		"status":                 c.Status,
+		"chain_id":               c.ChainID,
+		"contract_address":       c.ContractAddress,
 		"transaction_hash":       c.TransactionHash,
 		"block_number":           c.BlockNumber,
 		"gas_used":               c.GasUsed,
@@ -48,20 +50,29 @@ func certificationRequestSummaryJSON(req *model.HoneyBatchCertificationRequest) 
 	}
 }
 
-func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification, certRequest *model.HoneyBatchCertificationRequest) map[string]any {
+// honeyBatchJSON builds the owner-facing batch representation, including the internal numeric id.
+func honeyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification, certRequest *model.HoneyBatchCertificationRequest, verificationURL string) map[string]any {
+	out := publicHoneyBatchJSON(b, cert, verificationURL)
+	out["id"] = b.ID
+	out["certification_request"] = certificationRequestSummaryJSON(certRequest)
+	return out
+}
+
+// publicHoneyBatchJSON builds the batch representation safe to expose on the public, token-scoped verification page — no internal numeric id, no certification request state.
+func publicHoneyBatchJSON(b *model.HoneyBatch, cert *model.HoneyBatchCertification, verificationURL string) map[string]any {
 	return map[string]any{
-		"id":                     b.ID,
-		"verification_token":     b.VerificationToken,
-		"gathering_date":         b.GatheringDate,
-		"amount_grams":           b.AmountGrams,
-		"processing_method":      b.ProcessingMethod,
-		"honey_type":             b.HoneyType,
-		"pdf_filename":           b.PDFFilename,
-		"pdf_file_hash":          b.PDFFileHash,
-		"created_at":             b.CreatedAt,
-		"updated_at":             b.UpdatedAt,
-		"certification":          certificationJSON(cert),
-		"certification_request":  certificationRequestSummaryJSON(certRequest),
+		"verification_token": b.VerificationToken,
+		"verification_url":   verificationURL,
+		"gathering_date":     b.GatheringDate,
+		"amount_grams":       b.AmountGrams,
+		"processing_method":  b.ProcessingMethod,
+		"honey_type":         b.HoneyType,
+		"pdf_filename":       b.PDFFilename,
+		"pdf_file_hash":      b.PDFFileHash,
+		"metadata_hash":      b.MetadataHash,
+		"created_at":         b.CreatedAt,
+		"updated_at":         b.UpdatedAt,
+		"certification":      certificationJSON(cert),
 	}
 }
 
@@ -174,7 +185,7 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.RequestCertification {
 		certRequest = &model.HoneyBatchCertificationRequest{Status: model.CertificationRequestStatusPending}
 	}
-	respond.JSON(w, http.StatusCreated, honeyBatchJSON(batch, nil, certRequest))
+	respond.JSON(w, http.StatusCreated, honeyBatchJSON(batch, nil, certRequest, h.batches.VerificationURL(batch.VerificationToken)))
 }
 
 // Get handles GET /api/v1/honey-batches/{id} — returns a single batch owned by the caller.
@@ -197,7 +208,7 @@ func (h *HoneyBatchHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest, h.batches.VerificationURL(result.Batch.VerificationToken)))
 }
 
 // List handles GET /api/v1/honey-batches — returns the caller's paginated batches, each with its latest certification status.
@@ -229,7 +240,7 @@ func (h *HoneyBatchHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]map[string]any, len(items))
 	for i, it := range items {
-		out[i] = honeyBatchJSON(it.Batch, it.Certification, it.CertificationRequest)
+		out[i] = honeyBatchJSON(it.Batch, it.Certification, it.CertificationRequest, h.batches.VerificationURL(it.Batch.VerificationToken))
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{"items": out, "total": total})
@@ -304,7 +315,7 @@ func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest, h.batches.VerificationURL(result.Batch.VerificationToken)))
 }
 
 // Delete handles DELETE /api/v1/honey-batches/{id} — soft-deletes a batch owned by the caller.
@@ -378,5 +389,5 @@ func (h *HoneyBatchHandler) RetryCertification(w http.ResponseWriter, r *http.Re
 		honeyBatchError(w, err)
 		return
 	}
-	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest))
+	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest, h.batches.VerificationURL(result.Batch.VerificationToken)))
 }
