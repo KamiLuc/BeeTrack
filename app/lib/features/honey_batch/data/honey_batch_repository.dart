@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 
@@ -103,6 +105,18 @@ class HoneyBatchRepository {
         data: formData,
       );
       return HoneyBatchModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<Uint8List> getPdfBytes(int id) async {
+    try {
+      final response = await _api.dio.get<List<int>>(
+        '/api/v1/honey-batches/$id/pdf',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data!);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

@@ -25,7 +25,7 @@ Future<void> main() async {
   final storage = TokenStorage(prefs);
   final apiClient = ApiClient(
     storage: storage,
-    baseUrl: kIsWeb ? 'http://localhost:8080' : 'https://beetrack.duckdns.org',
+    baseUrl: kIsWeb ? 'http://127.0.0.1:8080' : 'https://beetrack.duckdns.org',
   );
   final localeController = LocaleController(prefs);
 

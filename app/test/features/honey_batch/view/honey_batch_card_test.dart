@@ -45,6 +45,7 @@ Future<void> _solvePuzzle(
 /// ProfileIconButton, which fires its own GET on init.
 class _FakeApiAdapter implements HttpClientAdapter {
   final Map<String, dynamic>? patchResponse;
+  RequestOptions? lastOptions;
 
   _FakeApiAdapter({this.patchResponse});
 
@@ -54,6 +55,7 @@ class _FakeApiAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    lastOptions = options;
     if (options.method == 'PATCH' && patchResponse != null) {
       return ResponseBody.fromString(
         jsonEncode(patchResponse),
@@ -321,6 +323,8 @@ void main() {
       );
 
       await tester.pumpWidget(wrap(_batch(certification: null)));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.honeyBatchCertify));
       await tester.pumpAndSettle();
       await _solvePuzzle(tester, l10n.generalConfirm);
@@ -333,6 +337,8 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(wrap(_batch(certification: null)));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.honeyBatchCertify));
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.generalCancel));
@@ -380,6 +386,8 @@ void main() {
         ),
         findsOneWidget,
       );
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
       expect(find.text(l10n.honeyBatchCertify), findsOneWidget);
 
       when(() => repo.requestCertification(1)).thenAnswer(
@@ -394,6 +402,18 @@ void main() {
       await tester.pump();
 
       verify(() => repo.requestCertification(1)).called(1);
+    });
+
+    testWidgets('shows a view icon next to the pdf filename when present', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap(_batch(pdfFilename: 'lab-report.pdf')));
+      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    });
+
+    testWidgets('shows no view icon when there is no pdf', (tester) async {
+      await tester.pumpWidget(wrap(_batch(pdfFilename: '')));
+      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
     });
 
     testWidgets('shows View/Download QR buttons when confirmed', (

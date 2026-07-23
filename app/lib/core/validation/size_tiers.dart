@@ -69,3 +69,16 @@ Future<String?> validateImageFileSize(XFile file, AppLocalizations l10n) async {
   if (size <= maxImageBytes) return null;
   return l10n.generalPhotoTooLarge(maxImageSizeLabel);
 }
+
+/// Largest lab PDF file accepted for honey batch uploads. Mirrors
+/// `maxLabPDFBytes` in the backend's `internal/service/honey_batch.go`.
+const int maxPdfBytes = 10 * 1024 * 1024;
+
+/// Human-readable form of [maxPdfBytes] for error messages, e.g. "10 MB".
+final String maxPdfSizeLabel = '${maxPdfBytes ~/ (1024 * 1024)} MB';
+
+/// Returns the localized "PDF too large" error if [byteLength] exceeds [maxPdfBytes], else null.
+String? validatePdfFileSize(int byteLength, AppLocalizations l10n) {
+  if (byteLength <= maxPdfBytes) return null;
+  return l10n.generalPdfTooLarge(maxPdfSizeLabel);
+}

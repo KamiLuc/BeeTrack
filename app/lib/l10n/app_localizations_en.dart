@@ -748,6 +748,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String generalPdfTooLarge(String max) {
+    return 'PDF is too large. Maximum size is $max.';
+  }
+
+  @override
   String get inspectionTitle => 'Inspections';
 
   @override
@@ -1173,6 +1178,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get honeyBatchNoPdf => 'None';
+
+  @override
+  String get honeyBatchViewPdf => 'View PDF';
 
   @override
   String get honeyBatchCertify => 'Certify on blockchain';

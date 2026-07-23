@@ -1478,6 +1478,12 @@ abstract class AppLocalizations {
   /// **'Zdjęcie jest za duże. Maksymalny rozmiar to {max}.'**
   String generalPhotoTooLarge(String max);
 
+  /// No description provided for @generalPdfTooLarge.
+  ///
+  /// In pl, this message translates to:
+  /// **'PDF jest za duży. Maksymalny rozmiar to {max}.'**
+  String generalPdfTooLarge(String max);
+
   /// No description provided for @inspectionTitle.
   ///
   /// In pl, this message translates to:
@@ -2209,6 +2215,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Brak'**
   String get honeyBatchNoPdf;
+
+  /// No description provided for @honeyBatchViewPdf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zobacz PDF'**
+  String get honeyBatchViewPdf;
 
   /// No description provided for @honeyBatchCertify.
   ///

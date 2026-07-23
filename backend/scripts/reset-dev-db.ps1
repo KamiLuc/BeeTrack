@@ -41,7 +41,8 @@ if (-not $Emails) {
 
 $ErrorActionPreference = "Stop"
 $backendDir = Split-Path -Parent $PSScriptRoot
-Set-Location $backendDir
+Push-Location $backendDir
+try {
 
 Write-Host "==> Wiping local db/images volumes" -ForegroundColor Cyan
 docker compose down -v
@@ -51,9 +52,9 @@ docker compose up -d db api mailpit
 
 Write-Host "==> Waiting for the API to come up" -ForegroundColor Cyan
 $ready = $false
-for ($i = 0; $i -lt 30; $i++) {
+for ($i = 0; $i -lt 90; $i++) {
     try {
-        Invoke-WebRequest -Uri "http://localhost:8080/" -UseBasicParsing -TimeoutSec 2 | Out-Null
+        Invoke-WebRequest -Uri "http://127.0.0.1:8080/" -UseBasicParsing -TimeoutSec 2 | Out-Null
         $ready = $true
         break
     } catch [System.Net.WebException] {
@@ -68,10 +69,11 @@ if (-not $ready) {
 }
 
 $env:DATABASE_URL = "postgres://postgres:password@localhost:5432/beetrack?sslmode=disable"
+$env:CGO_ENABLED = "0"
 
 foreach ($email in $Emails) {
     Write-Host "==> Seeding $email" -ForegroundColor Cyan
-    go run ./cmd/seed -email $email -password $Password
+    go run ./cmd/seed -email $email -password $Password -api-url "http://127.0.0.1:8080"
     if ($LASTEXITCODE -ne 0) { throw "Seeding failed for $email" }
 }
 
@@ -81,3 +83,7 @@ docker exec backend-db-1 psql -U postgres -d beetrack -c "UPDATE users SET role=
 
 Write-Host "==> Done. Users:" -ForegroundColor Green
 docker exec backend-db-1 psql -U postgres -d beetrack -c "SELECT id, email, role, verified FROM users ORDER BY id;"
+
+} finally {
+    Pop-Location
+}

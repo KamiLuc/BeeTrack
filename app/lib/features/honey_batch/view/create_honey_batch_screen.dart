@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,11 +8,13 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/validation/size_tiers.dart';
+import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/honey_batch_model.dart';
 import '../data/honey_batch_repository.dart';
 import '../data/processing_method.dart';
+import 'pdf_preview_screen.dart';
 
 class CreateHoneyBatchScreen extends StatefulWidget {
   final HoneyBatchModel? existingBatch;
@@ -33,6 +37,7 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
   PlatformFile? _pickedFile;
   bool _removeExistingPdf = false;
   bool _saving = false;
+  bool _loadingPdf = false;
 
   @override
   void initState() {
@@ -71,8 +76,16 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
       withData: true,
     );
     if (result == null || result.files.isEmpty || !mounted) return;
+    final file = result.files.single;
+
+    final sizeError = validatePdfFileSize(file.size, AppLocalizations.of(context)!);
+    if (sizeError != null) {
+      showPhotoTooLargeSnackBar(context, sizeError);
+      return;
+    }
+
     setState(() {
-      _pickedFile = result.files.single;
+      _pickedFile = file;
       _removeExistingPdf = false;
     });
   }
@@ -85,6 +98,40 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
         _removeExistingPdf = true;
       }
     });
+  }
+
+  bool get _hasExistingPdf =>
+      !_removeExistingPdf &&
+      (widget.existingBatch?.pdfFilename.isNotEmpty ?? false);
+
+  Future<void> _viewPdf() async {
+    final l10n = AppLocalizations.of(context)!;
+    final picked = _pickedFile;
+    if (picked?.bytes != null) {
+      _openPreview(picked!.name, Uint8List.fromList(picked.bytes!));
+      return;
+    }
+    if (!_hasExistingPdf) return;
+
+    setState(() => _loadingPdf = true);
+    try {
+      final repo = HoneyBatchRepository(api: context.read<ApiClient>());
+      final bytes = await repo.getPdfBytes(widget.existingBatch!.id);
+      if (!mounted) return;
+      _openPreview(widget.existingBatch!.pdfFilename, bytes);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPdf = false);
+    }
+  }
+
+  void _openPreview(String title, Uint8List bytes) {
+    showPdfPreviewDialog(context, title: title, bytes: bytes);
   }
 
   Future<void> _submit() async {
@@ -238,6 +285,8 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
                             removed: _removeExistingPdf,
                             onPick: _pickPdf,
                             onClear: _clearPdf,
+                            onView: _viewPdf,
+                            loadingView: _loadingPdf,
                           ),
                         ],
                       ),
@@ -307,6 +356,8 @@ class _PdfPickerField extends StatelessWidget {
   final bool removed;
   final VoidCallback onPick;
   final VoidCallback onClear;
+  final VoidCallback onView;
+  final bool loadingView;
 
   const _PdfPickerField({
     required this.file,
@@ -314,27 +365,38 @@ class _PdfPickerField extends StatelessWidget {
     required this.removed,
     required this.onPick,
     required this.onClear,
+    required this.onView,
+    required this.loadingView,
   });
 
   bool get _hasExisting =>
       !removed && existingFilename != null && existingFilename!.isNotEmpty;
+
+  bool get _hasFile => file != null || _hasExisting;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final label = file?.name ??
         (_hasExisting ? existingFilename! : l10n.honeyBatchPdfLabel);
-    final showClear = file != null || _hasExisting;
+    final showClear = _hasFile;
 
     return Row(
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: onPick,
-            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: loadingView ? null : (_hasFile ? onView : onPick),
+            icon: loadingView
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined),
             label: Text(label, overflow: TextOverflow.ellipsis),
           ),
         ),
+        if (showClear) const SizedBox(width: 16),
         if (showClear)
           IconButton(
             icon: const Icon(Icons.close),

@@ -186,6 +186,18 @@ void main() {
     });
   });
 
+  group('getPdfBytes', () {
+    test('sends GET to /honey-batches/:id/pdf and returns raw bytes', () async {
+      adapter.responseData = 'PDF-CONTENT';
+
+      final bytes = await repository.getPdfBytes(9);
+
+      expect(adapter.lastOptions!.method, 'GET');
+      expect(adapter.lastOptions!.path, '/api/v1/honey-batches/9/pdf');
+      expect(bytes, utf8.encode(jsonEncode('PDF-CONTENT')));
+    });
+  });
+
   group('deleteBatch', () {
     test('sends DELETE to /honey-batches/:id', () async {
       adapter.responseData = null;

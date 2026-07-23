@@ -20,6 +20,7 @@ import '../data/processing_method.dart';
 import 'certification_request_status_badge.dart';
 import 'certification_status_badge.dart';
 import 'create_honey_batch_screen.dart';
+import 'pdf_preview_screen.dart';
 
 class HoneyBatchesHomeScreen extends StatelessWidget {
   final ValueChanged<AppSection> onSelectSection;
@@ -124,7 +125,7 @@ class _HoneyBatchesView extends StatelessWidget {
   }
 }
 
-enum _CardAction { edit, delete }
+enum _CardAction { edit, certify, delete }
 
 class HoneyBatchCard extends StatefulWidget {
   final HoneyBatchModel batch;
@@ -138,6 +139,31 @@ class HoneyBatchCard extends StatefulWidget {
 class _HoneyBatchCardState extends State<HoneyBatchCard> {
   bool _certifying = false;
   bool _deleting = false;
+  bool _loadingPdf = false;
+
+  Future<void> _viewPdf() async {
+    if (widget.batch.pdfFilename.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _loadingPdf = true);
+    try {
+      final repo = HoneyBatchRepository(api: context.read<ApiClient>());
+      final bytes = await repo.getPdfBytes(widget.batch.id);
+      if (!mounted) return;
+      await showPdfPreviewDialog(
+        context,
+        title: widget.batch.pdfFilename,
+        bytes: bytes,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.generalError)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPdf = false);
+    }
+  }
 
   Future<void> _certify() async {
     final l10n = AppLocalizations.of(context)!;
@@ -221,14 +247,21 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
     final dateStr = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
     ).format(batch.gatheringDate);
-    final pdfDisplay =
-        batch.pdfFilename.isEmpty ? l10n.honeyBatchNoPdf : batch.pdfFilename;
+    final hasPdf = batch.pdfFilename.isNotEmpty;
+    final pdfDisplay = hasPdf ? batch.pdfFilename : l10n.honeyBatchNoPdf;
     final canEdit = batch.certification == null;
     final certRequest = batch.certificationRequest;
     final showRequestBadge = batch.certification == null &&
         certRequest != null &&
         (certRequest.status == CertificationRequestStatus.pending ||
             certRequest.status == CertificationRequestStatus.rejected);
+    final isRetryable = batch.certification?.status == CertificationStatus.failed ||
+        batch.certification?.status == CertificationStatus.reverted;
+    final showCertifyAction = isRetryable ||
+        (batch.certification == null &&
+            hasPdf &&
+            certRequest?.status != CertificationRequestStatus.pending);
+    final isConfirmed = batch.certification?.status == CertificationStatus.confirmed;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -251,7 +284,7 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                         rejectionReason: certRequest.rejectionReason,
                       )
                     : CertificationStatusBadge(status: batch.certification?.status),
-                _deleting
+                _deleting || _certifying
                     ? const Padding(
                         padding: EdgeInsets.all(8),
                         child: SizedBox(
@@ -263,6 +296,7 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                     : PopupMenuButton<_CardAction>(
                         onSelected: (action) {
                           if (action == _CardAction.edit) _edit();
+                          if (action == _CardAction.certify) _certify();
                           if (action == _CardAction.delete) _confirmDelete();
                         },
                         itemBuilder: (_) => [
@@ -270,6 +304,13 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                             PopupMenuItem(
                               value: _CardAction.edit,
                               child: Text(l10n.generalEdit),
+                            ),
+                          if (showCertifyAction)
+                            PopupMenuItem(
+                              value: _CardAction.certify,
+                              child: Text(
+                                isRetryable ? l10n.honeyBatchRetry : l10n.honeyBatchCertify,
+                              ),
                             ),
                           PopupMenuItem(
                             value: _CardAction.delete,
@@ -292,106 +333,61 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
             const SizedBox(height: 6),
             Text(l10n.honeyBatchPdfLabel, style: labelStyle),
             const SizedBox(height: 2),
-            Text(pdfDisplay, style: bodyStyle, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 12),
-            _CertificationAction(
-              cert: batch.certification,
-              certRequest: certRequest,
-              certifying: _certifying,
-              onCertify: _certify,
-            ),
+            hasPdf
+                ? InkWell(
+                    onTap: _loadingPdf ? null : _viewPdf,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            pdfDisplay,
+                            style: bodyStyle?.copyWith(color: colorScheme.primary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (_loadingPdf)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                      ],
+                    ),
+                  )
+                : Text(pdfDisplay, style: bodyStyle, overflow: TextOverflow.ellipsis),
+            if (isConfirmed) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      // TODO(HC-FE-05): navigate to QR display screen
+                      onPressed: () {},
+                      child: Text(l10n.honeyBatchViewQr),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      // TODO(HC-FE-05): download QR code
+                      onPressed: () {},
+                      child: Text(l10n.honeyBatchDownloadQr),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-}
-
-class _CertificationAction extends StatelessWidget {
-  final HoneyBatchCertificationModel? cert;
-  final HoneyBatchCertificationRequestModel? certRequest;
-  final bool certifying;
-  final VoidCallback onCertify;
-
-  const _CertificationAction({
-    required this.cert,
-    required this.certRequest,
-    required this.certifying,
-    required this.onCertify,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    if (certifying) {
-      return const SizedBox(
-        height: 36,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-
-    if (cert == null && certRequest?.status == CertificationRequestStatus.pending) {
-      return const SizedBox.shrink();
-    }
-
-    if (cert == null) {
-      return Align(
-        alignment: Alignment.center,
-        child: FractionallySizedBox(
-          widthFactor: 0.4,
-          child: FilledButton(
-            onPressed: onCertify,
-            child: Text(l10n.honeyBatchCertify),
-          ),
-        ),
-      );
-    }
-
-    final isRetryable = cert!.status == CertificationStatus.failed ||
-        cert!.status == CertificationStatus.reverted;
-    if (isRetryable) {
-      return Align(
-        alignment: Alignment.center,
-        child: FractionallySizedBox(
-          widthFactor: 0.4,
-          child: FilledButton(
-            onPressed: onCertify,
-            child: Text(l10n.honeyBatchRetry),
-          ),
-        ),
-      );
-    }
-
-    if (cert!.status == CertificationStatus.confirmed) {
-      return Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              // TODO(HC-FE-05): navigate to QR display screen
-              onPressed: () {},
-              child: Text(l10n.honeyBatchViewQr),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: OutlinedButton(
-              // TODO(HC-FE-05): download QR code
-              onPressed: () {},
-              child: Text(l10n.honeyBatchDownloadQr),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return const SizedBox.shrink();
   }
 }
 
