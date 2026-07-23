@@ -60,6 +60,7 @@ type HoneyBatchCertificationRequestRepository interface {
 // certification history used by HoneyBatchService.
 type HoneyBatchCertificationRepository interface {
 	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error)
+	ListByBatchID(ctx context.Context, batchID int64) ([]*model.HoneyBatchCertification, error)
 }
 
 // HoneyBatchQRCodeRepository is the persistence interface for QR code data used by HoneyBatchService.
@@ -293,6 +294,20 @@ func (s *HoneyBatchService) GetBatch(ctx context.Context, userID, batchID int64)
 		return nil, fmt.Errorf("get latest certification request: %w", err)
 	}
 	return &BatchVerification{Batch: batch, Certification: cert, CertificationRequest: certRequest}, nil
+}
+
+// GetCertificationHistory returns the full certification history for batchID
+// (owned by userID), most recent first — every attempt, not just the latest.
+func (s *HoneyBatchService) GetCertificationHistory(ctx context.Context, userID, batchID int64) ([]*model.HoneyBatchCertification, error) {
+	batch, err := s.ownedBatch(ctx, userID, batchID)
+	if err != nil {
+		return nil, err
+	}
+	history, err := s.certifications.ListByBatchID(ctx, batch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list certification history: %w", err)
+	}
+	return history, nil
 }
 
 // ListBatches returns a paginated slice of userID's batches (each paired with its latest certification) and the total count.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -16,11 +17,15 @@ import (
 // HoneyBatchHandler handles HTTP requests for honey batch resources.
 type HoneyBatchHandler struct {
 	batches *service.HoneyBatchService
+	// certReader is used by Certifications to attach live on-chain hash
+	// values to the batch's live/confirmed certification row. Optional —
+	// nil if blockchain isn't configured (see cmd/api/main.go).
+	certReader ChainCertReader
 }
 
-// NewHoneyBatchHandler creates a HoneyBatchHandler backed by svc.
-func NewHoneyBatchHandler(batches *service.HoneyBatchService) *HoneyBatchHandler {
-	return &HoneyBatchHandler{batches: batches}
+// NewHoneyBatchHandler creates a HoneyBatchHandler backed by svc. certReader may be nil.
+func NewHoneyBatchHandler(batches *service.HoneyBatchService, certReader ChainCertReader) *HoneyBatchHandler {
+	return &HoneyBatchHandler{batches: batches, certReader: certReader}
 }
 
 func certificationJSON(c *model.HoneyBatchCertification) any {
@@ -209,6 +214,62 @@ func (h *HoneyBatchHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, honeyBatchJSON(result.Batch, result.Certification, result.CertificationRequest, h.batches.VerificationURL(result.Batch.VerificationToken)))
+}
+
+// Certifications handles GET /api/v1/honey-batches/{id}/certifications — auth
+// + ownership. Returns the batch's full certification history, most recent
+// first, with live on-chain hash values attached to the current live/
+// confirmed row (nil if blockchain isn't configured or the RPC call fails —
+// this must never fail the whole request).
+func (h *HoneyBatchHandler) Certifications(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
+		return
+	}
+
+	id, err := parseHoneyBatchID(r)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid honey batch id")
+		return
+	}
+
+	history, err := h.batches.GetCertificationHistory(r.Context(), userID, id)
+	if err != nil {
+		honeyBatchError(w, err)
+		return
+	}
+
+	items := make([]map[string]any, len(history))
+	for i, cert := range history {
+		item, _ := certificationJSON(cert).(map[string]any)
+		if h.certReader != nil && cert.Status.IsLive() {
+			if pdfHashHex, metadataHashHex, ok := h.onChainHashes(r.Context(), id); ok {
+				item["on_chain_pdf_hash"] = pdfHashHex
+				item["on_chain_metadata_hash"] = metadataHashHex
+			}
+		}
+		items[i] = item
+	}
+
+	respond.JSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// onChainHashes fetches batchID's on-chain certification record, bounded by
+// chainCheckTimeout so a slow RPC can never hang the request. ok is false if
+// no reader is configured or the read fails/times out.
+func (h *HoneyBatchHandler) onChainHashes(ctx context.Context, batchID int64) (pdfHashHex, metadataHashHex string, ok bool) {
+	if h.certReader == nil {
+		return "", "", false
+	}
+	chainCtx, cancel := context.WithTimeout(ctx, chainCheckTimeout)
+	defer cancel()
+	record, err := h.certReader.GetCertification(chainCtx, batchID)
+	if err != nil {
+		return "", "", false
+	}
+	pdfHashHex, metadataHashHex = hexEncodeCertRecord(record)
+	return pdfHashHex, metadataHashHex, true
 }
 
 // List handles GET /api/v1/honey-batches — returns the caller's paginated batches, each with its latest certification status.

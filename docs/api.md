@@ -1892,6 +1892,43 @@ Serves the lab PDF for a batch owned by the caller. Not gated on certification s
 
 ---
 
+### GET /honey-batches/{id}/certifications 🔒
+
+Returns the full certification history for a batch owned by the caller — every attempt, most recent first (not just the latest, which is what the honey batch object's `certification` field carries).
+
+**Response** `200 OK`:
+
+```json
+{
+  "items": [
+    {
+      "status": "confirmed",
+      "chain_id": 80002,
+      "contract_address": "0x...",
+      "transaction_hash": "0x...",
+      "block_number": 12345,
+      "gas_used": 123456,
+      "confirmation_timestamp": "2026-07-01T10:05:00Z",
+      "created_at": "2026-07-01T10:00:00Z",
+      "on_chain_pdf_hash": "b7e2...",
+      "on_chain_metadata_hash": "9f1a..."
+    }
+  ]
+}
+```
+
+`on_chain_pdf_hash`/`on_chain_metadata_hash` (hex strings, no `0x` prefix) are only attached to the current live/confirmed row (`status` one of `submitted`, `pending_confirmation`, `confirmed`), fetched live from the chain with a 5-second timeout. They're omitted entirely — never an error — if blockchain isn't configured on the server or the RPC read fails/times out; this endpoint never fails because of the chain read.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `BATCH_NOT_FOUND` | 404 | Batch does not exist or is not owned by the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### POST /honey-batches/{id}/retry-certification 🔒
 
 Submits a batch owned by the caller for admin certification review — a first-time request if certification was never requested, or a retry if the latest attempt is `failed`/`reverted`. Creates a `HoneyBatchCertificationRequest` awaiting admin approval; it no longer enqueues a blockchain job directly. No request body.
@@ -1952,6 +1989,8 @@ This is the exact URL encoded in a batch's QR code and its "verification_url" fi
 Shows honey type, processing method, gathering date, amount, batch ID (the verification token, never the internal numeric id), certification status, lab PDF hash, and metadata hash. Once the certification is confirmed, also shows the contract address, block number, transaction hash, and a link to the Polygon Amoy block explorer (`https://amoy.polygonscan.com/tx/{hash}`).
 
 An intro paragraph above the hashes (and a one-line explainer under each) explains what the two hashes are and why the live check below matters. Once the certification is confirmed, the page also does a live read against the deployed smart contract (bounded by a 5-second timeout so a slow RPC never hangs the page) and shows a badge under each hash: "Matches the record on the blockchain" (green) if it equals the on-chain value, "Does not match — data may have changed" (red) if it doesn't, or "Live check unavailable right now" (grey) if blockchain isn't configured on the server or the RPC call errors/times out. This live check never causes the page itself to fail — it only affects the badges.
+
+Once the certification is confirmed, a "Download lab PDF" button (pointing at the public `GET /verify/{token}/pdf` endpoint above) is shown alongside the "View on block explorer" button, in a row at the bottom of the proof card.
 
 Bilingual: `?lang=pl` or `?lang=en` query param overrides the language; otherwise the `Accept-Language` header is sniffed for `pl`, defaulting to English.
 

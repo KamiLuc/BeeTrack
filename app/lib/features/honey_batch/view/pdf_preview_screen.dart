@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -16,7 +17,10 @@ Future<void> showPdfPreviewDialog(
     builder: (dialogContext) => Dialog(
       insetPadding: const EdgeInsets.all(24),
       child: SizedBox(
-        width: size.width * 0.9,
+        // A PDF page reads more comfortably wider than the app's usual
+        // dialog cap, so this uses its own (larger) ceiling instead of
+        // AppLayout.dialogWidth.
+        width: min(800.0, size.width * 0.9),
         height: size.height * 0.85,
         child: Column(
           children: [

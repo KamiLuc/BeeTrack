@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -43,6 +42,7 @@ type verifyPageStrings struct {
 	ChainVerified         string
 	ChainMismatch         string
 	ChainUnavailable      string
+	DownloadPDF           string
 	ProcessingMethods     map[string]string
 	CertStatuses          map[model.CertificationStatus]string
 }
@@ -71,6 +71,7 @@ var verifyPageEN = verifyPageStrings{
 	ChainVerified:         "Matches the record on the blockchain",
 	ChainMismatch:         "Does not match the blockchain record - data may have changed",
 	ChainUnavailable:      "Live blockchain check unavailable right now",
+	DownloadPDF:           "Download lab PDF",
 	ProcessingMethods: map[string]string{
 		"raw":         "Raw",
 		"filtered":    "Filtered",
@@ -111,6 +112,7 @@ var verifyPagePL = verifyPageStrings{
 	ChainVerified:         "Zgodne z rekordem w blockchainie",
 	ChainMismatch:         "Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione",
 	ChainUnavailable:      "Weryfikacja na żywo chwilowo niedostępna",
+	DownloadPDF:           "Pobierz PDF z badania",
 	ProcessingMethods: map[string]string{
 		"raw":         "Surowy",
 		"filtered":    "Filtrowany",
@@ -169,6 +171,7 @@ type verifyPageData struct {
 	BlockNumber      string
 	TransactionHash  string
 	ExplorerURL      string
+	PDFDownloadURL   string
 }
 
 // chainCheckState is the outcome of comparing a hash against the live
@@ -210,8 +213,8 @@ var verifyPageTemplate = template.Must(template.New("verify").Parse(`<!DOCTYPE h
     background: #fafaf5; color: #1c1b16;
   }
   main { max-width: 560px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .honey-type { font-size: 1.6rem; font-weight: 600; margin: 0 0 16px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  .honey-type { font-size: 1.4rem; font-weight: 600; margin: 0 0 16px; color: #555; }
   .card {
     background: #fff; border-radius: 12px; padding: 16px 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px;
@@ -242,11 +245,14 @@ var verifyPageTemplate = template.Must(template.New("verify").Parse(`<!DOCTYPE h
   .check-ok { color: #1e7e34; }
   .check-mismatch { color: #a71d2a; }
   .check-unavailable { color: #999; font-weight: 500; }
+  .button-row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
   a.explorer-link {
-    display: inline-block; margin-top: 8px; padding: 8px 14px;
+    display: inline-block; padding: 8px 14px;
     border: 1px solid #a36b00; border-radius: 8px; color: #a36b00;
     text-decoration: none; font-size: 0.9rem; font-weight: 600;
+    text-align: center;
   }
+  .button-row a.explorer-link { flex: 1; }
   .not-found { text-align: center; padding: 64px 16px; color: #555; }
 </style>
 </head>
@@ -308,7 +314,10 @@ var verifyPageTemplate = template.Must(template.New("verify").Parse(`<!DOCTYPE h
       <div class="label">{{.Strings.TransactionHash}}</div>
       <div class="value mono">{{.TransactionHash}}</div>
     </div>
-    <a class="explorer-link" href="{{.ExplorerURL}}" target="_blank" rel="noopener">{{.Strings.ViewOnExplorer}}</a>
+    <div class="button-row">
+      {{if .PDFDownloadURL}}<a class="explorer-link" href="{{.PDFDownloadURL}}">{{.Strings.DownloadPDF}}</a>{{end}}
+      <a class="explorer-link" href="{{.ExplorerURL}}" target="_blank" rel="noopener">{{.Strings.ViewOnExplorer}}</a>
+    </div>
     {{end}}
   </div>
 {{end}}
@@ -379,6 +388,9 @@ func (h *HoneyBatchVerifyHandler) VerifyPage(w http.ResponseWriter, r *http.Requ
 		pdfCheck, metadataCheck := h.checkAgainstChain(r.Context(), batch)
 		data.PDFHashCheckLabel, data.PDFHashCheckClass = pdfCheck.label(strs)
 		data.MetadataHashCheckLabel, data.MetadataHashCheckClass = metadataCheck.label(strs)
+		// Same gate as the backend's own PDF endpoint (GetBatchPDFByToken):
+		// only a confirmed batch's lab PDF is publicly downloadable.
+		data.PDFDownloadURL = "/api/v1/verify/" + batch.VerificationToken + "/pdf"
 	}
 
 	_ = verifyPageTemplate.Execute(w, data)
@@ -406,12 +418,13 @@ func (h *HoneyBatchVerifyHandler) checkAgainstChain(ctx context.Context, batch *
 		return chainCheckUnavailable, chainCheckUnavailable
 	}
 
+	pdfHashHex, metadataHashHex := hexEncodeCertRecord(record)
 	pdf = chainCheckMismatch
-	if hex.EncodeToString(record.PDFHash[:]) == batch.PDFFileHash {
+	if pdfHashHex == batch.PDFFileHash {
 		pdf = chainCheckMatch
 	}
 	metadata = chainCheckMismatch
-	if hex.EncodeToString(record.MetadataHash[:]) == batch.MetadataHash {
+	if metadataHashHex == batch.MetadataHash {
 		metadata = chainCheckMatch
 	}
 	return pdf, metadata

@@ -56,7 +56,7 @@ contract HoneyCertification {
 
     /// @notice Permanently records the hashes for batchID. Reverts if batchID
     /// was already certified — this is the contract-level half of the
-    /// three-layer idempotency guarantee (see HC-BE-25); it turns an
+    /// three-layer idempotency guarantee; it turns an
     /// accidental duplicate submission into a safe no-op-that-reverts rather
     /// than a silent double-certification.
     function certify(uint256 batchID, bytes32 pdfHash, bytes32 metadataHash) external onlyMinter returns (bool) {

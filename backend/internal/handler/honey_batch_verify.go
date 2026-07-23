@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -32,6 +33,15 @@ func qrCodeDownloadFilename(batch *model.HoneyBatch) string {
 	honeyType := sanitizeFilenamePart(batch.HoneyType)
 	weightKg := strconv.FormatFloat(float64(batch.AmountGrams)/1000, 'f', -1, 64)
 	return fmt.Sprintf("%s_%s_%skg.png", date, honeyType, weightKg)
+}
+
+// hexEncodeCertRecord hex-encodes an on-chain certification record's hashes
+// (no "0x" prefix), matching the encoding convention used to store
+// HoneyBatch.PDFFileHash/MetadataHash — see hex.EncodeToString calls in
+// internal/service/honey_batch.go and decodeHash32 in
+// internal/worker/blockchain_worker.go.
+func hexEncodeCertRecord(record *blockchain.CertificationRecord) (pdfHashHex, metadataHashHex string) {
+	return hex.EncodeToString(record.PDFHash[:]), hex.EncodeToString(record.MetadataHash[:])
 }
 
 // ChainCertReader reads a batch's on-chain certification record — satisfied

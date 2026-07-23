@@ -1186,11 +1186,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get honeyBatchCertify => 'Certify on blockchain';
 
   @override
-  String get honeyBatchCertifyConfirmTitle => 'Certify this batch?';
+  String get honeyBatchCertifyConfirmTitle => 'Request certification?';
 
   @override
   String get honeyBatchCertifyConfirmMessage =>
-      'Once certified, this honey batch\'s data can no longer be edited.';
+      'This sends the batch for admin review. Once approved and confirmed on the blockchain, this batch\'s data and lab PDF become publicly viewable by anyone with the verification link, and can no longer be edited.';
 
   @override
   String get honeyBatchRetry => 'Retry certification';

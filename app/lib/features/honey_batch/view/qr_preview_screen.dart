@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/theme/app_layout.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Shows the QR code at [imageUrl] in a dialog on top of the current screen,
@@ -20,7 +21,7 @@ Future<void> showQrPreviewDialog(
     builder: (dialogContext) => Dialog(
       insetPadding: const EdgeInsets.all(24),
       child: SizedBox(
-        width: size.width * 0.9,
+        width: AppLayout.dialogWidth(context),
         height: size.height * 0.7,
         child: Column(
           children: [

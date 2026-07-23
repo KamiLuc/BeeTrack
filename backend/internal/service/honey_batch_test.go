@@ -109,8 +109,9 @@ func (m *mockHoneyBatchRepo) HardDelete(ctx context.Context, id int64) error {
 }
 
 type mockHoneyBatchCertificationRepo struct {
-	latest map[int64]*model.HoneyBatchCertification
-	err    error
+	latest  map[int64]*model.HoneyBatchCertification
+	history map[int64][]*model.HoneyBatchCertification
+	err     error
 }
 
 func (m *mockHoneyBatchCertificationRepo) GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertification, error) {
@@ -118,6 +119,13 @@ func (m *mockHoneyBatchCertificationRepo) GetLatestByBatchID(ctx context.Context
 		return nil, m.err
 	}
 	return m.latest[batchID], nil
+}
+
+func (m *mockHoneyBatchCertificationRepo) ListByBatchID(ctx context.Context, batchID int64) ([]*model.HoneyBatchCertification, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.history[batchID], nil
 }
 
 type mockHoneyBatchQRCodeRepo struct {
@@ -1105,6 +1113,53 @@ func TestGenerateQRCodeData_BatchRepoError(t *testing.T) {
 	svc := NewHoneyBatchService(batches, certifications, &mockCertRequestRepo{}, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
 
 	if _, err := svc.GenerateQRCodeData(context.Background(), 1); err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
+func TestGetCertificationHistory_Owned(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	cert1 := &model.HoneyBatchCertification{ID: 10, BatchID: 1, Status: model.CertificationStatusConfirmed}
+	cert2 := &model.HoneyBatchCertification{ID: 9, BatchID: 1, Status: model.CertificationStatusFailed}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certifications := &mockHoneyBatchCertificationRepo{history: map[int64][]*model.HoneyBatchCertification{1: {cert1, cert2}}}
+	svc := NewHoneyBatchService(batches, certifications, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	history, err := svc.GetCertificationHistory(context.Background(), 42, 1)
+	if err != nil {
+		t.Fatalf("GetCertificationHistory() error = %v", err)
+	}
+	if len(history) != 2 || history[0] != cert1 || history[1] != cert2 {
+		t.Errorf("expected the repo's history slice returned as-is, got %+v", history)
+	}
+}
+
+func TestGetCertificationHistory_NotOwner(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.GetCertificationHistory(context.Background(), 999, 1); err != ErrBatchNotFound {
+		t.Errorf("expected ErrBatchNotFound for a non-owner, got %v", err)
+	}
+}
+
+func TestGetCertificationHistory_NotFound(t *testing.T) {
+	batches := &mockHoneyBatchRepo{}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.GetCertificationHistory(context.Background(), 42, 999); err != ErrBatchNotFound {
+		t.Errorf("expected ErrBatchNotFound, got %v", err)
+	}
+}
+
+func TestGetCertificationHistory_RepoError(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certifications := &mockHoneyBatchCertificationRepo{err: errors.New("db down")}
+	svc := NewHoneyBatchService(batches, certifications, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if _, err := svc.GetCertificationHistory(context.Background(), 42, 1); err == nil {
 		t.Error("expected error, got nil")
 	}
 }

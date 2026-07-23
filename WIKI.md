@@ -448,6 +448,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | PATCH | `/api/v1/honey-batches/{id}` | Update honey batch (gathering date, amount, processing method, honey type; multipart, with an optional `lab_pdf` to replace the existing PDF, or `remove_pdf` to clear it); locked once certification has been attempted |
 | DELETE | `/api/v1/honey-batches/{id}` | Soft-delete honey batch |
 | GET | `/api/v1/honey-batches/{id}/pdf` | Serve honey batch's lab PDF (owner-scoped, auth required) |
+| GET | `/api/v1/honey-batches/{id}/certifications` | Owner-scoped: full certification history for a batch, most recent first, with live on-chain hashes attached to the current row |
 | POST | `/api/v1/honey-batches/{id}/retry-certification` | Submit a batch (first attempt or retry after failure) for admin certification review; the actual blockchain job is only enqueued once an admin approves the request |
 | GET | `/api/v1/verify/{token}` | Public lookup of a honey batch by its verification token; returns batch + certification status |
 | GET | `/api/v1/verify/{token}/qr-code` | Public PNG QR code encoding the verification URL (requires confirmed certification) |
@@ -580,13 +581,18 @@ HoneyBatchesHomeScreen (signed-in only — reached from the drawer's "Honey Batc
   │   card itself shows the full picture: gathering date, certification status badge,
   │   a 3-dot overflow menu (Edit — only shown while the batch has no certification
   │   attempt yet, opens CreateHoneyBatchScreen pre-filled to edit gathering date,
-  │   amount, processing method, and honey type together — and Delete, always shown),
-  │   honey type, processing method, amount in kg, the uploaded PDF's filename (or "None"),
+  │   amount, processing method, and honey type together — Delete, always shown —
+  │   and "View history", shown once the batch has a certification, opening a modal
+  │   with the batch's full certification history, most recent first, plus a live
+  │   on-chain vs. stored hash comparison on the current row), honey type,
+  │   processing method, amount in kg, the uploaded PDF's filename (or "None"),
   │   and a certification action area (Certify/Retry button, an in-progress spinner,
   │   or view/download QR buttons once confirmed — QR buttons are still TODO stubs
   │   pending a later ticket). Certify/Retry and Delete both use the math-puzzle
-  │   confirmation dialog (same pattern as apiary/listing/hive deletion), warning
-  │   that certified data can no longer be edited.
+  │   confirmation dialog (same pattern as apiary/listing/hive deletion); the
+  │   Certify confirmation also discloses that once approved and confirmed
+  │   on-chain, the batch's data and lab PDF become publicly viewable via its
+  │   verification link.
   │   Bottom amber banner: + (add) → CreateHoneyBatchScreen; empty state shows just
   │   the banner's + button.
   └── CreateHoneyBatchScreen (+ button in banner)

@@ -2231,13 +2231,13 @@ abstract class AppLocalizations {
   /// No description provided for @honeyBatchCertifyConfirmTitle.
   ///
   /// In pl, this message translates to:
-  /// **'Certyfikować tę partię?'**
+  /// **'Zgłosić do certyfikacji?'**
   String get honeyBatchCertifyConfirmTitle;
 
   /// No description provided for @honeyBatchCertifyConfirmMessage.
   ///
   /// In pl, this message translates to:
-  /// **'Po certyfikacji tej partii miodu nie będzie już można jej edytować.'**
+  /// **'Partia zostanie przekazana do weryfikacji przez administratora. Po zatwierdzeniu i potwierdzeniu w blockchainie dane tej partii oraz PDF z badania staną się publicznie dostępne dla każdego, kto ma link weryfikacyjny, i nie będzie już można ich edytować.'**
   String get honeyBatchCertifyConfirmMessage;
 
   /// No description provided for @honeyBatchRetry.

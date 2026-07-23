@@ -106,6 +106,13 @@ func (r *stubVerifyCertRepo) GetLatestByBatchID(context.Context, int64) (*model.
 	return r.cert, nil
 }
 
+func (r *stubVerifyCertRepo) ListByBatchID(context.Context, int64) ([]*model.HoneyBatchCertification, error) {
+	if r.cert == nil {
+		return nil, nil
+	}
+	return []*model.HoneyBatchCertification{r.cert}, nil
+}
+
 type stubVerifyQRCodeRepo struct{}
 
 func (r *stubVerifyQRCodeRepo) GetByBatchID(context.Context, int64) (*model.HoneyBatchQRCode, error) {
@@ -198,7 +205,7 @@ func TestVerifyPage_FoundAndConfirmed(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"Wildflower", "Raw", "pdfhash123", "metahash456", "0xabc123", "0xcontract", "999", "https://amoy.polygonscan.com/tx/0xabc123", "Confirmed"} {
+	for _, want := range []string{"Wildflower", "Raw", "pdfhash123", "metahash456", "0xabc123", "0xcontract", "999", "https://amoy.polygonscan.com/tx/0xabc123", "Confirmed", `href="/api/v1/verify/tok-1/pdf"`, "Download lab PDF"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("expected body to contain %q, body:\n%s", want, body)
 		}
@@ -232,6 +239,9 @@ func TestVerifyPage_FoundNotYetCertified(t *testing.T) {
 	}
 	if strings.Contains(body, "Smart contract address") {
 		t.Errorf("expected no certification proof fields for uncertified batch, body:\n%s", body)
+	}
+	if strings.Contains(body, "Download lab PDF") {
+		t.Errorf("expected no PDF download link for an uncertified batch, body:\n%s", body)
 	}
 }
 

@@ -1203,11 +1203,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get honeyBatchCertify => 'Certyfikuj';
 
   @override
-  String get honeyBatchCertifyConfirmTitle => 'Certyfikować tę partię?';
+  String get honeyBatchCertifyConfirmTitle => 'Zgłosić do certyfikacji?';
 
   @override
   String get honeyBatchCertifyConfirmMessage =>
-      'Po certyfikacji tej partii miodu nie będzie już można jej edytować.';
+      'Partia zostanie przekazana do weryfikacji przez administratora. Po zatwierdzeniu i potwierdzeniu w blockchainie dane tej partii oraz PDF z badania staną się publicznie dostępne dla każdego, kto ma link weryfikacyjny, i nie będzie już można ich edytować.';
 
   @override
   String get honeyBatchRetry => 'Ponów certyfikację';
