@@ -14,6 +14,9 @@ import (
 // maxListingImages is the maximum number of images allowed per listing.
 const maxListingImages = 3
 
+// maxListingsPerUser is the maximum number of listings a single user may create.
+const maxListingsPerUser = 20
+
 // maxListingPrice is the largest price the `price NUMERIC(10,2)` column can store
 // (precision 10, scale 2 — an absolute value below 10^8).
 const maxListingPrice = 100_000_000
@@ -23,6 +26,8 @@ var (
 	ErrListingTitleRequired       = errors.New("title is required")
 	ErrListingCategoryInvalid     = errors.New("category is invalid")
 	ErrListingTooManyImages       = errors.New("a listing may have at most 3 images")
+	ErrListingPhotoRequired       = errors.New("a listing must have at least one photo")
+	ErrListingLimitReached        = fmt.Errorf("a user may have at most %d listings", maxListingsPerUser)
 	ErrListingTitleTooLong        = fmt.Errorf("title must be at most %d characters", validation.Medium.MaxLength())
 	ErrListingDescriptionTooLong  = fmt.Errorf("description must be at most %d characters", validation.Large.MaxLength())
 	ErrListingQuantityTooLong     = fmt.Errorf("quantity must be at most %d characters", validation.Small.MaxLength())
@@ -158,6 +163,18 @@ func imagesFromURLs(urls []string) []model.ListingImage {
 	return images
 }
 
+// checkListingLimit verifies userID has not reached maxListingsPerUser listings yet.
+func (s *ListingService) checkListingLimit(ctx context.Context, userID int64) error {
+	count, err := s.listings.Count(ctx, repository.ListingFilter{OwnerUserID: &userID})
+	if err != nil {
+		return fmt.Errorf("count listings: %w", err)
+	}
+	if count >= maxListingsPerUser {
+		return ErrListingLimitReached
+	}
+	return nil
+}
+
 // checkApiaryAccess verifies the user may attach the given apiary, if one is set.
 func (s *ListingService) checkApiaryAccess(ctx context.Context, apiaryID *int64, userID int64) error {
 	if apiaryID == nil {
@@ -231,6 +248,9 @@ func (s *ListingService) withHoneyBatch(ctx context.Context, l *model.Listing) (
 // Create validates params, verifies apiary and honey batch access, and inserts a new listing with images.
 func (s *ListingService) Create(ctx context.Context, userID int64, params ListingParams) (*model.Listing, error) {
 	if err := validateListingParams(params); err != nil {
+		return nil, err
+	}
+	if err := s.checkListingLimit(ctx, userID); err != nil {
 		return nil, err
 	}
 	if err := s.checkApiaryAccess(ctx, params.ApiaryID, userID); err != nil {
@@ -356,6 +376,9 @@ func (s *ListingService) Update(ctx context.Context, userID, listingID int64, pa
 	l, err := s.ownedListing(ctx, userID, listingID)
 	if err != nil {
 		return nil, err
+	}
+	if params.ImageURLs != nil && len(params.ImageURLs) == 0 {
+		return nil, ErrListingPhotoRequired
 	}
 	if err := s.checkApiaryAccess(ctx, params.ApiaryID, userID); err != nil {
 		return nil, err

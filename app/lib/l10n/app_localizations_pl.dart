@@ -471,6 +471,13 @@ class AppLocalizationsPl extends AppLocalizations {
       'Podaj numer telefonu lub adres e-mail';
 
   @override
+  String get marketplacePhotoRequired => 'Dodaj co najmniej jedno zdjęcie';
+
+  @override
+  String get marketplaceListingLimitReached =>
+      'Osiągnięto limit 20 ogłoszeń. Usuń jedno, aby dodać kolejne.';
+
+  @override
   String get marketplaceApiaryNone => 'Brak';
 
   @override

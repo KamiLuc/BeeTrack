@@ -974,6 +974,18 @@ abstract class AppLocalizations {
   /// **'Podaj numer telefonu lub adres e-mail'**
   String get marketplaceContactRequired;
 
+  /// No description provided for @marketplacePhotoRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj co najmniej jedno zdjęcie'**
+  String get marketplacePhotoRequired;
+
+  /// No description provided for @marketplaceListingLimitReached.
+  ///
+  /// In pl, this message translates to:
+  /// **'Osiągnięto limit 20 ogłoszeń. Usuń jedno, aby dodać kolejne.'**
+  String get marketplaceListingLimitReached;
+
   /// No description provided for @marketplaceApiaryNone.
   ///
   /// In pl, this message translates to:

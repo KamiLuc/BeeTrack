@@ -432,7 +432,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Get harvest |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Update harvest |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Delete harvest |
-| POST | `/api/v1/listings` | Create marketplace listing — starts out pending admin approval, invisible to public search until then |
+| POST | `/api/v1/listings` | Create marketplace listing — starts out pending admin approval, invisible to public search until then; capped at 20 listings per user |
 | GET | `/api/v1/listings` | Search/filter listings (public; `mine=true` requires auth); only approved listings are visible to non-owners |
 | GET | `/api/v1/listings/{id}` | Get listing (public; hidden or not-yet-approved listings 404 unless owner) |
 | PATCH | `/api/v1/listings/{id}` | Update listing (owner only) — an already-approved listing goes back to pending review |
@@ -459,7 +459,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/verify/{token}/pdf` | Public lab PDF for a batch (requires confirmed certification) |
 | GET | `/api/v1/admin/listings` | Admin-only: list pending marketplace listings (new + edited), paginated |
 | GET | `/api/v1/admin/listings/{id}` | Admin-only: get a single listing regardless of status |
-| POST | `/api/v1/admin/listings/{id}/approve` | Admin-only: approve a pending listing |
+| POST | `/api/v1/admin/listings/{id}/approve` | Admin-only: approve a pending listing (must have at least one photo) |
 | POST | `/api/v1/admin/listings/{id}/reject` | Admin-only: reject a pending listing with a reason |
 | GET | `/api/v1/admin/certification-requests` | Admin-only: list pending honey batch certification review requests, paginated |
 | GET | `/api/v1/admin/certification-requests/{id}` | Admin-only: get a single certification request |
@@ -635,6 +635,9 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   │   │   Picking the HONEY category reveals a dropdown of the caller's own
   │   │   blockchain-certified honey batches, letting one be attached to the listing
   │   │   (or left unattached); switching away from HONEY clears the selection.
+  │   │   Creating (not editing) a listing requires at least one photo, blocked
+  │   │   client-side with an inline error; hitting the 20-listing-per-user cap
+  │   │   on submit shows a friendly error message.
   ├── MyListingsScreen (list icon in bottom banner, signed-in only)
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card

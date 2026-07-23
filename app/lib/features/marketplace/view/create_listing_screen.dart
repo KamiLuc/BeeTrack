@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/validation/gps_bounds.dart';
 import '../../../core/validation/size_tiers.dart';
@@ -274,6 +275,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       return;
     }
     if (mounted) setState(() => _pendingImages.add(file));
+    _reviewPhotoError();
   }
 
   void _removeImage(XFile file) {
@@ -300,6 +302,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
+  void _reviewPhotoError() {
+    if (_submitError == null) return;
+    if (_submitError != AppLocalizations.of(context)!.marketplacePhotoRequired) {
+      return;
+    }
+    if (_totalPhotoCount > 0) setState(() => _submitError = null);
+  }
+
   void _reviewContactError() {
     if (_submitError == null) return;
     if (_submitError !=
@@ -319,12 +329,19 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
     final location = _location;
-    if (!formValid || _category == null || !hasContact || location == null) {
+    final hasPhoto = widget.isEditing || _totalPhotoCount > 0;
+    if (!formValid ||
+        _category == null ||
+        !hasContact ||
+        location == null ||
+        !hasPhoto) {
       setState(() {
         _submitError = !hasContact
             ? l10n.marketplaceContactRequired
             : location == null
             ? l10n.marketplaceLocationRequired
+            : !hasPhoto
+            ? l10n.marketplacePhotoRequired
             : null;
       });
       return;
@@ -382,10 +399,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         );
       }
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _submitError = l10n.generalError;
+          _submitError = (e is ApiException && e.code == 'LISTING_LIMIT_REACHED')
+              ? l10n.marketplaceListingLimitReached
+              : l10n.generalError;
           _saving = false;
         });
       }

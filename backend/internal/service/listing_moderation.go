@@ -86,8 +86,12 @@ func (s *ListingModerationService) pendingListing(ctx context.Context, listingID
 }
 
 func (s *ListingModerationService) Approve(ctx context.Context, reviewerID, listingID int64) error {
-	if _, err := s.pendingListing(ctx, listingID); err != nil {
+	l, err := s.pendingListing(ctx, listingID)
+	if err != nil {
 		return err
+	}
+	if len(l.Images) == 0 {
+		return ErrListingPhotoRequired
 	}
 	if err := s.listings.Approve(ctx, listingID, reviewerID); err != nil {
 		return fmt.Errorf("approve listing: %w", err)

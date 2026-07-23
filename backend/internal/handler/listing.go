@@ -152,6 +152,10 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "CATEGORY_INVALID", err.Error())
 	case errors.Is(err, service.ErrListingTooManyImages):
 		respond.Error(w, http.StatusBadRequest, "TOO_MANY_IMAGES", err.Error())
+	case errors.Is(err, service.ErrListingPhotoRequired):
+		respond.Error(w, http.StatusBadRequest, "PHOTO_REQUIRED", err.Error())
+	case errors.Is(err, service.ErrListingLimitReached):
+		respond.Error(w, http.StatusBadRequest, "LISTING_LIMIT_REACHED", err.Error())
 	case errors.Is(err, service.ErrListingDescriptionTooLong):
 		respond.Error(w, http.StatusBadRequest, "DESCRIPTION_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingQuantityTooLong):

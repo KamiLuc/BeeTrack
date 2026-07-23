@@ -2110,7 +2110,7 @@ New listings default to a `pending` moderation status and are hidden from public
 
 ### POST /listings 🔒
 
-Creates a listing owned by the authenticated user. The listing starts in `pending` status and is invisible to other users until an admin approves it.
+Creates a listing owned by the authenticated user. The listing starts in `pending` status and is invisible to other users until an admin approves it. A user may have at most 20 listings.
 
 **Request**
 ```json
@@ -2155,6 +2155,7 @@ Creates a listing owned by the authenticated user. The listing starts in `pendin
 | `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
 | `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
+| `LISTING_LIMIT_REACHED` | 400 | Caller already has 20 listings |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
 | `HONEY_BATCH_CATEGORY_MISMATCH` | 400 | `honey_batch_id` set but `category` is not `HONEY` |
 | `HONEY_BATCH_NOT_FOUND` | 404 | `honey_batch_id` does not exist or is not owned by the caller |
@@ -2246,6 +2247,7 @@ Updates a listing. Only the owner can edit. Same body as create; when `image_url
 | `CONTACT_PHONE_TOO_LONG` | 400 | `contact_phone` exceeds 20 characters |
 | `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
+| `PHOTO_REQUIRED` | 400 | `image_urls` given as an empty array, removing all photos |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
 | `HONEY_BATCH_CATEGORY_MISMATCH` | 400 | `honey_batch_id` set but `category` is not `HONEY` |
@@ -2509,7 +2511,7 @@ Returns a single listing regardless of status.
 
 ### POST /admin/listings/{id}/approve
 
-Approves a pending listing, making it publicly visible.
+Approves a pending listing, making it publicly visible. The listing must have at least one photo.
 
 **Response** `200 OK` — updated admin listing object
 
@@ -2519,6 +2521,7 @@ Approves a pending listing, making it publicly visible.
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `LISTING_NOT_PENDING` | 409 | Listing is not currently pending review |
+| `PHOTO_REQUIRED` | 400 | Listing has no photos |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
