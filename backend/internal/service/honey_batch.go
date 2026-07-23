@@ -587,18 +587,6 @@ func (s *HoneyBatchService) GetBatchPDFByToken(ctx context.Context, token string
 	return s.FilePath(batch.LabPDFURL), nil
 }
 
-// GenerateQRCodeDataByToken resolves a public verification token to its batch and returns its QR code data (see GenerateQRCodeData).
-func (s *HoneyBatchService) GenerateQRCodeDataByToken(ctx context.Context, token string) (string, error) {
-	batch, err := s.batches.GetByVerificationToken(ctx, token)
-	if err != nil {
-		return "", fmt.Errorf("get batch: %w", err)
-	}
-	if batch == nil {
-		return "", ErrBatchNotFound
-	}
-	return s.GenerateQRCodeData(ctx, batch.ID)
-}
-
 // GenerateQRCodeData returns the QR code data URL for batchID, generating and persisting it on first call. Requires a confirmed certification.
 func (s *HoneyBatchService) GenerateQRCodeData(ctx context.Context, batchID int64) (string, error) {
 	existing, err := s.qrCodes.GetByBatchID(ctx, batchID)

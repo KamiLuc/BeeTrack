@@ -1937,9 +1937,11 @@ Public, no authentication. Serves a 512x512 PNG QR code encoding the verificatio
 
 ### GET /verify/{token}/qr-code/download
 
-Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`, but adds `Content-Disposition: attachment; filename="honey-batch-qr-code.png"` so the response triggers a browser download/save dialog instead of rendering inline. Same requirement (confirmed certification) and same caching.
+Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`, but adds a `Content-Disposition: attachment` header so the response triggers a browser download/save dialog instead of rendering inline. Same requirement (confirmed certification) and same caching.
 
-**Response** `200 OK` — `image/png` binary, `Content-Disposition: attachment; filename="honey-batch-qr-code.png"`, `Cache-Control: public, max-age=31536000, immutable`
+The download filename is derived from the batch's metadata: `{gathering_date}_{honey_type}_{weight}kg.png` (e.g. `2024-05-01_wildflower_1.5kg.png`), with the honey type lowercased and non-alphanumeric characters collapsed to hyphens.
+
+**Response** `200 OK` — `image/png` binary, `Content-Disposition: attachment; filename="{gathering_date}_{honey_type}_{weight}kg.png"`, `Cache-Control: public, max-age=31536000, immutable`
 
 **Errors**
 | Code | Status | Description |

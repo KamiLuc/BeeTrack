@@ -988,32 +988,6 @@ func TestGetBatchPDFByToken_NotFound(t *testing.T) {
 	}
 }
 
-func TestGenerateQRCodeDataByToken_Confirmed(t *testing.T) {
-	batch := &model.HoneyBatch{ID: 1, VerificationToken: "tok-1"}
-	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{"tok-1": batch}, byID: map[int64]*model.HoneyBatch{1: batch}}
-	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}
-	qrCodes := &mockHoneyBatchQRCodeRepo{}
-	svc := NewHoneyBatchService(batches, certifications, &mockCertRequestRepo{}, qrCodes, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
-
-	data, err := svc.GenerateQRCodeDataByToken(context.Background(), "tok-1")
-	if err != nil {
-		t.Fatalf("GenerateQRCodeDataByToken() error = %v", err)
-	}
-	want := testAppURL + "/verify/tok-1"
-	if data != want {
-		t.Errorf("GenerateQRCodeDataByToken() = %q, want %q", data, want)
-	}
-}
-
-func TestGenerateQRCodeDataByToken_TokenNotFound(t *testing.T) {
-	batches := &mockHoneyBatchRepo{byToken: map[string]*model.HoneyBatch{}}
-	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, &mockCertRequestRepo{}, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
-
-	if _, err := svc.GenerateQRCodeDataByToken(context.Background(), "unknown"); err != ErrBatchNotFound {
-		t.Errorf("expected ErrBatchNotFound, got %v", err)
-	}
-}
-
 func TestGenerateQRCodeData_FirstCallCreatesRow(t *testing.T) {
 	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: {ID: 1, VerificationToken: "tok-1"}}}
 	certifications := &mockHoneyBatchCertificationRepo{latest: map[int64]*model.HoneyBatchCertification{1: {Status: model.CertificationStatusConfirmed}}}

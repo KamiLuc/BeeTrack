@@ -149,4 +149,10 @@ class HoneyBatchRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  String qrCodeImageUrl(String token) =>
+      '${_api.baseUrl}/api/v1/verify/$token/qr-code';
+
+  String qrCodeDownloadUrl(String token) =>
+      '${_api.baseUrl}/api/v1/verify/$token/qr-code/download';
 }

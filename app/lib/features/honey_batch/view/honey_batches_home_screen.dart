@@ -21,6 +21,7 @@ import 'certification_request_status_badge.dart';
 import 'certification_status_badge.dart';
 import 'create_honey_batch_screen.dart';
 import 'pdf_preview_screen.dart';
+import 'qr_preview_screen.dart';
 
 class HoneyBatchesHomeScreen extends StatelessWidget {
   final ValueChanged<AppSection> onSelectSection;
@@ -163,6 +164,21 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
     } finally {
       if (mounted) setState(() => _loadingPdf = false);
     }
+  }
+
+  void _viewQr() {
+    final repo = HoneyBatchRepository(api: context.read<ApiClient>());
+    showQrPreviewDialog(
+      context,
+      title: AppLocalizations.of(context)!.honeyBatchViewQr,
+      imageUrl: repo.qrCodeImageUrl(widget.batch.verificationToken),
+      downloadUrl: repo.qrCodeDownloadUrl(widget.batch.verificationToken),
+    );
+  }
+
+  void _downloadQr() {
+    final repo = HoneyBatchRepository(api: context.read<ApiClient>());
+    launchQrDownload(repo.qrCodeDownloadUrl(widget.batch.verificationToken));
   }
 
   Future<void> _certify() async {
@@ -368,16 +384,14 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      // TODO(HC-FE-05): navigate to QR display screen
-                      onPressed: () {},
+                      onPressed: _viewQr,
                       child: Text(l10n.honeyBatchViewQr),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      // TODO(HC-FE-05): download QR code
-                      onPressed: () {},
+                      onPressed: _downloadQr,
                       child: Text(l10n.honeyBatchDownloadQr),
                     ),
                   ),
