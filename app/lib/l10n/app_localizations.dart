@@ -980,6 +980,30 @@ abstract class AppLocalizations {
   /// **'Brak'**
   String get marketplaceApiaryNone;
 
+  /// No description provided for @marketplaceHoneyBatchAttachLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dołącz certyfikowaną partię miodu'**
+  String get marketplaceHoneyBatchAttachLabel;
+
+  /// No description provided for @marketplaceHoneyBatchNoneAvailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak certyfikowanych partii miodu'**
+  String get marketplaceHoneyBatchNoneAvailable;
+
+  /// No description provided for @marketplaceHoneyBatchNone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak'**
+  String get marketplaceHoneyBatchNone;
+
+  /// No description provided for @marketplaceHoneyBatchSectionTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikowana partia miodu'**
+  String get marketplaceHoneyBatchSectionTitle;
+
   /// No description provided for @marketplacePhotosLabel.
   ///
   /// In pl, this message translates to:

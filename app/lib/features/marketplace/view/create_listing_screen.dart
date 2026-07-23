@@ -18,6 +18,9 @@ import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/apiary/data/apiary_model.dart';
 import '../../../features/apiary/data/apiary_repository.dart';
+import '../../../features/honey_batch/data/honey_batch_certification_model.dart';
+import '../../../features/honey_batch/data/honey_batch_model.dart';
+import '../../../features/honey_batch/data/honey_batch_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
@@ -51,6 +54,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   String? _category;
   int? _apiaryId;
   List<Apiary> _apiaries = [];
+  int? _honeyBatchId;
+  List<HoneyBatchModel> _certifiedBatches = [];
+  bool _loadingBatches = false;
   final List<XFile> _pendingImages = [];
   late List<ListingImage> _existingImages;
   final Set<int> _deletingImageIds = {};
@@ -78,7 +84,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       _emailController.text = listing.contactEmail;
       _category = listing.category;
       _apiaryId = listing.apiaryId;
+      _honeyBatchId = listing.honeyBatchId;
     }
+    if (_category == 'HONEY') _loadCertifiedBatches();
   }
 
   @override
@@ -168,6 +176,40 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       ).listApiaries();
       if (mounted) setState(() => _apiaries = apiaries);
     } catch (_) {}
+  }
+
+  /// Loads the caller's own honey batches with a confirmed on-chain
+  /// certification — only these can be attached to a HONEY listing.
+  Future<void> _loadCertifiedBatches() async {
+    setState(() => _loadingBatches = true);
+    try {
+      final result = await HoneyBatchRepository(
+        api: context.read<ApiClient>(),
+      ).listBatches(limit: 100);
+      final confirmed = result.items
+          .where(
+            (b) => b.certification?.status == CertificationStatus.confirmed,
+          )
+          .toList();
+      if (mounted) {
+        setState(() {
+          _certifiedBatches = confirmed;
+          _loadingBatches = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingBatches = false);
+    }
+  }
+
+  void _onCategoryChanged(String? value) {
+    setState(() {
+      _category = value;
+      if (value != 'HONEY') _honeyBatchId = null;
+    });
+    if (value == 'HONEY' && _certifiedBatches.isEmpty && !_loadingBatches) {
+      _loadCertifiedBatches();
+    }
   }
 
   bool _isValidEmail(String v) {
@@ -311,6 +353,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           apiaryId: _apiaryId,
           contactPhone: _phoneController.text.trim(),
           contactEmail: _emailController.text.trim(),
+          honeyBatchId: _honeyBatchId,
         );
         listingId = listing.id;
       } else {
@@ -326,6 +369,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           apiaryId: _apiaryId,
           contactPhone: _phoneController.text.trim(),
           contactEmail: _emailController.text.trim(),
+          honeyBatchId: _honeyBatchId,
         );
         listingId = listing.id;
       }
@@ -429,12 +473,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                                   ),
                                 ),
                             ],
-                            onChanged: (value) =>
-                                setState(() => _category = value),
+                            onChanged: _onCategoryChanged,
                             validator: (v) => v == null
                                 ? l10n.marketplaceFieldCategoryRequired
                                 : null,
                           ),
+                          if (_category == 'HONEY') ...[
+                            const SizedBox(height: 16),
+                            _HoneyBatchAttachSection(
+                              loading: _loadingBatches,
+                              batches: _certifiedBatches,
+                              selectedId: _honeyBatchId,
+                              onChanged: (value) =>
+                                  setState(() => _honeyBatchId = value),
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _descriptionController,
@@ -653,6 +706,74 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HoneyBatchAttachSection extends StatelessWidget {
+  final bool loading;
+  final List<HoneyBatchModel> batches;
+  final int? selectedId;
+  final ValueChanged<int?> onChanged;
+
+  const _HoneyBatchAttachSection({
+    required this.loading,
+    required this.batches,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.marketplaceHoneyBatchAttachLabel,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(color: colorScheme.primary),
+        ),
+        const SizedBox(height: 8),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else if (batches.isEmpty)
+          Text(
+            l10n.marketplaceHoneyBatchNoneAvailable,
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          DropdownButtonFormField<int?>(
+            initialValue: selectedId,
+            decoration: InputDecoration(
+              labelText: l10n.marketplaceHoneyBatchAttachLabel,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: null,
+                child: Text(l10n.marketplaceHoneyBatchNone),
+              ),
+              for (final batch in batches)
+                DropdownMenuItem(
+                  value: batch.id,
+                  child: Text(
+                    '${batch.honeyType} · ${batch.amountKg.toStringAsFixed(1)} kg',
+                  ),
+                ),
+            ],
+            onChanged: onChanged,
+          ),
+      ],
     );
   }
 }

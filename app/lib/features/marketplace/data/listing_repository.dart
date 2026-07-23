@@ -83,6 +83,7 @@ class ListingRepository {
     int? apiaryId,
     required String contactPhone,
     required String contactEmail,
+    int? honeyBatchId,
   }) async {
     try {
       final response = await _api.dio.post(
@@ -99,6 +100,7 @@ class ListingRepository {
           'apiary_id': apiaryId,
           'contact_phone': contactPhone,
           'contact_email': contactEmail,
+          'honey_batch_id': honeyBatchId,
         },
       );
       return Listing.fromJson(response.data as Map<String, dynamic>);
@@ -120,6 +122,7 @@ class ListingRepository {
     int? apiaryId,
     required String contactPhone,
     required String contactEmail,
+    int? honeyBatchId,
   }) async {
     try {
       final response = await _api.dio.patch(
@@ -136,6 +139,7 @@ class ListingRepository {
           'apiary_id': apiaryId,
           'contact_phone': contactPhone,
           'contact_email': contactEmail,
+          'honey_batch_id': honeyBatchId,
         },
       );
       return Listing.fromJson(response.data as Map<String, dynamic>);

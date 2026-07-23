@@ -22,6 +22,46 @@ class ListingImage {
       );
 }
 
+class ListingHoneyBatch {
+  final int id;
+  final String honeyType;
+  final DateTime gatheringDate;
+  final int amountGrams;
+  final String processingMethod;
+  final String certificationStatus;
+  final bool hasPdf;
+  final String verificationUrl;
+  final String? pdfUrl;
+
+  const ListingHoneyBatch({
+    required this.id,
+    required this.honeyType,
+    required this.gatheringDate,
+    required this.amountGrams,
+    required this.processingMethod,
+    required this.certificationStatus,
+    required this.hasPdf,
+    required this.verificationUrl,
+    this.pdfUrl,
+  });
+
+  double get amountKg => amountGrams / 1000;
+
+  factory ListingHoneyBatch.fromJson(Map<String, dynamic> json) =>
+      ListingHoneyBatch(
+        id: json['id'] as int,
+        honeyType: json['honey_type'] as String? ?? '',
+        gatheringDate:
+            DateTime.parse(json['gathering_date'] as String).toLocal(),
+        amountGrams: json['amount_grams'] as int? ?? 0,
+        processingMethod: json['processing_method'] as String? ?? '',
+        certificationStatus: json['certification_status'] as String? ?? '',
+        hasPdf: json['has_pdf'] as bool? ?? false,
+        verificationUrl: json['verification_url'] as String? ?? '',
+        pdfUrl: json['pdf_url'] as String?,
+      );
+}
+
 enum ListingStatus {
   pending('pending'),
   approved('approved'),
@@ -64,6 +104,8 @@ class Listing {
   final DateTime updatedAt;
   final List<ListingImage> images;
   final double? distanceKm;
+  final int? honeyBatchId;
+  final ListingHoneyBatch? honeyBatch;
 
   const Listing({
     required this.id,
@@ -90,6 +132,8 @@ class Listing {
     required this.updatedAt,
     required this.images,
     this.distanceKm,
+    this.honeyBatchId,
+    this.honeyBatch,
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) => Listing(
@@ -121,5 +165,10 @@ class Listing {
             .map((e) => ListingImage.fromJson(e as Map<String, dynamic>))
             .toList(),
         distanceKm: (json['distance_km'] as num?)?.toDouble(),
+        honeyBatchId: json['honey_batch_id'] as int?,
+        honeyBatch: json['honey_batch'] != null
+            ? ListingHoneyBatch.fromJson(
+                json['honey_batch'] as Map<String, dynamic>)
+            : null,
       );
 }

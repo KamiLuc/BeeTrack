@@ -81,11 +81,11 @@ func main() {
 	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
 	feedingSvc := service.NewFeedingService(apiaryRepo, hiveRepo, hiveRepo, feedingRepo)
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
-	listingSvc := service.NewListingService(listingRepo, apiaryRepo)
+	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.APIURL, cfg.PDFStoragePath)
+	listingSvc := service.NewListingService(listingRepo, apiaryRepo, honeyBatchSvc)
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
-	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.APIURL, cfg.PDFStoragePath)
 	listingModerationSvc := service.NewListingModerationService(listingRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 

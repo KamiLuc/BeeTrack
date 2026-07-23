@@ -2081,7 +2081,19 @@ New listings default to a `pending` moderation status and are hidden from public
       "display_order": 0,
       "created_at": "2026-07-01T10:00:00Z"
     }
-  ]
+  ],
+  "honey_batch_id": 12,
+  "honey_batch": {
+    "id": 12,
+    "honey_type": "wildflower",
+    "gathering_date": "2026-06-15T00:00:00Z",
+    "amount_grams": 5000,
+    "processing_method": "raw",
+    "certification_status": "confirmed",
+    "has_pdf": true,
+    "verification_url": "https://.../verify/<token>",
+    "pdf_url": "https://.../verify/<token>/pdf"
+  }
 }
 ```
 
@@ -2091,6 +2103,8 @@ New listings default to a `pending` moderation status and are hidden from public
 - `lat`/`lng` — required, independent of `apiary_id`; not derived from an attached apiary
 - `distance_km` — only present when the `GET /listings` request included a `near_lat`/`near_lng`/`radius_km` filter
 - `images` — max 3 per listing
+- `honey_batch_id` — nullable; may only be set when `category` is `HONEY`, must reference a batch owned by the caller with a confirmed on-chain certification, and a batch can only be attached to one listing at a time
+- `honey_batch` — nested object with the attached batch's public details, `null`/absent when no batch is attached; `pdf_url` is only included when `has_pdf` is `true`. This enrichment is only present on `GET /listings/{id}`, not on `GET /listings` search/list results.
 
 ---
 
@@ -2112,12 +2126,14 @@ Creates a listing owned by the authenticated user. The listing starts in `pendin
   "lng": 21.01,
   "contact_phone": "+48123456789",
   "contact_email": "seller@example.com",
-  "image_urls": ["https://.../image.jpg"]
+  "image_urls": ["https://.../image.jpg"],
+  "honey_batch_id": 12
 }
 ```
 
 - `title`, `category`, `lat`, and `lng` are required
 - `image_urls` — optional array of strings, max 3
+- `honey_batch_id` — optional; only valid when `category` is `HONEY`, must be a batch owned by the caller with a confirmed on-chain certification, and can only be attached to one listing at a time
 
 **Response** `201 Created` — listing object
 
@@ -2140,6 +2156,10 @@ Creates a listing owned by the authenticated user. The listing starts in `pendin
 | `CONTACT_EMAIL_TOO_LONG` | 400 | `contact_email` exceeds 150 characters |
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
+| `HONEY_BATCH_CATEGORY_MISMATCH` | 400 | `honey_batch_id` set but `category` is not `HONEY` |
+| `HONEY_BATCH_NOT_FOUND` | 404 | `honey_batch_id` does not exist or is not owned by the caller |
+| `HONEY_BATCH_NOT_CERTIFIED` | 400 | Batch does not have a confirmed on-chain certification |
+| `HONEY_BATCH_ALREADY_ATTACHED` | 409 | Batch is already attached to another listing |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
@@ -2228,6 +2248,10 @@ Updates a listing. Only the owner can edit. Same body as create; when `image_url
 | `PRICE_TOO_LARGE` | 400 | `price` magnitude is >= 100,000,000 |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `APIARY_NOT_FOUND` | 404 | `apiary_id` set but caller is not a member of that apiary |
+| `HONEY_BATCH_CATEGORY_MISMATCH` | 400 | `honey_batch_id` set but `category` is not `HONEY` |
+| `HONEY_BATCH_NOT_FOUND` | 404 | `honey_batch_id` does not exist or is not owned by the caller |
+| `HONEY_BATCH_NOT_CERTIFIED` | 400 | Batch does not have a confirmed on-chain certification |
+| `HONEY_BATCH_ALREADY_ATTACHED` | 409 | Batch is already attached to a different listing |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 

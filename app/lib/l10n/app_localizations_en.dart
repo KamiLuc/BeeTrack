@@ -472,6 +472,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceApiaryNone => 'None';
 
   @override
+  String get marketplaceHoneyBatchAttachLabel => 'Attach certified honey batch';
+
+  @override
+  String get marketplaceHoneyBatchNoneAvailable =>
+      'No certified honey batches available';
+
+  @override
+  String get marketplaceHoneyBatchNone => 'None';
+
+  @override
+  String get marketplaceHoneyBatchSectionTitle => 'Certified honey batch';
+
+  @override
   String get marketplacePhotosLabel => 'Photos';
 
   @override

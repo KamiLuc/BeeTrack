@@ -32,6 +32,7 @@ type Listing struct {
 	ReviewedAt      *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	HoneyBatchID    *int64
 	Images          []ListingImage `gorm:"-"`
 	ApiaryName      string         `gorm:"-"`
 	ApiaryLat       *float64       `gorm:"-"`
@@ -39,6 +40,17 @@ type Listing struct {
 	ApiaryHiveCount int            `gorm:"-"`
 	DistanceKm      *float64       `gorm:"-"`
 	OwnerEmail      string         `gorm:"-"`
+
+	// HoneyBatch* fields are populated only by ListingService.Get, from the
+	// attached honey_batches row (if any) — never scanned by gorm directly.
+	HoneyBatchHoneyType           string     `gorm:"-"`
+	HoneyBatchGatheringDate       *time.Time `gorm:"-"`
+	HoneyBatchAmountGrams         *int64     `gorm:"-"`
+	HoneyBatchProcessingMethod    string     `gorm:"-"`
+	HoneyBatchCertificationStatus string     `gorm:"-"`
+	HoneyBatchHasPDF              bool       `gorm:"-"`
+	HoneyBatchVerificationURL     string     `gorm:"-"`
+	HoneyBatchPDFURL              string     `gorm:"-"`
 }
 
 // IsEdit distinguishes an edit of a previously-approved listing from a

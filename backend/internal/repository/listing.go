@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/beetrack/backend/internal/model"
@@ -209,8 +210,24 @@ func (r *ListingRepository) Update(ctx context.Context, l *model.Listing) error 
 			"rejection_reason": l.RejectionReason,
 			"reviewed_by":      l.ReviewedBy,
 			"reviewed_at":      l.ReviewedAt,
+			"honey_batch_id":   l.HoneyBatchID,
 			"updated_at":       gorm.Expr("NOW()"),
 		}).Error
+}
+
+// FindByHoneyBatchID returns the listing that has batchID attached, or nil if none does.
+func (r *ListingRepository) FindByHoneyBatchID(ctx context.Context, batchID int64) (*model.Listing, error) {
+	var l model.Listing
+	err := r.db.WithContext(ctx).
+		Where("honey_batch_id = ?", batchID).
+		First(&l).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &l, nil
 }
 
 // SetHidden toggles the is_hidden flag of the listing with the given id.
