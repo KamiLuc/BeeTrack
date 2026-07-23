@@ -474,6 +474,20 @@ class AppLocalizationsPl extends AppLocalizations {
   String get marketplaceApiaryNone => 'Brak';
 
   @override
+  String get marketplaceHoneyBatchAttachLabel =>
+      'Dołącz certyfikowaną partię miodu';
+
+  @override
+  String get marketplaceHoneyBatchNoneAvailable =>
+      'Brak certyfikowanych partii miodu';
+
+  @override
+  String get marketplaceHoneyBatchNone => 'Brak';
+
+  @override
+  String get marketplaceHoneyBatchSectionTitle => 'Certyfikowana partia miodu';
+
+  @override
   String get marketplacePhotosLabel => 'Zdjęcia';
 
   @override

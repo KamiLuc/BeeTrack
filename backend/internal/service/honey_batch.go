@@ -242,6 +242,43 @@ func (s *HoneyBatchService) GetBatchWithVerification(ctx context.Context, token 
 	return &BatchVerification{Batch: batch, Certification: cert}, nil
 }
 
+// GetBatchByID returns a batch and its latest certification by internal id,
+// with no ownership check. Used by ListingService to enrich a listing's
+// response with its attached batch's public-safe details — the listing's own
+// visibility rules already gate who may see it.
+func (s *HoneyBatchService) GetBatchByID(ctx context.Context, batchID int64) (*BatchVerification, error) {
+	batch, err := s.batches.GetByID(ctx, batchID)
+	if err != nil {
+		return nil, fmt.Errorf("get batch: %w", err)
+	}
+	if batch == nil {
+		return nil, ErrBatchNotFound
+	}
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get latest certification: %w", err)
+	}
+	return &BatchVerification{Batch: batch, Certification: cert}, nil
+}
+
+// RequireCertifiedOwnedBatch verifies batchID exists, belongs to userID, and
+// has a confirmed on-chain certification — the bar a batch must clear before
+// ListingService will let it be attached to a marketplace listing.
+func (s *HoneyBatchService) RequireCertifiedOwnedBatch(ctx context.Context, userID, batchID int64) error {
+	batch, err := s.ownedBatch(ctx, userID, batchID)
+	if err != nil {
+		return err
+	}
+	cert, err := s.certifications.GetLatestByBatchID(ctx, batch.ID)
+	if err != nil {
+		return fmt.Errorf("get latest certification: %w", err)
+	}
+	if cert == nil || cert.Status != model.CertificationStatusConfirmed {
+		return ErrBatchNotCertified
+	}
+	return nil
+}
+
 // ownedBatch fetches a batch and verifies it belongs to userID.
 func (s *HoneyBatchService) ownedBatch(ctx context.Context, userID, batchID int64) (*model.HoneyBatch, error) {
 	batch, err := s.batches.GetByID(ctx, batchID)
@@ -623,4 +660,11 @@ func (s *HoneyBatchService) GenerateQRCodeData(ctx context.Context, batchID int6
 // VerificationURL builds the public, token-scoped verification page URL for token — the same URL encoded in the batch's QR code, served directly by this backend's own VerifyPage handler (see honey_batch_verify_page.go).
 func (s *HoneyBatchService) VerificationURL(token string) string {
 	return s.publicBaseURL + "/verify/" + token
+}
+
+// PublicPDFURL builds the public, token-scoped lab PDF download URL for
+// token — served by HoneyBatchVerifyHandler.PDF, gated on a confirmed
+// certification (see honey_batch_verify.go).
+func (s *HoneyBatchService) PublicPDFURL(token string) string {
+	return s.publicBaseURL + "/api/v1/verify/" + token + "/pdf"
 }

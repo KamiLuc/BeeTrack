@@ -968,5 +968,73 @@ void main() {
         expect(find.text(l10n.generalError), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'renders the attached honey batch section when honey_batch is set',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+        final listing = Listing(
+          id: 1,
+          userId: 5,
+          title: 'Wildflower Honey',
+          description: '',
+          category: 'HONEY',
+          price: 42.5,
+          quantity: '10 jars',
+          address: 'Krakow',
+          lat: 50.0647,
+          lng: 19.945,
+          contactPhone: '123456789',
+          contactEmail: 'seller@example.com',
+          isHidden: false,
+          createdAt: DateTime(2026, 5, 1),
+          updatedAt: DateTime(2026, 5, 1),
+          images: const [],
+          honeyBatchId: 3,
+          honeyBatch: ListingHoneyBatch(
+            id: 3,
+            honeyType: 'Wildflower',
+            gatheringDate: DateTime(2026, 1, 15),
+            amountGrams: 2500,
+            processingMethod: 'cold-extracted',
+            certificationStatus: 'confirmed',
+            hasPdf: true,
+            verificationUrl: 'https://example.com/verify/tok',
+            pdfUrl: 'https://example.com/api/v1/verify/tok/pdf',
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceHoneyBatchSectionTitle), findsOneWidget);
+        expect(find.text('Wildflower'), findsOneWidget);
+        expect(find.text('2.5 kg'), findsOneWidget);
+        expect(find.text(l10n.honeyBatchViewPdf), findsOneWidget);
+        expect(find.text(l10n.honeyBatchOpenPublicPage), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'does not render the honey batch section when no batch is attached',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+        final listing = _listing();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(l10n.marketplaceHoneyBatchSectionTitle),
+          findsNothing,
+        );
+      },
+    );
   });
 }

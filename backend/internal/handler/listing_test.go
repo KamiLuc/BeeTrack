@@ -52,6 +52,28 @@ func (m *captureListingStore) DeleteImages(ctx context.Context, listingID int64)
 
 func (m *captureListingStore) Delete(ctx context.Context, id int64) error { return nil }
 
+func (m *captureListingStore) FindByHoneyBatchID(ctx context.Context, batchID int64) (*model.Listing, error) {
+	return nil, nil
+}
+
+// fakeHoneyBatchReader is a no-op service.HoneyBatchReader for handler tests
+// that don't exercise honey batch attachment.
+type fakeHoneyBatchReader struct{}
+
+func (f *fakeHoneyBatchReader) RequireCertifiedOwnedBatch(ctx context.Context, userID, batchID int64) error {
+	return nil
+}
+
+func (f *fakeHoneyBatchReader) GetBatchByID(ctx context.Context, batchID int64) (*service.BatchVerification, error) {
+	return &service.BatchVerification{Batch: &model.HoneyBatch{ID: batchID}}, nil
+}
+
+func (f *fakeHoneyBatchReader) VerificationURL(token string) string { return "https://example.com/verify/" + token }
+
+func (f *fakeHoneyBatchReader) PublicPDFURL(token string) string {
+	return "https://example.com/api/v1/verify/" + token + "/pdf"
+}
+
 func TestListingJSON_IncludesApiaryFields(t *testing.T) {
 	lat, lng := 52.2297, 21.0122
 	l := &model.Listing{
@@ -96,6 +118,62 @@ func ptrInt64(v int64) *int64 {
 	return &v
 }
 
+func TestListingJSON_NoHoneyBatch(t *testing.T) {
+	l := &model.Listing{ID: 5}
+
+	got := listingJSON(l)
+
+	if got["honey_batch_id"] != (*int64)(nil) {
+		t.Errorf("expected honey_batch_id nil, got %v", got["honey_batch_id"])
+	}
+	if batch, ok := got["honey_batch"].(map[string]any); !ok || batch != nil {
+		t.Errorf("expected honey_batch nil, got %v", got["honey_batch"])
+	}
+}
+
+func TestListingJSON_IncludesHoneyBatch(t *testing.T) {
+	l := &model.Listing{
+		ID:                            5,
+		HoneyBatchID:                  ptrInt64(3),
+		HoneyBatchHoneyType:           "Wildflower",
+		HoneyBatchProcessingMethod:    "cold-extracted",
+		HoneyBatchCertificationStatus: "confirmed",
+		HoneyBatchHasPDF:              true,
+		HoneyBatchVerificationURL:     "https://example.com/verify/tok",
+		HoneyBatchPDFURL:              "https://example.com/api/v1/verify/tok/pdf",
+	}
+
+	got := listingJSON(l)
+
+	if got["honey_batch_id"] != l.HoneyBatchID {
+		t.Errorf("expected honey_batch_id %v, got %v", l.HoneyBatchID, got["honey_batch_id"])
+	}
+	batch, ok := got["honey_batch"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected honey_batch to be a map, got %T", got["honey_batch"])
+	}
+	if batch["honey_type"] != "Wildflower" {
+		t.Errorf("expected honey_type Wildflower, got %v", batch["honey_type"])
+	}
+	if batch["pdf_url"] != "https://example.com/api/v1/verify/tok/pdf" {
+		t.Errorf("expected pdf_url set, got %v", batch["pdf_url"])
+	}
+}
+
+func TestListingJSON_HoneyBatch_NoPDF_OmitsPDFURL(t *testing.T) {
+	l := &model.Listing{ID: 5, HoneyBatchID: ptrInt64(3), HoneyBatchHasPDF: false}
+
+	got := listingJSON(l)
+
+	batch, ok := got["honey_batch"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected honey_batch to be a map, got %T", got["honey_batch"])
+	}
+	if _, present := batch["pdf_url"]; present {
+		t.Errorf("expected pdf_url absent when has_pdf is false, got %v", batch["pdf_url"])
+	}
+}
+
 func TestParseListingFilter_HasApiary(t *testing.T) {
 	tests := []struct {
 		name string
@@ -125,7 +203,7 @@ func TestParseListingFilter_HasApiary(t *testing.T) {
 // userID when non-zero, and returns the filter the store was searched with.
 func searchAsUser(t *testing.T, store *captureListingStore, path string, userID int64) repository.ListingFilter {
 	t.Helper()
-	svc := service.NewListingService(store, &fakeApiaryMembershipReader{})
+	svc := service.NewListingService(store, &fakeApiaryMembershipReader{}, &fakeHoneyBatchReader{})
 	h := NewListingHandler(svc)
 	handler := middleware.OptionalAuth(testListingAuthSecret)(http.HandlerFunc(h.Search))
 

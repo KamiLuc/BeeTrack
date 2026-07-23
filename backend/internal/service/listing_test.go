@@ -20,6 +20,7 @@ type mockListingStore struct {
 	hiddenValue  bool
 	imagesDelIID int64
 	addedImages  []model.ListingImage
+	byHoneyBatch *model.Listing
 }
 
 func (m *mockListingStore) Create(ctx context.Context, l *model.Listing) error {
@@ -69,8 +70,32 @@ func (m *mockListingStore) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (m *mockListingStore) FindByHoneyBatchID(ctx context.Context, batchID int64) (*model.Listing, error) {
+	return m.byHoneyBatch, nil
+}
+
+type mockHoneyBatchReader struct {
+	requireErr error
+}
+
+func (m *mockHoneyBatchReader) RequireCertifiedOwnedBatch(ctx context.Context, userID, batchID int64) error {
+	return m.requireErr
+}
+
+func (m *mockHoneyBatchReader) GetBatchByID(ctx context.Context, batchID int64) (*BatchVerification, error) {
+	return &BatchVerification{Batch: &model.HoneyBatch{ID: batchID, HoneyType: "Wildflower", VerificationToken: "tok"}}, nil
+}
+
+func (m *mockHoneyBatchReader) VerificationURL(token string) string {
+	return "https://example.com/verify/" + token
+}
+
+func (m *mockHoneyBatchReader) PublicPDFURL(token string) string {
+	return "https://example.com/api/v1/verify/" + token + "/pdf"
+}
+
 func newListingSvc(store *mockListingStore) *ListingService {
-	return NewListingService(store, &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"})
+	return NewListingService(store, &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"}, &mockHoneyBatchReader{})
 }
 
 func validListingParams() ListingParams {
@@ -729,5 +754,181 @@ func TestListingDelete_NotFound(t *testing.T) {
 	err := svc.Delete(context.Background(), 3, 5)
 	if err != ErrListingNotFound {
 		t.Errorf("expected ErrListingNotFound, got %v", err)
+	}
+}
+
+func TestListingCreate_HoneyBatch_CategoryMismatch(t *testing.T) {
+	svc := newListingSvc(&mockListingStore{})
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.Category = "POLLEN"
+	params.HoneyBatchID = &batchID
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrHoneyBatchCategoryMismatch {
+		t.Errorf("expected ErrHoneyBatchCategoryMismatch, got %v", err)
+	}
+}
+
+func TestListingCreate_HoneyBatch_NotCertified(t *testing.T) {
+	store := &mockListingStore{}
+	svc := NewListingService(store, &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"}, &mockHoneyBatchReader{requireErr: ErrBatchNotCertified})
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrBatchNotCertified {
+		t.Errorf("expected ErrBatchNotCertified, got %v", err)
+	}
+}
+
+func TestListingCreate_HoneyBatch_AlreadyAttached(t *testing.T) {
+	store := &mockListingStore{byHoneyBatch: &model.Listing{ID: 9}}
+	svc := newListingSvc(store)
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	_, err := svc.Create(context.Background(), 1, params)
+	if err != ErrHoneyBatchAlreadyAttached {
+		t.Errorf("expected ErrHoneyBatchAlreadyAttached, got %v", err)
+	}
+}
+
+func TestListingCreate_HoneyBatch_Attaches(t *testing.T) {
+	store := &mockListingStore{}
+	svc := newListingSvc(store)
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	l, err := svc.Create(context.Background(), 1, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.HoneyBatchID == nil || *l.HoneyBatchID != batchID {
+		t.Errorf("expected honey batch id %d attached, got %v", batchID, l.HoneyBatchID)
+	}
+}
+
+func TestListingUpdate_HoneyBatch_CategoryMismatch(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3, Category: "HONEY"}}
+	svc := newListingSvc(store)
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.Category = "POLLEN"
+	params.HoneyBatchID = &batchID
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrHoneyBatchCategoryMismatch {
+		t.Errorf("expected ErrHoneyBatchCategoryMismatch, got %v", err)
+	}
+}
+
+func TestListingUpdate_HoneyBatch_NotCertified(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3, Category: "HONEY"}}
+	svc := NewListingService(store, &mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"}, &mockHoneyBatchReader{requireErr: ErrBatchNotFound})
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrBatchNotFound {
+		t.Errorf("expected ErrBatchNotFound, got %v", err)
+	}
+}
+
+func TestListingUpdate_HoneyBatch_AttachedToOtherListing(t *testing.T) {
+	store := &mockListingStore{
+		listing:      &model.Listing{ID: 5, UserID: 3, Category: "HONEY"},
+		byHoneyBatch: &model.Listing{ID: 9},
+	}
+	svc := newListingSvc(store)
+
+	batchID := int64(1)
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrHoneyBatchAlreadyAttached {
+		t.Errorf("expected ErrHoneyBatchAlreadyAttached, got %v", err)
+	}
+}
+
+func TestListingUpdate_HoneyBatch_SelfReferenceNotConflict(t *testing.T) {
+	batchID := int64(1)
+	store := &mockListingStore{
+		listing:      &model.Listing{ID: 5, UserID: 3, Category: "HONEY", HoneyBatchID: &batchID},
+		byHoneyBatch: &model.Listing{ID: 5},
+	}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.HoneyBatchID = &batchID
+	l, err := svc.Update(context.Background(), 3, 5, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.HoneyBatchID == nil || *l.HoneyBatchID != batchID {
+		t.Errorf("expected honey batch id kept, got %v", l.HoneyBatchID)
+	}
+}
+
+func TestListingUpdate_HoneyBatchIDChange_ResetsToPending(t *testing.T) {
+	zero := 0.0
+	oldBatchID := int64(1)
+	existing := &model.Listing{
+		ID:           5,
+		UserID:       3,
+		Title:        "Raw wildflower honey",
+		Category:     "HONEY",
+		Lat:          52.2297,
+		Lng:          21.0122,
+		Price:        &zero,
+		Status:       model.ListingStatusApproved,
+		HoneyBatchID: &oldBatchID,
+	}
+	store := &mockListingStore{listing: existing}
+	svc := newListingSvc(store)
+
+	newBatchID := int64(2)
+	params := validListingParams()
+	params.HoneyBatchID = &newBatchID
+	l, err := svc.Update(context.Background(), 3, 5, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.Status != model.ListingStatusPending {
+		t.Errorf("expected status reset to pending, got %q", l.Status)
+	}
+}
+
+func TestListingGet_PopulatesHoneyBatchFields(t *testing.T) {
+	batchID := int64(1)
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3, Status: model.ListingStatusApproved, HoneyBatchID: &batchID}}
+	svc := newListingSvc(store)
+
+	l, err := svc.Get(context.Background(), 3, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.HoneyBatchHoneyType != "Wildflower" {
+		t.Errorf("expected honey type Wildflower, got %q", l.HoneyBatchHoneyType)
+	}
+	if l.HoneyBatchVerificationURL != "https://example.com/verify/tok" {
+		t.Errorf("unexpected verification url %q", l.HoneyBatchVerificationURL)
+	}
+}
+
+func TestListingGet_NoHoneyBatch_LeavesFieldsUnset(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3, Status: model.ListingStatusApproved}}
+	svc := newListingSvc(store)
+
+	l, err := svc.Get(context.Background(), 3, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if l.HoneyBatchHoneyType != "" {
+		t.Errorf("expected no honey batch fields populated, got %q", l.HoneyBatchHoneyType)
 	}
 }

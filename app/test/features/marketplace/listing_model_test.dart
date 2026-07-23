@@ -136,5 +136,102 @@ void main() {
       expect(listing.price, 20.0);
       expect(listing.price, isA<double>());
     });
+
+    test('parses attached honey_batch with pdf', () {
+      final json = {
+        'id': 4,
+        'user_id': 11,
+        'title': 'Certified honey',
+        'description': '',
+        'category': 'HONEY',
+        'price': null,
+        'quantity': '',
+        'address': '',
+        'contact_phone': '',
+        'contact_email': '',
+        'is_hidden': false,
+        'created_at': '2024-05-01T10:00:00Z',
+        'updated_at': '2024-05-01T10:00:00Z',
+        'honey_batch_id': 3,
+        'honey_batch': {
+          'id': 3,
+          'honey_type': 'Wildflower',
+          'gathering_date': '2024-01-15T00:00:00Z',
+          'amount_grams': 2500,
+          'processing_method': 'cold-extracted',
+          'certification_status': 'confirmed',
+          'has_pdf': true,
+          'verification_url': 'https://example.com/verify/tok',
+          'pdf_url': 'https://example.com/api/v1/verify/tok/pdf',
+        },
+      };
+      final listing = Listing.fromJson(json);
+      expect(listing.honeyBatchId, 3);
+      final batch = listing.honeyBatch;
+      expect(batch, isNotNull);
+      expect(batch!.id, 3);
+      expect(batch.honeyType, 'Wildflower');
+      expect(batch.amountGrams, 2500);
+      expect(batch.amountKg, 2.5);
+      expect(batch.processingMethod, 'cold-extracted');
+      expect(batch.certificationStatus, 'confirmed');
+      expect(batch.hasPdf, true);
+      expect(batch.verificationUrl, 'https://example.com/verify/tok');
+      expect(batch.pdfUrl, 'https://example.com/api/v1/verify/tok/pdf');
+    });
+
+    test('honey_batch with has_pdf false omits pdf_url', () {
+      final json = {
+        'id': 5,
+        'user_id': 11,
+        'title': 'Uncertified attach preview',
+        'description': '',
+        'category': 'HONEY',
+        'price': null,
+        'quantity': '',
+        'address': '',
+        'contact_phone': '',
+        'contact_email': '',
+        'is_hidden': false,
+        'created_at': '2024-05-01T10:00:00Z',
+        'updated_at': '2024-05-01T10:00:00Z',
+        'honey_batch_id': 4,
+        'honey_batch': {
+          'id': 4,
+          'honey_type': 'Linden',
+          'gathering_date': '2024-02-01T00:00:00Z',
+          'amount_grams': 1000,
+          'processing_method': 'raw',
+          'certification_status': 'confirmed',
+          'has_pdf': false,
+          'verification_url': 'https://example.com/verify/tok2',
+        },
+      };
+      final listing = Listing.fromJson(json);
+      expect(listing.honeyBatch, isNotNull);
+      expect(listing.honeyBatch!.hasPdf, false);
+      expect(listing.honeyBatch!.pdfUrl, isNull);
+    });
+
+    test('no honey_batch attached leaves fields null', () {
+      final json = {
+        'id': 6,
+        'user_id': 11,
+        'title': 'No attach',
+        'description': '',
+        'category': 'HONEY',
+        'price': null,
+        'quantity': '',
+        'address': '',
+        'contact_phone': '',
+        'contact_email': '',
+        'is_hidden': false,
+        'created_at': '2024-05-01T10:00:00Z',
+        'updated_at': '2024-05-01T10:00:00Z',
+      };
+      final listing = Listing.fromJson(json);
+      expect(listing.honeyBatchId, isNull);
+      expect(listing.honeyBatch, isNull);
+    });
   });
 }

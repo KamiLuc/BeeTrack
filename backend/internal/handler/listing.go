@@ -38,6 +38,7 @@ type listingRequest struct {
 	ContactPhone string   `json:"contact_phone"`
 	ContactEmail string   `json:"contact_email"`
 	ImageURLs    []string `json:"image_urls"`
+	HoneyBatchID *int64   `json:"honey_batch_id"`
 }
 
 func (req listingRequest) toParams() service.ListingParams {
@@ -54,6 +55,7 @@ func (req listingRequest) toParams() service.ListingParams {
 		ContactPhone: req.ContactPhone,
 		ContactEmail: req.ContactEmail,
 		ImageURLs:    req.ImageURLs,
+		HoneyBatchID: req.HoneyBatchID,
 	}
 }
 
@@ -69,6 +71,30 @@ func listingImageJSON(img model.ListingImage) map[string]any {
 		"display_order": img.DisplayOrder,
 		"created_at":    img.CreatedAt,
 	}
+}
+
+// honeyBatchJSONForListing builds the "honey_batch" block for a listing's
+// attached batch, or nil if none is attached. Uses the public verify-token
+// PDF endpoint (safe for anonymous viewers) rather than the owner-only
+// /honey-batches/{id}/pdf route.
+func honeyBatchJSONForListing(l *model.Listing) map[string]any {
+	if l.HoneyBatchID == nil {
+		return nil
+	}
+	batch := map[string]any{
+		"id":                   *l.HoneyBatchID,
+		"honey_type":           l.HoneyBatchHoneyType,
+		"gathering_date":       l.HoneyBatchGatheringDate,
+		"amount_grams":         l.HoneyBatchAmountGrams,
+		"processing_method":    l.HoneyBatchProcessingMethod,
+		"certification_status": l.HoneyBatchCertificationStatus,
+		"has_pdf":              l.HoneyBatchHasPDF,
+		"verification_url":     l.HoneyBatchVerificationURL,
+	}
+	if l.HoneyBatchHasPDF {
+		batch["pdf_url"] = l.HoneyBatchPDFURL
+	}
+	return batch
 }
 
 func listingJSON(l *model.Listing) map[string]any {
@@ -105,6 +131,8 @@ func listingJSON(l *model.Listing) map[string]any {
 		"created_at":        l.CreatedAt,
 		"updated_at":        l.UpdatedAt,
 		"images":            images,
+		"honey_batch_id":    l.HoneyBatchID,
+		"honey_batch":       honeyBatchJSONForListing(l),
 	}
 }
 
@@ -140,6 +168,14 @@ func listingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "CONTACT_EMAIL_TOO_LONG", err.Error())
 	case errors.Is(err, service.ErrListingPriceTooLarge):
 		respond.Error(w, http.StatusBadRequest, "PRICE_TOO_LARGE", err.Error())
+	case errors.Is(err, service.ErrHoneyBatchCategoryMismatch):
+		respond.Error(w, http.StatusBadRequest, "HONEY_BATCH_CATEGORY_MISMATCH", err.Error())
+	case errors.Is(err, service.ErrHoneyBatchAlreadyAttached):
+		respond.Error(w, http.StatusConflict, "HONEY_BATCH_ALREADY_ATTACHED", err.Error())
+	case errors.Is(err, service.ErrBatchNotFound):
+		respond.Error(w, http.StatusNotFound, "HONEY_BATCH_NOT_FOUND", err.Error())
+	case errors.Is(err, service.ErrBatchNotCertified):
+		respond.Error(w, http.StatusBadRequest, "HONEY_BATCH_NOT_CERTIFIED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

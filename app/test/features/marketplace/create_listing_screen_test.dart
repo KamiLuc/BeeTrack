@@ -47,6 +47,7 @@ class _FakeImagePickerPlatform extends ImagePickerPlatform {
 class _RecordingHttpClientAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   List<Map<String, dynamic>> apiaries = [];
+  List<Map<String, dynamic>> honeyBatches = [];
   bool failCreate = false;
   int _nextImageId = 1;
 
@@ -67,10 +68,14 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
     if (options.path.endsWith('/apiaries') && options.method == 'GET') {
       return _json(apiaries);
     }
+    if (options.path.endsWith('/honey-batches') && options.method == 'GET') {
+      return _json({'items': honeyBatches, 'total': honeyBatches.length});
+    }
     if (options.path.endsWith('/listings') && options.method == 'POST') {
       if (failCreate) {
         throw DioException(requestOptions: options, message: 'create failed');
       }
+      final data = options.data as Map<String, dynamic>;
       return _json({
         'id': 42,
         'user_id': 1,
@@ -86,6 +91,7 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
         'created_at': DateTime(2026, 1, 1).toIso8601String(),
         'updated_at': DateTime(2026, 1, 1).toIso8601String(),
         'images': [],
+        'honey_batch_id': data['honey_batch_id'],
       });
     }
     if (options.path.contains('/images') && options.method == 'POST') {
@@ -635,6 +641,113 @@ void main() {
 
       expect(find.text(l10n.marketplaceApiaryLabel), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<int?>), findsOneWidget);
+    });
+  });
+
+  group('CreateListingScreen honey batch attach', () {
+    Map<String, dynamic> confirmedBatch({int id = 1}) => {
+      'id': id,
+      'verification_token': 'tok$id',
+      'verification_url': 'https://example.com/verify/tok$id',
+      'gathering_date': DateTime(2026, 1, 1).toIso8601String(),
+      'amount_grams': 2500,
+      'processing_method': 'cold_extracted',
+      'honey_type': 'Wildflower',
+      'pdf_filename': 'lab.pdf',
+      'pdf_file_hash': 'hash',
+      'created_at': DateTime(2026, 1, 1).toIso8601String(),
+      'updated_at': DateTime(2026, 1, 1).toIso8601String(),
+      'certification': {'status': 'confirmed'},
+    };
+
+    testWidgets('is hidden until the HONEY category is selected', (
+      tester,
+    ) async {
+      final adapter = _RecordingHttpClientAdapter()
+        ..honeyBatches = [confirmedBatch()];
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceHoneyBatchAttachLabel), findsNothing);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.marketplaceHoneyBatchAttachLabel),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('shows "none available" when the user has no confirmed batches', (
+      tester,
+    ) async {
+      final adapter = _RecordingHttpClientAdapter();
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceHoneyBatchNoneAvailable), findsOneWidget);
+    });
+
+    testWidgets('threads the selected honey batch id into the create request', (
+      tester,
+    ) async {
+      final adapter = _RecordingHttpClientAdapter()
+        ..honeyBatches = [confirmedBatch(id: 7)];
+      final apiClient = await _fakeApiClient(adapter);
+
+      await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldTitle),
+        'Wildflower Honey',
+      );
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<int?>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Wildflower · 2.5 kg').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPrice),
+        '42.50',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, l10n.marketplaceFieldPhone),
+        '123456789',
+      );
+      _setLocationFields(tester, l10n);
+      await tester.pump();
+
+      final saveFinder = find.byIcon(Icons.check);
+      await tester.ensureVisible(saveFinder);
+      await tester.tap(saveFinder);
+      await tester.pumpAndSettle();
+
+      final createRequests = adapter.requests.where(
+        (r) => r.path.endsWith('/listings') && r.method == 'POST',
+      );
+      expect(createRequests, hasLength(1));
+      expect(
+        (createRequests.first.data as Map<String, dynamic>)['honey_batch_id'],
+        7,
+      );
     });
   });
 

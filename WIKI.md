@@ -368,8 +368,11 @@ Harvest          id, hiveId, harvestedAt, frames (int, default 1), halfFrames (i
                  kilograms (double, 2dp), notes, harvestedByName? (populated via JOIN)
 Listing          id, userId, title, description, category, price?, quantity, address,
                  apiaryId?, apiaryName?, contactPhone, contactEmail, isHidden,
-                 createdAt, updatedAt, images (List<ListingImage>)
+                 createdAt, updatedAt, images (List<ListingImage>),
+                 honeyBatchId?, honeyBatch? (ListingHoneyBatch, only on the single-listing fetch)
 ListingImage     id, listingId, url, displayOrder, createdAt
+ListingHoneyBatch honeyType, gatheringDate, amountGrams, processingMethod,
+                 certificationStatus, hasPdf, verificationUrl, pdfUrl?
 ```
 
 Hive types (valid values): `dadant`, `langstroth`, `top_bar`, `wielkopolski`  
@@ -621,6 +624,9 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   │   │   picking new ones. A location (via GPS or a map pin picker, the same pattern
   │   │   used on the apiary form) is required and independent of the optional linked
   │   │   apiary; submission is blocked with an inline error until a location is set.
+  │   │   Picking the HONEY category reveals a dropdown of the caller's own
+  │   │   blockchain-certified honey batches, letting one be attached to the listing
+  │   │   (or left unattached); switching away from HONEY clears the selection.
   ├── MyListingsScreen (list icon in bottom banner, signed-in only)
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card
@@ -638,7 +644,10 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
       │   that reveal the value on tap. Favorite heart sits inline in the details card
       │   (hidden when viewing your own listing) instead of the AppBar. Owners get
       │   edit and delete buttons in a bottom amber banner instead of an AppBar icon;
-      │   delete uses the math-puzzle confirmation dialog.
+      │   delete uses the math-puzzle confirmation dialog. If a honey batch is
+      │   attached, a section shows its honey type, gathering date, amount,
+      │   certification status, a PDF link, and a link to the public blockchain
+      │   verification page.
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
@@ -428,6 +429,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 ),
                               ),
                             ],
+                            if (listing.honeyBatch != null) ...[
+                              const SizedBox(height: 12),
+                              _HoneyBatchSection(batch: listing.honeyBatch!),
+                            ],
                           ],
                         ),
                       ),
@@ -786,6 +791,71 @@ class _FullscreenGalleryState extends State<_FullscreenGallery> {
       ),
     );
   }
+}
+
+class _HoneyBatchSection extends StatelessWidget {
+  final ListingHoneyBatch batch;
+
+  const _HoneyBatchSection({required this.batch});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final dateLabel = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).format(batch.gatheringDate);
+
+    return _DetailSection(
+      icon: Icons.verified_outlined,
+      title: l10n.marketplaceHoneyBatchSectionTitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              _InfoChip(icon: Icons.water_drop_outlined, label: batch.honeyType),
+              _InfoChip(
+                icon: Icons.event_outlined,
+                label: dateLabel,
+              ),
+              _InfoChip(
+                icon: Icons.scale_outlined,
+                label: '${batch.amountKg.toStringAsFixed(1)} kg',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: batch.hasPdf && batch.pdfUrl != null
+                      ? () => _launchExternal(batch.pdfUrl!)
+                      : null,
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: Text(l10n.honeyBatchViewPdf),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _launchExternal(batch.verificationUrl),
+                  icon: const Icon(Icons.link, size: 18),
+                  label: Text(l10n.honeyBatchOpenPublicPage),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _launchExternal(String url) {
+  return launchUrl(Uri.parse(url), webOnlyWindowName: '_blank');
 }
 
 class _DetailSection extends StatelessWidget {
