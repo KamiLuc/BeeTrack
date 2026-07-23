@@ -7,8 +7,17 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
+
+// ErrPendingRequestExists is returned by Create when a concurrent request
+// already inserted the pending row for the same batch, tripping the partial
+// unique index — the race Create's caller can't fully rule out with a
+// check-then-insert.
+var ErrPendingRequestExists = errors.New("pending certification request already exists")
+
+const pgUniqueViolationCode = "23505"
 
 // HoneyBatchCertificationRequestRepository persists the admin-review queue
 // that gates blockchain_jobs creation for honey batch certification.
@@ -21,7 +30,12 @@ func NewHoneyBatchCertificationRequestRepository(db *gorm.DB) *HoneyBatchCertifi
 }
 
 func (r *HoneyBatchCertificationRequestRepository) Create(ctx context.Context, req *model.HoneyBatchCertificationRequest) error {
-	return r.db.WithContext(ctx).Create(req).Error
+	err := r.db.WithContext(ctx).Create(req).Error
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolationCode {
+		return ErrPendingRequestExists
+	}
+	return err
 }
 
 // certificationRequestDetailJoins joins in the batch/requester fields plus,

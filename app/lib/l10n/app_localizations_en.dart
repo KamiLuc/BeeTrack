@@ -1232,4 +1232,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get honeyBatchCertRequestStatusRejected => 'Rejected by admin';
+
+  @override
+  String get honeyBatchCertificationRequestPending =>
+      'A certification request for this batch is already pending admin review.';
+
+  @override
+  String get honeyBatchAlreadyCertifiedError =>
+      'This honey batch is already certified or being certified.';
 }

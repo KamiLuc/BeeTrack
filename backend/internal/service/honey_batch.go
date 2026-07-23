@@ -11,6 +11,7 @@ import (
 
 	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/validation"
 	"github.com/google/uuid"
 )
@@ -530,6 +531,9 @@ func (s *HoneyBatchService) RetryCertification(ctx context.Context, userID, batc
 		Status:      model.CertificationRequestStatusPending,
 	}
 	if err := s.certRequests.Create(ctx, req); err != nil {
+		if errors.Is(err, repository.ErrPendingRequestExists) {
+			return ErrCertificationRequestPending
+		}
 		return fmt.Errorf("create certification request: %w", err)
 	}
 	return nil

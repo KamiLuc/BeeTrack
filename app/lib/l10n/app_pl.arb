@@ -498,5 +498,7 @@
   "honeyBatchDownloadQr": "Pobierz kod QR",
   "honeyBatchCertRequestStatusPending": "Oczekuje na weryfikację przez administratora",
   "honeyBatchCertRequestStatusApproved": "Zatwierdzono",
-  "honeyBatchCertRequestStatusRejected": "Odrzucone przez administratora"
+  "honeyBatchCertRequestStatusRejected": "Odrzucone przez administratora",
+  "honeyBatchCertificationRequestPending": "Wniosek o certyfikację tej partii oczekuje już na weryfikację przez administratora.",
+  "honeyBatchAlreadyCertifiedError": "Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku."
 }

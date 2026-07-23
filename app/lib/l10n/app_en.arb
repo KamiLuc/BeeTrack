@@ -481,5 +481,7 @@
   "honeyBatchDownloadQr": "Download QR code",
   "honeyBatchCertRequestStatusPending": "Pending admin review",
   "honeyBatchCertRequestStatusApproved": "Approved",
-  "honeyBatchCertRequestStatusRejected": "Rejected by admin"
+  "honeyBatchCertRequestStatusRejected": "Rejected by admin",
+  "honeyBatchCertificationRequestPending": "A certification request for this batch is already pending admin review.",
+  "honeyBatchAlreadyCertifiedError": "This honey batch is already certified or being certified."
 }

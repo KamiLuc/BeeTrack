@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
+	"github.com/beetrack/backend/internal/repository"
 )
 
 type mockHoneyBatchRepo struct {
@@ -162,13 +163,17 @@ func (m *mockHoneyBatchJobRepo) HasPendingJob(ctx context.Context, batchID int64
 }
 
 type mockCertRequestRepo struct {
-	created *model.HoneyBatchCertificationRequest
-	pending *model.HoneyBatchCertificationRequest
-	latest  *model.HoneyBatchCertificationRequest
-	err     error
+	created   *model.HoneyBatchCertificationRequest
+	pending   *model.HoneyBatchCertificationRequest
+	latest    *model.HoneyBatchCertificationRequest
+	err       error
+	createErr error
 }
 
 func (m *mockCertRequestRepo) Create(ctx context.Context, req *model.HoneyBatchCertificationRequest) error {
+	if m.createErr != nil {
+		return m.createErr
+	}
 	if m.err != nil {
 		return m.err
 	}
@@ -869,6 +874,21 @@ func TestRetryCertification_ReviewRequestAlreadyPending(t *testing.T) {
 	}
 	if certRequests.created != nil {
 		t.Error("expected no second request to be created while one is still pending review")
+	}
+}
+
+// TestRetryCertification_ConcurrentInsertRace covers the window between the
+// GetPendingForBatch check and Create where a second in-flight request can
+// slip through and hit the partial unique index — Create must map that race
+// to ErrCertificationRequestPending instead of a raw/internal error.
+func TestRetryCertification_ConcurrentInsertRace(t *testing.T) {
+	batch := &model.HoneyBatch{ID: 1, UserID: 42, PDFFileHash: testPDFHash}
+	batches := &mockHoneyBatchRepo{byID: map[int64]*model.HoneyBatch{1: batch}}
+	certRequests := &mockCertRequestRepo{createErr: repository.ErrPendingRequestExists}
+	svc := NewHoneyBatchService(batches, &mockHoneyBatchCertificationRepo{}, certRequests, &mockHoneyBatchQRCodeRepo{}, &mockHoneyBatchJobRepo{}, testAppURL, t.TempDir())
+
+	if err := svc.RetryCertification(context.Background(), 42, 1); err != ErrCertificationRequestPending {
+		t.Errorf("expected ErrCertificationRequestPending, got %v", err)
 	}
 }
 

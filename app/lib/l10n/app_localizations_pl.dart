@@ -1251,4 +1251,12 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get honeyBatchCertRequestStatusRejected =>
       'Odrzucone przez administratora';
+
+  @override
+  String get honeyBatchCertificationRequestPending =>
+      'Wniosek o certyfikację tej partii oczekuje już na weryfikację przez administratora.';
+
+  @override
+  String get honeyBatchAlreadyCertifiedError =>
+      'Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.';
 }

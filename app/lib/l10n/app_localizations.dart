@@ -2323,6 +2323,18 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Odrzucone przez administratora'**
   String get honeyBatchCertRequestStatusRejected;
+
+  /// No description provided for @honeyBatchCertificationRequestPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wniosek o certyfikację tej partii oczekuje już na weryfikację przez administratora.'**
+  String get honeyBatchCertificationRequestPending;
+
+  /// No description provided for @honeyBatchAlreadyCertifiedError.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.'**
+  String get honeyBatchAlreadyCertifiedError;
 }
 
 class _AppLocalizationsDelegate

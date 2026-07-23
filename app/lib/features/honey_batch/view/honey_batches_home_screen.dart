@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../../core/widgets/delete_dialog.dart';
@@ -153,10 +154,15 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
     setState(() => _certifying = true);
     try {
       await context.read<HoneyBatchesCubit>().requestCertification(widget.batch.id);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
+        final message = switch (e is ApiException ? e.code : null) {
+          'CERTIFICATION_REQUEST_PENDING' => l10n.honeyBatchCertificationRequestPending,
+          'BATCH_ALREADY_CERTIFIED' => l10n.honeyBatchAlreadyCertifiedError,
+          _ => l10n.generalError,
+        };
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.generalError)),
+          SnackBar(content: Text(message)),
         );
       }
     } finally {
