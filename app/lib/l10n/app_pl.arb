@@ -184,6 +184,8 @@
   "marketplaceFieldPhoneInvalid": "Podaj prawidłowy numer telefonu",
   "marketplaceFieldEmail": "E-mail",
   "marketplaceContactRequired": "Podaj numer telefonu lub adres e-mail",
+  "marketplacePhotoRequired": "Dodaj co najmniej jedno zdjęcie",
+  "marketplaceListingLimitReached": "Osiągnięto limit 20 ogłoszeń. Usuń jedno, aby dodać kolejne.",
   "marketplaceApiaryNone": "Brak",
   "marketplaceHoneyBatchAttachLabel": "Dołącz certyfikowaną partię miodu",
   "marketplaceHoneyBatchNoneAvailable": "Brak certyfikowanych partii miodu",

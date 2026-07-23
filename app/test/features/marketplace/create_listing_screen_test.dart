@@ -49,6 +49,7 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
   List<Map<String, dynamic>> apiaries = [];
   List<Map<String, dynamic>> honeyBatches = [];
   bool failCreate = false;
+  String? failCreateCode;
   int _nextImageId = 1;
 
   @override
@@ -74,6 +75,16 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
     if (options.path.endsWith('/listings') && options.method == 'POST') {
       if (failCreate) {
         throw DioException(requestOptions: options, message: 'create failed');
+      }
+      if (failCreateCode != null) {
+        throw DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 400,
+            data: {'code': failCreateCode, 'message': 'limit reached'},
+          ),
+        );
       }
       final data = options.data as Map<String, dynamic>;
       return _json({
@@ -706,6 +717,8 @@ void main() {
       final adapter = _RecordingHttpClientAdapter()
         ..honeyBatches = [confirmedBatch(id: 7)];
       final apiClient = await _fakeApiClient(adapter);
+      final imagePicker = _FakeImagePickerPlatform();
+      ImagePickerPlatform.instance = imagePicker;
 
       await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
       await tester.pumpAndSettle();
@@ -734,6 +747,16 @@ void main() {
       );
       _setLocationFields(tester, l10n);
       await tester.pump();
+
+      final addPhotoFinder = find.widgetWithIcon(
+        IconButton,
+        Icons.add_photo_alternate_outlined,
+      );
+      await tester.ensureVisible(addPhotoFinder);
+      await tester.tap(addPhotoFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+      await tester.pumpAndSettle();
 
       final saveFinder = find.byIcon(Icons.check);
       await tester.ensureVisible(saveFinder);
@@ -824,6 +847,8 @@ void main() {
       (tester) async {
         final adapter = _RecordingHttpClientAdapter()..failCreate = true;
         final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
         bool? result;
 
         await tester.pumpWidget(
@@ -833,6 +858,16 @@ void main() {
         await tester.pumpAndSettle();
 
         await _fillRequiredFields(tester);
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
 
         final saveFinder = find.byIcon(Icons.check);
         await tester.ensureVisible(saveFinder);
@@ -848,6 +883,40 @@ void main() {
           find.widgetWithIcon(IconButton, Icons.check),
         );
         expect(saveButton.onPressed, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'shows the listing limit error when the API returns '
+      'LISTING_LIMIT_REACHED',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter()
+          ..failCreateCode = 'LISTING_LIMIT_REACHED';
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await _fillRequiredFields(tester);
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceListingLimitReached), findsOneWidget);
       },
     );
 
@@ -901,6 +970,8 @@ void main() {
       (tester) async {
         final adapter = _RecordingHttpClientAdapter();
         final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
 
         await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
         await tester.pumpAndSettle();
@@ -935,6 +1006,17 @@ void main() {
 
         _setLocationFields(tester, l10n);
         await tester.pump();
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
         await tester.tap(saveFinder);
         await tester.pumpAndSettle();
 
@@ -943,6 +1025,30 @@ void main() {
           (r) => r.path.endsWith('/listings') && r.method == 'POST',
         );
         expect(createRequestsAfter, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'blocks submission and shows an error when no photo has been added',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+
+        await tester.pumpWidget(_wrap(apiClient, const CreateListingScreen()));
+        await tester.pumpAndSettle();
+
+        await _fillRequiredFields(tester);
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsOneWidget);
+        final createRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'POST',
+        );
+        expect(createRequests, isEmpty);
       },
     );
   });

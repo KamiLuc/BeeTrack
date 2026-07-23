@@ -184,6 +184,8 @@
   "marketplaceFieldPhoneInvalid": "Enter a valid phone number",
   "marketplaceFieldEmail": "Email",
   "marketplaceContactRequired": "Provide a phone number or email",
+  "marketplacePhotoRequired": "Add at least one photo",
+  "marketplaceListingLimitReached": "You've reached the limit of 20 listings. Delete one to create another.",
   "marketplaceApiaryNone": "None",
   "marketplaceHoneyBatchAttachLabel": "Attach certified honey batch",
   "marketplaceHoneyBatchNoneAvailable": "No certified honey batches available",

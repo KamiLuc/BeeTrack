@@ -110,7 +110,11 @@ func TestListingModeration_Get_NotFound(t *testing.T) {
 }
 
 func TestListingModeration_Approve_Success(t *testing.T) {
-	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {
+		ID:     1,
+		Status: model.ListingStatusPending,
+		Images: []model.ListingImage{{ID: 1, ListingID: 1}},
+	}}}
 	svc := NewListingModerationService(store)
 
 	if err := svc.Approve(context.Background(), 7, 1); err != nil {
@@ -118,6 +122,18 @@ func TestListingModeration_Approve_Success(t *testing.T) {
 	}
 	if store.approvedID != 1 || store.approvedBy != 7 {
 		t.Errorf("expected Approve(1, 7), got Approve(%d, %d)", store.approvedID, store.approvedBy)
+	}
+}
+
+func TestListingModeration_Approve_RequiresPhoto(t *testing.T) {
+	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
+	svc := NewListingModerationService(store)
+
+	if err := svc.Approve(context.Background(), 7, 1); err != ErrListingPhotoRequired {
+		t.Errorf("expected ErrListingPhotoRequired, got %v", err)
+	}
+	if store.approvedID != 0 {
+		t.Error("expected no approve call to the store")
 	}
 }
 

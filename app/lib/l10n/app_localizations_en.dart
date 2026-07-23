@@ -469,6 +469,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceContactRequired => 'Provide a phone number or email';
 
   @override
+  String get marketplacePhotoRequired => 'Add at least one photo';
+
+  @override
+  String get marketplaceListingLimitReached =>
+      'You\'ve reached the limit of 20 listings. Delete one to create another.';
+
+  @override
   String get marketplaceApiaryNone => 'None';
 
   @override

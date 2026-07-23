@@ -90,6 +90,8 @@ func adminListingError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "LISTING_NOT_APPROVED", err.Error())
 	case errors.Is(err, service.ErrListingNotRemoved):
 		respond.Error(w, http.StatusConflict, "LISTING_NOT_REMOVED", err.Error())
+	case errors.Is(err, service.ErrListingPhotoRequired):
+		respond.Error(w, http.StatusBadRequest, "PHOTO_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonRequired):
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonTooShort):

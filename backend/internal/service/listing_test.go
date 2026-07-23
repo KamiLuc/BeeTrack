@@ -101,10 +101,11 @@ func newListingSvc(store *mockListingStore) *ListingService {
 func validListingParams() ListingParams {
 	lat, lng := 52.2297, 21.0122
 	return ListingParams{
-		Title:    "Raw wildflower honey",
-		Category: "HONEY",
-		Lat:      &lat,
-		Lng:      &lng,
+		Title:     "Raw wildflower honey",
+		Category:  "HONEY",
+		Lat:       &lat,
+		Lng:       &lng,
+		ImageURLs: []string{"photo.jpg"},
 	}
 }
 
@@ -153,6 +154,31 @@ func TestListingCreate_TooManyImages(t *testing.T) {
 	_, err := svc.Create(context.Background(), 1, params)
 	if err != ErrListingTooManyImages {
 		t.Errorf("expected ErrListingTooManyImages, got %v", err)
+	}
+}
+
+func TestListingCreate_LimitReached(t *testing.T) {
+	listings := make([]*model.Listing, maxListingsPerUser)
+	for i := range listings {
+		listings[i] = &model.Listing{ID: int64(i + 1), UserID: 1}
+	}
+	svc := newListingSvc(&mockListingStore{listings: listings})
+
+	_, err := svc.Create(context.Background(), 1, validListingParams())
+	if err != ErrListingLimitReached {
+		t.Errorf("expected ErrListingLimitReached, got %v", err)
+	}
+}
+
+func TestListingUpdate_ClearingImagesRejected(t *testing.T) {
+	store := &mockListingStore{listing: &model.Listing{ID: 5, UserID: 3}}
+	svc := newListingSvc(store)
+
+	params := validListingParams()
+	params.ImageURLs = []string{}
+	_, err := svc.Update(context.Background(), 3, 5, params)
+	if err != ErrListingPhotoRequired {
+		t.Errorf("expected ErrListingPhotoRequired, got %v", err)
 	}
 }
 
@@ -636,6 +662,7 @@ func TestListingUpdate_NoContentChange_KeepsApprovedStatus(t *testing.T) {
 		Lng:      21.0122,
 		Price:    &zero,
 		Status:   model.ListingStatusApproved,
+		Images:   []model.ListingImage{{ImageURL: "photo.jpg"}},
 	}
 	store := &mockListingStore{listing: existing}
 	svc := newListingSvc(store)
@@ -662,6 +689,7 @@ func TestListingUpdate_NoContentChange_KeepsRejectionReason(t *testing.T) {
 		Price:           &zero,
 		Status:          model.ListingStatusRejected,
 		RejectionReason: &reason,
+		Images:          []model.ListingImage{{ImageURL: "photo.jpg"}},
 	}
 	store := &mockListingStore{listing: existing}
 	svc := newListingSvc(store)
