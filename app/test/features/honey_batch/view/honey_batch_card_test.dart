@@ -432,6 +432,28 @@ void main() {
       expect(find.text(l10n.honeyBatchViewQr), findsOneWidget);
       expect(find.text(l10n.honeyBatchDownloadQr), findsOneWidget);
     });
+
+    testWidgets(
+        'shows Open public page menu item when confirmed, hides it otherwise',
+        (tester) async {
+      await tester.pumpWidget(wrap(_batch(certification: null)));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.honeyBatchOpenPublicPage), findsNothing);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: const HoneyBatchCertificationModel(
+            status: CertificationStatus.confirmed,
+          ),
+        )),
+      );
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.honeyBatchOpenPublicPage), findsOneWidget);
+    });
   });
 
   group('HoneyBatchCard in a list', () {

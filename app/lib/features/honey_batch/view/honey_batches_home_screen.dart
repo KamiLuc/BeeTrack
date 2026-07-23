@@ -126,7 +126,7 @@ class _HoneyBatchesView extends StatelessWidget {
   }
 }
 
-enum _CardAction { edit, certify, delete }
+enum _CardAction { edit, certify, openPublicPage, delete }
 
 class HoneyBatchCard extends StatefulWidget {
   final HoneyBatchModel batch;
@@ -314,6 +314,9 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                         onSelected: (action) {
                           if (action == _CardAction.edit) _edit();
                           if (action == _CardAction.certify) _certify();
+                          if (action == _CardAction.openPublicPage) {
+                            launchVerificationPage(batch.verificationUrl);
+                          }
                           if (action == _CardAction.delete) _confirmDelete();
                         },
                         itemBuilder: (_) => [
@@ -328,6 +331,11 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                               child: Text(
                                 isRetryable ? l10n.honeyBatchRetry : l10n.honeyBatchCertify,
                               ),
+                            ),
+                          if (isConfirmed)
+                            PopupMenuItem(
+                              value: _CardAction.openPublicPage,
+                              child: Text(l10n.honeyBatchOpenPublicPage),
                             ),
                           PopupMenuItem(
                             value: _CardAction.delete,
