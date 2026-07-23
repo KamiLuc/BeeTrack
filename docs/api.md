@@ -2104,7 +2104,7 @@ New listings default to a `pending` moderation status and are hidden from public
 - `distance_km` — only present when the `GET /listings` request included a `near_lat`/`near_lng`/`radius_km` filter
 - `images` — max 3 per listing
 - `honey_batch_id` — nullable; may only be set when `category` is `HONEY`, must reference a batch owned by the caller with a confirmed on-chain certification, and a batch can only be attached to one listing at a time
-- `honey_batch` — nested object with the attached batch's public details, `null`/absent when no batch is attached; `pdf_url` is only included when `has_pdf` is `true`. This enrichment is only present on `GET /listings/{id}`, not on `GET /listings` search/list results.
+- `honey_batch` — nested object with the attached batch's public details, `null`/absent when no batch is attached; `pdf_url` is only included when `has_pdf` is `true`. Populated on both `GET /listings/{id}` and `GET /listings` search/list results.
 
 ---
 

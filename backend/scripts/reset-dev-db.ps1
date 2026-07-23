@@ -1,12 +1,19 @@
 <#
 .SYNOPSIS
-  Wipes the local dev database and reseeds it with a fixed set of test users,
-  promoting the first one to admin.
+  Wipes the local dev database (except honey batches already confirmed
+  on-chain) and reseeds it with a fixed set of test users, promoting the
+  first one to admin.
 
 .DESCRIPTION
-  Drops the Postgres/images Docker volumes, brings db/api/mailpit back up
-  (migrations run automatically on API startup), seeds sample data for each
-  user via cmd/seed, then promotes the first user to the admin role.
+  Deletes all app data except honey batches with a confirmed on-chain
+  certification (and the handful of rows those need to stay valid — see
+  reset-dev-data.sql) via a targeted SQL wipe against the running database,
+  rather than dropping the Postgres volume outright. Confirmed batches are
+  permanent on-chain records; keeping them locally means a fresh batch can
+  never collide with an old certified id (which the contract would reject
+  as "already certified" — see writer.go's isAlreadyCertifiedRevert). Then
+  seeds sample data for each user via cmd/seed and promotes the first one to
+  the admin role.
 
 .PARAMETER Count
   How many extra numbered kamil emails to create, on top of kamil@op.pl
@@ -44,9 +51,6 @@ $backendDir = Split-Path -Parent $PSScriptRoot
 Push-Location $backendDir
 try {
 
-Write-Host "==> Wiping local db/images volumes" -ForegroundColor Cyan
-docker compose down -v
-
 Write-Host "==> Starting db, api, mailpit (migrations run automatically)" -ForegroundColor Cyan
 docker compose up -d db api mailpit
 
@@ -67,6 +71,14 @@ for ($i = 0; $i -lt 90; $i++) {
 if (-not $ready) {
     throw "API did not come up in time; check docker compose logs api"
 }
+
+Write-Host "==> Wiping dev data (keeping honey batches confirmed on-chain)" -ForegroundColor Cyan
+Get-Content (Join-Path $PSScriptRoot "reset-dev-data.sql") -Raw |
+    docker exec -i backend-db-1 psql -U postgres -d beetrack -v ON_ERROR_STOP=1 -f -
+if ($LASTEXITCODE -ne 0) { throw "Data wipe failed; see psql output above" }
+
+$preservedCount = (docker exec backend-db-1 psql -U postgres -d beetrack -tAc "SELECT COUNT(*) FROM honey_batches;").Trim()
+Write-Host "==> Preserved $preservedCount honey batch(es) already confirmed on-chain" -ForegroundColor Green
 
 $env:DATABASE_URL = "postgres://postgres:password@localhost:5432/beetrack?sslmode=disable"
 $env:CGO_ENABLED = "0"

@@ -584,7 +584,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     final sizeError =
         await validateImageFileSize(file, AppLocalizations.of(context)!);
     if (sizeError != null) {
-      if (mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      if (mounted) showBigSnackBar(context, sizeError);
       return;
     }
     if (mounted) setState(() => _pendingImages.add(file));

@@ -997,8 +997,8 @@ class _ListingsFeedState extends State<_ListingsFeed> {
   }
 }
 
-/// Combines the listing's address and distance onto a single line so a
-/// fixed-height card doesn't overflow when both are present.
+/// Combines the listing's address and distance onto a single line to keep
+/// the card compact when both are present.
 String? _addressLine(Listing listing, AppLocalizations l10n) {
   final distance = listing.distanceKm != null
       ? l10n.marketplaceDistanceAway(listing.distanceKm!.toStringAsFixed(1))
@@ -1007,6 +1007,14 @@ String? _addressLine(Listing listing, AppLocalizations l10n) {
     return '${listing.address} • $distance';
   }
   return distance ?? (listing.address.isNotEmpty ? listing.address : null);
+}
+
+/// Reports whether listing is a HONEY-category listing with an attached,
+/// blockchain-confirmed honey batch — the bar for showing the "certified"
+/// badge next to its price.
+bool _isCertifiedHoney(Listing listing) {
+  return listing.category == 'HONEY' &&
+      listing.honeyBatch?.certificationStatus == 'confirmed';
 }
 
 class _ListingCard extends StatelessWidget {
@@ -1023,6 +1031,78 @@ class _ListingCard extends StatelessWidget {
     final isAuthenticated =
         context.watch<AuthBloc>().state is AuthAuthenticated;
     final isOwner = listing.userId == context.read<TokenStorage>().userId;
+    final isCompact = MediaQuery.sizeOf(context).width < 600;
+
+    final favoriteButton = (isAuthenticated && !isOwner)
+        ? IconButton(
+            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+            color: isFavorite ? colorScheme.primary : null,
+            onPressed: () =>
+                context.read<MarketplaceCubit>().toggleFavorite(listing.id),
+          )
+        : null;
+
+    final priceColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          listingPriceLabel(l10n, listing.price),
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
+        ),
+        if (_isCertifiedHoney(listing)) ...[
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.verified, size: 14, color: colorScheme.primary),
+              const SizedBox(width: 2),
+              Text(
+                l10n.marketplaceCertifiedBadge,
+                style: textTheme.labelSmall?.copyWith(
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+
+    final detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          listing.title,
+          style: textTheme.titleMedium,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        if (_addressLine(listing, l10n) != null)
+          Text(
+            _addressLine(listing, l10n)!,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        Text(
+          l10n.marketplacePostedOn(
+            DateFormat.yMMMd(
+              Localizations.localeOf(context).toString(),
+            ).add_Hm().format(listing.createdAt),
+          ),
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1038,53 +1118,66 @@ class _ListingCard extends StatelessWidget {
             context.read<MarketplaceCubit>().load();
           }
         },
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: isCompact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ListingThumbnail(listing: listing),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 92,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 72),
-                        child: Column(
+                  SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: _listingImage(context, listing),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              listing.title,
-                              style: textTheme.titleMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            Expanded(child: detailsColumn),
+                            const SizedBox(width: 8),
+                            priceColumn,
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _InfoChip(
+                              icon: listingCategoryIcon(listing.category),
+                              label: listingCategoryLabel(
+                                l10n,
+                                listing.category,
+                              ),
                             ),
-                            Column(
+                            const Spacer(),
+                            if (favoriteButton != null) favoriteButton,
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ListingThumbnail(listing: listing),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 72),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (_addressLine(listing, l10n) != null)
-                                  Text(
-                                    _addressLine(listing, l10n)!,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                Text(
-                                  l10n.marketplacePostedOn(
-                                    DateFormat.yMMMd(
-                                      Localizations.localeOf(
-                                        context,
-                                      ).toString(),
-                                    ).add_Hm().format(listing.createdAt),
-                                  ),
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
+                                detailsColumn,
                                 const SizedBox(height: 6),
                                 _InfoChip(
                                   icon: listingCategoryIcon(listing.category),
@@ -1095,44 +1188,51 @@ class _ListingCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
+                  Positioned(top: 10, right: 8, child: priceColumn),
+                  if (favoriteButton != null)
+                    Positioned(bottom: 0, right: 0, child: favoriteButton),
                 ],
               ),
-            ),
-            Positioned(
-              top: 10,
-              right: 8,
-              child: Text(
-                listingPriceLabel(l10n, listing.price),
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ),
-            if (isAuthenticated && !isOwner)
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                  ),
-                  color: isFavorite ? colorScheme.primary : null,
-                  onPressed: () => context
-                      .read<MarketplaceCubit>()
-                      .toggleFavorite(listing.id),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
+}
+
+/// Builds listing's first image (or a placeholder/error icon), unwrapped so
+/// callers can size and clip it for either the fixed-size side thumbnail or
+/// the full-width compact top image.
+Widget _listingImage(BuildContext context, Listing listing) {
+  final colorScheme = Theme.of(context).colorScheme;
+  final image = listing.images.isEmpty ? null : listing.images.first;
+  final baseUrl = context.read<ApiClient>().baseUrl;
+
+  if (image == null) {
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+  return Image.network(
+    '$baseUrl${image.url}',
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stack) => Container(
+      color: colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.broken_image_outlined,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class _ListingThumbnail extends StatelessWidget {
@@ -1142,36 +1242,12 @@ class _ListingThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final image = listing.images.isEmpty ? null : listing.images.first;
-    final baseUrl = context.read<ApiClient>().baseUrl;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: 110,
         height: 92,
-        child: image == null
-            ? Container(
-                color: colorScheme.surfaceContainerHighest,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              )
-            : Image.network(
-                '$baseUrl${image.url}',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Container(
-                  color: colorScheme.surfaceContainerHighest,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+        child: _listingImage(context, listing),
       ),
     );
   }

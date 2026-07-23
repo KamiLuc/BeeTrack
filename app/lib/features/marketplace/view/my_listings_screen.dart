@@ -388,6 +388,82 @@ class _MyListingCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final isCompact = MediaQuery.sizeOf(context).width < 600;
+
+    final priceText = Text(
+      listingPriceLabel(l10n, listing.price),
+      style: textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: colorScheme.primary,
+      ),
+    );
+
+    final chipsRow = Wrap(
+      spacing: 10,
+      runSpacing: 4,
+      children: [
+        _Chip(
+          icon: listingCategoryIcon(listing.category),
+          label: listingCategoryLabel(l10n, listing.category),
+        ),
+        ListingStatusBadge(
+          status: listing.status,
+          rejectionReason: listing.rejectionReason,
+        ),
+        if (_isCertifiedHoney(listing))
+          _Chip(
+            icon: Icons.verified,
+            label: l10n.marketplaceCertifiedBadge,
+            color: colorScheme.primary,
+          ),
+        if (listing.isHidden)
+          _Chip(
+            icon: Icons.visibility_off_outlined,
+            label: l10n.marketplaceHiddenBadge,
+            color: colorScheme.error,
+          ),
+      ],
+    );
+
+    final menuButton = busy
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : PopupMenuButton<_CardAction>(
+            onSelected: (action) {
+              switch (action) {
+                case _CardAction.edit:
+                  onEdit();
+                case _CardAction.toggleHidden:
+                  onToggleHidden();
+                case _CardAction.delete:
+                  onDelete();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _CardAction.edit,
+                child: Text(l10n.generalEdit),
+              ),
+              PopupMenuItem(
+                value: _CardAction.toggleHidden,
+                child: Text(
+                  listing.isHidden
+                      ? l10n.marketplaceShowListing
+                      : l10n.marketplaceHideListing,
+                ),
+              ),
+              PopupMenuItem(
+                value: _CardAction.delete,
+                child: Text(
+                  l10n.generalDelete,
+                  style: TextStyle(color: colorScheme.error),
+                ),
+              ),
+            ],
+          );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -396,21 +472,58 @@ class _MyListingCard extends StatelessWidget {
         onTap: onTap,
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            if (isCompact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _MyListingThumbnail(listing: listing),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 92,
+                  SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: _myListingImage(context, listing),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                listing.title,
+                                style: textTheme.titleMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            priceText,
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        chipsRow,
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _MyListingThumbnail(listing: listing),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(right: 40),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               listing.title,
@@ -418,96 +531,35 @@ class _MyListingCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 4,
-                              children: [
-                                _Chip(
-                                  icon: listingCategoryIcon(listing.category),
-                                  label: listingCategoryLabel(
-                                    l10n,
-                                    listing.category,
-                                  ),
-                                ),
-                                ListingStatusBadge(
-                                  status: listing.status,
-                                  rejectionReason: listing.rejectionReason,
-                                ),
-                                if (listing.isHidden)
-                                  _Chip(
-                                    icon: Icons.visibility_off_outlined,
-                                    label: l10n.marketplaceHiddenBadge,
-                                    color: colorScheme.error,
-                                  ),
-                              ],
-                            ),
+                            const SizedBox(height: 6),
+                            chipsRow,
                           ],
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Text(
-                listingPriceLabel(l10n, listing.price),
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
+                  ],
                 ),
               ),
-            ),
+            if (!isCompact)
+              Positioned(bottom: 8, right: 8, child: priceText),
             Positioned(
               top: busy ? 14 : 4,
               right: busy ? 16 : 4,
-              child: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : PopupMenuButton<_CardAction>(
-                      onSelected: (action) {
-                        switch (action) {
-                          case _CardAction.edit:
-                            onEdit();
-                          case _CardAction.toggleHidden:
-                            onToggleHidden();
-                          case _CardAction.delete:
-                            onDelete();
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: _CardAction.edit,
-                          child: Text(l10n.generalEdit),
-                        ),
-                        PopupMenuItem(
-                          value: _CardAction.toggleHidden,
-                          child: Text(
-                            listing.isHidden
-                                ? l10n.marketplaceShowListing
-                                : l10n.marketplaceHideListing,
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _CardAction.delete,
-                          child: Text(
-                            l10n.generalDelete,
-                            style: TextStyle(color: colorScheme.error),
-                          ),
-                        ),
-                      ],
-                    ),
+              child: menuButton,
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Reports whether listing is a HONEY-category listing with an attached,
+/// blockchain-confirmed honey batch — the bar for showing the "certified"
+/// chip in its badge row.
+bool _isCertifiedHoney(Listing listing) {
+  return listing.category == 'HONEY' &&
+      listing.honeyBatch?.certificationStatus == 'confirmed';
 }
 
 class _MyListingThumbnail extends StatelessWidget {
@@ -517,39 +569,47 @@ class _MyListingThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final image = listing.images.isEmpty ? null : listing.images.first;
-    final baseUrl = context.read<ApiClient>().baseUrl;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: 110,
         height: 92,
-        child: image == null
-            ? Container(
-                color: colorScheme.surfaceContainerHighest,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              )
-            : Image.network(
-                '$baseUrl${image.url}',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Container(
-                  color: colorScheme.surfaceContainerHighest,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+        child: _myListingImage(context, listing),
       ),
     );
   }
+}
+
+/// Builds listing's first image (or a placeholder/error icon), unwrapped so
+/// callers can size and clip it for either the fixed-size side thumbnail or
+/// the full-width compact top image.
+Widget _myListingImage(BuildContext context, Listing listing) {
+  final colorScheme = Theme.of(context).colorScheme;
+  final image = listing.images.isEmpty ? null : listing.images.first;
+  final baseUrl = context.read<ApiClient>().baseUrl;
+
+  if (image == null) {
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+  return Image.network(
+    '$baseUrl${image.url}',
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stack) => Container(
+      color: colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.broken_image_outlined,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class _Chip extends StatelessWidget {

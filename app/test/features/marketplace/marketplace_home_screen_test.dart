@@ -1393,5 +1393,35 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'on a narrow screen, the listing card switches to a stacked layout '
+      'with the image on top, without overflowing',
+      (tester) async {
+        final originalSize = tester.view.physicalSize;
+        final originalRatio = tester.view.devicePixelRatio;
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.physicalSize = originalSize;
+          tester.view.devicePixelRatio = originalRatio;
+        });
+
+        final apiClient = await _fakeApiClientWithListings();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            const MarketplaceHomeScreen(),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Wildflower Honey'), findsOneWidget);
+      },
+    );
   });
 }

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/api/api_client.dart';
@@ -21,6 +22,7 @@ import '../../../features/apiary/data/apiary_repository.dart';
 import '../../../features/honey_batch/data/honey_batch_certification_model.dart';
 import '../../../features/honey_batch/data/honey_batch_model.dart';
 import '../../../features/honey_batch/data/honey_batch_repository.dart';
+import '../../../features/honey_batch/data/processing_method.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/listing_category.dart';
 import '../data/listing_model.dart';
@@ -145,9 +147,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   void _showGpsError(AppLocalizations l10n) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.marketplaceGpsUnavailable)));
+    showBigSnackBar(context, l10n.marketplaceGpsUnavailable);
   }
 
   Future<void> _pickOnMap() async {
@@ -270,7 +270,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     if (file == null || !mounted) return;
     final sizeError = await validateImageFileSize(file, l10n);
     if (sizeError != null) {
-      if (mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      if (mounted) showBigSnackBar(context, sizeError);
       return;
     }
     if (mounted) setState(() => _pendingImages.add(file));
@@ -295,9 +295,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _deletingImageIds.remove(image.id));
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.generalError)));
+        showBigSnackBar(context, l10n.generalError);
       }
     }
   }
@@ -682,13 +680,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                             onRemove: _removeImage,
                             onRemoveExisting: _removeExistingImage,
                           ),
-                          const SizedBox(height: 24),
-                          if (_submitError != null)
+                          if (_submitError != null) ...[
+                            const SizedBox(height: 16),
                             Text(
                               _submitError!,
                               textAlign: TextAlign.center,
                               style: TextStyle(color: colorScheme.error),
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -723,10 +722,22 @@ class _HoneyBatchAttachSection extends StatelessWidget {
     required this.onChanged,
   });
 
+  String _batchLabel(BuildContext context, HoneyBatchModel batch) {
+    final l10n = AppLocalizations.of(context)!;
+    final dateLabel = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).format(batch.gatheringDate);
+    final methodLabel = processingMethodLabel(l10n, batch.processingMethod);
+    return '${batch.honeyType} · ${batch.amountKg.toStringAsFixed(1)} kg · '
+        '$methodLabel · $dateLabel';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+
+    if (!loading && batches.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,17 +758,9 @@ class _HoneyBatchAttachSection extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           )
-        else if (batches.isEmpty)
-          Text(
-            l10n.marketplaceHoneyBatchNoneAvailable,
-            style: Theme.of(context).textTheme.bodySmall,
-          )
         else
           DropdownButtonFormField<int?>(
             initialValue: selectedId,
-            decoration: InputDecoration(
-              labelText: l10n.marketplaceHoneyBatchAttachLabel,
-            ),
             items: [
               DropdownMenuItem(
                 value: null,
@@ -767,7 +770,8 @@ class _HoneyBatchAttachSection extends StatelessWidget {
                 DropdownMenuItem(
                   value: batch.id,
                   child: Text(
-                    '${batch.honeyType} · ${batch.amountKg.toStringAsFixed(1)} kg',
+                    _batchLabel(context, batch),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],

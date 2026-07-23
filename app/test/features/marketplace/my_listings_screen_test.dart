@@ -149,6 +149,7 @@ Map<String, dynamic> _listingJson({
   bool isHidden = false,
   String status = 'approved',
   String? rejectionReason,
+  Map<String, dynamic>? honeyBatch,
 }) => {
   'id': id,
   'user_id': 1,
@@ -166,6 +167,8 @@ Map<String, dynamic> _listingJson({
   'created_at': DateTime(2026, 1, 1).toIso8601String(),
   'updated_at': DateTime(2026, 1, 1).toIso8601String(),
   'images': [],
+  if (honeyBatch != null) 'honey_batch_id': honeyBatch['id'],
+  if (honeyBatch != null) 'honey_batch': honeyBatch,
 };
 
 void main() {
@@ -207,6 +210,55 @@ void main() {
         expect(find.text('Wildflower Honey'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'on a narrow screen, the card switches to a stacked layout with the '
+      'image on top, without overflowing',
+      (tester) async {
+        final originalSize = tester.view.physicalSize;
+        final originalRatio = tester.view.devicePixelRatio;
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.physicalSize = originalSize;
+          tester.view.devicePixelRatio = originalRatio;
+        });
+
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Wildflower Honey'), findsOneWidget);
+      },
+    );
+
+    testWidgets('shows the certified badge for a listing with a confirmed honey batch', (
+      tester,
+    ) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      adapter.listings = [
+        _listingJson(
+          honeyBatch: {
+            'id': 3,
+            'honey_type': 'Wildflower',
+            'gathering_date': DateTime(2026, 1, 1).toIso8601String(),
+            'amount_grams': 2500,
+            'processing_method': 'raw',
+            'certification_status': 'confirmed',
+            'has_pdf': true,
+            'verification_url': 'https://example.com/verify/tok',
+          },
+        ),
+      ];
+
+      await tester.pumpWidget(_wrap(apiClient));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.marketplaceCertifiedBadge), findsOneWidget);
+    });
 
     testWidgets('renders a listing with the hidden badge when hidden', (
       tester,

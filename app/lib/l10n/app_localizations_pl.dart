@@ -478,14 +478,13 @@ class AppLocalizationsPl extends AppLocalizations {
       'Dołącz certyfikowaną partię miodu';
 
   @override
-  String get marketplaceHoneyBatchNoneAvailable =>
-      'Brak certyfikowanych partii miodu';
-
-  @override
   String get marketplaceHoneyBatchNone => 'Brak';
 
   @override
   String get marketplaceHoneyBatchSectionTitle => 'Certyfikowana partia miodu';
+
+  @override
+  String get marketplaceCertifiedBadge => 'Certyfikowany';
 
   @override
   String get marketplacePhotosLabel => 'Zdjęcia';
@@ -1209,9 +1208,6 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get honeyBatchNoPdf => 'Brak';
-
-  @override
-  String get honeyBatchViewPdf => 'Zobacz PDF';
 
   @override
   String get honeyBatchCertify => 'Certyfikuj';

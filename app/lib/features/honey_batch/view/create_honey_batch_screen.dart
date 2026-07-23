@@ -80,7 +80,7 @@ class _CreateHoneyBatchScreenState extends State<CreateHoneyBatchScreen> {
 
     final sizeError = validatePdfFileSize(file.size, AppLocalizations.of(context)!);
     if (sizeError != null) {
-      showPhotoTooLargeSnackBar(context, sizeError);
+      showBigSnackBar(context, sizeError);
       return;
     }
 

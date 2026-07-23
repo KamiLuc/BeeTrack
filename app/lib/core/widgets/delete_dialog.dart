@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../theme/app_layout.dart';
 
 /// Shows a delete confirmation dialog.
 /// When [withPuzzle] is true the user must solve a simple addition before
@@ -35,7 +36,7 @@ Future<bool> _showSimpleConfirm(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: Text(warning),
+      content: SizedBox(width: AppLayout.dialogWidth(ctx), child: Text(warning)),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
@@ -125,40 +126,43 @@ class _PuzzleDialogState extends State<_PuzzleDialog> {
     final l10n = widget.l10n;
     return AlertDialog(
       title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.warning),
-          const SizedBox(height: 16),
-          Text(l10n.deletePuzzlePrompt),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '$_a + $_b = ',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    errorText: _error,
-                  ),
-                  autofocus: true,
-                  onChanged: (_) {
-                    if (_error != null) setState(() => _error = null);
-                  },
-                  onSubmitted: (_) => _tryConfirm(),
+      content: SizedBox(
+        width: AppLayout.dialogWidth(context),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.warning),
+            const SizedBox(height: 16),
+            Text(l10n.deletePuzzlePrompt),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  '$_a + $_b = ',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-              ),
-            ],
-          ),
-        ],
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                      errorText: _error,
+                    ),
+                    autofocus: true,
+                    onChanged: (_) {
+                      if (_error != null) setState(() => _error = null);
+                    },
+                    onSubmitted: (_) => _tryConfirm(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

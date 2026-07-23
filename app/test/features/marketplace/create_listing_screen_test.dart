@@ -683,7 +683,7 @@ void main() {
       );
     });
 
-    testWidgets('shows "none available" when the user has no confirmed batches', (
+    testWidgets('hides the whole section when the user has no confirmed batches', (
       tester,
     ) async {
       final adapter = _RecordingHttpClientAdapter();
@@ -697,7 +697,7 @@ void main() {
       await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
       await tester.pumpAndSettle();
 
-      expect(find.text(l10n.marketplaceHoneyBatchNoneAvailable), findsOneWidget);
+      expect(find.text(l10n.marketplaceHoneyBatchAttachLabel), findsNothing);
     });
 
     testWidgets('threads the selected honey batch id into the create request', (
@@ -721,7 +721,7 @@ void main() {
 
       await tester.tap(find.byType(DropdownButtonFormField<int?>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Wildflower · 2.5 kg').last);
+      await tester.tap(find.textContaining('Wildflower · 2.5 kg').last);
       await tester.pumpAndSettle();
 
       await tester.enterText(

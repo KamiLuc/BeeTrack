@@ -1013,7 +1013,6 @@ void main() {
         expect(find.text(l10n.marketplaceHoneyBatchSectionTitle), findsOneWidget);
         expect(find.text('Wildflower'), findsOneWidget);
         expect(find.text('2.5 kg'), findsOneWidget);
-        expect(find.text(l10n.honeyBatchViewPdf), findsOneWidget);
         expect(find.text(l10n.honeyBatchOpenPublicPage), findsOneWidget);
       },
     );

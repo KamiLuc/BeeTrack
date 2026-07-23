@@ -827,26 +827,16 @@ class _HoneyBatchSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: batch.hasPdf && batch.pdfUrl != null
-                      ? () => _launchExternal(batch.pdfUrl!)
-                      : null,
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                  label: Text(l10n.honeyBatchViewPdf),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _launchExternal(batch.verificationUrl),
+              icon: const Icon(Icons.link, size: 18),
+              label: Text(
+                l10n.honeyBatchOpenPublicPage,
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _launchExternal(batch.verificationUrl),
-                  icon: const Icon(Icons.link, size: 18),
-                  label: Text(l10n.honeyBatchOpenPublicPage),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),

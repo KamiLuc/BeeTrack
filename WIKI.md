@@ -615,7 +615,9 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   │   pagination pattern as InspectionHistoryScreen). Adapts to whether you're logged
   │   in: shows the full drawer + profile icon when signed in, or a simpler drawer
   │   with a "Log in" option when browsing as a visitor. Cards for your own listings
-  │   never show the favorite heart.
+  │   never show the favorite heart. HONEY listings with a confirmed attached batch
+  │   show a "Certified" badge; cards stack the image above the details on narrow
+  │   (<600px) screens instead of a fixed-height row.
   │   Tune-icon button next to the category dropdown opens a Filters bottom sheet:
   │   price range (min/max), "posted within" (Any time/Today/7/14/30 days), and a
   │   Distance section ("Use my location" GPS button + a radius dropdown of
@@ -637,7 +639,8 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
   │   │   Lists all of the caller's own listings, including hidden ones, page by page
   │   │   (20 per page, same pagination pattern as InspectionHistoryScreen). Each card
   │   │   has a menu (edit / hide-show / delete); delete uses the math-puzzle
-  │   │   confirmation dialog.
+  │   │   confirmation dialog. Same "Certified" badge and narrow-screen stacked
+  │   │   layout as the search feed cards.
   │   └── CreateListingScreen (edit, via card menu)
   ├── FavoritesScreen (bookmark icon in bottom banner, signed-in only)
   │   │   Lists the caller's favorited listings. Tapping the heart on a card toggles
@@ -652,8 +655,8 @@ MarketplaceHomeScreen (public — reached from the drawer's "Marketplace" option
       │   edit and delete buttons in a bottom amber banner instead of an AppBar icon;
       │   delete uses the math-puzzle confirmation dialog. If a honey batch is
       │   attached, a section shows its honey type, gathering date, amount,
-      │   certification status, a PDF link, and a link to the public blockchain
-      │   verification page.
+      │   certification status, and a single button linking to the public
+      │   blockchain verification page (which itself links to the PDF).
 
 #### Hive list dialog (`_HiveListDialog`)
 Opened via the list icon in the bottom banner. Shows all hives sorted by last inspection date:

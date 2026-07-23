@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -19,6 +21,32 @@ import (
 // ErrAlreadyCertified means the contract already has a live certification
 // for the batch — the worker treats this as success, not a failure.
 var ErrAlreadyCertified = errors.New("batch already certified on-chain")
+
+// alreadyCertifiedSelector is the 4-byte selector for the contract's
+// AlreadyCertified(uint256) custom error.
+var alreadyCertifiedSelector = crypto.Keccak256([]byte("AlreadyCertified(uint256)"))[:4]
+
+// isAlreadyCertifiedRevert reports whether err is an RPC error whose raw
+// revert data matches the contract's AlreadyCertified(uint256) custom error.
+// go-ethereum's plain error message for a reverted custom error is just
+// "execution reverted" with no reason text — decoding the raw data via the
+// ErrorData() side channel (go-ethereum's rpc.DataError interface) is the
+// only reliable way to detect this specific revert.
+func isAlreadyCertifiedRevert(err error) bool {
+	de, ok := err.(interface{ ErrorData() interface{} })
+	if !ok {
+		return false
+	}
+	raw, ok := de.ErrorData().(string)
+	if !ok {
+		return false
+	}
+	data, decodeErr := hexutil.Decode(raw)
+	if decodeErr != nil || len(data) < 4 {
+		return false
+	}
+	return bytes.Equal(data[:4], alreadyCertifiedSelector)
+}
 
 // HoneyCertWriter signs and broadcasts certify() transactions. Only the
 // background worker should hold one — never the HTTP request path.
@@ -79,7 +107,7 @@ func (w *HoneyCertWriter) CertifyBatch(ctx context.Context, batchID int64, pdfHa
 
 	tx, err := w.contract.Transact(opts, "certify", big.NewInt(batchID), pdfHash, metadataHash)
 	if err != nil {
-		if strings.Contains(err.Error(), "AlreadyCertified") {
+		if strings.Contains(err.Error(), "AlreadyCertified") || isAlreadyCertifiedRevert(err) {
 			return "", ErrAlreadyCertified
 		}
 		return "", fmt.Errorf("send certify transaction: %w", err)

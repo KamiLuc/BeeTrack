@@ -262,7 +262,7 @@ func (s *ListingService) Create(ctx context.Context, userID int64, params Listin
 	if err := s.listings.Create(ctx, l); err != nil {
 		return nil, fmt.Errorf("create listing: %w", err)
 	}
-	return l, nil
+	return s.withHoneyBatch(ctx, l)
 }
 
 // Get returns a single listing, with its attached honey batch's details
@@ -282,7 +282,8 @@ func (s *ListingService) Get(ctx context.Context, viewerUserID, listingID int64)
 	return s.withHoneyBatch(ctx, l)
 }
 
-// Search returns a paginated slice of listings matching the filter and the total count.
+// Search returns a paginated slice of listings matching the filter and the total count,
+// each with its attached honey batch's details populated if one is set.
 func (s *ListingService) Search(ctx context.Context, f repository.ListingFilter) ([]*model.Listing, int64, error) {
 	total, err := s.listings.Count(ctx, f)
 	if err != nil {
@@ -291,6 +292,11 @@ func (s *ListingService) Search(ctx context.Context, f repository.ListingFilter)
 	listings, err := s.listings.List(ctx, f)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list listings: %w", err)
+	}
+	for _, l := range listings {
+		if _, err := s.withHoneyBatch(ctx, l); err != nil {
+			return nil, 0, err
+		}
 	}
 	return listings, total, nil
 }
@@ -394,7 +400,7 @@ func (s *ListingService) Update(ctx context.Context, userID, listingID int64, pa
 		}
 		l.Images = images
 	}
-	return l, nil
+	return s.withHoneyBatch(ctx, l)
 }
 
 // SetHidden toggles the visibility of a listing after verifying ownership.

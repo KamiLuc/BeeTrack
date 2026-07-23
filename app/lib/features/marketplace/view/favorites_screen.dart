@@ -197,55 +197,46 @@ class _FavoriteListingCard extends StatelessWidget {
                   _FavoriteThumbnail(listing: listing),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: SizedBox(
-                      height: 92,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 72),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 72),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            listing.title,
+                            style: textTheme.titleMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          if (listing.address.isNotEmpty)
                             Text(
-                              listing.title,
-                              style: textTheme.titleMedium,
-                              maxLines: 2,
+                              listing.address,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (listing.address.isNotEmpty)
-                                  Text(
-                                    listing.address,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                Text(
-                                  l10n.marketplacePostedOn(
-                                    DateFormat.yMMMd(
-                                      Localizations.localeOf(
-                                        context,
-                                      ).toString(),
-                                    ).add_Hm().format(listing.createdAt),
-                                  ),
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                _InfoChip(
-                                  icon: listingCategoryIcon(listing.category),
-                                  label: listingCategoryLabel(
-                                    l10n,
-                                    listing.category,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            l10n.marketplacePostedOn(
+                              DateFormat.yMMMd(
+                                Localizations.localeOf(context).toString(),
+                              ).add_Hm().format(listing.createdAt),
                             ),
-                          ],
-                        ),
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _InfoChip(
+                            icon: listingCategoryIcon(listing.category),
+                            label: listingCategoryLabel(
+                              l10n,
+                              listing.category,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -349,9 +340,14 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
+          ),
         ),
       ],
     );

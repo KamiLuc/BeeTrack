@@ -210,8 +210,17 @@ func TestProcessNextJob_AlreadyCertifiedRevert(t *testing.T) {
 	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}
 	certs := &mockCertRepo{}
 	writer := &mockWriter{err: blockchain.ErrAlreadyCertified}
-	reader := &mockReader{record: &blockchain.CertificationRecord{Timestamp: time.Unix(1000, 0)}}
-	w := newWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, reader)
+	batch := newTestBatch()
+	matchingHash, err := decodeHash32(batch.PDFFileHash)
+	if err != nil {
+		t.Fatalf("decodeHash32: %v", err)
+	}
+	reader := &mockReader{record: &blockchain.CertificationRecord{
+		Timestamp:    time.Unix(1000, 0),
+		PDFHash:      matchingHash,
+		MetadataHash: matchingHash,
+	}}
+	w := newWorker(jobs, certs, &mockBatchReader{batch: batch}, writer, reader)
 
 	processed, err := w.ProcessNextJob(context.Background())
 	if err != nil {
@@ -225,6 +234,34 @@ func TestProcessNextJob_AlreadyCertifiedRevert(t *testing.T) {
 	}
 	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusConfirmed {
 		t.Errorf("expected certification marked confirmed, got %+v", certs.updates)
+	}
+}
+
+// A batch id that was certified before but reused afterwards (e.g. the
+// Postgres id sequence restarting after a database reset) must not be
+// silently marked confirmed against someone else's on-chain certification.
+func TestProcessNextJob_AlreadyCertifiedRevert_HashMismatchFails(t *testing.T) {
+	jobs := &mockJobRepo{next: &model.BlockchainJob{ID: 1, BatchID: 7}}
+	certs := &mockCertRepo{}
+	writer := &mockWriter{err: blockchain.ErrAlreadyCertified}
+	reader := &mockReader{record: &blockchain.CertificationRecord{
+		Timestamp:    time.Unix(1000, 0),
+		PDFHash:      [32]byte{0xff},
+		MetadataHash: [32]byte{0xff},
+	}}
+	w := newWorker(jobs, certs, &mockBatchReader{batch: newTestBatch()}, writer, reader)
+
+	if _, err := w.ProcessNextJob(context.Background()); err == nil {
+		t.Fatal("expected ProcessNextJob to surface the hash-mismatch failure")
+	}
+	if jobs.confirmedCalled {
+		t.Error("expected job NOT to be marked confirmed on hash mismatch")
+	}
+	if jobs.failedErr == "" {
+		t.Error("expected job to be marked failed on hash mismatch")
+	}
+	if len(certs.updates) != 1 || certs.updates[0].status != model.CertificationStatusFailed {
+		t.Errorf("expected certification marked failed, got %+v", certs.updates)
 	}
 }
 
@@ -513,7 +550,15 @@ func TestProcessNextJob_MidBroadcastCrashRecovery(t *testing.T) {
 	// stuck job back to queued; here we just simulate ClaimNext returning it
 	// again for retry.
 	jobs.next = &model.BlockchainJob{ID: 1, BatchID: 7, AttemptCount: 1}
-	reader := &mockReader{record: &blockchain.CertificationRecord{Timestamp: time.Unix(2000, 0)}}
+	matchingHash, err := decodeHash32(newTestBatch().PDFFileHash)
+	if err != nil {
+		t.Fatalf("decodeHash32: %v", err)
+	}
+	reader := &mockReader{record: &blockchain.CertificationRecord{
+		Timestamp:    time.Unix(2000, 0),
+		PDFHash:      matchingHash,
+		MetadataHash: matchingHash,
+	}}
 	w2 := newWorker(jobs, certs, batches, &mockWriter{err: blockchain.ErrAlreadyCertified}, reader)
 
 	processed, err := w2.ProcessNextJob(context.Background())

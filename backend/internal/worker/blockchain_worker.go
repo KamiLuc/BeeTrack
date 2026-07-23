@@ -241,7 +241,7 @@ func (w *BlockchainWorker) ProcessNextJob(ctx context.Context) (processed bool, 
 
 	txHash, err := w.writer.CertifyBatch(ctx, batch.ID, pdfHash, metadataHash)
 	if errors.Is(err, blockchain.ErrAlreadyCertified) {
-		return true, w.handleAlreadyCertified(ctx, job, cert, batch.ID)
+		return true, w.handleAlreadyCertified(ctx, job, cert, batch.ID, pdfHash, metadataHash)
 	}
 	if err != nil {
 		return true, w.failJob(ctx, job, &cert.ID, err)
@@ -259,15 +259,27 @@ func (w *BlockchainWorker) ProcessNextJob(ctx context.Context) (processed bool, 
 }
 
 // handleAlreadyCertified treats the contract's "already certified" revert as
-// success (HC-BE-25's application-level idempotency safety net): the batch
-// is certified, just not by this attempt, so there's no transaction of our
-// own to track — the certification is marked confirmed immediately.
-func (w *BlockchainWorker) handleAlreadyCertified(ctx context.Context, job *model.BlockchainJob, cert *model.HoneyBatchCertification, batchID int64) error {
-	fields := map[string]any{}
-	if record, err := w.reader.GetCertification(ctx, batchID); err == nil {
-		fields["confirmation_timestamp"] = record.Timestamp
+// success (HC-BE-25's application-level idempotency safety net) only if the
+// on-chain record's hashes actually match what this job tried to submit —
+// the ordinary case is a previous worker crashing after broadcasting but
+// before recording its own successful tx. If batchID's on-chain slot holds
+// different hashes, this batch id was reused for unrelated content (e.g. a
+// database reset that restarted the id sequence) and must not be silently
+// marked confirmed against someone else's certification.
+func (w *BlockchainWorker) handleAlreadyCertified(ctx context.Context, job *model.BlockchainJob, cert *model.HoneyBatchCertification, batchID int64, pdfHash, metadataHash [32]byte) error {
+	record, err := w.reader.GetCertification(ctx, batchID)
+	if err != nil {
+		return w.failJob(ctx, job, &cert.ID, fmt.Errorf("batch already certified on-chain but could not read the record to verify it: %w", err))
 	}
-	if err := w.certifications.UpdateStatus(ctx, cert.ID, model.CertificationStatusConfirmed, fields); err != nil {
+	if record.PDFHash != pdfHash || record.MetadataHash != metadataHash {
+		return w.failJob(ctx, job, &cert.ID, fmt.Errorf(
+			"batch id %d already has a different certification on-chain (hash mismatch) — this batch id was reused for unrelated content",
+			batchID,
+		))
+	}
+	if err := w.certifications.UpdateStatus(ctx, cert.ID, model.CertificationStatusConfirmed, map[string]any{
+		"confirmation_timestamp": record.Timestamp,
+	}); err != nil {
 		return fmt.Errorf("mark certification confirmed (already certified): %w", err)
 	}
 	if err := w.jobs.MarkConfirmed(ctx, job.ID); err != nil {

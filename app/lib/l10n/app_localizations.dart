@@ -986,12 +986,6 @@ abstract class AppLocalizations {
   /// **'Dołącz certyfikowaną partię miodu'**
   String get marketplaceHoneyBatchAttachLabel;
 
-  /// No description provided for @marketplaceHoneyBatchNoneAvailable.
-  ///
-  /// In pl, this message translates to:
-  /// **'Brak certyfikowanych partii miodu'**
-  String get marketplaceHoneyBatchNoneAvailable;
-
   /// No description provided for @marketplaceHoneyBatchNone.
   ///
   /// In pl, this message translates to:
@@ -1003,6 +997,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Certyfikowana partia miodu'**
   String get marketplaceHoneyBatchSectionTitle;
+
+  /// No description provided for @marketplaceCertifiedBadge.
+  ///
+  /// In pl, this message translates to:
+  /// **'Certyfikowany'**
+  String get marketplaceCertifiedBadge;
 
   /// No description provided for @marketplacePhotosLabel.
   ///
@@ -2239,12 +2239,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Brak'**
   String get honeyBatchNoPdf;
-
-  /// No description provided for @honeyBatchViewPdf.
-  ///
-  /// In pl, this message translates to:
-  /// **'Zobacz PDF'**
-  String get honeyBatchViewPdf;
 
   /// No description provided for @honeyBatchCertify.
   ///

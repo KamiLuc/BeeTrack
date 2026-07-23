@@ -475,14 +475,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketplaceHoneyBatchAttachLabel => 'Attach certified honey batch';
 
   @override
-  String get marketplaceHoneyBatchNoneAvailable =>
-      'No certified honey batches available';
-
-  @override
   String get marketplaceHoneyBatchNone => 'None';
 
   @override
   String get marketplaceHoneyBatchSectionTitle => 'Certified honey batch';
+
+  @override
+  String get marketplaceCertifiedBadge => 'Certified';
 
   @override
   String get marketplacePhotosLabel => 'Photos';
@@ -1191,9 +1190,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get honeyBatchNoPdf => 'None';
-
-  @override
-  String get honeyBatchViewPdf => 'View PDF';
 
   @override
   String get honeyBatchCertify => 'Certify on blockchain';

@@ -208,7 +208,7 @@ class InspectionImagesSection extends StatelessWidget {
       AppLocalizations.of(context)!,
     );
     if (sizeError != null) {
-      if (context.mounted) showPhotoTooLargeSnackBar(context, sizeError);
+      if (context.mounted) showBigSnackBar(context, sizeError);
       return;
     }
     onAddPending(file);
