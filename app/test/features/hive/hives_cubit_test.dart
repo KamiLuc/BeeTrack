@@ -79,6 +79,7 @@ void main() {
         active: true,
         queenless: false,
         readyForHarvest: false,
+        needsFood: false,
         gridRow: 0,
         gridCol: 0,
       ),
@@ -158,6 +159,7 @@ void main() {
       active: true,
       queenless: false,
       readyForHarvest: false,
+      needsFood: false,
       gridRow: 0,
       gridCol: 0,
     );
@@ -231,6 +233,7 @@ void main() {
           active: true,
           queenless: false,
           readyForHarvest: false,
+          needsFood: false,
           gridRow: 0,
           gridCol: id,
           lastInspectedAt: date,

@@ -37,6 +37,7 @@ import (
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/migrations"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -83,6 +84,7 @@ func main() {
 	feedingRepo := repository.NewFeedingRepository(db)
 	harvestRepo := repository.NewHarvestRepository(db)
 	listingRepo := repository.NewListingRepository(db)
+	honeyBatchRepo := repository.NewHoneyBatchRepository(db)
 
 	user, err := ensureUser(ctx, userRepo, *email, *password)
 	if err != nil {
@@ -118,6 +120,8 @@ func main() {
 	log.Printf("created %d hives, %d inspections, %d treatments, %d feedings, %d harvests", len(allHives), inspectionCount, treatmentCount, feedingCount, harvestCount)
 
 	listings := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
+
+	seedHoneyBatches(ctx, honeyBatchRepo, user.ID)
 
 	images := listImageFiles(*imagesDir)
 	if len(images) == 0 {
@@ -207,6 +211,7 @@ func seedHives(ctx context.Context, repo *repository.HiveRepository, apiary *mod
 			Active:          idx%5 != 2,
 			Queenless:       idx%5 == 2,
 			ReadyForHarvest: idx%5 == 4,
+			NeedsFood:       idx%5 == 3,
 			GridRow:         idx / apiary.GridCols,
 			GridCol:         idx % apiary.GridCols,
 		}
@@ -227,10 +232,12 @@ func seedSpecialHives(ctx context.Context, repo *repository.HiveRepository, apia
 		active          bool
 		queenless       bool
 		readyForHarvest bool
+		needsFood       bool
 	}{
-		{"Sick", true, false, false},
-		{"Ready", true, false, true},
-		{"Queenless", true, true, false},
+		{"Sick", true, false, false, false},
+		{"Ready", true, false, true, false},
+		{"Queenless", true, true, false, false},
+		{"Needs Food", true, false, false, true},
 	}
 	var hives []*model.Hive
 	for i, s := range specs {
@@ -242,6 +249,7 @@ func seedSpecialHives(ctx context.Context, repo *repository.HiveRepository, apia
 			Active:          s.active,
 			Queenless:       s.queenless,
 			ReadyForHarvest: s.readyForHarvest,
+			NeedsFood:       s.needsFood,
 			GridRow:         idx / apiary.GridCols,
 			GridCol:         idx % apiary.GridCols,
 		}
@@ -543,6 +551,44 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 	all := append(specs, pendingSpecs...)
 	log.Printf("created %d listings (%d approved, %d pending review)", len(all), approved, len(pendingSpecs))
 	return all
+}
+
+var honeyBatchSpecs = []struct {
+	honeyType        string
+	processingMethod model.ProcessingMethod
+	amountGrams      int64
+	daysAgo          int
+}{
+	{"Wielokwiatowy", model.ProcessingMethodRaw, 12000, 45},
+	{"Rzepakowy", model.ProcessingMethodFiltered, 8000, 30},
+	{"Spadziowy", model.ProcessingMethodRaw, 6000, 20},
+	{"Gryczany", model.ProcessingMethodPasteurized, 9500, 15},
+	{"Akacjowy", model.ProcessingMethodFiltered, 5000, 5},
+}
+
+// seedHoneyBatches creates a handful of honey batches for userID with no
+// certification requested, leaving them available for the owner (or admin
+// review flows) to request certification on manually.
+func seedHoneyBatches(ctx context.Context, repo *repository.HoneyBatchRepository, userID int64) int {
+	for _, s := range honeyBatchSpecs {
+		token, err := uuid.NewRandom()
+		if err != nil {
+			log.Fatalf("generate verification token: %v", err)
+		}
+		batch := &model.HoneyBatch{
+			UserID:            userID,
+			VerificationToken: token.String(),
+			GatheringDate:     time.Now().AddDate(0, 0, -s.daysAgo),
+			AmountGrams:       s.amountGrams,
+			ProcessingMethod:  string(s.processingMethod),
+			HoneyType:         s.honeyType,
+		}
+		if err := repo.CreateWithCertificationRequest(ctx, batch, nil); err != nil {
+			log.Fatalf("create honey batch %q: %v", s.honeyType, err)
+		}
+	}
+	log.Printf("created %d honey batches", len(honeyBatchSpecs))
+	return len(honeyBatchSpecs)
 }
 
 var imageExtensions = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}

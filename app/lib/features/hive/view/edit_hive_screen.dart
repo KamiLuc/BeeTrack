@@ -31,6 +31,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   late bool _active;
   late bool _queenless;
   late bool _readyForHarvest;
+  late bool _needsFood;
   late Set<String> _hiveDiseases;
   Set<String> _existingNames = {};
   bool _loading = false;
@@ -43,6 +44,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     _active = widget.hive.active;
     _queenless = widget.hive.queenless;
     _readyForHarvest = widget.hive.readyForHarvest;
+    _needsFood = widget.hive.needsFood;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
     _loadExistingNames();
   }
@@ -81,6 +83,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
         active: _active,
         queenless: _queenless,
         readyForHarvest: _readyForHarvest,
+        needsFood: _needsFood,
       );
 
       final existing = widget.hive.diseases.map((d) => d.disease).toSet();
@@ -117,6 +120,7 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
           active: _active,
           queenless: _queenless,
           readyForHarvest: _readyForHarvest,
+          needsFood: _needsFood,
           gridRow: widget.hive.gridRow,
           gridCol: widget.hive.gridCol,
           diseases: [...keptDiseases, ...addedDiseases],
@@ -176,6 +180,11 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                     HiveReadyForHarvestToggle(
                       value: _readyForHarvest,
                       onChanged: (v) => setState(() => _readyForHarvest = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveNeedsFoodToggle(
+                      value: _needsFood,
+                      onChanged: (v) => setState(() => _needsFood = v),
                     ),
                     const SizedBox(height: 16),
                     HiveDiseasesSection(

@@ -468,6 +468,7 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
     "active": true,
     "queenless": false,
     "ready_for_harvest": false,
+    "needs_food": false,
     "frames": 10,
     "grid_row": 0,
     "grid_col": 0,
@@ -512,7 +513,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
 
 - `type` is optional — defaults to `"langstroth"`
 - `frames` is optional — defaults to `0` (not configured)
-- `active`, `queenless`, `ready_for_harvest` default to `false` if omitted
+- `active`, `queenless`, `ready_for_harvest`, `needs_food` default to `false` if omitted
 - `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
 - Each position within an apiary must be unique
 - `name` must be unique within the apiary, case-insensitive
@@ -527,6 +528,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "needs_food": false,
   "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
@@ -569,6 +571,7 @@ Returns a single hive. Caller must be a member of the apiary.
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "needs_food": false,
   "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
@@ -593,7 +596,7 @@ Returns a single hive. Caller must be a member of the apiary.
 
 ### PATCH /apiaries/{id}/hives/{hiveId} 🔒
 
-Updates a hive's name, type, and active status. Both owners and members can edit hives.
+Updates a hive's name, type, and status flags (`active`, `queenless`, `ready_for_harvest`, `needs_food`). Both owners and members can edit hives.
 
 **Request**
 ```json
@@ -603,6 +606,7 @@ Updates a hive's name, type, and active status. Both owners and members can edit
   "active": false,
   "queenless": true,
   "ready_for_harvest": false,
+  "needs_food": true,
   "frames": 12
 }
 ```
@@ -619,6 +623,7 @@ Updates a hive's name, type, and active status. Both owners and members can edit
   "active": false,
   "queenless": true,
   "ready_for_harvest": false,
+  "needs_food": true,
   "frames": 12,
   "grid_row": 0,
   "grid_col": 0,
@@ -699,6 +704,7 @@ Moves a hive to a new grid position. Both owners and members can move hives. Mov
   "active": true,
   "queenless": false,
   "ready_for_harvest": false,
+  "needs_food": false,
   "frames": 10,
   "grid_row": 2,
   "grid_col": 3,

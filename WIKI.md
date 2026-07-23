@@ -235,6 +235,7 @@ type Hive struct {
     Active          bool
     Queenless       bool
     ReadyForHarvest bool
+    NeedsFood       bool
     Frames          int      // total frame capacity; 0 means not set
     GridRow         int
     GridCol         int
@@ -348,7 +349,7 @@ type InspectionImage struct {
 ## Data Models (current fields)
 
 ```
-Hive             id, apiaryId, name, type, active, queenless, readyForHarvest,
+Hive             id, apiaryId, name, type, active, queenless, readyForHarvest, needsFood,
                  frames (int, 0 = not set), gridRow, gridCol,
                  diseases (List<HiveDisease>), lastInspectedAt?
 Apiary           id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?

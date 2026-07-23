@@ -1304,6 +1304,12 @@ abstract class AppLocalizations {
   /// **'Gotowy do zbioru'**
   String get hiveReadyForHarvest;
 
+  /// No description provided for @hiveNeedsFood.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wymaga dokarmiania'**
+  String get hiveNeedsFood;
+
   /// No description provided for @hiveSick.
   ///
   /// In pl, this message translates to:

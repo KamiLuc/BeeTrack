@@ -44,6 +44,7 @@ func hiveJSON(hive *model.Hive, diseases []*model.HiveDisease, lastInspectedAt *
 		"active":            hive.Active,
 		"queenless":         hive.Queenless,
 		"ready_for_harvest": hive.ReadyForHarvest,
+		"needs_food":        hive.NeedsFood,
 		"grid_row":          hive.GridRow,
 		"grid_col":          hive.GridCol,
 		"diseases":          dd,
@@ -188,6 +189,7 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Active          bool   `json:"active"`
 		Name            string `json:"name"`
+		NeedsFood       bool   `json:"needs_food"`
 		Queenless       bool   `json:"queenless"`
 		ReadyForHarvest bool   `json:"ready_for_harvest"`
 		Type            string `json:"type"`
@@ -197,7 +199,7 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless)
+	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless, req.NeedsFood)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -317,6 +319,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		GridCol         int    `json:"grid_col"`
 		GridRow         int    `json:"grid_row"`
 		Name            string `json:"name"`
+		NeedsFood       bool   `json:"needs_food"`
 		Queenless       bool   `json:"queenless"`
 		ReadyForHarvest bool   `json:"ready_for_harvest"`
 		Type            string `json:"type"`
@@ -336,7 +339,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.GridRow, req.GridCol)
+	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.NeedsFood, req.GridRow, req.GridCol)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):

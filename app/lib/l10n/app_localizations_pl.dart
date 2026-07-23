@@ -662,6 +662,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveReadyForHarvest => 'Gotowy do zbioru';
 
   @override
+  String get hiveNeedsFood => 'Wymaga dokarmiania';
+
+  @override
   String get hiveSick => 'Chory';
 
   @override

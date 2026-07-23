@@ -60,6 +60,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   late bool _hiveActive;
   late bool _hiveQueenless;
   late bool _hiveReadyForHarvest;
+  late bool _hiveNeedsFood;
   late Set<String> _hiveDiseases;
 
   List<InspectionImage> _existingImages = [];
@@ -110,6 +111,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     }
     _hiveQueenless = widget.hive.queenless;
     _hiveReadyForHarvest = widget.hive.readyForHarvest;
+    _hiveNeedsFood = widget.hive.needsFood;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
   }
 
@@ -278,7 +280,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   Future<void> _syncHiveState(BuildContext ctx, HiveRepository hiveRepo) async {
     if (_hiveActive != widget.hive.active ||
         _hiveQueenless != widget.hive.queenless ||
-        _hiveReadyForHarvest != widget.hive.readyForHarvest) {
+        _hiveReadyForHarvest != widget.hive.readyForHarvest ||
+        _hiveNeedsFood != widget.hive.needsFood) {
       await hiveRepo.updateHive(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
@@ -287,6 +290,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         active: _hiveActive,
         queenless: _hiveQueenless,
         readyForHarvest: _hiveReadyForHarvest,
+        needsFood: _hiveNeedsFood,
       );
     }
 
@@ -469,6 +473,13 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             value: _hiveReadyForHarvest,
                             onChanged: (v) =>
                                 setState(() => _hiveReadyForHarvest = v),
+                          ),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveNeedsFood,
+                            value: _hiveNeedsFood,
+                            onChanged: (v) =>
+                                setState(() => _hiveNeedsFood = v),
                           ),
                           const SizedBox(height: 12),
                           _BoolRow(

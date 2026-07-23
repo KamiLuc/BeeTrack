@@ -255,6 +255,7 @@
   },
   "hiveQueenless": "Bezmateczny",
   "hiveReadyForHarvest": "Gotowy do zbioru",
+  "hiveNeedsFood": "Wymaga dokarmiania",
   "hiveSick": "Chory",
   "hiveFilterTooltip": "Filtruj ule",
   "hiveListTooltip": "Lista uli",

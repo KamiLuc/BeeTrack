@@ -30,6 +30,7 @@ class Hive {
   final bool active;
   final bool queenless;
   final bool readyForHarvest;
+  final bool needsFood;
   final int gridRow;
   final int gridCol;
   final List<HiveDisease> diseases;
@@ -43,6 +44,7 @@ class Hive {
     required this.active,
     required this.queenless,
     required this.readyForHarvest,
+    required this.needsFood,
     required this.gridRow,
     required this.gridCol,
     this.diseases = const [],
@@ -62,6 +64,7 @@ class Hive {
       active: json['active'] as bool,
       queenless: json['queenless'] as bool? ?? false,
       readyForHarvest: json['ready_for_harvest'] as bool? ?? false,
+      needsFood: json['needs_food'] as bool? ?? false,
       gridRow: json['grid_row'] as int,
       gridCol: json['grid_col'] as int,
       diseases: diseasesList,
@@ -73,6 +76,7 @@ class Hive {
 
   Hive copyWith({
     bool? queenless,
+    bool? needsFood,
     List<HiveDisease>? diseases,
     DateTime? lastInspectedAt,
   }) {
@@ -84,6 +88,7 @@ class Hive {
       active: active,
       queenless: queenless ?? this.queenless,
       readyForHarvest: readyForHarvest,
+      needsFood: needsFood ?? this.needsFood,
       gridRow: gridRow,
       gridCol: gridCol,
       diseases: diseases ?? this.diseases,

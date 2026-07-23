@@ -62,6 +62,7 @@ func (r *HiveRepository) Update(ctx context.Context, h *model.Hive) error {
 		Updates(map[string]any{
 			"active":            h.Active,
 			"name":              h.Name,
+			"needs_food":        h.NeedsFood,
 			"queenless":         h.Queenless,
 			"ready_for_harvest": h.ReadyForHarvest,
 			"type":              h.Type,

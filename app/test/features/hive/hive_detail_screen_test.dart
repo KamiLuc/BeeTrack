@@ -13,6 +13,7 @@ const _active = Hive(
   active: true,
   queenless: false,
   readyForHarvest: false,
+  needsFood: false,
   gridRow: 0,
   gridCol: 0,
 );
@@ -25,6 +26,7 @@ const _inactive = Hive(
   active: false,
   queenless: false,
   readyForHarvest: false,
+  needsFood: false,
   gridRow: 0,
   gridCol: 1,
 );
@@ -37,6 +39,7 @@ const _queenless = Hive(
   active: true,
   queenless: true,
   readyForHarvest: false,
+  needsFood: false,
   gridRow: 1,
   gridCol: 0,
 );
@@ -49,8 +52,22 @@ const _readyForHarvest = Hive(
   active: true,
   queenless: false,
   readyForHarvest: true,
+  needsFood: false,
   gridRow: 1,
   gridCol: 1,
+);
+
+const _needsFood = Hive(
+  id: 7,
+  apiaryId: 1,
+  name: 'Eta',
+  type: 'langstroth',
+  active: true,
+  queenless: false,
+  readyForHarvest: false,
+  needsFood: true,
+  gridRow: 1,
+  gridCol: 3,
 );
 
 final _withDiseases = Hive(
@@ -61,6 +78,7 @@ final _withDiseases = Hive(
   active: true,
   queenless: false,
   readyForHarvest: false,
+  needsFood: false,
   gridRow: 1,
   gridCol: 2,
   diseases: const [HiveDisease(id: 1, disease: 'varroa')],
@@ -179,6 +197,20 @@ void main() {
         const HiveDetailScreen(hive: _active, apiaryId: 1),
       ));
       expect(find.text('Ready for harvest'), findsNothing);
+    });
+
+    testWidgets('shows Needs food chip only when needsFood is true', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _needsFood, apiaryId: 1),
+      ));
+      expect(find.text('Needs food'), findsOneWidget);
+    });
+
+    testWidgets('hides Needs food chip when needsFood is false', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _active, apiaryId: 1),
+      ));
+      expect(find.text('Needs food'), findsNothing);
     });
 
     testWidgets('shows Diseases section with disease chip when diseases present', (tester) async {

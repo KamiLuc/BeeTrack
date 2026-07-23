@@ -133,6 +133,27 @@ class HiveReadyForHarvestToggle extends StatelessWidget {
   }
 }
 
+class HiveNeedsFoodToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const HiveNeedsFoodToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _LabeledSwitch(
+      label: l10n.hiveNeedsFood,
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
+
 String hiveDiseaseLabel(AppLocalizations l10n, String v) => switch (v) {
   'varroa' => l10n.inspectionDiseaseVarroa,
   'nosema' => l10n.inspectionDiseaseNosema,

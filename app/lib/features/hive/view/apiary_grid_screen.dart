@@ -20,7 +20,7 @@ import 'add_hive_screen.dart';
 import 'bulk_hive_selection_dialog.dart';
 import 'hive_detail_screen.dart';
 
-enum _HiveFilter { readyForHarvest, queenless, sick }
+enum _HiveFilter { readyForHarvest, queenless, needsFood, sick }
 
 class ApiaryGridScreen extends StatelessWidget {
   final Apiary apiary;
@@ -74,6 +74,9 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     if (_activeFilters.contains(_HiveFilter.readyForHarvest) &&
         hive.readyForHarvest) return true;
     if (_activeFilters.contains(_HiveFilter.queenless) && hive.queenless) {
+      return true;
+    }
+    if (_activeFilters.contains(_HiveFilter.needsFood) && hive.needsFood) {
       return true;
     }
     if (_activeFilters.contains(_HiveFilter.sick) && hive.diseases.isNotEmpty) {
@@ -334,6 +337,7 @@ class _FilterBar extends StatelessWidget {
     final chips = [
       (_HiveFilter.readyForHarvest, l10n.hiveReadyForHarvest),
       (_HiveFilter.queenless, l10n.hiveQueenless),
+      (_HiveFilter.needsFood, l10n.hiveNeedsFood),
       (_HiveFilter.sick, l10n.hiveSick),
     ];
     showDialog<void>(
@@ -679,6 +683,7 @@ class _HiveStatusIcons extends StatelessWidget {
     final icons = [
       if (hive.queenless) (Icons.female_outlined, color),
       if (hive.readyForHarvest) (Icons.water_drop_outlined, Colors.amber.shade700),
+      if (hive.needsFood) (Icons.restaurant_outlined, Colors.orange.shade700),
       if (hive.diseases.isNotEmpty) (Icons.coronavirus_outlined, Colors.red.shade400),
     ];
     if (icons.isEmpty) return const SizedBox.shrink();

@@ -74,7 +74,7 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 }
 
 // Update modifies a hive's name, type, and status fields. The caller must be an apiary member.
-func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless bool) (*model.Hive, error) {
+func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless, needsFood bool) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -113,6 +113,7 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 	hive.Active = active
 	hive.ReadyForHarvest = readyForHarvest
 	hive.Queenless = queenless
+	hive.NeedsFood = needsFood
 
 	if err := s.hives.Update(ctx, hive); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -348,7 +349,7 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 }
 
 // Add creates a hive at the given grid position within an apiary. The caller must be an apiary member.
-func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest bool, gridRow, gridCol int) (*model.Hive, error) {
+func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest, needsFood bool, gridRow, gridCol int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -394,6 +395,7 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 		Active:          active,
 		Queenless:       queenless,
 		ReadyForHarvest: readyForHarvest,
+		NeedsFood:       needsFood,
 		GridRow:         gridRow,
 		GridCol:         gridCol,
 	}

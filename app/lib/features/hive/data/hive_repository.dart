@@ -38,6 +38,7 @@ class HiveRepository {
     required bool active,
     required bool queenless,
     required bool readyForHarvest,
+    required bool needsFood,
     required int gridRow,
     required int gridCol,
   }) async {
@@ -47,6 +48,7 @@ class HiveRepository {
         'grid_col': gridCol,
         'grid_row': gridRow,
         'name': name,
+        'needs_food': needsFood,
         'queenless': queenless,
         'ready_for_harvest': readyForHarvest,
         'type': type,
@@ -64,11 +66,13 @@ class HiveRepository {
     required bool active,
     required bool queenless,
     required bool readyForHarvest,
+    required bool needsFood,
   }) async {
     try {
       await _api.dio.patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
         'active': active,
         'name': name,
+        'needs_food': needsFood,
         'queenless': queenless,
         'ready_for_harvest': readyForHarvest,
         'type': type,

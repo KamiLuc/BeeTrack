@@ -255,6 +255,7 @@
   },
   "hiveQueenless": "Queenless",
   "hiveReadyForHarvest": "Ready for harvest",
+  "hiveNeedsFood": "Needs food",
   "hiveSick": "Sick",
   "hiveFilterTooltip": "Filter hives",
   "hiveListTooltip": "Hive list",

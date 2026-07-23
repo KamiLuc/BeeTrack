@@ -654,6 +654,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveReadyForHarvest => 'Ready for harvest';
 
   @override
+  String get hiveNeedsFood => 'Needs food';
+
+  @override
   String get hiveSick => 'Sick';
 
   @override

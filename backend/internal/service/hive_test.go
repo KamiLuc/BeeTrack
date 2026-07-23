@@ -187,7 +187,7 @@ func TestAddHive_Success(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 	apiaryMock.role = "owner"
 
-	hive, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, 0, 0)
+	hive, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, false, 0, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -206,12 +206,29 @@ func TestAddHive_Success(t *testing.T) {
 	}
 }
 
+func TestAddHive_NeedsFood(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	apiaryMock.role = "owner"
+
+	hive, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, true, 0, 0)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !hive.NeedsFood {
+		t.Error("expected hive to need food")
+	}
+	if !hiveMock.created.NeedsFood {
+		t.Error("expected created hive to need food")
+	}
+}
+
 func TestAddHive_MemberCanAdd(t *testing.T) {
 	svc, apiaryMock, _ := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 	apiaryMock.role = "member"
 
-	_, err := svc.Add(context.Background(), 2, 1, "Hive B", "langstroth", true, false, false, 1, 1)
+	_, err := svc.Add(context.Background(), 2, 1, "Hive B", "langstroth", true, false, false, false, 1, 1)
 	if err != nil {
 		t.Fatalf("members should be allowed to add hives, got %v", err)
 	}
@@ -221,7 +238,7 @@ func TestAddHive_Inactive(t *testing.T) {
 	svc, apiaryMock, hiveMock := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
-	_, err := svc.Add(context.Background(), 1, 1, "Old Hive", "langstroth", false, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, "Old Hive", "langstroth", false, false, false, false, 0, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -233,7 +250,7 @@ func TestAddHive_Inactive(t *testing.T) {
 func TestAddHive_NoName(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
-	_, err := svc.Add(context.Background(), 1, 1, "", "langstroth", true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, "", "langstroth", true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrNameRequired) {
 		t.Errorf("expected ErrNameRequired, got %v", err)
 	}
@@ -243,7 +260,7 @@ func TestAddHive_NameTooLong(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
 	name := strings.Repeat("a", 51)
-	_, err := svc.Add(context.Background(), 1, 1, name, "langstroth", true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, name, "langstroth", true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrNameTooLong) {
 		t.Errorf("expected ErrNameTooLong, got %v", err)
 	}
@@ -253,7 +270,7 @@ func TestAddHive_TypeTooLong(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
 	hiveType := strings.Repeat("a", 51)
-	_, err := svc.Add(context.Background(), 1, 1, "Hive A", hiveType, true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, "Hive A", hiveType, true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrHiveTypeTooLong) {
 		t.Errorf("expected ErrHiveTypeTooLong, got %v", err)
 	}
@@ -262,7 +279,7 @@ func TestAddHive_TypeTooLong(t *testing.T) {
 func TestAddHive_ApiaryNotFound(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
-	_, err := svc.Add(context.Background(), 1, 99, "Hive A", "langstroth", true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 99, "Hive A", "langstroth", true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
 	}
@@ -274,7 +291,7 @@ func TestAddHive_OutOfBounds(t *testing.T) {
 
 	cases := [][2]int{{-1, 0}, {0, -1}, {3, 0}, {0, 4}}
 	for _, c := range cases {
-		_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, c[0], c[1])
+		_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, false, c[0], c[1])
 		if !errors.Is(err, ErrInvalidGridPosition) {
 			t.Errorf("row=%d col=%d: expected ErrInvalidGridPosition, got %v", c[0], c[1], err)
 		}
@@ -286,7 +303,7 @@ func TestUpdateHive_Success(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Old", Type: "langstroth", Active: true}
 
-	hive, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false, true, true)
+	hive, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false, true, true, false)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -302,11 +319,25 @@ func TestUpdateHive_Success(t *testing.T) {
 	}
 }
 
+func TestUpdateHive_NeedsFood(t *testing.T) {
+	svc, apiaryMock, hiveMock := newTestHiveService()
+	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Old", Type: "langstroth", Active: true}
+
+	hive, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", true, false, false, true)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !hive.NeedsFood {
+		t.Errorf("expected hive to need food, got %+v", hive)
+	}
+}
+
 func TestUpdateHive_NoName(t *testing.T) {
 	svc, apiaryMock, _ := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
-	_, err := svc.Update(context.Background(), 1, 1, 10, "", "langstroth", true, false, false)
+	_, err := svc.Update(context.Background(), 1, 1, 10, "", "langstroth", true, false, false, false)
 	if !errors.Is(err, ErrNameRequired) {
 		t.Errorf("expected ErrNameRequired, got %v", err)
 	}
@@ -317,7 +348,7 @@ func TestUpdateHive_NameTooLong(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
 	name := strings.Repeat("a", 51)
-	_, err := svc.Update(context.Background(), 1, 1, 10, name, "langstroth", true, false, false)
+	_, err := svc.Update(context.Background(), 1, 1, 10, name, "langstroth", true, false, false, false)
 	if !errors.Is(err, ErrNameTooLong) {
 		t.Errorf("expected ErrNameTooLong, got %v", err)
 	}
@@ -328,7 +359,7 @@ func TestUpdateHive_TypeTooLong(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
 	hiveType := strings.Repeat("a", 51)
-	_, err := svc.Update(context.Background(), 1, 1, 10, "Name", hiveType, true, false, false)
+	_, err := svc.Update(context.Background(), 1, 1, 10, "Name", hiveType, true, false, false, false)
 	if !errors.Is(err, ErrHiveTypeTooLong) {
 		t.Errorf("expected ErrHiveTypeTooLong, got %v", err)
 	}
@@ -337,7 +368,7 @@ func TestUpdateHive_TypeTooLong(t *testing.T) {
 func TestUpdateHive_ApiaryNotFound(t *testing.T) {
 	svc, _, _ := newTestHiveService()
 
-	_, err := svc.Update(context.Background(), 1, 99, 10, "Name", "langstroth", true, false, false)
+	_, err := svc.Update(context.Background(), 1, 99, 10, "Name", "langstroth", true, false, false, false)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
 	}
@@ -349,7 +380,7 @@ func TestUpdateHive_DuplicateName(t *testing.T) {
 	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1, Name: "Old", Type: "langstroth", Active: true}
 	hiveMock.duplicateName = true
 
-	_, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false, true, true)
+	_, err := svc.Update(context.Background(), 1, 1, 10, "New Name", "top_bar", false, true, true, false)
 	if !errors.Is(err, ErrDuplicateHiveName) {
 		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
 	}
@@ -359,7 +390,7 @@ func TestUpdateHive_HiveNotFound(t *testing.T) {
 	svc, apiaryMock, _ := newTestHiveService()
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 
-	_, err := svc.Update(context.Background(), 1, 1, 99, "Name", "langstroth", true, false, false)
+	_, err := svc.Update(context.Background(), 1, 1, 99, "Name", "langstroth", true, false, false, false)
 	if !errors.Is(err, ErrHiveNotFound) {
 		t.Errorf("expected ErrHiveNotFound, got %v", err)
 	}
@@ -503,7 +534,7 @@ func TestAddHive_PositionOccupied(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 	hiveMock.occupied = true
 
-	_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrPositionOccupied) {
 		t.Errorf("expected ErrPositionOccupied, got %v", err)
 	}
@@ -514,7 +545,7 @@ func TestAddHive_DuplicateName(t *testing.T) {
 	apiaryMock.apiary = &model.Apiary{ID: 1, GridRows: 3, GridCols: 4}
 	hiveMock.duplicateName = true
 
-	_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, 0, 0)
+	_, err := svc.Add(context.Background(), 1, 1, "Hive A", "langstroth", true, false, false, false, 0, 0)
 	if !errors.Is(err, ErrDuplicateHiveName) {
 		t.Errorf("expected ErrDuplicateHiveName, got %v", err)
 	}

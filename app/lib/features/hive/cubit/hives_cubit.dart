@@ -46,6 +46,7 @@ class HivesCubit extends Cubit<HivesState> {
             active: h.active,
             queenless: h.queenless,
             readyForHarvest: h.readyForHarvest,
+            needsFood: h.needsFood,
             gridRow: row,
             gridCol: col,
             diseases: h.diseases,

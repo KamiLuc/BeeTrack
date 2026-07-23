@@ -418,6 +418,12 @@ class _InfoCard extends StatelessWidget {
           background: Colors.amber.shade100,
           foreground: Colors.amber.shade900,
         ),
+      if (hive.needsFood)
+        _StatusChip(
+          label: l10n.hiveNeedsFood,
+          background: Colors.orange.shade100,
+          foreground: Colors.orange.shade900,
+        ),
     ];
 
     return Card(

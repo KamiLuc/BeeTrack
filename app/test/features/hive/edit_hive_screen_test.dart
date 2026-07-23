@@ -63,6 +63,7 @@ const _hive = Hive(
   active: true,
   queenless: false,
   readyForHarvest: false,
+  needsFood: false,
   gridRow: 0,
   gridCol: 0,
 );

@@ -10,6 +10,7 @@ type Hive struct {
 	Active          bool
 	ReadyForHarvest bool
 	Queenless       bool
+	NeedsFood       bool
 	GridRow         int
 	GridCol         int
 	CreatedAt       time.Time
