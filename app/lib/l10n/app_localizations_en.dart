@@ -476,6 +476,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'You\'ve reached the limit of 20 listings. Delete one to create another.';
 
   @override
+  String get marketplaceLastPhotoRequired =>
+      'A listing must keep at least one photo';
+
+  @override
   String get marketplaceApiaryNone => 'None';
 
   @override

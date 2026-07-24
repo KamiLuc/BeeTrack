@@ -62,7 +62,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   bool _loadingBatches = false;
   final List<XFile> _pendingImages = [];
   late List<ListingImage> _existingImages;
-  final Set<int> _deletingImageIds = {};
+  final Set<int> _pendingRemovalIds = {};
   final Map<XFile, double> _uploadProgress = {};
   bool _saving = false;
   bool _locating = false;
@@ -282,24 +282,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => _pendingImages.remove(file));
   }
 
-  Future<void> _removeExistingImage(ListingImage image) async {
-    final l10n = AppLocalizations.of(context)!;
-    final repo = ListingRepository(api: context.read<ApiClient>());
-    setState(() => _deletingImageIds.add(image.id));
-    try {
-      await repo.deleteImage(widget.existingListing!.id, image.id);
-      if (mounted) {
-        setState(() {
-          _existingImages.remove(image);
-          _deletingImageIds.remove(image.id);
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _deletingImageIds.remove(image.id));
-        showBigSnackBar(context, l10n.generalError);
-      }
-    }
+  /// Removes an already-uploaded photo locally — the deletion itself is
+  /// deferred to submit, so removing a listing's only photo can still be
+  /// undone (or flagged by the photo-required check) before it's persisted.
+  void _removeExistingImage(ListingImage image) {
+    setState(() {
+      _existingImages.remove(image);
+      _pendingRemovalIds.add(image.id);
+    });
+    _reviewPhotoError();
   }
 
   void _reviewPhotoError() {
@@ -329,7 +320,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         _phoneController.text.trim().isNotEmpty ||
         _emailController.text.trim().isNotEmpty;
     final location = _location;
-    final hasPhoto = widget.isEditing || _totalPhotoCount > 0;
+    final hasPhoto = _totalPhotoCount > 0;
     if (!formValid ||
         _category == null ||
         !hasContact ||
@@ -355,7 +346,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     try {
       final int listingId;
       if (widget.isEditing) {
-        final listing = await repo.updateListing(
+        await repo.updateListing(
           id: widget.existingListing!.id,
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
@@ -370,7 +361,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           contactEmail: _emailController.text.trim(),
           honeyBatchId: _honeyBatchId,
         );
-        listingId = listing.id;
+        listingId = widget.existingListing!.id;
       } else {
         final listing = await repo.createListing(
           title: _titleController.text.trim(),
@@ -388,23 +379,47 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         );
         listingId = listing.id;
       }
-      for (final file in _pendingImages) {
-        await repo.uploadImage(
-          listingId,
-          file,
-          onSendProgress: (sent, total) {
-            if (total <= 0 || !mounted) return;
-            setState(() => _uploadProgress[file] = sent / total);
-          },
-        );
+      // Walk the queued removals/uploads one step at a time, tracking the
+      // photo count the server actually has right now (it starts at the
+      // pre-edit count, since none of today's deletes/uploads have run yet).
+      // At each step we only delete while that count is still above 1, and
+      // only upload while it's still below the 3-photo cap — both of which
+      // the backend enforces — so e.g. swapping a listing's only photo for
+      // a new one uploads the replacement first instead of deleting the
+      // last photo out from under an empty listing.
+      var serverPhotoCount = widget.existingListing?.images.length ?? 0;
+      while (_pendingRemovalIds.isNotEmpty || _pendingImages.isNotEmpty) {
+        if (_pendingRemovalIds.isNotEmpty && serverPhotoCount > 1) {
+          final id = _pendingRemovalIds.first;
+          await repo.deleteImage(listingId, id);
+          if (mounted) setState(() => _pendingRemovalIds.remove(id));
+          serverPhotoCount--;
+        } else if (_pendingImages.isNotEmpty &&
+            serverPhotoCount < _kMaxListingPhotos) {
+          final file = _pendingImages.first;
+          await repo.uploadImage(
+            listingId,
+            file,
+            onSendProgress: (sent, total) {
+              if (total <= 0 || !mounted) return;
+              setState(() => _uploadProgress[file] = sent / total);
+            },
+          );
+          if (mounted) setState(() => _pendingImages.remove(file));
+          serverPhotoCount++;
+        } else {
+          break;
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() {
-          _submitError = (e is ApiException && e.code == 'LISTING_LIMIT_REACHED')
-              ? l10n.marketplaceListingLimitReached
-              : l10n.generalError;
+          _submitError = switch ((e is ApiException) ? e.code : null) {
+            'LISTING_LIMIT_REACHED' => l10n.marketplaceListingLimitReached,
+            'LAST_PHOTO' => l10n.marketplaceLastPhotoRequired,
+            _ => l10n.generalError,
+          };
           _saving = false;
         });
       }
@@ -691,7 +706,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                           const SizedBox(height: 24),
                           _PhotosSection(
                             existingImages: _existingImages,
-                            deletingImageIds: _deletingImageIds,
                             pendingImages: _pendingImages,
                             uploadProgress: _uploadProgress,
                             totalCount: _totalPhotoCount,
@@ -885,7 +899,6 @@ class _ListingFormBanner extends StatelessWidget {
 
 class _PhotosSection extends StatelessWidget {
   final List<ListingImage> existingImages;
-  final Set<int> deletingImageIds;
   final List<XFile> pendingImages;
   final Map<XFile, double> uploadProgress;
   final int totalCount;
@@ -895,7 +908,6 @@ class _PhotosSection extends StatelessWidget {
 
   const _PhotosSection({
     required this.existingImages,
-    required this.deletingImageIds,
     required this.pendingImages,
     required this.uploadProgress,
     required this.totalCount,
@@ -938,7 +950,6 @@ class _PhotosSection extends StatelessWidget {
                               image: image,
                               baseUrl: baseUrl,
                               size: size,
-                              deleting: deletingImageIds.contains(image.id),
                               disabled: saving,
                               onRemove: () => onRemoveExisting(image),
                             ),
@@ -969,7 +980,6 @@ class _ExistingThumbnail extends StatelessWidget {
   final ListingImage image;
   final String baseUrl;
   final double size;
-  final bool deleting;
   final bool disabled;
   final VoidCallback onRemove;
 
@@ -977,7 +987,6 @@ class _ExistingThumbnail extends StatelessWidget {
     required this.image,
     required this.baseUrl,
     required this.size,
-    required this.deleting,
     required this.disabled,
     required this.onRemove,
   });
@@ -1004,23 +1013,7 @@ class _ExistingThumbnail extends StatelessWidget {
               ),
             ),
           ),
-          if (deleting)
-            const Positioned.fill(
-              child: ColoredBox(
-                color: Colors.black38,
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else if (!disabled)
+          if (!disabled)
             Positioned(
               top: 2,
               right: 2,

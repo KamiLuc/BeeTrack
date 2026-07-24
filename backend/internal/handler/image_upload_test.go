@@ -117,6 +117,10 @@ func (f *fakeListingReader) GetByID(ctx context.Context, id int64) (*model.Listi
 	return f.listing, nil
 }
 
+func (f *fakeListingReader) Update(ctx context.Context, l *model.Listing) error {
+	return nil
+}
+
 // fakeListingImageStore is a minimal service.ListingImageStore for handler tests.
 type fakeListingImageStore struct{}
 

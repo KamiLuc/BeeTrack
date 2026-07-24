@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -42,6 +43,7 @@ func (m *mockListingImageStore) DeleteImage(ctx context.Context, imageID int64) 
 
 type mockListingReader struct {
 	listing *model.Listing
+	updated *model.Listing
 }
 
 func (m *mockListingReader) GetByID(ctx context.Context, id int64) (*model.Listing, error) {
@@ -49,6 +51,11 @@ func (m *mockListingReader) GetByID(ctx context.Context, id int64) (*model.Listi
 		return nil, gorm.ErrRecordNotFound
 	}
 	return m.listing, nil
+}
+
+func (m *mockListingReader) Update(ctx context.Context, l *model.Listing) error {
+	m.updated = l
+	return nil
 }
 
 func newTestListingImageService(t *testing.T) (*ListingImageService, *mockListingReader, *mockListingImageStore, string) {
@@ -76,6 +83,44 @@ func TestListingImageUpload_Success(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, img.ImageURL)); err != nil {
 		t.Errorf("expected file written to disk: %v", err)
+	}
+}
+
+func TestListingImageUpload_ResetsRejectedListingToPending(t *testing.T) {
+	svc, reader, _, _ := newTestListingImageService(t)
+	reason := "blurry photo"
+	reader.listing = &model.Listing{
+		ID:              5,
+		UserID:          3,
+		Status:          model.ListingStatusRejected,
+		RejectionReason: &reason,
+	}
+
+	_, err := svc.Upload(context.Background(), 3, 5, "image/jpeg", []byte{0xFF, 0xD8, 0xFF})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reader.updated == nil {
+		t.Fatal("expected the listing to be updated")
+	}
+	if reader.updated.Status != model.ListingStatusPending {
+		t.Errorf("expected status pending, got %q", reader.updated.Status)
+	}
+	if reader.updated.RejectionReason != nil {
+		t.Errorf("expected rejection reason cleared, got %v", *reader.updated.RejectionReason)
+	}
+}
+
+func TestListingImageUpload_LeavesPendingListingAlone(t *testing.T) {
+	svc, reader, _, _ := newTestListingImageService(t)
+	reader.listing = &model.Listing{ID: 5, UserID: 3, Status: model.ListingStatusPending}
+
+	_, err := svc.Upload(context.Background(), 3, 5, "image/jpeg", []byte{0xFF, 0xD8, 0xFF})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reader.updated != nil {
+		t.Error("expected no update for an already-pending listing")
 	}
 }
 
@@ -210,6 +255,10 @@ func TestListingImageDelete_Success(t *testing.T) {
 	filename := "todelete.jpg"
 	_ = os.WriteFile(filepath.Join(dir, filename), []byte{1}, 0o644)
 	store.image = &model.ListingImage{ID: 7, ListingID: 5, ImageURL: filename}
+	store.images = []model.ListingImage{
+		{ID: 7, ListingID: 5, ImageURL: filename},
+		{ID: 8, ListingID: 5, ImageURL: "other.jpg"},
+	}
 
 	if err := svc.Delete(context.Background(), 3, 5, 7); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -219,6 +268,56 @@ func TestListingImageDelete_Success(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, filename)); !os.IsNotExist(err) {
 		t.Error("expected file removed from disk")
+	}
+}
+
+func TestListingImageDelete_ResetsApprovedListingToPending(t *testing.T) {
+	svc, reader, store, dir := newTestListingImageService(t)
+	reviewer := int64(9)
+	reviewedAt := time.Now()
+	reader.listing = &model.Listing{
+		ID:         5,
+		UserID:     3,
+		Status:     model.ListingStatusApproved,
+		ReviewedBy: &reviewer,
+		ReviewedAt: &reviewedAt,
+	}
+	filename := "todelete.jpg"
+	_ = os.WriteFile(filepath.Join(dir, filename), []byte{1}, 0o644)
+	store.image = &model.ListingImage{ID: 7, ListingID: 5, ImageURL: filename}
+	store.images = []model.ListingImage{
+		{ID: 7, ListingID: 5, ImageURL: filename},
+		{ID: 8, ListingID: 5, ImageURL: "other.jpg"},
+	}
+
+	if err := svc.Delete(context.Background(), 3, 5, 7); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reader.updated == nil {
+		t.Fatal("expected the listing to be updated")
+	}
+	if reader.updated.Status != model.ListingStatusPending {
+		t.Errorf("expected status pending, got %q", reader.updated.Status)
+	}
+	if reader.updated.ReviewedBy != nil || reader.updated.ReviewedAt != nil {
+		t.Error("expected reviewer info cleared")
+	}
+}
+
+func TestListingImageDelete_LastPhotoRejected(t *testing.T) {
+	svc, reader, store, dir := newTestListingImageService(t)
+	reader.listing = &model.Listing{ID: 5, UserID: 3}
+	filename := "onlyphoto.jpg"
+	_ = os.WriteFile(filepath.Join(dir, filename), []byte{1}, 0o644)
+	store.image = &model.ListingImage{ID: 7, ListingID: 5, ImageURL: filename}
+	store.images = []model.ListingImage{{ID: 7, ListingID: 5, ImageURL: filename}}
+
+	err := svc.Delete(context.Background(), 3, 5, 7)
+	if !errors.Is(err, ErrListingImageLastPhoto) {
+		t.Errorf("expected ErrListingImageLastPhoto, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, filename)); err != nil {
+		t.Error("expected file to remain on disk")
 	}
 }
 

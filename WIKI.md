@@ -438,9 +438,9 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | PATCH | `/api/v1/listings/{id}` | Update listing (owner only) — an already-approved listing goes back to pending review |
 | PATCH | `/api/v1/listings/{id}/hide` | Toggle listing visibility (owner only) |
 | DELETE | `/api/v1/listings/{id}` | Delete listing (owner only) |
-| POST | `/api/v1/listings/{id}/images` | Upload listing image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 3 per listing; owner only) |
+| POST | `/api/v1/listings/{id}/images` | Upload listing image (multipart, field `image`; max 10 MB; jpeg/png/webp; max 3 per listing; owner only); resets an already-approved/rejected listing back to pending review |
 | GET | `/api/v1/listings/{id}/images/{imageId}/file` | Serve listing image bytes (public, `Cache-Control: public, max-age=86400`) |
-| DELETE | `/api/v1/listings/{id}/images/{imageId}` | Delete listing image (owner only) |
+| DELETE | `/api/v1/listings/{id}/images/{imageId}` | Delete listing image (owner only, cannot remove the last photo); resets an already-approved/rejected listing back to pending review |
 | POST | `/api/v1/listings/{id}/favorite` | Favorite a listing (auth; idempotent) |
 | DELETE | `/api/v1/listings/{id}/favorite` | Unfavorite a listing (auth; no-op if not favorited) |
 | GET | `/api/v1/listings/{id}/favorite` | Check whether caller has favorited a listing (auth) |

@@ -15,6 +15,7 @@ import (
 var (
 	ErrListingImageNotFound  = errors.New("listing image not found")
 	ErrListingImageMaxImages = errors.New("a listing may have at most 3 images")
+	ErrListingImageLastPhoto = errors.New("a listing must keep at least one photo")
 )
 
 // listingAllowedMIME maps accepted upload content types to file extensions.
@@ -31,9 +32,11 @@ var listingExtMIME = map[string]string{
 	".webp": "image/webp",
 }
 
-// ListingImageReader fetches listings for ownership checks.
+// ListingImageReader fetches listings for ownership checks and persists the
+// re-review reset triggered by a photo change.
 type ListingImageReader interface {
 	GetByID(ctx context.Context, id int64) (*model.Listing, error)
+	Update(ctx context.Context, l *model.Listing) error
 }
 
 // ListingImageStore is the persistence interface for listing images.
@@ -93,7 +96,8 @@ func (s *ListingImageService) Upload(ctx context.Context, userID, listingID int6
 	if !ok {
 		return nil, ErrInvalidImageType
 	}
-	if _, err := s.ownedListing(ctx, userID, listingID); err != nil {
+	l, err := s.ownedListing(ctx, userID, listingID)
+	if err != nil {
 		return nil, err
 	}
 	existing, err := s.images.ListImagesByListingID(ctx, listingID)
@@ -119,6 +123,9 @@ func (s *ListingImageService) Upload(ctx context.Context, userID, listingID int6
 		_ = os.Remove(filepath.Join(s.storagePath, filename))
 		return nil, fmt.Errorf("create image record: %w", err)
 	}
+	if err := s.resetToPendingIfReviewed(ctx, l); err != nil {
+		return nil, fmt.Errorf("reset listing to pending: %w", err)
+	}
 	return img, nil
 }
 
@@ -135,8 +142,10 @@ func (s *ListingImageService) GetFile(ctx context.Context, listingID, imageID in
 }
 
 // Delete verifies ownership, removes the file from disk, and deletes the DB record.
+// A listing's last remaining photo cannot be deleted — every listing must keep at least one.
 func (s *ListingImageService) Delete(ctx context.Context, userID, listingID, imageID int64) error {
-	if _, err := s.ownedListing(ctx, userID, listingID); err != nil {
+	l, err := s.ownedListing(ctx, userID, listingID)
+	if err != nil {
 		return err
 	}
 	img, err := s.images.GetImageByID(ctx, imageID, listingID)
@@ -146,9 +155,34 @@ func (s *ListingImageService) Delete(ctx context.Context, userID, listingID, ima
 		}
 		return fmt.Errorf("get image: %w", err)
 	}
+	existing, err := s.images.ListImagesByListingID(ctx, listingID)
+	if err != nil {
+		return fmt.Errorf("list images: %w", err)
+	}
+	if len(existing) <= 1 {
+		return ErrListingImageLastPhoto
+	}
 	_ = os.Remove(filepath.Join(s.storagePath, img.ImageURL))
 	if err := s.images.DeleteImage(ctx, imageID); err != nil {
 		return fmt.Errorf("delete image record: %w", err)
 	}
+	if err := s.resetToPendingIfReviewed(ctx, l); err != nil {
+		return fmt.Errorf("reset listing to pending: %w", err)
+	}
 	return nil
+}
+
+// resetToPendingIfReviewed sends a listing whose photos just changed back
+// into the moderation queue if it had already been approved or rejected —
+// the reviewer hasn't seen this photo yet. A listing still pending review
+// is left alone.
+func (s *ListingImageService) resetToPendingIfReviewed(ctx context.Context, l *model.Listing) error {
+	if l.Status != model.ListingStatusApproved && l.Status != model.ListingStatusRejected {
+		return nil
+	}
+	l.Status = model.ListingStatusPending
+	l.RejectionReason = nil
+	l.ReviewedBy = nil
+	l.ReviewedAt = nil
+	return s.listings.Update(ctx, l)
 }

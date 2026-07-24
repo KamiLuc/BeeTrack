@@ -34,6 +34,8 @@ func listingImageError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusRequestEntityTooLarge, "IMAGE_TOO_LARGE", err.Error())
 	case errors.Is(err, service.ErrListingImageMaxImages):
 		respond.Error(w, http.StatusBadRequest, "TOO_MANY_IMAGES", err.Error())
+	case errors.Is(err, service.ErrListingImageLastPhoto):
+		respond.Error(w, http.StatusBadRequest, "LAST_PHOTO", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

@@ -2303,9 +2303,11 @@ Deletes a listing. Only the owner can delete. Images cascade.
 
 ## Listing Images
 
-Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **5 MB**. Maximum **3 images per listing**.
+Images are stored on the server under a Docker volume. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Maximum file size: **5 MB**. Maximum **3 images per listing**. A listing must always keep at least one photo.
 
 Images are cascade-deleted when the parent listing is deleted.
+
+Uploading or deleting an image on a listing that was previously `approved` or `rejected` resets it back to `pending` admin review (clearing rejection reason and reviewer info), same as editing other listing fields.
 
 **Image object**
 ```json
@@ -2362,7 +2364,7 @@ Serves the raw image bytes with the correct `Content-Type` header. Public — hi
 
 ### DELETE /listings/{id}/images/{imageId} 🔒
 
-Deletes an image from the DB and from disk. Only the listing owner can delete.
+Deletes an image from the DB and from disk. Only the listing owner can delete. Cannot delete a listing's last remaining photo.
 
 **Response** `204 No Content`
 
@@ -2374,6 +2376,7 @@ Deletes an image from the DB and from disk. Only the listing owner can delete.
 | `INVALID_ID` | 400 | Path `{id}` or `{imageId}` is not a valid integer |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `IMAGE_NOT_FOUND` | 404 | Image does not exist for this listing |
+| `LAST_PHOTO` | 400 | Image is the listing's only remaining photo |
 | `NOT_OWNER` | 403 | Caller is not the listing owner |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 

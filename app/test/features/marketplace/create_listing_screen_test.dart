@@ -50,6 +50,7 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
   List<Map<String, dynamic>> honeyBatches = [];
   bool failCreate = false;
   String? failCreateCode;
+  String? failDeleteImageCode;
   int _nextImageId = 1;
 
   @override
@@ -116,6 +117,16 @@ class _RecordingHttpClientAdapter implements HttpClientAdapter {
       });
     }
     if (options.path.contains('/images') && options.method == 'DELETE') {
+      if (failDeleteImageCode != null) {
+        throw DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 400,
+            data: {'code': failDeleteImageCode, 'message': 'last photo'},
+          ),
+        );
+      }
       return _json({});
     }
     if (RegExp(r'/listings/\d+$').hasMatch(options.path) &&
@@ -1078,7 +1089,14 @@ void main() {
     ) async {
       final adapter = _RecordingHttpClientAdapter();
       final apiClient = await _fakeApiClient(adapter);
-      final listing = _existingListing();
+      final image = ListingImage(
+        id: 3,
+        listingId: 5,
+        url: '/uploads/a.jpg',
+        displayOrder: 0,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final listing = _existingListing(images: [image]);
       bool? result;
 
       await tester.pumpWidget(
@@ -1109,7 +1127,74 @@ void main() {
     });
 
     testWidgets(
-      'shows existing images and deletes one via the repository on tap',
+      'removes an existing photo locally, deferring the delete request '
+      'until save',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final secondImage = ListingImage(
+          id: 4,
+          listingId: 5,
+          url: '/uploads/b.jpg',
+          displayOrder: 1,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image, secondImage]);
+
+        await tester.pumpWidget(
+          _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('${l10n.marketplacePhotosLabel}  2/3'),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.close), findsNWidgets(2));
+
+        await tester.ensureVisible(find.byIcon(Icons.close).first);
+        await tester.tap(find.byIcon(Icons.close).first);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('${l10n.marketplacePhotosLabel}  1/3'),
+          findsOneWidget,
+        );
+        expect(
+          adapter.requests.where(
+            (r) =>
+                r.path.endsWith(
+                  '/listings/${listing.id}/images/${image.id}',
+                ) &&
+                r.method == 'DELETE',
+          ),
+          isEmpty,
+        );
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        final deleteRequests = adapter.requests.where(
+          (r) =>
+              r.path.endsWith('/listings/${listing.id}/images/${image.id}') &&
+              r.method == 'DELETE',
+        );
+        expect(deleteRequests, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'removing a listing\'s last photo blocks save with the photo-required '
+      'error, without calling the API',
       (tester) async {
         final adapter = _RecordingHttpClientAdapter();
         final apiClient = await _fakeApiClient(adapter);
@@ -1127,26 +1212,327 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(
-          find.text('${l10n.marketplacePhotosLabel}  1/3'),
-          findsOneWidget,
-        );
         expect(find.byIcon(Icons.close), findsOneWidget);
 
         await tester.ensureVisible(find.byIcon(Icons.close));
         await tester.tap(find.byIcon(Icons.close));
         await tester.pumpAndSettle();
 
+        expect(find.textContaining(l10n.marketplacePhotosLabel), findsNothing);
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsOneWidget);
         expect(
-          find.textContaining(l10n.marketplacePhotosLabel),
-          findsNothing,
+          adapter.requests.any(
+            (r) =>
+                r.path.endsWith('/listings/${listing.id}') &&
+                r.method == 'PATCH',
+          ),
+          isFalse,
         );
-        final deleteRequests = adapter.requests.where(
+        expect(
+          adapter.requests.any(
+            (r) =>
+                r.path.endsWith(
+                  '/listings/${listing.id}/images/${image.id}',
+                ) &&
+                r.method == 'DELETE',
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    testWidgets(
+      'removing every existing photo and adding one back interleaves the '
+      'delete/upload calls so the last removal is never sent before a '
+      'replacement upload',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+        final images = [
+          for (var i = 0; i < 3; i++)
+            ListingImage(
+              id: i + 1,
+              listingId: 5,
+              url: '/uploads/$i.jpg',
+              displayOrder: i,
+              createdAt: DateTime(2026, 1, 1),
+            ),
+        ];
+        final listing = _existingListing(images: images);
+        bool? result;
+
+        await tester.pumpWidget(
+          _wrapWithNavigator(
+            apiClient,
+            existingListing: listing,
+            onResult: (r) => result = r,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        for (var i = 0; i < 3; i++) {
+          await tester.ensureVisible(find.byIcon(Icons.close).first);
+          await tester.tap(find.byIcon(Icons.close).first);
+          await tester.pumpAndSettle();
+        }
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(result, isTrue);
+        final relevant = adapter.requests.where(
           (r) =>
-              r.path.endsWith('/listings/${listing.id}/images/${image.id}') &&
-              r.method == 'DELETE',
+              (r.path.endsWith('/images') && r.method == 'POST') ||
+              (RegExp(r'/images/\d+$').hasMatch(r.path) &&
+                  r.method == 'DELETE'),
         );
-        expect(deleteRequests, hasLength(1));
+        final lastDeleteIndex = relevant.toList().lastIndexWhere(
+          (r) => r.method == 'DELETE',
+        );
+        final firstUploadIndex = relevant.toList().indexWhere(
+          (r) => r.method == 'POST',
+        );
+        expect(
+          firstUploadIndex,
+          lessThan(lastDeleteIndex),
+          reason:
+              'the new photo must be uploaded before the last old photo is '
+              'deleted, so the listing never has zero photos server-side',
+        );
+      },
+    );
+
+    testWidgets(
+      'removing a listing\'s sole existing photo and adding two new ones '
+      'uploads at least one replacement before the removal is sent',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image]);
+        bool? result;
+
+        await tester.pumpWidget(
+          _wrapWithNavigator(
+            apiClient,
+            existingListing: listing,
+            onResult: (r) => result = r,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.byIcon(Icons.close));
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        for (var i = 0; i < 2; i++) {
+          await tester.ensureVisible(addPhotoFinder);
+          await tester.tap(addPhotoFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+          await tester.pumpAndSettle();
+        }
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(result, isTrue);
+        final relevant = adapter.requests.where(
+          (r) =>
+              (r.path.endsWith('/images') && r.method == 'POST') ||
+              (RegExp(r'/images/\d+$').hasMatch(r.path) &&
+                  r.method == 'DELETE'),
+        );
+        expect(relevant.first.method, 'POST');
+      },
+    );
+
+    testWidgets(
+      'removing the last existing photo and adding a new one allows save '
+      'to succeed',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image]);
+        bool? result;
+
+        await tester.pumpWidget(
+          _wrapWithNavigator(
+            apiClient,
+            existingListing: listing,
+            onResult: (r) => result = r,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.byIcon(Icons.close));
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsNothing);
+        expect(result, isTrue);
+      },
+    );
+
+    testWidgets(
+      'clears the photo-required error once a new photo is added after an '
+      'earlier failed save attempt',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter();
+        final apiClient = await _fakeApiClient(adapter);
+        final imagePicker = _FakeImagePickerPlatform();
+        ImagePickerPlatform.instance = imagePicker;
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image]);
+        bool? result;
+
+        await tester.pumpWidget(
+          _wrapWithNavigator(
+            apiClient,
+            existingListing: listing,
+            onResult: (r) => result = r,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.byIcon(Icons.close));
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsOneWidget);
+
+        final addPhotoFinder = find.widgetWithIcon(
+          IconButton,
+          Icons.add_photo_alternate_outlined,
+        );
+        await tester.ensureVisible(addPhotoFinder);
+        await tester.tap(addPhotoFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplacePhotoSourceGallery));
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsNothing);
+
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplacePhotoRequired), findsNothing);
+        expect(result, isTrue);
+      },
+    );
+
+    testWidgets(
+      'shows the last-photo error and stops if the API still rejects the '
+      'deferred delete on save',
+      (tester) async {
+        final adapter = _RecordingHttpClientAdapter()
+          ..failDeleteImageCode = 'LAST_PHOTO';
+        final apiClient = await _fakeApiClient(adapter);
+        final image = ListingImage(
+          id: 3,
+          listingId: 5,
+          url: '/uploads/a.jpg',
+          displayOrder: 0,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final secondImage = ListingImage(
+          id: 4,
+          listingId: 5,
+          url: '/uploads/b.jpg',
+          displayOrder: 1,
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final listing = _existingListing(images: [image, secondImage]);
+
+        await tester.pumpWidget(
+          _wrap(apiClient, CreateListingScreen(existingListing: listing)),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.byIcon(Icons.close).first);
+        await tester.tap(find.byIcon(Icons.close).first);
+        await tester.pumpAndSettle();
+
+        final saveFinder = find.byIcon(Icons.check);
+        await tester.ensureVisible(saveFinder);
+        await tester.tap(saveFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.marketplaceLastPhotoRequired), findsOneWidget);
       },
     );
   });
@@ -1251,14 +1637,21 @@ void main() {
         displayOrder: 0,
         createdAt: DateTime(2026, 1, 1),
       );
-      final listing = _existingListing(images: [image]);
+      final secondImage = ListingImage(
+        id: 4,
+        listingId: 5,
+        url: '/uploads/b.jpg',
+        displayOrder: 1,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final listing = _existingListing(images: [image, secondImage]);
 
       await tester.pumpWidget(
         _wrap(apiClient, CreateListingScreen(existingListing: listing)),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNWidgets(2));
 
       final saveFinder = find.byIcon(Icons.check);
       await tester.ensureVisible(saveFinder);

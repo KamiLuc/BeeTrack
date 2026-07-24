@@ -478,6 +478,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Osiągnięto limit 20 ogłoszeń. Usuń jedno, aby dodać kolejne.';
 
   @override
+  String get marketplaceLastPhotoRequired =>
+      'Ogłoszenie musi mieć co najmniej jedno zdjęcie';
+
+  @override
   String get marketplaceApiaryNone => 'Brak';
 
   @override

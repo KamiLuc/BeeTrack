@@ -644,7 +644,18 @@ void main() {
       'prefilled, and refetches the listing after a successful edit',
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient(userId: 5);
-        final listing = _listing(category: 'HONEY');
+        final listing = _listing(
+          category: 'HONEY',
+          images: [
+            ListingImage(
+              id: 1,
+              listingId: 1,
+              url: '/uploads/a.jpg',
+              displayOrder: 0,
+              createdAt: DateTime(2026, 1, 1),
+            ),
+          ],
+        );
 
         await tester.pumpWidget(
           _wrap(ListingDetailScreen(listing: listing), apiClient: apiClient),

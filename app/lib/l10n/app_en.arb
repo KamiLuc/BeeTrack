@@ -186,6 +186,7 @@
   "marketplaceContactRequired": "Provide a phone number or email",
   "marketplacePhotoRequired": "Add at least one photo",
   "marketplaceListingLimitReached": "You've reached the limit of 20 listings. Delete one to create another.",
+  "marketplaceLastPhotoRequired": "A listing must keep at least one photo",
   "marketplaceApiaryNone": "None",
   "marketplaceHoneyBatchAttachLabel": "Attach certified honey batch",
   "marketplaceHoneyBatchNone": "None",

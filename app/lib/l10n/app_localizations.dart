@@ -986,6 +986,12 @@ abstract class AppLocalizations {
   /// **'Osiągnięto limit 20 ogłoszeń. Usuń jedno, aby dodać kolejne.'**
   String get marketplaceListingLimitReached;
 
+  /// No description provided for @marketplaceLastPhotoRequired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ogłoszenie musi mieć co najmniej jedno zdjęcie'**
+  String get marketplaceLastPhotoRequired;
+
   /// No description provided for @marketplaceApiaryNone.
   ///
   /// In pl, this message translates to:
