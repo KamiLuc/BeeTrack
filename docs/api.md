@@ -2455,20 +2455,24 @@ All routes below require both a valid JWT (`Authorization: Bearer`) and the call
 
 ### Admin: Marketplace Listing Moderation
 
-Admin listing objects have the same shape as the public listing object (see [Listing object](#listing-object)), plus two extra fields:
+Admin listing objects have the same shape as the public listing object (see [Listing object](#listing-object)), plus extra fields:
 
 ```json
 {
   "...": "...",
   "status": "pending",
   "rejection_reason": null,
-  "is_edit": false
+  "is_edit": false,
+  "certification_request_id": null,
+  "certification_request_status": null
 }
 ```
 
 - `status` — `"pending"`, `"approved"`, or `"rejected"`
 - `rejection_reason` — nullable string, set when `status` is `"rejected"`
 - `is_edit` — `true` if this is an edit of a previously-approved listing (as opposed to a brand-new one); both sit at `status: "pending"` otherwise
+- `certification_request_id` — nullable integer; the id of the listing's honey batch's latest certification request, present when the listing has a honey batch and that batch has at least one certification request, otherwise `null`
+- `certification_request_status` — nullable string (`"pending"`, `"approved"`, or `"rejected"`); the status of that certification request, `null` whenever `certification_request_id` is `null`. Lets the admin panel link a `HONEY` listing to its certification review page (`/certifications/{certification_request_id}`)
 
 ---
 

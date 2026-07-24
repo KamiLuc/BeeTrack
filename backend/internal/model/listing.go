@@ -51,6 +51,13 @@ type Listing struct {
 	HoneyBatchHasPDF              bool       `gorm:"-"`
 	HoneyBatchVerificationURL     string     `gorm:"-"`
 	HoneyBatchPDFURL              string     `gorm:"-"`
+
+	// CertificationRequest* fields are populated only by
+	// ListingModerationService.Get, from the attached honey batch's latest
+	// certification request (if any) — used by the admin panel to link a
+	// HONEY listing to its certification review.
+	CertificationRequestID     *int64 `gorm:"-"`
+	CertificationRequestStatus string `gorm:"-"`
 }
 
 // IsEdit distinguishes an edit of a previously-approved listing from a

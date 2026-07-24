@@ -86,7 +86,7 @@ func main() {
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
 	listingFavoriteSvc := service.NewListingFavoriteService(listingFavoriteRepo, listingRepo)
 	userSvc := service.NewUserService(userRepo)
-	listingModerationSvc := service.NewListingModerationService(listingRepo)
+	listingModerationSvc := service.NewListingModerationService(listingRepo, honeyBatchCertificationRequestRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)

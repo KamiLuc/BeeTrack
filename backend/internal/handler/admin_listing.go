@@ -23,26 +23,32 @@ func NewAdminListingHandler(moderation *service.ListingModerationService) *Admin
 }
 
 func adminListingJSON(l *model.Listing) map[string]any {
+	var certRequestStatus any
+	if l.CertificationRequestID != nil {
+		certRequestStatus = l.CertificationRequestStatus
+	}
 	return map[string]any{
-		"id":               l.ID,
-		"user_id":          l.UserID,
-		"owner_email":      l.OwnerEmail,
-		"title":            l.Title,
-		"description":      l.Description,
-		"category":         l.Category,
-		"price":            l.Price,
-		"quantity":         l.Quantity,
-		"address":          l.Address,
-		"lat":              l.Lat,
-		"lng":              l.Lng,
-		"contact_phone":    l.ContactPhone,
-		"contact_email":    l.ContactEmail,
-		"status":           l.Status,
-		"rejection_reason": l.RejectionReason,
-		"is_edit":          l.IsEdit(),
-		"created_at":       l.CreatedAt,
-		"updated_at":       l.UpdatedAt,
-		"images":           adminListingImagesJSON(l),
+		"id":                           l.ID,
+		"user_id":                      l.UserID,
+		"owner_email":                  l.OwnerEmail,
+		"title":                        l.Title,
+		"description":                  l.Description,
+		"category":                     l.Category,
+		"price":                        l.Price,
+		"quantity":                     l.Quantity,
+		"address":                      l.Address,
+		"lat":                          l.Lat,
+		"lng":                          l.Lng,
+		"contact_phone":                l.ContactPhone,
+		"contact_email":                l.ContactEmail,
+		"status":                       l.Status,
+		"rejection_reason":             l.RejectionReason,
+		"is_edit":                      l.IsEdit(),
+		"created_at":                   l.CreatedAt,
+		"updated_at":                   l.UpdatedAt,
+		"images":                       adminListingImagesJSON(l),
+		"certification_request_id":     l.CertificationRequestID,
+		"certification_request_status": certRequestStatus,
 	}
 }
 

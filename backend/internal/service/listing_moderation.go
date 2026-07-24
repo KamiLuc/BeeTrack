@@ -48,12 +48,20 @@ type ListingModerationStore interface {
 	Restore(ctx context.Context, id, reviewerID int64) error
 }
 
-type ListingModerationService struct {
-	listings ListingModerationStore
+// CertificationRequestReader looks up a honey batch's latest certification
+// request, so the admin listing detail view can link a HONEY listing to its
+// certification review.
+type CertificationRequestReader interface {
+	GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertificationRequest, error)
 }
 
-func NewListingModerationService(listings ListingModerationStore) *ListingModerationService {
-	return &ListingModerationService{listings: listings}
+type ListingModerationService struct {
+	listings     ListingModerationStore
+	certRequests CertificationRequestReader
+}
+
+func NewListingModerationService(listings ListingModerationStore, certRequests CertificationRequestReader) *ListingModerationService {
+	return &ListingModerationService{listings: listings, certRequests: certRequests}
 }
 
 // List returns listings for the admin review queue, optionally filtered by status
@@ -70,6 +78,16 @@ func (s *ListingModerationService) Get(ctx context.Context, listingID int64) (*m
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get listing: %w", err)
+	}
+	if l.HoneyBatchID != nil {
+		req, err := s.certRequests.GetLatestByBatchID(ctx, *l.HoneyBatchID)
+		if err != nil {
+			return nil, fmt.Errorf("get certification request: %w", err)
+		}
+		if req != nil {
+			l.CertificationRequestID = &req.ID
+			l.CertificationRequestStatus = req.Status
+		}
 	}
 	return l, nil
 }

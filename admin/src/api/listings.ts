@@ -28,6 +28,8 @@ export type AdminListing = {
   created_at: string;
   updated_at: string;
   images: ListingImage[];
+  certification_request_id: number | null;
+  certification_request_status: "pending" | "approved" | "rejected" | null;
 };
 
 export type Page<T> = { items: T[]; total: number };

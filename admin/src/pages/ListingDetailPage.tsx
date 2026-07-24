@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError, resourceUrl } from "../api/client";
 import {
   approveListing,
@@ -181,6 +181,16 @@ export function ListingDetailPage() {
               <div className="detail-row rejection">
                 <dt>{t("listingDetail.rejectionReason")}</dt>
                 <dd>{listing.rejection_reason}</dd>
+              </div>
+            )}
+            {listing.certification_request_id !== null && (
+              <div className="detail-row">
+                <dt>{t("listingDetail.colCertification")}</dt>
+                <dd>
+                  <Link to={`/certifications/${listing.certification_request_id}`}>
+                    {t("listingDetail.viewCertification")}
+                  </Link>
+                </dd>
               </div>
             )}
           </dl>

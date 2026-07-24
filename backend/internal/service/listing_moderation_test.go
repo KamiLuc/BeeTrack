@@ -84,12 +84,28 @@ func (m *mockListingModerationStore) Restore(ctx context.Context, id, reviewerID
 	return nil
 }
 
+type mockCertificationRequestReader struct {
+	byBatchID map[int64]*model.HoneyBatchCertificationRequest
+	err       error
+}
+
+func (m *mockCertificationRequestReader) GetLatestByBatchID(ctx context.Context, batchID int64) (*model.HoneyBatchCertificationRequest, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.byBatchID[batchID], nil
+}
+
+func newTestListingModerationService(store ListingModerationStore) *ListingModerationService {
+	return NewListingModerationService(store, &mockCertificationRequestReader{byBatchID: map[int64]*model.HoneyBatchCertificationRequest{}})
+}
+
 func TestListingModeration_List(t *testing.T) {
 	store := &mockListingModerationStore{
 		pending: []*model.Listing{{ID: 1}, {ID: 2}},
 		total:   2,
 	}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	items, total, err := svc.List(context.Background(), "pending", "", "asc", 20, 0)
 	if err != nil {
@@ -102,10 +118,65 @@ func TestListingModeration_List(t *testing.T) {
 
 func TestListingModeration_Get_NotFound(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if _, err := svc.Get(context.Background(), 999); err != ErrListingNotFound {
 		t.Errorf("expected ErrListingNotFound, got %v", err)
+	}
+}
+
+func TestListingModeration_Get_CertificationRequestLink(t *testing.T) {
+	batchID := int64(42)
+	tests := []struct {
+		name       string
+		listing    *model.Listing
+		certReader *mockCertificationRequestReader
+		wantCertID *int64
+		wantStatus string
+	}{
+		{
+			name:    "batch with matching certification request",
+			listing: &model.Listing{ID: 1, HoneyBatchID: &batchID},
+			certReader: &mockCertificationRequestReader{byBatchID: map[int64]*model.HoneyBatchCertificationRequest{
+				batchID: {ID: 5, BatchID: batchID, Status: "approved"},
+			}},
+			wantCertID: func() *int64 { id := int64(5); return &id }(),
+			wantStatus: "approved",
+		},
+		{
+			name:       "no honey batch id",
+			listing:    &model.Listing{ID: 2},
+			certReader: &mockCertificationRequestReader{byBatchID: map[int64]*model.HoneyBatchCertificationRequest{}},
+			wantCertID: nil,
+			wantStatus: "",
+		},
+		{
+			name:       "honey batch id but no certification request",
+			listing:    &model.Listing{ID: 3, HoneyBatchID: &batchID},
+			certReader: &mockCertificationRequestReader{byBatchID: map[int64]*model.HoneyBatchCertificationRequest{}},
+			wantCertID: nil,
+			wantStatus: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockListingModerationStore{byID: map[int64]*model.Listing{tt.listing.ID: tt.listing}}
+			svc := NewListingModerationService(store, tt.certReader)
+
+			got, err := svc.Get(context.Background(), tt.listing.ID)
+			if err != nil {
+				t.Fatalf("Get() error = %v", err)
+			}
+			if (got.CertificationRequestID == nil) != (tt.wantCertID == nil) {
+				t.Fatalf("CertificationRequestID = %v, want %v", got.CertificationRequestID, tt.wantCertID)
+			}
+			if tt.wantCertID != nil && *got.CertificationRequestID != *tt.wantCertID {
+				t.Errorf("CertificationRequestID = %d, want %d", *got.CertificationRequestID, *tt.wantCertID)
+			}
+			if got.CertificationRequestStatus != tt.wantStatus {
+				t.Errorf("CertificationRequestStatus = %q, want %q", got.CertificationRequestStatus, tt.wantStatus)
+			}
+		})
 	}
 }
 
@@ -115,7 +186,7 @@ func TestListingModeration_Approve_Success(t *testing.T) {
 		Status: model.ListingStatusPending,
 		Images: []model.ListingImage{{ID: 1, ListingID: 1}},
 	}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Approve(context.Background(), 7, 1); err != nil {
 		t.Fatalf("Approve() error = %v", err)
@@ -127,7 +198,7 @@ func TestListingModeration_Approve_Success(t *testing.T) {
 
 func TestListingModeration_Approve_RequiresPhoto(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Approve(context.Background(), 7, 1); err != ErrListingPhotoRequired {
 		t.Errorf("expected ErrListingPhotoRequired, got %v", err)
@@ -139,7 +210,7 @@ func TestListingModeration_Approve_RequiresPhoto(t *testing.T) {
 
 func TestListingModeration_Approve_NotPending(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Approve(context.Background(), 7, 1); err != ErrListingNotPending {
 		t.Errorf("expected ErrListingNotPending, got %v", err)
@@ -148,7 +219,7 @@ func TestListingModeration_Approve_NotPending(t *testing.T) {
 
 func TestListingModeration_Approve_NotFound(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Approve(context.Background(), 7, 999); err != ErrListingNotFound {
 		t.Errorf("expected ErrListingNotFound, got %v", err)
@@ -157,7 +228,7 @@ func TestListingModeration_Approve_NotFound(t *testing.T) {
 
 func TestListingModeration_Reject_RequiresReason(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Reject(context.Background(), 7, 1, ""); err != ErrRejectionReasonRequired {
 		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
@@ -169,7 +240,7 @@ func TestListingModeration_Reject_RequiresReason(t *testing.T) {
 
 func TestListingModeration_Reject_NotPending(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusRejected}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Reject(context.Background(), 7, 1, "bad photos"); err != ErrListingNotPending {
 		t.Errorf("expected ErrListingNotPending, got %v", err)
@@ -178,7 +249,7 @@ func TestListingModeration_Reject_NotPending(t *testing.T) {
 
 func TestListingModeration_Reject_Success(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Reject(context.Background(), 7, 1, "bad photos"); err != nil {
 		t.Fatalf("Reject() error = %v", err)
@@ -190,7 +261,7 @@ func TestListingModeration_Reject_Success(t *testing.T) {
 
 func TestListingModeration_Reject_WhitespaceOnlyReason(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Reject(context.Background(), 7, 1, "   "); err != ErrRejectionReasonRequired {
 		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
@@ -214,7 +285,7 @@ func TestListingModeration_Reject_ReasonLength(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-			svc := NewListingModerationService(store)
+			svc := newTestListingModerationService(store)
 
 			err := svc.Reject(context.Background(), 7, 1, tt.reason)
 			if err != tt.wantErr {
@@ -229,7 +300,7 @@ func TestListingModeration_Reject_ReasonLength(t *testing.T) {
 
 func TestListingModeration_RepoError(t *testing.T) {
 	store := &mockListingModerationStore{err: errors.New("db down")}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if _, _, err := svc.List(context.Background(), "pending", "", "asc", 20, 0); err == nil {
 		t.Error("expected error, got nil")
@@ -238,7 +309,7 @@ func TestListingModeration_RepoError(t *testing.T) {
 
 func TestListingModeration_Remove_Success(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Remove(context.Background(), 7, 1, "seller requested takedown"); err != nil {
 		t.Fatalf("Remove() error = %v", err)
@@ -250,7 +321,7 @@ func TestListingModeration_Remove_Success(t *testing.T) {
 
 func TestListingModeration_Remove_NotApproved(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusPending}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Remove(context.Background(), 7, 1, "seller requested takedown"); err != ErrListingNotApproved {
 		t.Errorf("expected ErrListingNotApproved, got %v", err)
@@ -259,7 +330,7 @@ func TestListingModeration_Remove_NotApproved(t *testing.T) {
 
 func TestListingModeration_Remove_RequiresReason(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Remove(context.Background(), 7, 1, ""); err != ErrRejectionReasonRequired {
 		t.Errorf("expected ErrRejectionReasonRequired, got %v", err)
@@ -271,7 +342,7 @@ func TestListingModeration_Remove_RequiresReason(t *testing.T) {
 
 func TestListingModeration_Restore_Success(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusRemoved}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Restore(context.Background(), 7, 1); err != nil {
 		t.Fatalf("Restore() error = %v", err)
@@ -283,7 +354,7 @@ func TestListingModeration_Restore_Success(t *testing.T) {
 
 func TestListingModeration_Restore_NotRemoved(t *testing.T) {
 	store := &mockListingModerationStore{byID: map[int64]*model.Listing{1: {ID: 1, Status: model.ListingStatusApproved}}}
-	svc := NewListingModerationService(store)
+	svc := newTestListingModerationService(store)
 
 	if err := svc.Restore(context.Background(), 7, 1); err != ErrListingNotRemoved {
 		t.Errorf("expected ErrListingNotRemoved, got %v", err)

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "admin",
-      "runtimeExecutable": "C:\\Dev\\nodejs\\node.exe",
-      "runtimeArgs": ["C:\\Dev\\repos\\BeeTrack\\admin\\node_modules\\vite\\bin\\vite.js", "C:\\Dev\\repos\\BeeTrack\\admin"],
+      "runtimeExecutable": "C:\\Users\\Kamil\\Prog\\node\\node.exe",
+      "runtimeArgs": ["C:\\Users\\Kamil\\Prog\\BeeTrack\\admin\\node_modules\\vite\\bin\\vite.js", "C:\\Users\\Kamil\\Prog\\BeeTrack\\admin"],
       "port": 5174
     }
   ]
