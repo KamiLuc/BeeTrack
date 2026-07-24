@@ -70,6 +70,19 @@ const _needsFood = Hive(
   gridCol: 3,
 );
 
+const _inactiveWithStatuses = Hive(
+  id: 8,
+  apiaryId: 1,
+  name: 'Theta',
+  type: 'langstroth',
+  active: false,
+  queenless: true,
+  readyForHarvest: true,
+  needsFood: true,
+  gridRow: 1,
+  gridCol: 4,
+);
+
 final _withDiseases = Hive(
   id: 6,
   apiaryId: 1,
@@ -226,6 +239,33 @@ void main() {
         const HiveDetailScreen(hive: _active, apiaryId: 1),
       ));
       expect(find.text('Diseases', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('hides status chips for inactive hive even when flags are true',
+        (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _inactiveWithStatuses, apiaryId: 1),
+      ));
+      expect(find.text('Queenless'), findsNothing);
+      expect(find.text('Ready for harvest'), findsNothing);
+      expect(find.text('Needs food'), findsNothing);
+    });
+
+    testWidgets('hides Add inspection button for inactive hive', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _inactive, apiaryId: 1),
+      ));
+      expect(find.text('Add inspection', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('hides Log treatment/feeding/harvest buttons for inactive hive',
+        (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HiveDetailScreen(hive: _inactive, apiaryId: 1),
+      ));
+      expect(find.text('Log treatment', skipOffstage: false), findsNothing);
+      expect(find.text('Log feeding', skipOffstage: false), findsNothing);
+      expect(find.text('Log harvest', skipOffstage: false), findsNothing);
     });
   });
 }

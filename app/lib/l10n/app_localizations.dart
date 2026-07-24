@@ -1490,6 +1490,54 @@ abstract class AppLocalizations {
   /// **'Ul o tej nazwie już istnieje w tej pasiece'**
   String get hiveDuplicateName;
 
+  /// No description provided for @dashboardTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Raport'**
+  String get dashboardTitle;
+
+  /// No description provided for @dashboardHivesSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lista uli'**
+  String get dashboardHivesSection;
+
+  /// No description provided for @dashboardCategoriesSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lista akcji'**
+  String get dashboardCategoriesSection;
+
+  /// No description provided for @dashboardDateRangeSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zakres dat'**
+  String get dashboardDateRangeSection;
+
+  /// No description provided for @dashboardDateFrom.
+  ///
+  /// In pl, this message translates to:
+  /// **'Od'**
+  String get dashboardDateFrom;
+
+  /// No description provided for @dashboardDateTo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do'**
+  String get dashboardDateTo;
+
+  /// No description provided for @dashboardGenerate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Generuj raport'**
+  String get dashboardGenerate;
+
+  /// No description provided for @dashboardNoResults.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak wpisów spełniających te filtry'**
+  String get dashboardNoResults;
+
   /// No description provided for @generalRequired.
   ///
   /// In pl, this message translates to:

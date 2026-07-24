@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/note_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
@@ -220,71 +221,90 @@ class TreatmentCard extends StatelessWidget {
             ? treatment.treatedByName
             : null;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 16*2 padding + ~48 for the popup menu button.
+        final textWidth = constraints.maxWidth - 80;
+        final truncated = treatment.notes.isNotEmpty &&
+            isTextTruncated(treatment.notes, bodyStyle, textWidth);
+
+        return Card(
+          child: InkWell(
+            onTap: truncated
+                ? () => showNoteDialog(
+                      context,
+                      title: l10n.treatmentNote,
+                      note: treatment.notes,
+                    )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    dateStr,
-                    style: textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (otherTreater != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            l10n.treatmentTreatedBy(otherTreater),
+                            style: bodyStyle,
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(l10n.treatmentMedicine, style: labelStyle),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${treatment.medicineName} · $doseDisplay',
+                          style: bodyStyle,
+                        ),
+                        if (treatment.notes.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(l10n.treatmentNote, style: labelStyle),
+                          const SizedBox(height: 2),
+                          Text(
+                            treatment.notes,
+                            style: bodyStyle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (otherTreater != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.treatmentTreatedBy(otherTreater),
-                      style: bodyStyle,
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  Text(l10n.treatmentMedicine, style: labelStyle),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${treatment.medicineName} · $doseDisplay',
-                    style: bodyStyle,
+                  PopupMenuButton<_CardAction>(
+                    onSelected: (action) {
+                      if (action == _CardAction.edit) onEdit();
+                      if (action == _CardAction.delete) onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: _CardAction.edit,
+                        child: Text(l10n.generalEdit),
+                      ),
+                      PopupMenuItem(
+                        value: _CardAction.delete,
+                        child: Text(
+                          l10n.generalDelete,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                    ],
                   ),
-                  if (treatment.notes.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(l10n.treatmentNote, style: labelStyle),
-                    const SizedBox(height: 2),
-                    Text(
-                      treatment.notes,
-                      style: bodyStyle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ],
               ),
             ),
-            PopupMenuButton<_CardAction>(
-              onSelected: (action) {
-                if (action == _CardAction.edit) onEdit();
-                if (action == _CardAction.delete) onDelete();
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: _CardAction.edit,
-                  child: Text(l10n.generalEdit),
-                ),
-                PopupMenuItem(
-                  value: _CardAction.delete,
-                  child: Text(
-                    l10n.generalDelete,
-                    style: TextStyle(color: colorScheme.error),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

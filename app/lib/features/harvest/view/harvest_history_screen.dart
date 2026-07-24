@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/note_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
@@ -213,80 +214,99 @@ class HarvestCard extends StatelessWidget {
             ? harvest.harvestedByName
             : null;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 16*2 padding + ~48 for the popup menu button.
+        final textWidth = constraints.maxWidth - 80;
+        final truncated = harvest.notes.isNotEmpty &&
+            isTextTruncated(harvest.notes, bodyStyle, textWidth);
+
+        return Card(
+          child: InkWell(
+            onTap: truncated
+                ? () => showNoteDialog(
+                      context,
+                      title: l10n.harvestNote,
+                      note: harvest.notes,
+                    )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    dateStr,
-                    style: textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (otherHarvester != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            l10n.harvestHarvestedBy(otherHarvester),
+                            style: bodyStyle,
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(l10n.harvestFrames, style: labelStyle),
+                        const SizedBox(height: 2),
+                        Text(
+                          harvest.halfFrames > 0
+                              ? '${l10n.harvestFramesCount(harvest.frames)} + ${l10n.harvestHalfFramesCount(harvest.halfFrames)}'
+                              : l10n.harvestFramesCount(harvest.frames),
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(l10n.harvestKilograms, style: labelStyle),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${harvest.kilograms.toStringAsFixed(2)} kg',
+                          style: bodyStyle,
+                        ),
+                        if (harvest.notes.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(l10n.harvestNote, style: labelStyle),
+                          const SizedBox(height: 2),
+                          Text(
+                            harvest.notes,
+                            style: bodyStyle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (otherHarvester != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.harvestHarvestedBy(otherHarvester),
-                      style: bodyStyle,
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  Text(l10n.harvestFrames, style: labelStyle),
-                  const SizedBox(height: 2),
-                  Text(
-                    harvest.halfFrames > 0
-                        ? '${l10n.harvestFramesCount(harvest.frames)} + ${l10n.harvestHalfFramesCount(harvest.halfFrames)}'
-                        : l10n.harvestFramesCount(harvest.frames),
-                    style: bodyStyle,
+                  PopupMenuButton<_CardAction>(
+                    onSelected: (action) {
+                      if (action == _CardAction.edit) onEdit();
+                      if (action == _CardAction.delete) onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: _CardAction.edit,
+                        child: Text(l10n.generalEdit),
+                      ),
+                      PopupMenuItem(
+                        value: _CardAction.delete,
+                        child: Text(
+                          l10n.generalDelete,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(l10n.harvestKilograms, style: labelStyle),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${harvest.kilograms.toStringAsFixed(2)} kg',
-                    style: bodyStyle,
-                  ),
-                  if (harvest.notes.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(l10n.harvestNote, style: labelStyle),
-                    const SizedBox(height: 2),
-                    Text(
-                      harvest.notes,
-                      style: bodyStyle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ],
               ),
             ),
-            PopupMenuButton<_CardAction>(
-              onSelected: (action) {
-                if (action == _CardAction.edit) onEdit();
-                if (action == _CardAction.delete) onDelete();
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: _CardAction.edit,
-                  child: Text(l10n.generalEdit),
-                ),
-                PopupMenuItem(
-                  value: _CardAction.delete,
-                  child: Text(
-                    l10n.generalDelete,
-                    style: TextStyle(color: colorScheme.error),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

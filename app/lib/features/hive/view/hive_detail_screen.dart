@@ -345,6 +345,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   onAdd: _openCreateInspection,
                   onViewAll: _openInspections,
                   apiaryId: widget.apiaryId,
+                  hiveActive: _hive.active,
                 ),
                 const SizedBox(height: 16),
                 _FeedingSectionCard(
@@ -352,6 +353,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   feedingLoaded: _feedingLoaded,
                   onAdd: _openCreateFeeding,
                   onViewAll: _openFeedings,
+                  hiveActive: _hive.active,
                 ),
                 const SizedBox(height: 16),
                 _TreatmentSectionCard(
@@ -359,6 +361,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   treatmentLoaded: _treatmentLoaded,
                   onAdd: _openCreateTreatment,
                   onViewAll: _openTreatments,
+                  hiveActive: _hive.active,
                 ),
                 const SizedBox(height: 16),
                 _HarvestSectionCard(
@@ -366,6 +369,7 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
                   harvestLoaded: _harvestLoaded,
                   onAdd: _openCreateHarvest,
                   onViewAll: _openHarvests,
+                  hiveActive: _hive.active,
                 ),
               ],
             ),
@@ -406,19 +410,19 @@ class _InfoCard extends StatelessWidget {
             ? Colors.green.shade800
             : colorScheme.onErrorContainer,
       ),
-      if (hive.queenless)
+      if (hive.active && hive.queenless)
         _StatusChip(
           label: l10n.hiveQueenless,
           background: colorScheme.errorContainer,
           foreground: colorScheme.onErrorContainer,
         ),
-      if (hive.readyForHarvest)
+      if (hive.active && hive.readyForHarvest)
         _StatusChip(
           label: l10n.hiveReadyForHarvest,
           background: Colors.amber.shade100,
           foreground: Colors.amber.shade900,
         ),
-      if (hive.needsFood)
+      if (hive.active && hive.needsFood)
         _StatusChip(
           label: l10n.hiveNeedsFood,
           background: Colors.orange.shade100,
@@ -570,6 +574,7 @@ class _InspectionSectionCard extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onViewAll;
   final int apiaryId;
+  final bool hiveActive;
 
   const _InspectionSectionCard({
     required this.lastInspection,
@@ -577,6 +582,7 @@ class _InspectionSectionCard extends StatelessWidget {
     required this.onAdd,
     required this.onViewAll,
     required this.apiaryId,
+    required this.hiveActive,
   });
 
   @override
@@ -650,10 +656,11 @@ class _InspectionSectionCard extends StatelessWidget {
                       ),
                       child: Text(l10n.inspectionPhotos),
                     ),
-                  OutlinedButton(
-                    onPressed: onAdd,
-                    child: Text(l10n.hiveDetailAddInspection),
-                  ),
+                  if (hiveActive)
+                    OutlinedButton(
+                      onPressed: onAdd,
+                      child: Text(l10n.hiveDetailAddInspection),
+                    ),
                 ],
               ),
             ),
@@ -740,12 +747,14 @@ class _TreatmentSectionCard extends StatelessWidget {
   final bool treatmentLoaded;
   final VoidCallback onAdd;
   final VoidCallback onViewAll;
+  final bool hiveActive;
 
   const _TreatmentSectionCard({
     required this.lastTreatment,
     required this.treatmentLoaded,
     required this.onAdd,
     required this.onViewAll,
+    required this.hiveActive,
   });
 
   @override
@@ -802,22 +811,23 @@ class _TreatmentSectionCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Center(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: onAdd,
-                    child: Text(l10n.hiveDetailLogTreatment),
-                  ),
-                ],
+          if (hiveActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Center(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: onAdd,
+                      child: Text(l10n.hiveDetailLogTreatment),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -895,12 +905,14 @@ class _FeedingSectionCard extends StatelessWidget {
   final bool feedingLoaded;
   final VoidCallback onAdd;
   final VoidCallback onViewAll;
+  final bool hiveActive;
 
   const _FeedingSectionCard({
     required this.lastFeeding,
     required this.feedingLoaded,
     required this.onAdd,
     required this.onViewAll,
+    required this.hiveActive,
   });
 
   @override
@@ -957,22 +969,23 @@ class _FeedingSectionCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Center(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: onAdd,
-                    child: Text(l10n.hiveDetailLogFeeding),
-                  ),
-                ],
+          if (hiveActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Center(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: onAdd,
+                      child: Text(l10n.hiveDetailLogFeeding),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1064,12 +1077,14 @@ class _HarvestSectionCard extends StatelessWidget {
   final bool harvestLoaded;
   final VoidCallback onAdd;
   final VoidCallback onViewAll;
+  final bool hiveActive;
 
   const _HarvestSectionCard({
     required this.lastHarvest,
     required this.harvestLoaded,
     required this.onAdd,
     required this.onViewAll,
+    required this.hiveActive,
   });
 
   @override
@@ -1126,22 +1141,23 @@ class _HarvestSectionCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Center(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: onAdd,
-                    child: Text(l10n.hiveDetailLogHarvest),
-                  ),
-                ],
+          if (hiveActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Center(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: onAdd,
+                      child: Text(l10n.hiveDetailLogHarvest),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

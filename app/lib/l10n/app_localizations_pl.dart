@@ -759,6 +759,30 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveDuplicateName => 'Ul o tej nazwie już istnieje w tej pasiece';
 
   @override
+  String get dashboardTitle => 'Raport';
+
+  @override
+  String get dashboardHivesSection => 'Lista uli';
+
+  @override
+  String get dashboardCategoriesSection => 'Lista akcji';
+
+  @override
+  String get dashboardDateRangeSection => 'Zakres dat';
+
+  @override
+  String get dashboardDateFrom => 'Od';
+
+  @override
+  String get dashboardDateTo => 'Do';
+
+  @override
+  String get dashboardGenerate => 'Generuj raport';
+
+  @override
+  String get dashboardNoResults => 'Brak wpisów spełniających te filtry';
+
+  @override
   String get generalRequired => 'Wymagane';
 
   @override

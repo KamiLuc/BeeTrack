@@ -338,6 +338,7 @@ type InspectionImage struct {
 | `app/lib/features/treatment/view/treatment_form_fields.dart` | `TreatmentFormFields` — shared form body (date picker, medicine autocomplete, dose, notes); used by both `TreatmentFormScreen` and `BulkTreatmentFormScreen` |
 | `app/lib/features/apiary/view/apiaries_map_screen.dart` | Full-screen `FlutterMap` showing all located apiaries; three concentric circles per pin (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first); marker tooltip shows apiary name |
 | `app/lib/core/widgets/delete_dialog.dart` | `showDeleteDialog()` — simple confirm or math-puzzle confirm (`withPuzzle: true`); puzzle is a proper `StatefulWidget` (`_PuzzleDialog`) — clears error on typing, disposes controller in `dispose()` |
+| `app/lib/core/widgets/note_dialog.dart` | `isTextTruncated(text, style, maxWidth, {maxLines})` — `TextPainter`-based check for whether a note preview would be cut off; `showNoteDialog()` — read-only dialog for the full note text. Used by `InspectionCard`/`TreatmentCard`/`FeedingCard`/`HarvestCard` (each wraps itself in a `LayoutBuilder` to get real available width) so the note preview card is only clickable when its 2-line preview is actually truncated |
 | `app/lib/features/inspection/view/inspection_summary.dart` | Shared `InspectionSummary` widget — renders labelled sections (Observations, Frames with added sub-row, queen cells, Notes); each section header uses `labelStyle` (small, primary-coloured); used in hive detail card and inspection history cards |
 | `app/lib/features/inspection/data/inspection_image_model.dart` | `InspectionImage` — id, inspectionId, mimeType, createdAt; `fromJson` factory |
 | `app/lib/features/inspection/data/inspection_image_repository.dart` | `listImages`, `uploadImage` (multipart via Dio), `deleteImage`, `imageUrl()` (builds full URL from `apiClient.baseUrl`), `authHeaders()` |
@@ -544,16 +545,32 @@ ApiariesScreen (shown once logged in)
       │     (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first)
       └── ApiaryGridScreen (tap apiary card)
           │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
-          │   Bottom amber banner has three icon buttons:
+          │   Bottom amber banner has up to four icon buttons; Filter, Hive list, and Dashboard
+          │   are hidden entirely (not just disabled) when the apiary has no hives — only Center
+          │   view always shows:
           │     • Filter (Icons.tune) — dialog with FilterChip toggles; badge shows active count;
           │       × close button in header
-          │     • Hive list (Icons.format_list_bulleted, disabled when no hives) — dialog listing
+          │     • Hive list (Icons.format_list_bulleted) — dialog listing
           │       hives with last-inspection date, active/disease subtitle, status icons;
           │       × close button in header; "Treat all hives" OutlinedButton.icon at 60% width
           │       shown at bottom when apiary has > 1 hive — closes dialog then opens
           │       BulkTreatmentFormScreen; on return shows "Treatment logged for N hives" snackbar
           │     • Center view (Icons.center_focus_strong_outlined) — resets TransformationController
           │       to Matrix4.identity(), snapping pan/zoom back to initial position
+          │     • Dashboard/"Raport" (Icons.assessment_outlined) — opens DashboardScreen, a
+          │       filterable report: checkboxes to include/exclude active hives (inactive hives
+          │       never shown), FilterChips to pick record types (inspections/feedings/treatments/
+          │       harvests — at least one must stay selected, enforced via the chip's disabled
+          │       state), a responsive date range (two separate From/To pickers, defaulting to the
+          │       last 14 days; stacks under the hive fields below ~500px width), and a "Generate
+          │       report" button. Results are grouped per hive (in a tinted container with the hive
+          │       name as a header) then per category, each category's matching records shown as a
+          │       horizontally scrollable row of fixed-size cards (reusing InspectionCard/
+          │       TreatmentCard/FeedingCard/HarvestCard, with working edit/delete) ordered newest
+          │       first; the row supports mouse click-drag scrolling on desktop/web via a custom
+          │       ScrollBehavior, not just touch. Data is composed client-side from the existing
+          │       per-hive inspection/treatment/feeding/harvest endpoints filtered by date — there
+          │       is no dedicated dashboard/report backend endpoint.
           ├── AddHiveScreen (tap empty cell)
           ├── HiveDetailScreen (tap hive cell  OR  bottom-bar hive list → tap hive)
               └── EditHiveScreen (AppBar edit icon)

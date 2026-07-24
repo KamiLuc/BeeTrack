@@ -750,6 +750,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'A hive with this name already exists in this apiary';
 
   @override
+  String get dashboardTitle => 'Report';
+
+  @override
+  String get dashboardHivesSection => 'Hive list';
+
+  @override
+  String get dashboardCategoriesSection => 'Action list';
+
+  @override
+  String get dashboardDateRangeSection => 'Date range';
+
+  @override
+  String get dashboardDateFrom => 'From';
+
+  @override
+  String get dashboardDateTo => 'To';
+
+  @override
+  String get dashboardGenerate => 'Generate report';
+
+  @override
+  String get dashboardNoResults => 'No records match these filters';
+
+  @override
   String get generalRequired => 'Required';
 
   @override

@@ -34,8 +34,8 @@
 
 | ID       | Layer | Status | Title                   | Notes                                                |
 | -------- | ----- | ------ | ----------------------- | ---------------------------------------------------- |
-| RP-01-BE | `BE`  | `[ ]`  | Dashboard data endpoint | Hive count, last inspection dates, active treatments |
-| RP-01-FE | `FE`  | `[ ]`  | Dashboard screen        | Overview of all hives at a glance                    |
+| RP-01-BE | `BE`  | `[x]`  | Dashboard data endpoint | No new endpoint — composed client-side from existing per-hive endpoints (hive list, inspections, treatments, feedings, harvests) |
+| RP-01-FE | `FE`  | `[x]`  | Dashboard screen        | Overview of all hives at a glance                    |
 
 ---
 

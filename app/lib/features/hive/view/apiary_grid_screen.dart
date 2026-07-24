@@ -9,6 +9,7 @@ import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
+import '../../dashboard/view/dashboard_screen.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../inspection/data/inspection_repository.dart';
 import '../cubit/hives_cubit.dart';
@@ -284,6 +285,14 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                       _transformController.value = Matrix4.identity(),
                   onTreatAll: () => _openBulkTreatment(context, state.hives),
                   onFeedAll: () => _openBulkFeeding(context, state.hives),
+                  onDashboard: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DashboardScreen(
+                        apiaryId: widget.apiary.id,
+                        hives: state.hives,
+                      ),
+                    ),
+                  ),
                   l10n: l10n,
                   apiaryId: widget.apiary.id,
                   hives: state.hives,
@@ -315,6 +324,7 @@ class _FilterBar extends StatelessWidget {
   final VoidCallback onCenter;
   final VoidCallback onTreatAll;
   final VoidCallback onFeedAll;
+  final VoidCallback onDashboard;
   final AppLocalizations l10n;
   final int apiaryId;
   final List<Hive> hives;
@@ -326,6 +336,7 @@ class _FilterBar extends StatelessWidget {
     required this.onCenter,
     required this.onTreatAll,
     required this.onFeedAll,
+    required this.onDashboard,
     required this.l10n,
     required this.apiaryId,
     required this.hives,
@@ -452,29 +463,37 @@ class _FilterBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Badge(
-                    isLabelVisible: activeFilters.isNotEmpty,
-                    label: Text('${activeFilters.length}'),
-                    child: IconButton(
-                      icon: const Icon(Icons.tune),
-                      iconSize: 28,
-                      tooltip: l10n.hiveFilterTooltip,
-                      onPressed: () => _showFilterSheet(context),
+                  if (hives.isNotEmpty)
+                    Badge(
+                      isLabelVisible: activeFilters.isNotEmpty,
+                      label: Text('${activeFilters.length}'),
+                      child: IconButton(
+                        icon: const Icon(Icons.tune),
+                        iconSize: 28,
+                        tooltip: l10n.hiveFilterTooltip,
+                        onPressed: () => _showFilterSheet(context),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.format_list_bulleted),
-                    iconSize: 28,
-                    tooltip: l10n.hiveListTooltip,
-                    onPressed:
-                        hives.isEmpty ? null : () => _showHiveSheet(context),
-                  ),
+                  if (hives.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.format_list_bulleted),
+                      iconSize: 28,
+                      tooltip: l10n.hiveListTooltip,
+                      onPressed: () => _showHiveSheet(context),
+                    ),
                   IconButton(
                     icon: const Icon(Icons.center_focus_strong_outlined),
                     iconSize: 28,
                     tooltip: l10n.apiaryCenterView,
                     onPressed: onCenter,
                   ),
+                  if (hives.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.assessment_outlined),
+                      iconSize: 28,
+                      tooltip: l10n.dashboardTitle,
+                      onPressed: onDashboard,
+                    ),
                 ],
               ),
             ),

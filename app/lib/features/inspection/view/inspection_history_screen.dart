@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/note_dialog.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../hive/data/hive_model.dart';
@@ -243,68 +244,90 @@ class InspectionCard extends StatelessWidget {
       Localizations.localeOf(context).toString(),
     ).add_Hm().format(inspection.inspectedAt);
     final myName = context.read<TokenStorage>().name;
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      dateStr,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    InspectionSummary(
-                      inspection: inspection,
-                      currentUserName: myName,
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<_CardAction>(
-                onSelected: (action) {
-                  if (action == _CardAction.edit) onEdit();
-                  if (action == _CardAction.delete) onDelete();
-                  if (action == _CardAction.photos) {
-                    showInspectionPhotosSheet(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 16*2 padding + ~48 for the popup menu button.
+        final textWidth = constraints.maxWidth - 80;
+        final truncated = inspection.notes.isNotEmpty &&
+            isTextTruncated(inspection.notes, bodyStyle, textWidth);
+
+        return Card(
+          child: InkWell(
+            onTap: truncated
+                ? () => showNoteDialog(
                       context,
-                      apiaryId: apiaryId,
-                      hiveId: inspection.hiveId,
-                      inspection: inspection,
-                      imageRepo: InspectionImageRepository(
-                        api: context.read<ApiClient>(),
-                      ),
-                    );
-                  }
-                },
-                itemBuilder: (_) => [
-                  if (inspection.photoCount > 0)
-                    PopupMenuItem(
-                      value: _CardAction.photos,
-                      child: Text(l10n.inspectionPhotos),
+                      title: l10n.inspectionNote,
+                      note: inspection.notes,
+                    )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        InspectionSummary(
+                          inspection: inspection,
+                          currentUserName: myName,
+                        ),
+                      ],
                     ),
-                  PopupMenuItem(
-                    value: _CardAction.edit,
-                    child: Text(l10n.generalEdit),
                   ),
-                  PopupMenuItem(
-                    value: _CardAction.delete,
-                    child: Text(
-                      l10n.generalDelete,
-                      style: TextStyle(color: colorScheme.error),
-                    ),
+                  PopupMenuButton<_CardAction>(
+                    onSelected: (action) {
+                      if (action == _CardAction.edit) onEdit();
+                      if (action == _CardAction.delete) onDelete();
+                      if (action == _CardAction.photos) {
+                        showInspectionPhotosSheet(
+                          context,
+                          apiaryId: apiaryId,
+                          hiveId: inspection.hiveId,
+                          inspection: inspection,
+                          imageRepo: InspectionImageRepository(
+                            api: context.read<ApiClient>(),
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (inspection.photoCount > 0)
+                        PopupMenuItem(
+                          value: _CardAction.photos,
+                          child: Text(l10n.inspectionPhotos),
+                        ),
+                      PopupMenuItem(
+                        value: _CardAction.edit,
+                        child: Text(l10n.generalEdit),
+                      ),
+                      PopupMenuItem(
+                        value: _CardAction.delete,
+                        child: Text(
+                          l10n.generalDelete,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
