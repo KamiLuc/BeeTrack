@@ -433,6 +433,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Get harvest |
 | PATCH | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Update harvest |
 | DELETE | `/api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}` | Delete harvest |
+| POST | `/api/v1/apiaries/{id}/report/pdf` | Generate a PDF activity report for the selected hives/categories/date range and stream it back as a file download |
 | POST | `/api/v1/listings` | Create marketplace listing — starts out pending admin approval, invisible to public search until then; capped at 20 listings per user |
 | GET | `/api/v1/listings` | Search/filter listings (public; `mine=true` requires auth); only approved listings are visible to non-owners |
 | GET | `/api/v1/listings/{id}` | Get listing (public; hidden or not-yet-approved listings 404 unless owner) |
@@ -569,8 +570,11 @@ ApiariesScreen (shown once logged in)
           │       TreatmentCard/FeedingCard/HarvestCard, with working edit/delete) ordered newest
           │       first; the row supports mouse click-drag scrolling on desktop/web via a custom
           │       ScrollBehavior, not just touch. Data is composed client-side from the existing
-          │       per-hive inspection/treatment/feeding/harvest endpoints filtered by date — there
-          │       is no dedicated dashboard/report backend endpoint.
+          │       per-hive inspection/treatment/feeding/harvest endpoints filtered by date. Once a
+          │       report has results, a "Pobierz PDF"/"Download PDF" button appears below them —
+          │       it posts the same filters to the report/pdf backend endpoint and hands the
+          │       returned bytes to the `printing` package's share/save flow (same convention used
+          │       for honey batch PDFs).
           ├── AddHiveScreen (tap empty cell)
           ├── HiveDetailScreen (tap hive cell  OR  bottom-bar hive list → tap hive)
               └── EditHiveScreen (AppBar edit icon)

@@ -1538,6 +1538,12 @@ abstract class AppLocalizations {
   /// **'Brak wpisów spełniających te filtry'**
   String get dashboardNoResults;
 
+  /// No description provided for @dashboardDownloadPdf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pobierz PDF'**
+  String get dashboardDownloadPdf;
+
   /// No description provided for @generalRequired.
   ///
   /// In pl, this message translates to:

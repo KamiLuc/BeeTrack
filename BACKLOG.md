@@ -36,6 +36,8 @@
 | -------- | ----- | ------ | ----------------------- | ---------------------------------------------------- |
 | RP-01-BE | `BE`  | `[x]`  | Dashboard data endpoint | No new endpoint — composed client-side from existing per-hive endpoints (hive list, inspections, treatments, feedings, harvests) |
 | RP-01-FE | `FE`  | `[x]`  | Dashboard screen        | Overview of all hives at a glance                    |
+| RP-02-BE | `BE`  | `[x]`  | PDF report export       | `POST /apiaries/{id}/report/pdf` — generates a formal PDF (per-hive, per-category sections) from the same hive/category/date-range filters as the dashboard, using an embedded DejaVu Sans font for Polish diacritics |
+| RP-02-FE | `FE`  | `[x]`  | PDF report download button | "Pobierz PDF"/"Download PDF" button on the Dashboard screen; posts current filters to RP-02-BE and shares/saves the result via the `printing` package |
 
 ---
 

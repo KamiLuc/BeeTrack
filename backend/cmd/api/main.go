@@ -81,6 +81,7 @@ func main() {
 	treatmentSvc := service.NewTreatmentService(apiaryRepo, hiveRepo, hiveRepo, treatmentRepo)
 	feedingSvc := service.NewFeedingService(apiaryRepo, hiveRepo, hiveRepo, feedingRepo)
 	harvestSvc := service.NewHarvestService(apiaryRepo, hiveRepo, harvestRepo)
+	reportSvc := service.NewReportService(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, feedingRepo, harvestRepo)
 	honeyBatchSvc := service.NewHoneyBatchService(honeyBatchRepo, honeyBatchCertificationRepo, honeyBatchCertificationRequestRepo, honeyBatchQRCodeRepo, blockchainJobRepo, cfg.APIURL, cfg.PDFStoragePath)
 	listingSvc := service.NewListingService(listingRepo, apiaryRepo, honeyBatchSvc)
 	listingImageSvc := service.NewListingImageService(listingRepo, listingRepo, cfg.ImageStoragePath)
@@ -98,6 +99,7 @@ func main() {
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	feedingHandler := handler.NewFeedingHandler(feedingSvc)
 	harvestHandler := handler.NewHarvestHandler(harvestSvc)
+	reportHandler := handler.NewReportHandler(reportSvc)
 	listingHandler := handler.NewListingHandler(listingSvc)
 	listingImageHandler := handler.NewListingImageHandler(listingImageSvc)
 	listingFavoriteHandler := handler.NewListingFavoriteHandler(listingFavoriteSvc)
@@ -184,6 +186,8 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}", auth(http.HandlerFunc(harvestHandler.Delete)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}", auth(http.HandlerFunc(harvestHandler.Get)))
 	mux.Handle("PATCH /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId}", auth(http.HandlerFunc(harvestHandler.Update)))
+
+	mux.Handle("POST /api/v1/apiaries/{id}/report/pdf", auth(http.HandlerFunc(reportHandler.PDF)))
 
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.List)))
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.Upload)))

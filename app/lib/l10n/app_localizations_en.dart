@@ -774,6 +774,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardNoResults => 'No records match these filters';
 
   @override
+  String get dashboardDownloadPdf => 'Download PDF';
+
+  @override
   String get generalRequired => 'Required';
 
   @override

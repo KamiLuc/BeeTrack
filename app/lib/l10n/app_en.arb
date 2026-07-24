@@ -294,6 +294,7 @@
   "dashboardDateTo": "To",
   "dashboardGenerate": "Generate report",
   "dashboardNoResults": "No records match these filters",
+  "dashboardDownloadPdf": "Download PDF",
   "generalRequired": "Required",
   "generalLoadMore": "Load more",
   "generalFieldTooLong": "{field} must be at most {max} characters",

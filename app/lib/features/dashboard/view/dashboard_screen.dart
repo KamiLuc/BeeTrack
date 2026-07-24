@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
@@ -65,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late DateTimeRange _range;
 
   bool _loading = false;
+  bool _downloadingPdf = false;
   Map<int, List<_ReportEntry>>? _report;
 
   @override
@@ -215,6 +220,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loading = false;
       _report = report;
     });
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_selectedHiveIds.isEmpty || _selectedCategories.isEmpty) return;
+    setState(() => _downloadingPdf = true);
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    try {
+      final response = await context.read<ApiClient>().dio.post<List<int>>(
+        '/api/v1/apiaries/${widget.apiaryId}/report/pdf',
+        data: {
+          'hive_ids': _selectedHiveIds.toList(),
+          'categories':
+              _selectedCategories.map((c) => c.name).toList(growable: false),
+          'from': dateFormat.format(_range.start),
+          'to': dateFormat.format(_range.end),
+        },
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = Uint8List.fromList(response.data!);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'raport-${dateFormat.format(DateTime.now())}.pdf',
+      );
+    } catch (_) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.generalError)));
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingPdf = false);
+    }
   }
 
   Future<bool> _confirmDeleteDialog(String title, String warning) async {
@@ -620,6 +657,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 16),
                       ],
+                  if (_report!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: OutlinedButton.icon(
+                        onPressed: _downloadingPdf ? null : _downloadPdf,
+                        icon: _downloadingPdf
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.picture_as_pdf_outlined),
+                        label: Text(l10n.dashboardDownloadPdf),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

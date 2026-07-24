@@ -294,6 +294,7 @@
   "dashboardDateTo": "Do",
   "dashboardGenerate": "Generuj raport",
   "dashboardNoResults": "Brak wpisów spełniających te filtry",
+  "dashboardDownloadPdf": "Pobierz PDF",
   "generalRequired": "Wymagane",
   "generalLoadMore": "Załaduj więcej",
   "generalFieldTooLong": "{field} może mieć maksymalnie {max} znaków",

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -77,6 +78,36 @@ func (r *HarvestRepository) ListByHiveID(ctx context.Context, hiveID int64, limi
 		h := r.Harvest
 		h.HarvestedByName = r.HarvesterName
 		harvests[i] = &h
+	}
+	return harvests, nil
+}
+
+// ListByHiveIDsAndRange returns harvests for the given hive IDs with harvested_at
+// in [from, to), ordered by hive ID then harvested_at descending, for report generation.
+func (r *HarvestRepository) ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Harvest, error) {
+	if len(hiveIDs) == 0 {
+		return []*model.Harvest{}, nil
+	}
+	type row struct {
+		model.Harvest
+		HarvesterName string `gorm:"column:harvested_by_name"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Table("harvests h").
+		Select("h.*, u.name AS harvested_by_name").
+		Joins("LEFT JOIN users u ON u.id = h.harvested_by").
+		Where("h.hive_id IN ? AND h.harvested_at >= ? AND h.harvested_at < ?", hiveIDs, from, to).
+		Order("h.hive_id ASC, h.harvested_at DESC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	harvests := make([]*model.Harvest, len(rows))
+	for i, r := range rows {
+		hv := r.Harvest
+		hv.HarvestedByName = r.HarvesterName
+		harvests[i] = &hv
 	}
 	return harvests, nil
 }

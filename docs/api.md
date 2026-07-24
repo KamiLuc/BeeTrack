@@ -1714,6 +1714,47 @@ Deletes a harvest record.
 
 ---
 
+## Reports
+
+### POST /apiaries/{id}/report/pdf 🔒
+
+Generates a PDF activity report for the given hives, record categories, and date range, and streams it back as a file download. Caller must be a member of the apiary. Hive IDs in the request that don't belong to the apiary are silently dropped — unless that drops the whole list, in which case it errors.
+
+**Request**
+```json
+{
+  "hive_ids": [1, 2, 3],
+  "categories": ["inspections", "feedings", "treatments", "harvests"],
+  "from": "2026-07-01",
+  "to": "2026-07-24"
+}
+```
+
+- `hive_ids` — hive IDs to include; entries not belonging to the apiary are dropped silently
+- `categories` — one or more of `inspections`, `feedings`, `treatments`, `harvests`
+- `from`, `to` — `YYYY-MM-DD` dates; `to` is inclusive
+
+**Response** `200 OK`
+
+`Content-Type: application/pdf`, `Content-Disposition: attachment; filename="raport-<slug>-<date>.pdf"` — body is the raw PDF bytes.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `INVALID_DATE` | 400 | `from` or `to` is not a valid `YYYY-MM-DD` date |
+| `INVALID_CATEGORY` | 400 | `categories` contains an unrecognized value |
+| `CATEGORIES_REQUIRED` | 400 | `categories` is empty |
+| `HIVE_IDS_REQUIRED` | 400 | None of the requested hive IDs belong to the apiary |
+| `INVALID_DATE_RANGE` | 400 | `from` is after `to` |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ## Honey Batches
 
 Honey batches record a harvest lot for certification. Every endpoint is scoped to the authenticated caller as owner — a batch belongs to whichever user created it, with no apiary scoping.

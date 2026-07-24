@@ -169,6 +169,36 @@ func (r *InspectionRepository) LastInspectionDatesByHiveIDs(ctx context.Context,
 	return out, nil
 }
 
+// ListByHiveIDsAndRange returns inspections for the given hive IDs with inspected_at
+// in [from, to), ordered by hive ID then inspected_at descending, for report generation.
+func (r *InspectionRepository) ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Inspection, error) {
+	if len(hiveIDs) == 0 {
+		return []*model.Inspection{}, nil
+	}
+	type row struct {
+		model.Inspection
+		InspectorName string `gorm:"column:inspected_by_name"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Table("inspections i").
+		Select("i.*, u.name AS inspected_by_name").
+		Joins("LEFT JOIN users u ON u.id = i.inspected_by").
+		Where("i.hive_id IN ? AND i.inspected_at >= ? AND i.inspected_at < ?", hiveIDs, from, to).
+		Order("i.hive_id ASC, i.inspected_at DESC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	inspections := make([]*model.Inspection, len(rows))
+	for i, r := range rows {
+		insp := r.Inspection
+		insp.InspectedByName = r.InspectorName
+		inspections[i] = &insp
+	}
+	return inspections, nil
+}
+
 // ListDiseasesByInspectionIDs returns all diseases for the given set of inspection IDs.
 func (r *InspectionRepository) ListDiseasesByInspectionIDs(ctx context.Context, ids []int64) ([]*model.InspectionDisease, error) {
 	if len(ids) == 0 {

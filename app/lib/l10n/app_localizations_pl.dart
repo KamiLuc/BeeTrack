@@ -783,6 +783,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get dashboardNoResults => 'Brak wpisów spełniających te filtry';
 
   @override
+  String get dashboardDownloadPdf => 'Pobierz PDF';
+
+  @override
   String get generalRequired => 'Wymagane';
 
   @override

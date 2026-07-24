@@ -1,0 +1,10 @@
+DejaVuSansCondensed.ttf and DejaVuSansCondensed-Bold.ttf are part of the
+DejaVu Fonts project (https://dejavu-fonts.github.io/), derived from the
+Bitstream Vera Fonts. They are redistributed here unmodified under the
+DejaVu Fonts license, which permits embedding, modification, and
+redistribution (including in commercial products) — see
+https://dejavu-fonts.github.io/License.html for the full text.
+
+Vendored from github.com/go-pdf/fpdf's bundled font/ directory (v0.9.0),
+used here to render Unicode (incl. Polish diacritics) text in generated
+PDF reports without needing a system font at runtime.

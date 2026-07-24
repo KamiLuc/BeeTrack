@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -68,6 +69,36 @@ func (r *TreatmentRepository) ListByHiveID(ctx context.Context, hiveID int64, li
 		Order("t.treated_at DESC").
 		Limit(limit).
 		Offset(offset).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	treatments := make([]*model.Treatment, len(rows))
+	for i, r := range rows {
+		tr := r.Treatment
+		tr.TreatedByName = r.TreaterName
+		treatments[i] = &tr
+	}
+	return treatments, nil
+}
+
+// ListByHiveIDsAndRange returns treatments for the given hive IDs with treated_at
+// in [from, to), ordered by hive ID then treated_at descending, for report generation.
+func (r *TreatmentRepository) ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Treatment, error) {
+	if len(hiveIDs) == 0 {
+		return []*model.Treatment{}, nil
+	}
+	type row struct {
+		model.Treatment
+		TreaterName string `gorm:"column:treated_by_name"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Table("treatments t").
+		Select("t.*, u.name AS treated_by_name").
+		Joins("LEFT JOIN users u ON u.id = t.treated_by").
+		Where("t.hive_id IN ? AND t.treated_at >= ? AND t.treated_at < ?", hiveIDs, from, to).
+		Order("t.hive_id ASC, t.treated_at DESC").
 		Find(&rows).Error
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
@@ -80,6 +81,36 @@ func (r *FeedingRepository) ListByHiveID(ctx context.Context, hiveID int64, limi
 		Order("f.fed_at DESC").
 		Limit(limit).
 		Offset(offset).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	feedings := make([]*model.Feeding, len(rows))
+	for i, r := range rows {
+		fd := r.Feeding
+		fd.FedByName = r.FeederName
+		feedings[i] = &fd
+	}
+	return feedings, nil
+}
+
+// ListByHiveIDsAndRange returns feedings for the given hive IDs with fed_at in
+// [from, to), ordered by hive ID then fed_at descending, for report generation.
+func (r *FeedingRepository) ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Feeding, error) {
+	if len(hiveIDs) == 0 {
+		return []*model.Feeding{}, nil
+	}
+	type row struct {
+		model.Feeding
+		FeederName string `gorm:"column:fed_by_name"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Table("feedings f").
+		Select("f.*, u.name AS fed_by_name").
+		Joins("LEFT JOIN users u ON u.id = f.fed_by").
+		Where("f.hive_id IN ? AND f.fed_at >= ? AND f.fed_at < ?", hiveIDs, from, to).
+		Order("f.hive_id ASC, f.fed_at DESC").
 		Find(&rows).Error
 	if err != nil {
 		return nil, err
