@@ -512,6 +512,51 @@ void main() {
     });
 
     testWidgets(
+      'unauthenticated: no profile menu button shown in AppBar',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository());
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing()),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.account_circle_outlined), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'authenticated: shows the profile menu button in the AppBar',
+      (tester) async {
+        final (apiClient, _) = await _fakeApiClient();
+        final authBloc = AuthBloc(auth: _MockAuthRepository())
+          ..emit(AuthAuthenticated());
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing()),
+            apiClient: apiClient,
+            authBloc: authBloc,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byIcon(Icons.account_circle_outlined),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'authenticated: shows favorite icon and reflects existing favorite',
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient();

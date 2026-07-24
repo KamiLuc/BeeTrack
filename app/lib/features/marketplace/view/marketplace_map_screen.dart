@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/listing_model.dart';
 import '../data/listing_price.dart';
@@ -24,7 +25,10 @@ class MarketplaceMapScreen extends StatelessWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.marketplaceMapTitle)),
+      appBar: AppBar(
+        title: Text(l10n.marketplaceMapTitle),
+        actions: const [ProfileIconButton()],
+      ),
       body: located.isEmpty
           ? Center(child: Text(l10n.marketplaceMapEmpty))
           : FlutterMap(

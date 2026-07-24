@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/apiary_model.dart';
 
@@ -67,7 +68,10 @@ class ApiariesMapScreen extends StatelessWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(title ?? l10n.apiaryMapTitle)),
+      appBar: AppBar(
+        title: Text(title ?? l10n.apiaryMapTitle),
+        actions: const [ProfileIconButton()],
+      ),
       body: FlutterMap(
         options: MapOptions(
           initialCenter: center,

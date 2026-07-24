@@ -7,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_layout.dart';
 import '../../../core/widgets/delete_dialog.dart';
+import '../../../core/widgets/profile_icon_button.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
@@ -207,9 +208,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final textTheme = Theme.of(context).textTheme;
     final isOwner = listing.userId == context.read<TokenStorage>().userId;
 
+    final isAuthenticated = context.read<AuthBloc>().state is AuthAuthenticated;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(listing.title, overflow: TextOverflow.ellipsis),
+        actions: [if (isAuthenticated) const ProfileIconButton()],
       ),
       body: Column(
         children: [
