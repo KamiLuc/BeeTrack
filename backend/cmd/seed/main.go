@@ -119,6 +119,20 @@ func main() {
 	}
 	log.Printf("created %d hives, %d inspections, %d treatments, %d feedings, %d harvests", len(allHives), inspectionCount, treatmentCount, feedingCount, harvestCount)
 
+	// Pasieka Górska gets a handful of hives with a deliberately deep history
+	// (many more records than the generic hives above) for exercising the
+	// dashboard report screen and long history lists in the app.
+	gorskaHives := seedGorskaHives(ctx, hiveRepo, apiaries[2])
+	richInspectionCount, richTreatmentCount, richFeedingCount, richHarvestCount := 0, 0, 0, 0
+	for _, h := range gorskaHives {
+		richInspectionCount += seedManyInspections(ctx, inspectionRepo, h, user.ID, 30, 7)
+		richFeedingCount += seedManyFeedings(ctx, feedingRepo, h, user.ID, 20, 10)
+		richHarvestCount += seedManyHarvests(ctx, harvestRepo, h, user.ID, 5, 45)
+		richTreatmentCount += seedManyTreatments(ctx, treatmentRepo, h, user.ID, 5, 35)
+	}
+	log.Printf("created %d Górska hives with rich history: %d inspections, %d treatments, %d feedings, %d harvests",
+		len(gorskaHives), richInspectionCount, richTreatmentCount, richFeedingCount, richHarvestCount)
+
 	listings, approveCount := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
 
 	seedHoneyBatches(ctx, honeyBatchRepo, user.ID)
@@ -274,6 +288,28 @@ func seedSpecialHives(ctx context.Context, repo *repository.HiveRepository, apia
 	return hives
 }
 
+// seedGorskaHives creates three plain, always-active hives in apiary for
+// exercising a hive with a long, dense history (see seedMany* below).
+func seedGorskaHives(ctx context.Context, repo *repository.HiveRepository, apiary *model.Apiary) []*model.Hive {
+	names := []string{"Ul Górski 1", "Ul Górski 2", "Ul Górski 3"}
+	var hives []*model.Hive
+	for i, name := range names {
+		h := &model.Hive{
+			ApiaryID: apiary.ID,
+			Name:     name,
+			Type:     hiveTypes[i%len(hiveTypes)],
+			Active:   true,
+			GridRow:  i / apiary.GridCols,
+			GridCol:  i % apiary.GridCols,
+		}
+		if err := repo.Create(ctx, h); err != nil {
+			log.Fatalf("create hive %q: %v", h.Name, err)
+		}
+		hives = append(hives, h)
+	}
+	return hives
+}
+
 var queenStatuses = []string{"seen", "not_seen"}
 var broodPatterns = []string{"excellent", "good", "poor", "none"}
 var aggressivenessLevels = []string{"calm", "mild", "aggressive", "very_aggressive"}
@@ -332,6 +368,33 @@ func seedInspections(ctx context.Context, repo *repository.InspectionRepository,
 	return count
 }
 
+// seedManyInspections creates count inspections for hive, one every
+// intervalDays going back from today — for hives that need a long, dense
+// history rather than the standard three-inspection sample.
+func seedManyInspections(ctx context.Context, repo *repository.InspectionRepository, hive *model.Hive, userID int64, count, intervalDays int) int {
+	for j := 0; j < count; j++ {
+		framesBrood := 3 + j%6
+		framesFeed := 1 + j%4
+		framesPollen := 1 + j%3
+		insp := &model.Inspection{
+			HiveID:         hive.ID,
+			InspectedBy:    userID,
+			InspectedAt:    time.Now().AddDate(0, 0, -j*intervalDays),
+			QueenStatus:    queenStatuses[j%len(queenStatuses)],
+			BroodPattern:   broodPatterns[j%len(broodPatterns)],
+			FramesBrood:    &framesBrood,
+			FramesFeed:     &framesFeed,
+			FramesPollen:   &framesPollen,
+			Aggressiveness: aggressivenessLevels[j%len(aggressivenessLevels)],
+			Notes:          inspectionNotes[j%len(inspectionNotes)],
+		}
+		if err := repo.Create(ctx, insp); err != nil {
+			log.Fatalf("create inspection for hive %d: %v", hive.ID, err)
+		}
+	}
+	return count
+}
+
 var medicines = []string{"Apiwarol", "Kwas szczawiowy", "Bayvarol", "MAQS"}
 var doses = []string{"1 pasek/ul", "5 ml", "2 paski/ul", "1 saszetka"}
 
@@ -351,6 +414,25 @@ func seedTreatments(ctx context.Context, repo *repository.TreatmentRepository, h
 			log.Fatalf("create treatment for hive %d: %v", hive.ID, err)
 		}
 		count++
+	}
+	return count
+}
+
+// seedManyTreatments is the seedTreatments equivalent for hives that need a
+// long, dense history — see seedManyInspections.
+func seedManyTreatments(ctx context.Context, repo *repository.TreatmentRepository, hive *model.Hive, userID int64, count, intervalDays int) int {
+	for j := 0; j < count; j++ {
+		t := &model.Treatment{
+			HiveID:       hive.ID,
+			TreatedBy:    userID,
+			TreatedAt:    time.Now().AddDate(0, 0, -j*intervalDays),
+			MedicineName: medicines[j%len(medicines)],
+			Dose:         doses[j%len(doses)],
+			Notes:        "Zabieg przeciw warrozie, kontynuować zgodnie z planem.",
+		}
+		if err := repo.Create(ctx, t); err != nil {
+			log.Fatalf("create treatment for hive %d: %v", hive.ID, err)
+		}
 	}
 	return count
 }
@@ -378,6 +460,25 @@ func seedFeedings(ctx context.Context, repo *repository.FeedingRepository, hive 
 	return count
 }
 
+// seedManyFeedings is the seedFeedings equivalent for hives that need a
+// long, dense history — see seedManyInspections.
+func seedManyFeedings(ctx context.Context, repo *repository.FeedingRepository, hive *model.Hive, userID int64, count, intervalDays int) int {
+	for j := 0; j < count; j++ {
+		f := &model.Feeding{
+			HiveID:   hive.ID,
+			FedBy:    userID,
+			FedAt:    time.Now().AddDate(0, 0, -j*intervalDays),
+			FeedType: feedTypes[j%len(feedTypes)],
+			Amount:   feedAmounts[j%len(feedAmounts)],
+			Notes:    "Podkarmianie w ramach przygotowań rodziny.",
+		}
+		if err := repo.Create(ctx, f); err != nil {
+			log.Fatalf("create feeding for hive %d: %v", hive.ID, err)
+		}
+	}
+	return count
+}
+
 func seedHarvests(ctx context.Context, repo *repository.HarvestRepository, hive *model.Hive, userID int64, hiveIdx int) int {
 	frames := 6 + hiveIdx%5
 	kilograms := 8.5 + float64(hiveIdx%7)*1.5
@@ -394,6 +495,28 @@ func seedHarvests(ctx context.Context, repo *repository.HarvestRepository, hive 
 		log.Fatalf("create harvest for hive %d: %v", hive.ID, err)
 	}
 	return 1
+}
+
+// seedManyHarvests is the seedHarvests equivalent for hives that need a
+// long, dense history — see seedManyInspections.
+func seedManyHarvests(ctx context.Context, repo *repository.HarvestRepository, hive *model.Hive, userID int64, count, intervalDays int) int {
+	for j := 0; j < count; j++ {
+		frames := 6 + j%5
+		kilograms := 8.5 + float64(j%7)*1.5
+		h := &model.Harvest{
+			HiveID:      hive.ID,
+			HarvestedBy: userID,
+			HarvestedAt: time.Now().AddDate(0, 0, -j*intervalDays),
+			Frames:      frames,
+			HalfFrames:  j % 3,
+			Kilograms:   kilograms,
+			Notes:       "Miód wielokwiatowy, dobra jakość, niska wilgotność.",
+		}
+		if err := repo.Create(ctx, h); err != nil {
+			log.Fatalf("create harvest for hive %d: %v", hive.ID, err)
+		}
+	}
+	return count
 }
 
 // cityCoords maps each city name used in the seeded listings' Address field to
