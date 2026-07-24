@@ -324,43 +324,55 @@ void main() {
       },
     );
 
-    testWidgets('no pagination banner when everything fits on one page', (
-      tester,
-    ) async {
-      final (apiClient, adapter) = await _fakeApiClient();
-      adapter.listings = [_listingJson()];
-
-      await tester.pumpWidget(_wrap(apiClient));
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.chevron_left), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsNothing);
-    });
-
     testWidgets(
-      'shows numbered pagination and requests the right offset when a '
-      'page is tapped',
+      'does not request more when everything fits in one load',
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient();
         adapter.listings = [_listingJson()];
-        adapter.totalOverride = 45;
 
         await tester.pumpWidget(_wrap(apiClient));
         await tester.pumpAndSettle();
 
-        // total: 45, pageSize: 20 -> 3 pages.
-        expect(find.text('1'), findsOneWidget);
-        expect(find.text('2'), findsOneWidget);
-        expect(find.text('3'), findsOneWidget);
+        final requestCountBeforeScroll = adapter.requests
+            .where((r) => r.path.endsWith('/listings') && r.method == 'GET')
+            .length;
 
-        await tester.tap(find.text('2'));
+        await tester.drag(find.byType(ListView), const Offset(0, -100000));
         await tester.pumpAndSettle();
 
-        final lastRequest = adapter.requests
+        final requestCountAfterScroll = adapter.requests
             .where((r) => r.path.endsWith('/listings') && r.method == 'GET')
-            .last;
-        expect(lastRequest.queryParameters['offset'], 20);
-        expect(lastRequest.queryParameters['limit'], 20);
+            .length;
+        expect(requestCountAfterScroll, requestCountBeforeScroll);
+      },
+    );
+
+    testWidgets(
+      'scrolling near the bottom of the list triggers loading more and '
+      'requests the next offset',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [
+          for (var i = 1; i <= 20; i++)
+            _listingJson(id: i, title: 'Listing $i'),
+        ];
+        adapter.totalOverride = 45;
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        await tester.drag(find.byType(ListView), const Offset(0, -100000));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final offsets = adapter.requests
+            .where((r) => r.path.endsWith('/listings') && r.method == 'GET')
+            .map((r) => r.queryParameters['offset'])
+            .toList();
+        expect(offsets, contains(20));
       },
     );
 
@@ -471,28 +483,58 @@ void main() {
     });
 
     testWidgets(
-      'deleting the last item on a non-first page navigates back a page',
+      'deleting an item with more results available still fetches the '
+      'right offset for the next page',
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient();
-        adapter.listings = [_listingJson()];
+        adapter.listings = [
+          _listingJson(id: 1, title: 'Wildflower Honey'),
+          for (var i = 2; i <= 20; i++) _listingJson(id: i, title: 'Listing $i'),
+        ];
         adapter.totalOverride = 21;
 
         await tester.pumpWidget(_wrap(apiClient));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
 
-        await tester.tap(find.text('2'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byIcon(Icons.more_vert));
-        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.more_vert).first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.tap(find.text(l10n.generalDelete));
-        await tester.pumpAndSettle();
-        await _solveDeletePuzzle(tester, l10n);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-        final searchRequests = adapter.requests.where(
-          (r) => r.path.endsWith('/listings') && r.method == 'GET',
+        final prompt = tester
+            .widgetList<Text>(find.byType(Text))
+            .firstWhere((t) => RegExp(r'^\d+ \+ \d+ = $').hasMatch(t.data ?? ''));
+        final match = RegExp(r'^(\d+) \+ (\d+) = $').firstMatch(prompt.data!)!;
+        final sum = int.parse(match.group(1)!) + int.parse(match.group(2)!);
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(TextField),
+          ),
+          '$sum',
         );
-        expect(searchRequests.last.queryParameters['offset'], 0);
+        await tester.tap(find.text(l10n.generalDelete).last);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(find.text('Wildflower Honey'), findsNothing);
+        expect(find.text('Listing 2'), findsOneWidget);
+
+        await tester.drag(find.byType(ListView), const Offset(0, -100000));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final offsets = adapter.requests
+            .where((r) => r.path.endsWith('/listings') && r.method == 'GET')
+            .map((r) => r.queryParameters['offset'])
+            .toList();
+        expect(offsets, contains(19));
       },
     );
 

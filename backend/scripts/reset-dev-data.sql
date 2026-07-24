@@ -35,6 +35,12 @@ WHERE id NOT IN (
     SELECT DISTINCT batch_id FROM honey_batch_certifications WHERE status = 'confirmed'
 );
 
+-- Soft-delete the survivors so they stay out of the reseeded user's honey
+-- batch list (every repository read already filters `deleted_at IS NULL`)
+-- without touching their row or id — the blockchain worker's id-collision
+-- check reads via GetByIDIgnoringDeletion, which is unaffected by this.
+UPDATE honey_batches SET deleted_at = NOW() WHERE deleted_at IS NULL;
+
 -- Keep every user still referenced by a surviving honey batch or its
 -- certification request history; everyone else can be wiped and reseeded.
 DELETE FROM users

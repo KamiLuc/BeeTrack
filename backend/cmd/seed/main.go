@@ -119,13 +119,13 @@ func main() {
 	}
 	log.Printf("created %d hives, %d inspections, %d treatments, %d feedings, %d harvests", len(allHives), inspectionCount, treatmentCount, feedingCount, harvestCount)
 
-	listings := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
+	listings, approveCount := seedListings(ctx, listingRepo, user.ID, apiaries, *email)
 
 	seedHoneyBatches(ctx, honeyBatchRepo, user.ID)
 
 	images := listImageFiles(*imagesDir)
 	if len(images) == 0 {
-		log.Printf("no images found in %s — listings created without photos", *imagesDir)
+		log.Printf("no images found in %s — listings created without photos, none approved", *imagesDir)
 		return
 	}
 
@@ -143,6 +143,18 @@ func main() {
 		uploaded += n
 	}
 	log.Printf("uploaded %d listing photos", uploaded)
+
+	// Approve only after photos are attached — uploading a photo resets an
+	// already-approved listing back to pending, so approving first would be
+	// immediately undone by the upload loop above.
+	approved := 0
+	for _, l := range listings[:approveCount] {
+		if err := listingRepo.Approve(ctx, l.ID, user.ID); err != nil {
+			log.Fatalf("approve listing %q: %v", l.Title, err)
+		}
+		approved++
+	}
+	log.Printf("approved %d of %d listings", approved, len(listings))
 }
 
 func ensureUser(ctx context.Context, repo *repository.UserRepository, email, password string) (*model.User, error) {
@@ -181,10 +193,11 @@ func ensureUser(ctx context.Context, repo *repository.UserRepository, email, pas
 
 func seedApiaries(ctx context.Context, repo *repository.ApiaryRepository, ownerID int64) []*model.Apiary {
 	krakowLat, krakowLng := 50.0647, 19.9450
+	lesnaLat, lesnaLng := 50.2649, 19.0238
 	zakopaneLat, zakopaneLng := 49.2992, 19.9496
 	specs := []*model.Apiary{
 		{OwnerUserID: ownerID, Name: "Pasieka Słoneczna", Lat: &krakowLat, Lng: &krakowLng, GridRows: 4, GridCols: 5},
-		{OwnerUserID: ownerID, Name: "Pasieka Leśna", GridRows: 2, GridCols: 10},
+		{OwnerUserID: ownerID, Name: "Pasieka Leśna", Lat: &lesnaLat, Lng: &lesnaLng, GridRows: 2, GridCols: 10},
 		{OwnerUserID: ownerID, Name: "Pasieka Górska", Lat: &zakopaneLat, Lng: &zakopaneLng, GridRows: 3, GridCols: 3},
 	}
 	for _, a := range specs {
@@ -435,7 +448,11 @@ func jitterCoord(lat, lng float64) (float64, float64) {
 	return jitter(lat), jitter(lng)
 }
 
-func seedListings(ctx context.Context, repo *repository.ListingRepository, userID int64, apiaries []*model.Apiary, email string) []*model.Listing {
+// seedListings creates all listings (both to-be-approved and left-pending)
+// and returns them with the to-be-approved ones first — approveCount is how
+// many of those leading entries to approve, once the caller has uploaded
+// their photos.
+func seedListings(ctx context.Context, repo *repository.ListingRepository, userID int64, apiaries []*model.Apiary, email string) (listings []*model.Listing, approveCount int) {
 	price := func(v float64) *float64 { return &v }
 	specs := []*model.Listing{
 		{
@@ -514,26 +531,12 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 		},
 	}
 
-	approved := 0
-	for _, l := range specs {
-		l.UserID = userID
-		if coords, ok := cityCoords[l.Address]; ok {
-			l.Lat, l.Lng = jitterCoord(coords[0], coords[1])
-		}
-		if l.Price != nil {
-			jittered := jitterPrice(*l.Price)
-			l.Price = &jittered
-		}
-		l.Quantity = jitterQuantity(l.Quantity)
-		if err := repo.Create(ctx, l); err != nil {
-			log.Fatalf("create listing %q: %v", l.Title, err)
-		}
-		if err := repo.Approve(ctx, l.ID, userID); err != nil {
-			log.Fatalf("approve listing %q: %v", l.Title, err)
-		}
-		approved++
-	}
-	for _, l := range pendingSpecs {
+	// Only created here, left pending — approving happens in main(), after
+	// photos are uploaded through the real API. Uploading a photo resets an
+	// already-approved listing back to pending (see
+	// ListingImageService.resetToPendingIfReviewed), so approving before the
+	// upload step would just have the upload immediately undo it.
+	for _, l := range append(specs, pendingSpecs...) {
 		l.UserID = userID
 		if coords, ok := cityCoords[l.Address]; ok {
 			l.Lat, l.Lng = jitterCoord(coords[0], coords[1])
@@ -548,9 +551,13 @@ func seedListings(ctx context.Context, repo *repository.ListingRepository, userI
 		}
 	}
 
+	// Split evenly regardless of the specs/pendingSpecs split above, so the
+	// admin review queue and the approved feed both have a realistic amount
+	// to show — half the seeded listings waiting for approval, half live.
 	all := append(specs, pendingSpecs...)
-	log.Printf("created %d listings (%d approved, %d pending review)", len(all), approved, len(pendingSpecs))
-	return all
+	approveCount = len(all) / 2
+	log.Printf("created %d listings (%d to be approved, %d left pending review)", len(all), approveCount, len(all)-approveCount)
+	return all, approveCount
 }
 
 var honeyBatchSpecs = []struct {

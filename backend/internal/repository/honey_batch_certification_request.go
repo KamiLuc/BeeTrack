@@ -110,7 +110,7 @@ func (r *HoneyBatchCertificationRequestRepository) List(ctx context.Context, sta
 		order = "cr.created_at DESC"
 	}
 
-	base := r.certificationRequestDetailJoins(ctx)
+	base := r.certificationRequestDetailJoins(ctx).Where("b.deleted_at IS NULL")
 	if status != "" {
 		base = base.Where("cr.status = ?", status)
 	}

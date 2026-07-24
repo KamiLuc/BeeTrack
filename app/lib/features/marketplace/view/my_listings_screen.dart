@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,12 +28,14 @@ class MyListingsScreen extends StatefulWidget {
 class _MyListingsScreenState extends State<MyListingsScreen> {
   late final ListingRepository _repo;
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   Timer? _debounce;
   String _keyword = '';
   String? _category;
-  List<Listing>? _listings;
-  int _currentPage = 1;
-  int _totalPages = 1;
+  List<Listing> _listings = [];
+  int _total = 0;
+  bool _hasMore = false;
+  bool _loadingMore = false;
   bool _loading = true;
   bool _hasError = false;
   final Set<int> _busy = {};
@@ -43,6 +44,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   void initState() {
     super.initState();
     _repo = ListingRepository(api: context.read<ApiClient>());
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
@@ -50,25 +52,33 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    const threshold = 300.0;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - threshold) {
+      _loadMore();
+    }
   }
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
       setState(() => _keyword = value.trim());
-      _goToPage(1);
+      _load();
     });
   }
 
   void _onCategoryChanged(String? category) {
     setState(() => _category = category);
-    _goToPage(1);
+    _load();
   }
 
-  Future<void> _load() => _goToPage(1);
-
-  Future<void> _goToPage(int page) async {
+  Future<void> _load() async {
     setState(() {
       _loading = true;
       _hasError = false;
@@ -79,13 +89,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         keyword: _keyword.isEmpty ? null : _keyword,
         category: _category,
         limit: _pageSize,
-        offset: (page - 1) * _pageSize,
+        offset: 0,
       );
       if (!mounted) return;
       setState(() {
         _listings = result.items;
-        _currentPage = page;
-        _totalPages = (result.total / _pageSize).ceil().clamp(1, 999999);
+        _total = result.total;
+        _hasMore = result.items.length < result.total;
         _loading = false;
       });
     } catch (_) {
@@ -97,18 +107,43 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
+  /// Fetches the next page of results and appends it to the current list.
+  /// No-ops if already loading more or if there's nothing left to fetch.
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await _repo.searchListings(
+        mine: true,
+        keyword: _keyword.isEmpty ? null : _keyword,
+        category: _category,
+        limit: _pageSize,
+        offset: _listings.length,
+      );
+      if (!mounted) return;
+      setState(() {
+        _listings = [..._listings, ...result.items];
+        _total = result.total;
+        _hasMore = _listings.length < result.total;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
   Future<void> _openDetail(Listing listing) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
     );
-    if (mounted) _goToPage(_currentPage);
+    if (mounted) _load();
   }
 
   Future<void> _openCreate() async {
     final created = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const CreateListingScreen()));
-    if ((created ?? false) && mounted) _goToPage(1);
+    if ((created ?? false) && mounted) _load();
   }
 
   Future<void> _openEdit(Listing listing) async {
@@ -117,7 +152,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         builder: (_) => CreateListingScreen(existingListing: listing),
       ),
     );
-    if ((updated ?? false) && mounted) _goToPage(_currentPage);
+    if ((updated ?? false) && mounted) _load();
   }
 
   Future<void> _toggleHidden(Listing listing) async {
@@ -131,7 +166,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       if (!mounted) return;
       setState(() {
         _listings = [
-          for (final l in _listings!)
+          for (final l in _listings)
             if (l.id == updated.id) updated else l,
         ];
         _busy.remove(listing.id);
@@ -161,15 +196,12 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     try {
       await _repo.deleteListing(listing.id);
       if (!mounted) return;
-      final remaining = _listings!.where((l) => l.id != listing.id).toList();
-      if (remaining.isEmpty && _currentPage > 1) {
-        await _goToPage(_currentPage - 1);
-      } else {
-        setState(() {
-          _listings = remaining;
-          _busy.remove(listing.id);
-        });
-      }
+      setState(() {
+        _listings = _listings.where((l) => l.id != listing.id).toList();
+        _total--;
+        _hasMore = _listings.length < _total;
+        _busy.remove(listing.id);
+      });
     } catch (_) {
       if (mounted) {
         setState(() => _busy.remove(listing.id));
@@ -213,7 +245,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                       onSubmitted: (value) {
                         _debounce?.cancel();
                         setState(() => _keyword = value.trim());
-                        _goToPage(1);
+                        _load();
                       },
                     ),
                   ),
@@ -230,9 +262,6 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           ),
           Expanded(child: _buildBody(l10n)),
           _MyListingsBanner(
-            currentPage: _currentPage,
-            totalPages: _totalPages,
-            onPage: _goToPage,
             onAdd: _openCreate,
             addTooltip: l10n.marketplaceCreateScreenTitle,
           ),
@@ -258,8 +287,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         ),
       );
     }
-    final listings = _listings ?? [];
-    if (listings.isEmpty) {
+    if (_listings.isEmpty) {
       return Center(child: Text(l10n.myListingsEmpty));
     }
     return RefreshIndicator(
@@ -268,11 +296,18 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: ListView.builder(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            itemCount: listings.length,
+            itemCount: _listings.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              final listing = listings[index];
+              if (index >= _listings.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final listing = _listings[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _MyListingCard(
@@ -337,46 +372,14 @@ class _MyListingsCategoryDropdown extends StatelessWidget {
 }
 
 class _MyListingsBanner extends StatelessWidget {
-  final int currentPage;
-  final int totalPages;
-  final ValueChanged<int> onPage;
   final VoidCallback onAdd;
   final String addTooltip;
 
-  const _MyListingsBanner({
-    required this.currentPage,
-    required this.totalPages,
-    required this.onPage,
-    required this.onAdd,
-    required this.addTooltip,
-  });
-
-  List<_PageItem> _buildPageItems() {
-    final cur = currentPage;
-    final last = totalPages;
-    final items = <_PageItem>[];
-
-    void addPage(int p) => items.add(_PageItem.page(p));
-    void addEllipsis() => items.add(_PageItem.ellipsis());
-
-    if (last <= 5) {
-      for (var i = 1; i <= last; i++) addPage(i);
-    } else {
-      addPage(1);
-      if (cur > 3) addEllipsis();
-      for (var i = max(2, cur - 1); i <= min(last - 1, cur + 1); i++) {
-        addPage(i);
-      }
-      if (cur < last - 2) addEllipsis();
-      addPage(last);
-    }
-    return items;
-  }
+  const _MyListingsBanner({required this.onAdd, required this.addTooltip});
 
   @override
   Widget build(BuildContext context) {
     final bannerWidth = AppLayout.bannerWidth(context);
-    final pageItems = _buildPageItems();
 
     return SafeArea(
       top: false,
@@ -401,9 +404,7 @@ class _MyListingsBanner extends StatelessWidget {
                 ],
               ),
               child: Row(
-                mainAxisAlignment: totalPages > 1
-                    ? MainAxisAlignment.spaceBetween
-                    : MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.add),
@@ -411,89 +412,9 @@ class _MyListingsBanner extends StatelessWidget {
                     tooltip: addTooltip,
                     onPressed: onAdd,
                   ),
-                  if (totalPages > 1)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left),
-                          iconSize: 24,
-                          onPressed: currentPage > 1
-                              ? () => onPage(currentPage - 1)
-                              : null,
-                        ),
-                        for (final item in pageItems)
-                          item.isEllipsis
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 2),
-                                  child: Text(
-                                    '…',
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                )
-                              : _PageButton(
-                                  page: item.page!,
-                                  isCurrent: item.page == currentPage,
-                                  onTap: () => onPage(item.page!),
-                                ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right),
-                          iconSize: 24,
-                          onPressed: currentPage < totalPages
-                              ? () => onPage(currentPage + 1)
-                              : null,
-                        ),
-                      ],
-                    ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PageItem {
-  final int? page;
-  final bool isEllipsis;
-
-  const _PageItem.page(this.page) : isEllipsis = false;
-  const _PageItem.ellipsis() : page = null, isEllipsis = true;
-}
-
-class _PageButton extends StatelessWidget {
-  final int page;
-  final bool isCurrent;
-  final VoidCallback onTap;
-
-  const _PageButton({
-    required this.page,
-    required this.isCurrent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: isCurrent ? null : onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: isCurrent
-            ? BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(16),
-              )
-            : null,
-        alignment: Alignment.center,
-        child: Text(
-          '$page',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
