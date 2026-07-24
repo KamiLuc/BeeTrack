@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,10 @@ class MyListingsScreen extends StatefulWidget {
 
 class _MyListingsScreenState extends State<MyListingsScreen> {
   late final ListingRepository _repo;
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _keyword = '';
+  String? _category;
   List<Listing>? _listings;
   int _currentPage = 1;
   int _totalPages = 1;
@@ -41,6 +46,26 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      setState(() => _keyword = value.trim());
+      _goToPage(1);
+    });
+  }
+
+  void _onCategoryChanged(String? category) {
+    setState(() => _category = category);
+    _goToPage(1);
+  }
+
   Future<void> _load() => _goToPage(1);
 
   Future<void> _goToPage(int page) async {
@@ -51,6 +76,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     try {
       final result = await _repo.searchListings(
         mine: true,
+        keyword: _keyword.isEmpty ? null : _keyword,
+        category: _category,
         limit: _pageSize,
         offset: (page - 1) * _pageSize,
       );
@@ -75,6 +102,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
     );
     if (mounted) _goToPage(_currentPage);
+  }
+
+  Future<void> _openCreate() async {
+    final created = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const CreateListingScreen()));
+    if ((created ?? false) && mounted) _goToPage(1);
   }
 
   Future<void> _openEdit(Listing listing) async {
@@ -157,13 +191,51 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       ),
       body: Column(
         children: [
-          Expanded(child: _buildBody(l10n)),
-          if (_totalPages > 1)
-            _PaginationBanner(
-              currentPage: _currentPage,
-              totalPages: _totalPages,
-              onPage: _goToPage,
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: l10n.marketplaceSearchHint,
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      textInputAction: TextInputAction.search,
+                      onChanged: _onSearchChanged,
+                      onSubmitted: (value) {
+                        _debounce?.cancel();
+                        setState(() => _keyword = value.trim());
+                        _goToPage(1);
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _MyListingsCategoryDropdown(
+                      selected: _category,
+                      onChanged: _onCategoryChanged,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          Expanded(child: _buildBody(l10n)),
+          _MyListingsBanner(
+            currentPage: _currentPage,
+            totalPages: _totalPages,
+            onPage: _goToPage,
+            onAdd: _openCreate,
+            addTooltip: l10n.marketplaceCreateScreenTitle,
+          ),
         ],
       ),
     );
@@ -194,7 +266,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       onRefresh: _load,
       child: Center(
         child: ConstrainedBox(
-          constraints: AppLayout.formConstraints(context),
+          constraints: const BoxConstraints(maxWidth: 600),
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
@@ -220,15 +292,63 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   }
 }
 
-class _PaginationBanner extends StatelessWidget {
+class _MyListingsCategoryDropdown extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  const _MyListingsCategoryDropdown({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    Widget categoryItem(String? category) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(listingCategoryIcon(category), size: 20),
+        const SizedBox(width: 8),
+        Text(
+          category == null
+              ? l10n.marketplaceCategoryAll
+              : listingCategoryLabel(l10n, category),
+        ),
+      ],
+    );
+
+    return DropdownButtonFormField<String?>(
+      initialValue: selected,
+      isExpanded: true,
+      decoration: const InputDecoration(isDense: true, border: InputBorder.none),
+      onChanged: onChanged,
+      selectedItemBuilder: (context) => [
+        categoryItem(null),
+        for (final category in listingCategories) categoryItem(category),
+      ],
+      items: [
+        DropdownMenuItem(value: null, child: categoryItem(null)),
+        for (final category in listingCategories)
+          DropdownMenuItem(value: category, child: categoryItem(category)),
+      ],
+    );
+  }
+}
+
+class _MyListingsBanner extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final ValueChanged<int> onPage;
+  final VoidCallback onAdd;
+  final String addTooltip;
 
-  const _PaginationBanner({
+  const _MyListingsBanner({
     required this.currentPage,
     required this.totalPages,
     required this.onPage,
+    required this.onAdd,
+    required this.addTooltip,
   });
 
   List<_PageItem> _buildPageItems() {
@@ -281,33 +401,50 @@ class _PaginationBanner extends StatelessWidget {
                 ],
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: totalPages > 1
+                    ? MainAxisAlignment.spaceBetween
+                    : MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    iconSize: 24,
-                    onPressed: currentPage > 1
-                        ? () => onPage(currentPage - 1)
-                        : null,
+                    icon: const Icon(Icons.add),
+                    iconSize: 28,
+                    tooltip: addTooltip,
+                    onPressed: onAdd,
                   ),
-                  for (final item in pageItems)
-                    item.isEllipsis
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 2),
-                            child: Text('…', style: TextStyle(fontSize: 16)),
-                          )
-                        : _PageButton(
-                            page: item.page!,
-                            isCurrent: item.page == currentPage,
-                            onTap: () => onPage(item.page!),
-                          ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    iconSize: 24,
-                    onPressed: currentPage < totalPages
-                        ? () => onPage(currentPage + 1)
-                        : null,
-                  ),
+                  if (totalPages > 1)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          iconSize: 24,
+                          onPressed: currentPage > 1
+                              ? () => onPage(currentPage - 1)
+                              : null,
+                        ),
+                        for (final item in pageItems)
+                          item.isEllipsis
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 2),
+                                  child: Text(
+                                    '…',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                )
+                              : _PageButton(
+                                  page: item.page!,
+                                  isCurrent: item.page == currentPage,
+                                  onTap: () => onPage(item.page!),
+                                ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          iconSize: 24,
+                          onPressed: currentPage < totalPages
+                              ? () => onPage(currentPage + 1)
+                              : null,
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),

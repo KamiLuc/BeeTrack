@@ -32,7 +32,13 @@ Future<void> _solveDeletePuzzle(
       .firstWhere((t) => RegExp(r'^\d+ \+ \d+ = $').hasMatch(t.data ?? ''));
   final match = RegExp(r'^(\d+) \+ (\d+) = $').firstMatch(prompt.data!)!;
   final sum = int.parse(match.group(1)!) + int.parse(match.group(2)!);
-  await tester.enterText(find.byType(TextField), '$sum');
+  await tester.enterText(
+    find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    ),
+    '$sum',
+  );
   await tester.tap(find.text(l10n.generalDelete).last);
   await tester.pumpAndSettle();
 }
@@ -374,6 +380,22 @@ void main() {
       expect(find.byType(CreateListingScreen), findsNothing);
     });
 
+    testWidgets('add button opens CreateListingScreen for a new listing', (
+      tester,
+    ) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      adapter.listings = [_listingJson()];
+
+      await tester.pumpWidget(_wrap(apiClient));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CreateListingScreen), findsOneWidget);
+      expect(find.text(l10n.marketplaceCreateScreenTitle), findsOneWidget);
+    });
+
     testWidgets(
       'edit action opens CreateListingScreen prefilled and reloads on '
       'successful edit',
@@ -475,6 +497,48 @@ void main() {
     );
 
     testWidgets(
+      'typing in the search field reloads with the keyword after a debounce',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'wildflower');
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
+
+        final searchRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'GET',
+        );
+        expect(searchRequests.last.queryParameters['keyword'], 'wildflower');
+        expect(searchRequests.last.queryParameters['mine'], true);
+      },
+    );
+
+    testWidgets(
+      'selecting a category reloads with the category filter applied',
+      (tester) async {
+        final (apiClient, adapter) = await _fakeApiClient();
+        adapter.listings = [_listingJson()];
+
+        await tester.pumpWidget(_wrap(apiClient));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byType(DropdownButtonFormField<String?>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.marketplaceCategoryHoney).last);
+        await tester.pumpAndSettle();
+
+        final searchRequests = adapter.requests.where(
+          (r) => r.path.endsWith('/listings') && r.method == 'GET',
+        );
+        expect(searchRequests.last.queryParameters['category'], 'HONEY');
+      },
+    );
+
+    testWidgets(
       'wrong puzzle answer shows an error and does not delete',
       (tester) async {
         final (apiClient, adapter) = await _fakeApiClient();
@@ -488,7 +552,13 @@ void main() {
         await tester.tap(find.text(l10n.generalDelete));
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.byType(TextField), '-1');
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(TextField),
+          ),
+          '-1',
+        );
         await tester.tap(find.text(l10n.generalDelete).last);
         await tester.pumpAndSettle();
 
