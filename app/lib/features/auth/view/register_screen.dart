@@ -26,6 +26,7 @@ class _RegisterViewState extends State<_RegisterView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   String? _errorMessage;
   String? _verifiedEmail;
 
@@ -33,6 +34,7 @@ class _RegisterViewState extends State<_RegisterView> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -78,6 +80,7 @@ class _RegisterViewState extends State<_RegisterView> {
                         formKey: _formKey,
                         emailController: _emailController,
                         passwordController: _passwordController,
+                        confirmPasswordController: _confirmPasswordController,
                         errorMessage: _errorMessage,
                         onSubmit: _submit,
                       ),
@@ -135,6 +138,7 @@ class _CheckEmailView extends StatelessWidget {
 }
 
 class _FormView extends StatelessWidget {
+  final TextEditingController confirmPasswordController;
   final TextEditingController emailController;
   final String? errorMessage;
   final GlobalKey<FormState> formKey;
@@ -142,6 +146,7 @@ class _FormView extends StatelessWidget {
   final TextEditingController passwordController;
 
   const _FormView({
+    required this.confirmPasswordController,
     required this.emailController,
     required this.errorMessage,
     required this.formKey,
@@ -188,12 +193,27 @@ class _FormView extends StatelessWidget {
               counterText: '',
             ),
             obscureText: true,
+            textInputAction: TextInputAction.next,
+            maxLength: maxPasswordLength,
+            validator: (v) {
+              if (v == null || v.length < 8) return l10n.authWeakPassword;
+              return validatePasswordLength(v, l10n);
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: confirmPasswordController,
+            decoration: InputDecoration(
+              labelText: l10n.authConfirmPassword,
+              counterText: '',
+            ),
+            obscureText: true,
             textInputAction: TextInputAction.done,
             maxLength: maxPasswordLength,
             onFieldSubmitted: (_) => onSubmit(context),
             validator: (v) {
-              if (v == null || v.length < 8) return l10n.authWeakPassword;
-              return validatePasswordLength(v, l10n);
+              if (v != passwordController.text) return l10n.authPasswordMismatch;
+              return null;
             },
           ),
           if (errorMessage != null) ...[

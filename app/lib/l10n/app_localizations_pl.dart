@@ -87,6 +87,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get authWeakPassword => 'Hasło musi mieć co najmniej 8 znaków';
 
   @override
+  String get authConfirmPassword => 'Potwierdź hasło';
+
+  @override
+  String get authPasswordMismatch => 'Hasła nie są takie same';
+
+  @override
   String get authInvalidCredentials => 'Nieprawidłowy e-mail lub hasło';
 
   @override

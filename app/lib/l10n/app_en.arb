@@ -30,6 +30,8 @@
   "authHaveAccount": "Already have an account? Log in",
   "authInvalidEmail": "Invalid email address",
   "authWeakPassword": "Password must be at least 8 characters",
+  "authConfirmPassword": "Confirm password",
+  "authPasswordMismatch": "Passwords do not match",
   "authInvalidCredentials": "Invalid email or password",
   "authEmailTaken": "This email is already taken",
   "authEmailNotVerified": "Please verify your email before logging in",

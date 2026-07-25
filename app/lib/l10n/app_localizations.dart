@@ -254,6 +254,18 @@ abstract class AppLocalizations {
   /// **'Hasło musi mieć co najmniej 8 znaków'**
   String get authWeakPassword;
 
+  /// No description provided for @authConfirmPassword.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdź hasło'**
+  String get authConfirmPassword;
+
+  /// No description provided for @authPasswordMismatch.
+  ///
+  /// In pl, this message translates to:
+  /// **'Hasła nie są takie same'**
+  String get authPasswordMismatch;
+
   /// No description provided for @authInvalidCredentials.
   ///
   /// In pl, this message translates to:

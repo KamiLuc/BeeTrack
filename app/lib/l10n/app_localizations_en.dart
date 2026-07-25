@@ -87,6 +87,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authWeakPassword => 'Password must be at least 8 characters';
 
   @override
+  String get authConfirmPassword => 'Confirm password';
+
+  @override
+  String get authPasswordMismatch => 'Passwords do not match';
+
+  @override
   String get authInvalidCredentials => 'Invalid email or password';
 
   @override

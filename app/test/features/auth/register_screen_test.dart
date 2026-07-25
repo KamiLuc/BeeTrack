@@ -53,5 +53,69 @@ void main() {
       );
       expect(field.controller!.text.length, 72);
     });
+
+    testWidgets('shows mismatch error and does not submit when passwords differ',
+        (tester) async {
+      final mockRepo = _MockAuthRepository();
+      final authBloc = AuthBloc(auth: mockRepo);
+      await tester.pumpWidget(_wrap(authBloc));
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Email'),
+        'user@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Password'),
+        'password1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Confirm password'),
+        'password2',
+      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Register'));
+      await tester.pump();
+
+      expect(find.text('Passwords do not match'), findsOneWidget);
+      verifyNever(
+        () => mockRepo.register(
+          email: any(named: 'email'),
+          lang: any(named: 'lang'),
+          name: any(named: 'name'),
+          password: any(named: 'password'),
+        ),
+      );
+    });
+
+    testWidgets('does not show mismatch error when passwords match',
+        (tester) async {
+      final mockRepo = _MockAuthRepository();
+      when(
+        () => mockRepo.register(
+          email: any(named: 'email'),
+          lang: any(named: 'lang'),
+          name: any(named: 'name'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async {});
+      final authBloc = AuthBloc(auth: mockRepo);
+      await tester.pumpWidget(_wrap(authBloc));
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Email'),
+        'user@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Password'),
+        'password1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Confirm password'),
+        'password1',
+      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Register'));
+      await tester.pump();
+
+      expect(find.text('Passwords do not match'), findsNothing);
+    });
   });
 }

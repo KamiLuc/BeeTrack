@@ -30,6 +30,8 @@
   "authHaveAccount": "Masz już konto? Zaloguj się",
   "authInvalidEmail": "Nieprawidłowy adres e-mail",
   "authWeakPassword": "Hasło musi mieć co najmniej 8 znaków",
+  "authConfirmPassword": "Potwierdź hasło",
+  "authPasswordMismatch": "Hasła nie są takie same",
   "authInvalidCredentials": "Nieprawidłowy e-mail lub hasło",
   "authEmailTaken": "Ten adres e-mail jest już zajęty",
   "authEmailNotVerified": "Potwierdź swój adres e-mail przed zalogowaniem",
