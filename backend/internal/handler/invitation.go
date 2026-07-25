@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -36,15 +34,13 @@ func NewInvitationHandler(svc invitationService) *InvitationHandler {
 
 // Invite handles POST /api/v1/apiaries/{id}/invitations — sends an invitation; owner only.
 func (h *InvitationHandler) Invite(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -92,15 +88,13 @@ func (h *InvitationHandler) Invite(w http.ResponseWriter, r *http.Request) {
 
 // ListForApiary handles GET /api/v1/apiaries/{id}/invitations — lists members and pending invitations; owner only.
 func (h *InvitationHandler) ListForApiary(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -161,20 +155,17 @@ func (h *InvitationHandler) ListForApiary(w http.ResponseWriter, r *http.Request
 
 // CancelInvitation handles DELETE /api/v1/apiaries/{id}/invitations/{invitationId} — owner cancels a pending invite.
 func (h *InvitationHandler) CancelInvitation(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
-	invitationID, err := strconv.ParseInt(r.PathValue("invitationId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid invitation id")
+	invitationID, ok := parsePathID(w, r, "invitationId", "invalid invitation id")
+	if !ok {
 		return
 	}
 
@@ -197,20 +188,17 @@ func (h *InvitationHandler) CancelInvitation(w http.ResponseWriter, r *http.Requ
 
 // RemoveMember handles DELETE /api/v1/apiaries/{id}/members/{userId} — owner removes a member.
 func (h *InvitationHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
-	memberUserID, err := strconv.ParseInt(r.PathValue("userId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid user id")
+	memberUserID, ok := parsePathID(w, r, "userId", "invalid user id")
+	if !ok {
 		return
 	}
 
@@ -233,15 +221,13 @@ func (h *InvitationHandler) RemoveMember(w http.ResponseWriter, r *http.Request)
 
 // Leave handles DELETE /api/v1/apiaries/{id}/leave — removes the authenticated user from the apiary.
 func (h *InvitationHandler) Leave(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -262,9 +248,8 @@ func (h *InvitationHandler) Leave(w http.ResponseWriter, r *http.Request) {
 
 // ListMine handles GET /api/v1/invitations — returns the user's pending invitations.
 func (h *InvitationHandler) ListMine(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -296,9 +281,8 @@ func (h *InvitationHandler) ListMine(w http.ResponseWriter, r *http.Request) {
 
 // CountMine handles GET /api/v1/invitations/count — returns the count of the user's pending invitations.
 func (h *InvitationHandler) CountMine(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -313,15 +297,13 @@ func (h *InvitationHandler) CountMine(w http.ResponseWriter, r *http.Request) {
 
 // Accept handles POST /api/v1/invitations/{id}/accept — accepts a pending invitation.
 func (h *InvitationHandler) Accept(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	invitationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid invitation id")
+	invitationID, ok := parsePathID(w, r, "id", "invalid invitation id")
+	if !ok {
 		return
 	}
 
@@ -342,15 +324,13 @@ func (h *InvitationHandler) Accept(w http.ResponseWriter, r *http.Request) {
 
 // Decline handles POST /api/v1/invitations/{id}/decline — declines a pending invitation.
 func (h *InvitationHandler) Decline(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	invitationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid invitation id")
+	invitationID, ok := parsePathID(w, r, "id", "invalid invitation id")
+	if !ok {
 		return
 	}
 

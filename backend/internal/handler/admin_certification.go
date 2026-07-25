@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -139,9 +137,8 @@ func (h *AdminCertificationHandler) Get(w http.ResponseWriter, r *http.Request) 
 // Approve handles POST /api/v1/admin/certification-requests/{id}/approve —
 // enqueues the blockchain_jobs row the existing worker picks up.
 func (h *AdminCertificationHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -166,9 +163,8 @@ func (h *AdminCertificationHandler) Approve(w http.ResponseWriter, r *http.Reque
 
 // Reject handles POST /api/v1/admin/certification-requests/{id}/reject.
 func (h *AdminCertificationHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -179,8 +175,7 @@ func (h *AdminCertificationHandler) Reject(w http.ResponseWriter, r *http.Reques
 	}
 
 	var req rejectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 

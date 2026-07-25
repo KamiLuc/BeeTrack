@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
 )
@@ -52,9 +51,8 @@ func parseListingImagePathIDs(r *http.Request) (listingID, imageID int64, err er
 
 // Upload handles POST /api/v1/listings/{id}/images — stores a multipart image upload.
 func (h *ListingImageHandler) Upload(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -99,9 +97,8 @@ func (h *ListingImageHandler) ServeFile(w http.ResponseWriter, r *http.Request) 
 
 // Delete handles DELETE /api/v1/listings/{id}/images/{imageId} — removes a listing image.
 func (h *ListingImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 

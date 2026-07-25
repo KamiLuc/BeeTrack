@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -97,9 +95,8 @@ func parseTreatmentPathIDs(r *http.Request) (apiaryID, hiveID int64, err error) 
 
 // Medicines handles GET /api/v1/medicines — returns medicine names this user has previously used.
 func (h *TreatmentHandler) Medicines(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -114,9 +111,8 @@ func (h *TreatmentHandler) Medicines(w http.ResponseWriter, r *http.Request) {
 
 // Doses handles GET /api/v1/doses — returns doses this user has previously used.
 func (h *TreatmentHandler) Doses(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -131,21 +127,18 @@ func (h *TreatmentHandler) Doses(w http.ResponseWriter, r *http.Request) {
 
 // BulkCreate handles POST /api/v1/apiaries/{id}/treatments/bulk — creates one treatment per hive in the apiary.
 func (h *TreatmentHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
 	var req bulkTreatmentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -160,9 +153,8 @@ func (h *TreatmentHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 
 // Create handles POST /api/v1/apiaries/{id}/hives/{hiveId}/treatments — creates a new treatment.
 func (h *TreatmentHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -173,8 +165,7 @@ func (h *TreatmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req treatmentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -189,9 +180,8 @@ func (h *TreatmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} — returns a single treatment.
 func (h *TreatmentHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -201,9 +191,8 @@ func (h *TreatmentHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	treatmentID, err := strconv.ParseInt(r.PathValue("treatmentId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid treatment id")
+	treatmentID, ok := parsePathID(w, r, "treatmentId", "invalid treatment id")
+	if !ok {
 		return
 	}
 
@@ -218,9 +207,8 @@ func (h *TreatmentHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/apiaries/{id}/hives/{hiveId}/treatments — returns paginated treatments.
 func (h *TreatmentHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -259,9 +247,8 @@ func (h *TreatmentHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} — updates a treatment.
 func (h *TreatmentHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -271,15 +258,13 @@ func (h *TreatmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	treatmentID, err := strconv.ParseInt(r.PathValue("treatmentId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid treatment id")
+	treatmentID, ok := parsePathID(w, r, "treatmentId", "invalid treatment id")
+	if !ok {
 		return
 	}
 
 	var req treatmentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -294,9 +279,8 @@ func (h *TreatmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/treatments/{treatmentId} — deletes a treatment.
 func (h *TreatmentHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -306,9 +290,8 @@ func (h *TreatmentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	treatmentID, err := strconv.ParseInt(r.PathValue("treatmentId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid treatment id")
+	treatmentID, ok := parsePathID(w, r, "treatmentId", "invalid treatment id")
+	if !ok {
 		return
 	}
 

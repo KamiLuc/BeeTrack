@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
 )
@@ -22,9 +20,8 @@ func NewApiaryHandler(apiary *service.ApiaryService) *ApiaryHandler {
 
 // Create handles POST /api/v1/apiaries — creates a new apiary owned by the authenticated user.
 func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -35,8 +32,7 @@ func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Lng      *float64 `json:"lng"`
 		Name     string   `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -73,9 +69,8 @@ func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/apiaries — returns all apiaries the authenticated user is a member of.
 func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -120,15 +115,13 @@ func (h *ApiaryHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/apiaries/{id} — updates an apiary; only the owner may do this.
 func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -139,8 +132,7 @@ func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Lng      *float64 `json:"lng"`
 		Name     string   `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -181,15 +173,13 @@ func (h *ApiaryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Copy handles POST /api/v1/apiaries/{id}/copy — creates a deep copy of an apiary for the authenticated user.
 func (h *ApiaryHandler) Copy(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -225,15 +215,13 @@ func (h *ApiaryHandler) Copy(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/apiaries/{id} — deletes an apiary; only the owner may do this.
 func (h *ApiaryHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 

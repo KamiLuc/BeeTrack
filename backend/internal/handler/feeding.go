@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -97,9 +95,8 @@ func parseFeedingPathIDs(r *http.Request) (apiaryID, hiveID int64, err error) {
 
 // FeedTypes handles GET /api/v1/feed-types — returns feed types this user has previously used.
 func (h *FeedingHandler) FeedTypes(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -114,9 +111,8 @@ func (h *FeedingHandler) FeedTypes(w http.ResponseWriter, r *http.Request) {
 
 // Amounts handles GET /api/v1/feed-amounts — returns amounts this user has previously used.
 func (h *FeedingHandler) Amounts(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -131,21 +127,18 @@ func (h *FeedingHandler) Amounts(w http.ResponseWriter, r *http.Request) {
 
 // BulkCreate handles POST /api/v1/apiaries/{id}/feedings/bulk — creates one feeding per hive in the apiary.
 func (h *FeedingHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
 	var req bulkFeedingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -160,9 +153,8 @@ func (h *FeedingHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 
 // Create handles POST /api/v1/apiaries/{id}/hives/{hiveId}/feedings — creates a new feeding.
 func (h *FeedingHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -173,8 +165,7 @@ func (h *FeedingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req feedingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -189,9 +180,8 @@ func (h *FeedingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId} — returns a single feeding.
 func (h *FeedingHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -201,9 +191,8 @@ func (h *FeedingHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedingID, err := strconv.ParseInt(r.PathValue("feedingId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid feeding id")
+	feedingID, ok := parsePathID(w, r, "feedingId", "invalid feeding id")
+	if !ok {
 		return
 	}
 
@@ -218,9 +207,8 @@ func (h *FeedingHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/apiaries/{id}/hives/{hiveId}/feedings — returns paginated feedings.
 func (h *FeedingHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -259,9 +247,8 @@ func (h *FeedingHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId} — updates a feeding.
 func (h *FeedingHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -271,15 +258,13 @@ func (h *FeedingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedingID, err := strconv.ParseInt(r.PathValue("feedingId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid feeding id")
+	feedingID, ok := parsePathID(w, r, "feedingId", "invalid feeding id")
+	if !ok {
 		return
 	}
 
 	var req feedingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -294,9 +279,8 @@ func (h *FeedingHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/feedings/{feedingId} — deletes a feeding.
 func (h *FeedingHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -306,9 +290,8 @@ func (h *FeedingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedingID, err := strconv.ParseInt(r.PathValue("feedingId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid feeding id")
+	feedingID, ok := parsePathID(w, r, "feedingId", "invalid feeding id")
+	if !ok {
 		return
 	}
 

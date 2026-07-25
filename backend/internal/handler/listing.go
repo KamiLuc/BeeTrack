@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -261,15 +260,13 @@ func parseNearFilter(q url.Values) (lat, lng, radius float64, ok bool) {
 
 // Create handles POST /api/v1/listings — creates a new listing.
 func (h *ListingHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
 	var req listingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -334,9 +331,8 @@ func (h *ListingHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/listings/{id} — updates a listing owned by the caller.
 func (h *ListingHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -347,8 +343,7 @@ func (h *ListingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req listingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -363,9 +358,8 @@ func (h *ListingHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Hide handles PATCH /api/v1/listings/{id}/hide — toggles a listing's visibility.
 func (h *ListingHandler) Hide(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -376,8 +370,7 @@ func (h *ListingHandler) Hide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req hideRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -397,9 +390,8 @@ func (h *ListingHandler) Hide(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/listings/{id} — deletes a listing owned by the caller.
 func (h *ListingHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 

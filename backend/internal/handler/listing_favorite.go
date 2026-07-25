@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
 )
@@ -32,9 +31,8 @@ func listingFavoriteError(w http.ResponseWriter, err error) {
 
 // Add handles POST /api/v1/listings/{id}/favorite — saves a listing to the caller's favorites.
 func (h *ListingFavoriteHandler) Add(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -54,9 +52,8 @@ func (h *ListingFavoriteHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 // Remove handles DELETE /api/v1/listings/{id}/favorite — removes a listing from the caller's favorites.
 func (h *ListingFavoriteHandler) Remove(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -76,9 +73,8 @@ func (h *ListingFavoriteHandler) Remove(w http.ResponseWriter, r *http.Request) 
 
 // Check handles GET /api/v1/listings/{id}/favorite — reports whether the caller has favorited the listing.
 func (h *ListingFavoriteHandler) Check(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -99,9 +95,8 @@ func (h *ListingFavoriteHandler) Check(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/favorites — returns the caller's favorited listings.
 func (h *ListingFavoriteHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 

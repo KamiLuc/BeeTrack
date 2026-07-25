@@ -93,7 +93,7 @@
 | ID        | Layer | Status | Title                                         | Notes |
 | --------- | ----- | ------ | --------------------------------------------- | ----- |
 | INF-05-BE | `BE`  | `[ ]`  | REST API — OpenAPI / Swagger spec             |       |
-| INF-06-BE | `BE`  | `[ ]`  | Input validation & structured error responses |       |
+| INF-06-BE | `BE`  | `[x]`  | Input validation & structured error responses | First pass: shared `requireAuth`/`decodeJSON`/`parsePathID` helpers in `internal/handler/helpers.go` collapse ~280 duplicated boilerplate call sites (auth-context check, JSON body decode, path-ID parsing) across ~17 handler files. Zero change to wire format/error codes — same `{code, message}` shape and same per-resource messages as before. Consolidating the 87 duplicated "required"/"too long"/"invalid" service-layer validation sentinels is a separate, larger follow-up, deliberately out of scope here. |
 | INF-07-BE | `BE`  | `[ ]`  | Structured JSON logging                       |       |
 | INF-08-BE | `BE`  | `[ ]`  | Server-side re-compression of uploaded inspection/listing images | Client already caps uploads at 5 MB (`generalPhotoTooLarge` guard); re-encode on the backend after upload to shrink stored file size regardless of client behavior (gallery picks, PNG/WebP, web). Needs a Go image-decode/re-encode dependency, a target quality/resolution, and EXIF orientation handling. |
 
@@ -109,7 +109,7 @@
 
 | ID       | Layer | Status | Title                        | Notes                                                                                                     |
 | -------- | ----- | ------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| HC-FE-16 | `FE`  | `[ ]`  | Verification details modal   | Backend endpoint `GET /api/v1/honey-batches/{id}/certifications` already exists (full history, most recent first); no FE consumer yet |
+| HC-FE-16 | `FE`  | `[x]`  | ~~Verification details modal~~ | **Descoped** — owners don't need in-app certification history; already fully visible in the admin panel. Endpoint (`GET /api/v1/honey-batches/{id}/certifications`) stays for the admin panel's use. |
 | HC-FE-17 | `FE`  | `[x]`  | Hash comparison display      | Show stored hash vs. on-chain hash                                                                        |
 | HC-10-04 | `BE`  | `[ ]`  | Gas fee management            | *(optional)* `gas_used` already persisted per-certification row; gas relay/price-spike alerting unnecessary on free testnet gas |
 | HC-10-05 | `FE`  | `[ ]`  | Offline handling              | *(optional)* No local blockchain-write queue needed — app never triggers chain writes directly            |

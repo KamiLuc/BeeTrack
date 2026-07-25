@@ -2,13 +2,11 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -163,9 +161,8 @@ func parseInspectionPathIDs(r *http.Request) (apiaryID, hiveID int64, err error)
 
 // Create handles POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections — creates a new inspection.
 func (h *InspectionHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -176,8 +173,7 @@ func (h *InspectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req inspectionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -197,9 +193,8 @@ func (h *InspectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} — returns a single inspection.
 func (h *InspectionHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -209,9 +204,8 @@ func (h *InspectionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inspectionID, err := strconv.ParseInt(r.PathValue("inspectionId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid inspection id")
+	inspectionID, ok := parsePathID(w, r, "inspectionId", "invalid inspection id")
+	if !ok {
 		return
 	}
 
@@ -231,9 +225,8 @@ func (h *InspectionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections — returns paginated inspections.
 func (h *InspectionHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -287,9 +280,8 @@ func (h *InspectionHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} — updates an inspection.
 func (h *InspectionHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -299,15 +291,13 @@ func (h *InspectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inspectionID, err := strconv.ParseInt(r.PathValue("inspectionId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid inspection id")
+	inspectionID, ok := parsePathID(w, r, "inspectionId", "invalid inspection id")
+	if !ok {
 		return
 	}
 
 	var req inspectionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -327,9 +317,8 @@ func (h *InspectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // AddDisease handles POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases — adds a disease to an inspection.
 func (h *InspectionHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -339,9 +328,8 @@ func (h *InspectionHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inspectionID, err := strconv.ParseInt(r.PathValue("inspectionId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid inspection id")
+	inspectionID, ok := parsePathID(w, r, "inspectionId", "invalid inspection id")
+	if !ok {
 		return
 	}
 
@@ -349,8 +337,7 @@ func (h *InspectionHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
 		Disease string `json:"disease"`
 		Notes   string `json:"notes"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -365,9 +352,8 @@ func (h *InspectionHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
 
 // RemoveDisease handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/diseases/{diseaseId} — removes a disease from an inspection.
 func (h *InspectionHandler) RemoveDisease(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -377,15 +363,13 @@ func (h *InspectionHandler) RemoveDisease(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	inspectionID, err := strconv.ParseInt(r.PathValue("inspectionId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid inspection id")
+	inspectionID, ok := parsePathID(w, r, "inspectionId", "invalid inspection id")
+	if !ok {
 		return
 	}
 
-	diseaseID, err := strconv.ParseInt(r.PathValue("diseaseId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid disease id")
+	diseaseID, ok := parsePathID(w, r, "diseaseId", "invalid disease id")
+	if !ok {
 		return
 	}
 
@@ -399,9 +383,8 @@ func (h *InspectionHandler) RemoveDisease(w http.ResponseWriter, r *http.Request
 
 // Delete handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId} — deletes an inspection.
 func (h *InspectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -411,9 +394,8 @@ func (h *InspectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inspectionID, err := strconv.ParseInt(r.PathValue("inspectionId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid inspection id")
+	inspectionID, ok := parsePathID(w, r, "inspectionId", "invalid inspection id")
+	if !ok {
 		return
 	}
 

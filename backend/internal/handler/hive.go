@@ -2,13 +2,10 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -82,21 +79,18 @@ func hiveError(w http.ResponseWriter, err error) {
 }
 
 func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
@@ -115,21 +109,18 @@ func (h *HiveHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
@@ -137,8 +128,7 @@ func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
 		GridCol int `json:"grid_col"`
 		GridRow int `json:"grid_row"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -168,21 +158,18 @@ func (h *HiveHandler) Move(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
@@ -194,8 +181,7 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 		ReadyForHarvest bool   `json:"ready_for_harvest"`
 		Type            string `json:"type"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -229,21 +215,18 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HiveHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
@@ -256,15 +239,13 @@ func (h *HiveHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HiveHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -302,15 +283,13 @@ func (h *HiveHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
@@ -324,8 +303,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReadyForHarvest bool   `json:"ready_for_harvest"`
 		Type            string `json:"type"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -367,29 +345,25 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // ChangeApiary handles POST /api/v1/apiaries/{id}/hives/{hiveId}/transfer — moves a hive to another apiary.
 func (h *HiveHandler) ChangeApiary(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
 	var req struct {
 		TargetApiaryID int64 `json:"target_apiary_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -422,29 +396,25 @@ func (h *HiveHandler) ChangeApiary(w http.ResponseWriter, r *http.Request) {
 
 // AddDisease handles POST /api/v1/apiaries/{id}/hives/{hiveId}/diseases — adds a disease to a hive.
 func (h *HiveHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
 	var req struct {
 		Disease string `json:"disease"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -459,27 +429,23 @@ func (h *HiveHandler) AddDisease(w http.ResponseWriter, r *http.Request) {
 
 // RemoveDisease handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/diseases/{diseaseId} — removes a disease from a hive.
 func (h *HiveHandler) RemoveDisease(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
-	apiaryID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid apiary id")
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
 		return
 	}
 
-	hiveID, err := strconv.ParseInt(r.PathValue("hiveId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid hive id")
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
 		return
 	}
 
-	diseaseID, err := strconv.ParseInt(r.PathValue("diseaseId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid disease id")
+	diseaseID, ok := parsePathID(w, r, "diseaseId", "invalid disease id")
+	if !ok {
 		return
 	}
 

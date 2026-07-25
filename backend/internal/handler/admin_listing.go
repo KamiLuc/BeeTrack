@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -168,9 +166,8 @@ func (h *AdminListingHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Approve handles POST /api/v1/admin/listings/{id}/approve.
 func (h *AdminListingHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -199,9 +196,8 @@ type rejectRequest struct {
 
 // Reject handles POST /api/v1/admin/listings/{id}/reject.
 func (h *AdminListingHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -212,8 +208,7 @@ func (h *AdminListingHandler) Reject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req rejectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -236,9 +231,8 @@ type removeRequest struct {
 
 // Remove handles POST /api/v1/admin/listings/{id}/remove — takes a live listing off the marketplace.
 func (h *AdminListingHandler) Remove(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -249,8 +243,7 @@ func (h *AdminListingHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req removeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -269,9 +262,8 @@ func (h *AdminListingHandler) Remove(w http.ResponseWriter, r *http.Request) {
 
 // Restore handles POST /api/v1/admin/listings/{id}/restore — brings a removed listing back as approved.
 func (h *AdminListingHandler) Restore(w http.ResponseWriter, r *http.Request) {
-	adminID, ok := middleware.UserIDFromContext(r.Context())
+	adminID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 

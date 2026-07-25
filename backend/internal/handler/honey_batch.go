@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -122,9 +121,8 @@ const maxCreateHoneyBatchBytes = 11 * 1024 * 1024
 
 // Create handles POST /api/v1/honey-batches — creates a new honey batch from a multipart form with a "lab_pdf" file. Never fails due to blockchain state: certification, if requested, is only enqueued.
 func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -195,9 +193,8 @@ func (h *HoneyBatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/honey-batches/{id} — returns a single batch owned by the caller.
 func (h *HoneyBatchHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -222,9 +219,8 @@ func (h *HoneyBatchHandler) Get(w http.ResponseWriter, r *http.Request) {
 // confirmed row (nil if blockchain isn't configured or the RPC call fails —
 // this must never fail the whole request).
 func (h *HoneyBatchHandler) Certifications(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -274,9 +270,8 @@ func (h *HoneyBatchHandler) onChainHashes(ctx context.Context, batchID int64) (p
 
 // List handles GET /api/v1/honey-batches — returns the caller's paginated batches, each with its latest certification status.
 func (h *HoneyBatchHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -313,9 +308,8 @@ func (h *HoneyBatchHandler) List(w http.ResponseWriter, r *http.Request) {
 // here). Locked (409) once the batch has any certification attempt, since its
 // metadata hash may already be live.
 func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -381,9 +375,8 @@ func (h *HoneyBatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/honey-batches/{id} — soft-deletes a batch owned by the caller.
 func (h *HoneyBatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -403,9 +396,8 @@ func (h *HoneyBatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // PDF handles GET /api/v1/honey-batches/{id}/pdf — serves the lab PDF for a batch owned by the caller.
 func (h *HoneyBatchHandler) PDF(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -428,9 +420,8 @@ func (h *HoneyBatchHandler) PDF(w http.ResponseWriter, r *http.Request) {
 // RetryCertification handles POST /api/v1/honey-batches/{id}/retry-certification
 // — submits a batch for admin certification review.
 func (h *HoneyBatchHandler) RetryCertification(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 

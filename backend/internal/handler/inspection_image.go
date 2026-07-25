@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -66,9 +65,8 @@ func parseImagePathIDs(r *http.Request) (apiaryID, hiveID, inspectionID int64, e
 
 // Upload handles POST .../images — accepts a multipart upload and stores the image.
 func (h *InspectionImageHandler) Upload(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -94,9 +92,8 @@ func (h *InspectionImageHandler) Upload(w http.ResponseWriter, r *http.Request) 
 
 // List handles GET .../images — returns all image metadata for an inspection.
 func (h *InspectionImageHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -121,9 +118,8 @@ func (h *InspectionImageHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE .../images/{imageId} — removes an image.
 func (h *InspectionImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -133,9 +129,8 @@ func (h *InspectionImageHandler) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	imageID, err := strconv.ParseInt(r.PathValue("imageId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid image id")
+	imageID, ok := parsePathID(w, r, "imageId", "invalid image id")
+	if !ok {
 		return
 	}
 
@@ -149,9 +144,8 @@ func (h *InspectionImageHandler) Delete(w http.ResponseWriter, r *http.Request) 
 
 // ServeFile handles GET .../images/{imageId}/file — serves the image bytes.
 func (h *InspectionImageHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -161,9 +155,8 @@ func (h *InspectionImageHandler) ServeFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	imageID, err := strconv.ParseInt(r.PathValue("imageId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid image id")
+	imageID, ok := parsePathID(w, r, "imageId", "invalid image id")
+	if !ok {
 		return
 	}
 

@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -103,9 +101,8 @@ func parseHarvestPathIDs(r *http.Request) (apiaryID, hiveID int64, err error) {
 
 // Create handles POST /api/v1/apiaries/{id}/hives/{hiveId}/harvests — creates a new harvest.
 func (h *HarvestHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -116,8 +113,7 @@ func (h *HarvestHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req harvestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -132,9 +128,8 @@ func (h *HarvestHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId} — returns a single harvest.
 func (h *HarvestHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -144,9 +139,8 @@ func (h *HarvestHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	harvestID, err := strconv.ParseInt(r.PathValue("harvestId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid harvest id")
+	harvestID, ok := parsePathID(w, r, "harvestId", "invalid harvest id")
+	if !ok {
 		return
 	}
 
@@ -161,9 +155,8 @@ func (h *HarvestHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/apiaries/{id}/hives/{hiveId}/harvests — returns paginated harvests.
 func (h *HarvestHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -202,9 +195,8 @@ func (h *HarvestHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId} — updates a harvest.
 func (h *HarvestHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -214,15 +206,13 @@ func (h *HarvestHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	harvestID, err := strconv.ParseInt(r.PathValue("harvestId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid harvest id")
+	harvestID, ok := parsePathID(w, r, "harvestId", "invalid harvest id")
+	if !ok {
 		return
 	}
 
 	var req harvestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -237,9 +227,8 @@ func (h *HarvestHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/apiaries/{id}/hives/{hiveId}/harvests/{harvestId} — deletes a harvest.
 func (h *HarvestHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	userID, ok := requireAuth(w, r)
 	if !ok {
-		respond.Error(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization token required")
 		return
 	}
 
@@ -249,9 +238,8 @@ func (h *HarvestHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	harvestID, err := strconv.ParseInt(r.PathValue("harvestId"), 10, 64)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid harvest id")
+	harvestID, ok := parsePathID(w, r, "harvestId", "invalid harvest id")
+	if !ok {
 		return
 	}
 
