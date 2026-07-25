@@ -467,6 +467,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/admin/certification-requests/{id}` | Admin-only: get a single certification request |
 | POST | `/api/v1/admin/certification-requests/{id}/approve` | Admin-only: approve a certification request, which enqueues the blockchain job |
 | POST | `/api/v1/admin/certification-requests/{id}/reject` | Admin-only: reject a certification request with a reason |
+| DELETE | `/api/v1/admin/certification-requests/{id}` | Admin-only: permanently delete a certification request, only once its blockchain job is `failed`/`reverted` |
 | GET | `/api/v1/admin/honey-batches/{id}/pdf` | Admin-only: serve a batch's lab PDF regardless of ownership |
 
 ---
@@ -605,10 +606,12 @@ HoneyBatchesHomeScreen (signed-in only — reached from the drawer's "Honey Batc
   │   card itself shows the full picture: gathering date, certification status badge,
   │   a 3-dot overflow menu (Edit — only shown while the batch has no certification
   │   attempt yet, opens CreateHoneyBatchScreen pre-filled to edit gathering date,
-  │   amount, processing method, and honey type together — Delete, always shown —
-  │   and "View history", shown once the batch has a certification, opening a modal
-  │   with the batch's full certification history, most recent first, plus a live
-  │   on-chain vs. stored hash comparison on the current row), honey type,
+  │   amount, processing method, and honey type together — "Open public page" and
+  │   "Verify hashes", both shown only once the batch's certification is confirmed;
+  │   the latter opens a dialog that fetches the batch's certification history and
+  │   compares the stored pdf/metadata hashes against the live on-chain hashes of
+  │   the current certification, with a match/mismatch/unavailable indicator per
+  │   hash — and Delete, always shown), honey type,
   │   processing method, amount in kg, the uploaded PDF's filename (or "None"),
   │   and a certification action area (Certify/Retry button, an in-progress spinner,
   │   or view/download QR buttons once confirmed — QR buttons are still TODO stubs

@@ -232,6 +232,7 @@ func main() {
 	mux.Handle("GET /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Get)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/approve", admin(http.HandlerFunc(adminCertificationHandler.Approve)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/reject", admin(http.HandlerFunc(adminCertificationHandler.Reject)))
+	mux.Handle("DELETE /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Delete)))
 	mux.Handle("GET /api/v1/admin/honey-batches/{id}/pdf", admin(http.HandlerFunc(adminCertificationHandler.PDF)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)

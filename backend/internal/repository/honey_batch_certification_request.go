@@ -174,6 +174,22 @@ func (r *HoneyBatchCertificationRequestRepository) Approve(ctx context.Context, 
 	return &job, nil
 }
 
+// Delete removes a certification request row outright — used by the admin
+// panel to clear retry noise once a request's blockchain attempt is known to
+// have failed. Callers (CertificationReviewService.Delete) are responsible
+// for checking the job actually failed before calling this; it does not
+// re-check status itself.
+func (r *HoneyBatchCertificationRequestRepository) Delete(ctx context.Context, id int64) error {
+	result := r.db.WithContext(ctx).Delete(&model.HoneyBatchCertificationRequest{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r *HoneyBatchCertificationRequestRepository) Reject(ctx context.Context, id, reviewerID int64, reason string) error {
 	result := r.db.WithContext(ctx).Model(&model.HoneyBatchCertificationRequest{}).
 		Where("id = ? AND status = ?", id, model.CertificationRequestStatusPending).

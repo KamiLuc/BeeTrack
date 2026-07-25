@@ -22,6 +22,8 @@ type mockCertificationRequestStore struct {
 	rejectedBy     int64
 	rejectedReason string
 	rejectErr      error
+	deletedID      int64
+	deleteErr      error
 	err            error
 
 	gotStatus  string
@@ -66,6 +68,14 @@ func (m *mockCertificationRequestStore) Reject(ctx context.Context, id, reviewer
 	m.rejectedID = id
 	m.rejectedBy = reviewerID
 	m.rejectedReason = reason
+	return nil
+}
+
+func (m *mockCertificationRequestStore) Delete(ctx context.Context, id int64) error {
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	m.deletedID = id
 	return nil
 }
 
@@ -223,5 +233,92 @@ func TestCertificationReview_Reject_ReasonLength(t *testing.T) {
 				t.Error("expected no reject call to the store")
 			}
 		})
+	}
+}
+
+func jobStatusPtr(s model.CertificationStatus) *model.CertificationStatus { return &s }
+
+func TestCertificationReview_Delete_Success(t *testing.T) {
+	tests := []model.CertificationStatus{
+		model.CertificationStatusFailed,
+		model.CertificationStatusReverted,
+	}
+	for _, status := range tests {
+		t.Run(string(status), func(t *testing.T) {
+			store := &mockCertificationRequestStore{
+				byID: map[int64]*model.HoneyBatchCertificationRequestDetail{
+					1: {
+						HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1},
+						JobStatus:                       jobStatusPtr(status),
+					},
+				},
+			}
+			svc := NewCertificationReviewService(store)
+
+			if err := svc.Delete(context.Background(), 1); err != nil {
+				t.Fatalf("Delete() error = %v", err)
+			}
+			if store.deletedID != 1 {
+				t.Errorf("expected Delete(1) to reach the store, got deletedID=%d", store.deletedID)
+			}
+		})
+	}
+}
+
+func TestCertificationReview_Delete_NotFound(t *testing.T) {
+	store := &mockCertificationRequestStore{byID: map[int64]*model.HoneyBatchCertificationRequestDetail{}}
+	svc := NewCertificationReviewService(store)
+
+	if err := svc.Delete(context.Background(), 999); err != ErrCertificationRequestNotFound {
+		t.Errorf("expected ErrCertificationRequestNotFound, got %v", err)
+	}
+}
+
+func TestCertificationReview_Delete_NotFailed(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobStatus *model.CertificationStatus
+	}{
+		{"no job yet (still pending review)", nil},
+		{"queued", jobStatusPtr(model.CertificationStatusQueued)},
+		{"pending confirmation", jobStatusPtr(model.CertificationStatusPendingConfirmation)},
+		{"confirmed", jobStatusPtr(model.CertificationStatusConfirmed)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockCertificationRequestStore{
+				byID: map[int64]*model.HoneyBatchCertificationRequestDetail{
+					1: {
+						HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1},
+						JobStatus:                       tt.jobStatus,
+					},
+				},
+			}
+			svc := NewCertificationReviewService(store)
+
+			if err := svc.Delete(context.Background(), 1); err != ErrCertificationRequestNotFailed {
+				t.Errorf("expected ErrCertificationRequestNotFailed, got %v", err)
+			}
+			if store.deletedID != 0 {
+				t.Error("expected no delete call to the store")
+			}
+		})
+	}
+}
+
+func TestCertificationReview_Delete_RepoError(t *testing.T) {
+	store := &mockCertificationRequestStore{
+		byID: map[int64]*model.HoneyBatchCertificationRequestDetail{
+			1: {
+				HoneyBatchCertificationRequest: model.HoneyBatchCertificationRequest{ID: 1},
+				JobStatus:                       jobStatusPtr(model.CertificationStatusFailed),
+			},
+		},
+		deleteErr: errors.New("db down"),
+	}
+	svc := NewCertificationReviewService(store)
+
+	if err := svc.Delete(context.Background(), 1); err == nil {
+		t.Error("expected error, got nil")
 	}
 }

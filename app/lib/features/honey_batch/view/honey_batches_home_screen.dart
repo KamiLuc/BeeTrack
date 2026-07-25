@@ -20,6 +20,7 @@ import '../data/processing_method.dart';
 import 'certification_request_status_badge.dart';
 import 'certification_status_badge.dart';
 import 'create_honey_batch_screen.dart';
+import 'hash_comparison_screen.dart';
 import 'pdf_preview_screen.dart';
 import 'qr_preview_screen.dart';
 
@@ -126,7 +127,7 @@ class _HoneyBatchesView extends StatelessWidget {
   }
 }
 
-enum _CardAction { edit, certify, openPublicPage, delete }
+enum _CardAction { edit, certify, openPublicPage, verifyHashes, delete }
 
 class HoneyBatchCard extends StatefulWidget {
   final HoneyBatchModel batch;
@@ -180,6 +181,16 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
   void _downloadQr() {
     final repo = HoneyBatchRepository(api: context.read<ApiClient>());
     launchQrDownload(repo.qrCodeDownloadUrl(widget.batch.verificationToken));
+  }
+
+  void _verifyHashes() {
+    showHashComparisonDialog(
+      context,
+      title: AppLocalizations.of(context)!.honeyBatchVerifyHashes,
+      batchId: widget.batch.id,
+      storedPdfHash: widget.batch.pdfFileHash,
+      storedMetadataHash: widget.batch.metadataHash,
+    );
   }
 
   Future<void> _certify() async {
@@ -268,16 +279,15 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
     final pdfDisplay = hasPdf ? batch.pdfFilename : l10n.honeyBatchNoPdf;
     final canEdit = batch.certification == null;
     final certRequest = batch.certificationRequest;
-    final showRequestBadge = batch.certification == null &&
-        certRequest != null &&
+    final showRequestBadge = certRequest != null &&
         (certRequest.status == CertificationRequestStatus.pending ||
             certRequest.status == CertificationRequestStatus.rejected);
     final isRetryable = batch.certification?.status == CertificationStatus.failed ||
         batch.certification?.status == CertificationStatus.reverted;
-    final showCertifyAction = isRetryable ||
-        (batch.certification == null &&
-            hasPdf &&
-            certRequest?.status != CertificationRequestStatus.pending);
+    final canRequestCertification =
+        certRequest?.status != CertificationRequestStatus.pending;
+    final showCertifyAction = canRequestCertification &&
+        (isRetryable || (batch.certification == null && hasPdf));
     final isConfirmed = batch.certification?.status == CertificationStatus.confirmed;
 
     return Card(
@@ -317,6 +327,7 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                           if (action == _CardAction.openPublicPage) {
                             launchVerificationPage(batch.verificationUrl);
                           }
+                          if (action == _CardAction.verifyHashes) _verifyHashes();
                           if (action == _CardAction.delete) _confirmDelete();
                         },
                         itemBuilder: (_) => [
@@ -336,6 +347,11 @@ class _HoneyBatchCardState extends State<HoneyBatchCard> {
                             PopupMenuItem(
                               value: _CardAction.openPublicPage,
                               child: Text(l10n.honeyBatchOpenPublicPage),
+                            ),
+                          if (isConfirmed)
+                            PopupMenuItem(
+                              value: _CardAction.verifyHashes,
+                              child: Text(l10n.honeyBatchVerifyHashes),
                             ),
                           PopupMenuItem(
                             value: _CardAction.delete,

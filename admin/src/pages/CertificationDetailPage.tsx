@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError, getStoredToken, resourceUrl } from "../api/client";
 import {
   approveCertificationRequest,
+  deleteCertificationRequest,
   getCertificationRequest,
   rejectCertificationRequest,
   type CertificationRequest,
@@ -89,6 +90,19 @@ export function CertificationDetailPage() {
       navigate(backToQueue);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("certificationDetail.rejectError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!req || !window.confirm(t("certificationDetail.deleteConfirm"))) return;
+    setSubmitting(true);
+    try {
+      await deleteCertificationRequest(req.id);
+      navigate(backToQueue);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("certificationDetail.deleteError"));
     } finally {
       setSubmitting(false);
     }
@@ -230,6 +244,14 @@ export function CertificationDetailPage() {
             onClick={handleReject}
           >
             {t("certificationDetail.reject")}
+          </button>
+        </div>
+      )}
+
+      {group === "failed" && (
+        <div className="actions">
+          <button className="btn-remove" disabled={submitting} onClick={handleDelete}>
+            {t("certificationDetail.delete")}
           </button>
         </div>
       )}

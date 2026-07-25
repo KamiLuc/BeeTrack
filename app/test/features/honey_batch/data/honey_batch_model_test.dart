@@ -13,6 +13,7 @@ void main() {
         'processing_method': 'filtered',
         'honey_type': 'Acacia',
         'pdf_file_hash': 'hash-abc',
+        'metadata_hash': 'metadata-hash-abc',
         'created_at': '2024-05-02T08:00:00Z',
         'updated_at': '2024-05-03T09:00:00Z',
         if (certification != null) 'certification': certification,
@@ -31,6 +32,7 @@ void main() {
       expect(m.processingMethod, ProcessingMethod.filtered);
       expect(m.honeyType, 'Acacia');
       expect(m.pdfFileHash, 'hash-abc');
+      expect(m.metadataHash, 'metadata-hash-abc');
       expect(
         m.createdAt.isAtSameMomentAs(DateTime.parse('2024-05-02T08:00:00Z')),
         isTrue,

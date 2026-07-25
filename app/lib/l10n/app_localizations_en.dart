@@ -1301,4 +1301,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get honeyBatchOpenPublicPage => 'Open public verification page';
+
+  @override
+  String get honeyBatchVerifyHashes => 'Verify hashes';
+
+  @override
+  String get honeyBatchPdfHashLabel => 'Lab PDF hash (SHA-256)';
+
+  @override
+  String get honeyBatchPdfHashExplainer =>
+      'Checksum of the uploaded lab report.';
+
+  @override
+  String get honeyBatchMetadataHashLabel => 'Metadata hash (SHA-256)';
+
+  @override
+  String get honeyBatchMetadataHashExplainer =>
+      'Checksum of the batch\'s gathering date, amount, processing method, honey type, and PDF checksum together.';
+
+  @override
+  String get honeyBatchStoredHash => 'Stored';
+
+  @override
+  String get honeyBatchOnChainHash => 'On-chain';
+
+  @override
+  String get honeyBatchHashMatch => 'Matches the record on the blockchain';
+
+  @override
+  String get honeyBatchHashMismatch =>
+      'Does not match the blockchain record - data may have changed';
+
+  @override
+  String get honeyBatchHashCheckUnavailable =>
+      'Live blockchain check unavailable right now';
 }

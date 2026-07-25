@@ -117,6 +117,9 @@ export const translations = {
       blockNumber: "Block number",
       confirmedAt: "Confirmed at",
       lastError: "Last error",
+      delete: "Delete failed attempt",
+      deleteConfirm: "Delete this failed certification attempt? This can't be undone.",
+      deleteError: "Failed to delete request.",
     },
   },
   pl: {
@@ -235,6 +238,9 @@ export const translations = {
       blockNumber: "Numer bloku",
       confirmedAt: "Potwierdzono",
       lastError: "Ostatni błąd",
+      delete: "Usuń nieudaną próbę",
+      deleteConfirm: "Usunąć tę nieudaną próbę certyfikacji? Tej operacji nie można cofnąć.",
+      deleteError: "Nie udało się usunąć wniosku.",
     },
   },
 } as const;

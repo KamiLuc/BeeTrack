@@ -524,5 +524,15 @@
   "honeyBatchCertRequestStatusRejected": "Odrzucone przez administratora",
   "honeyBatchCertificationRequestPending": "Wniosek o certyfikację tej partii oczekuje już na weryfikację przez administratora.",
   "honeyBatchAlreadyCertifiedError": "Ta partia miodu jest już certyfikowana lub certyfikacja jest w toku.",
-  "honeyBatchOpenPublicPage": "Otwórz publiczną stronę weryfikacji"
+  "honeyBatchOpenPublicPage": "Otwórz publiczną stronę weryfikacji",
+  "honeyBatchVerifyHashes": "Weryfikuj hashe",
+  "honeyBatchPdfHashLabel": "Hash PDF z badania (SHA-256)",
+  "honeyBatchPdfHashExplainer": "Suma kontrolna przesłanego badania laboratoryjnego.",
+  "honeyBatchMetadataHashLabel": "Hash metadanych (SHA-256)",
+  "honeyBatchMetadataHashExplainer": "Suma kontrolna obliczona łącznie z daty pozyskania, ilości, metody przetwarzania, rodzaju miodu oraz sumy kontrolnej PDF-u.",
+  "honeyBatchStoredHash": "Zapisany",
+  "honeyBatchOnChainHash": "W blockchainie",
+  "honeyBatchHashMatch": "Zgodne z rekordem w blockchainie",
+  "honeyBatchHashMismatch": "Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione",
+  "honeyBatchHashCheckUnavailable": "Weryfikacja na żywo chwilowo niedostępna"
 }

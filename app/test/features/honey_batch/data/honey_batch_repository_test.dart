@@ -49,6 +49,7 @@ Map<String, dynamic> _batchJson({int id = 1}) => {
       'processing_method': 'raw',
       'honey_type': 'Acacia',
       'pdf_file_hash': 'hash-abc',
+      'metadata_hash': 'metadata-hash-abc',
       'created_at': '2024-05-02T08:00:00Z',
       'updated_at': '2024-05-03T09:00:00Z',
     };
@@ -221,6 +222,28 @@ void main() {
         adapter.lastOptions!.path,
         '/api/v1/honey-batches/1/retry-certification',
       );
+    });
+  });
+
+  group('getCertifications', () {
+    test('sends GET to /honey-batches/:id/certifications and parses items', () async {
+      adapter.responseData = {
+        'items': [
+          {
+            'status': 'confirmed',
+            'transaction_hash': '0xabc',
+            'on_chain_pdf_hash': 'hash-abc',
+            'on_chain_metadata_hash': 'metadata-hash-abc',
+          },
+        ],
+      };
+
+      final items = await repository.getCertifications(4);
+
+      expect(adapter.lastOptions!.method, 'GET');
+      expect(adapter.lastOptions!.path, '/api/v1/honey-batches/4/certifications');
+      expect(items.single.onChainPdfHash, 'hash-abc');
+      expect(items.single.onChainMetadataHash, 'metadata-hash-abc');
     });
   });
 }

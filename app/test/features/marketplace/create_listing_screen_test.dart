@@ -677,6 +677,7 @@ void main() {
       'honey_type': 'Wildflower',
       'pdf_filename': 'lab.pdf',
       'pdf_file_hash': 'hash',
+      'metadata_hash': 'metadata-hash',
       'created_at': DateTime(2026, 1, 1).toIso8601String(),
       'updated_at': DateTime(2026, 1, 1).toIso8601String(),
       'certification': {'status': 'confirmed'},

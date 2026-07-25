@@ -2704,6 +2704,22 @@ Rejects a pending certification request with a reason. No blockchain job is enqu
 
 ---
 
+### DELETE /admin/certification-requests/{id}
+
+Permanently deletes a certification request row. Only allowed once the request's linked blockchain job has reached a terminal failure state (`failed` or `reverted`) — each retry creates a new request row for audit purposes, so this exists to let an admin clear dead rows out of the queue after repeated failures.
+
+**Response** `204 No Content`
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CERTIFICATION_REQUEST_NOT_FOUND` | 404 | Certification request does not exist |
+| `CERTIFICATION_REQUEST_NOT_FAILED` | 409 | Linked blockchain job is not in `failed`/`reverted` status |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /admin/honey-batches/{id}/pdf
 
 Serves a batch's lab PDF regardless of ownership, for admin review.

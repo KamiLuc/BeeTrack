@@ -1321,4 +1321,38 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get honeyBatchOpenPublicPage => 'Otwórz publiczną stronę weryfikacji';
+
+  @override
+  String get honeyBatchVerifyHashes => 'Weryfikuj hashe';
+
+  @override
+  String get honeyBatchPdfHashLabel => 'Hash PDF z badania (SHA-256)';
+
+  @override
+  String get honeyBatchPdfHashExplainer =>
+      'Suma kontrolna przesłanego badania laboratoryjnego.';
+
+  @override
+  String get honeyBatchMetadataHashLabel => 'Hash metadanych (SHA-256)';
+
+  @override
+  String get honeyBatchMetadataHashExplainer =>
+      'Suma kontrolna obliczona łącznie z daty pozyskania, ilości, metody przetwarzania, rodzaju miodu oraz sumy kontrolnej PDF-u.';
+
+  @override
+  String get honeyBatchStoredHash => 'Zapisany';
+
+  @override
+  String get honeyBatchOnChainHash => 'W blockchainie';
+
+  @override
+  String get honeyBatchHashMatch => 'Zgodne z rekordem w blockchainie';
+
+  @override
+  String get honeyBatchHashMismatch =>
+      'Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione';
+
+  @override
+  String get honeyBatchHashCheckUnavailable =>
+      'Weryfikacja na żywo chwilowo niedostępna';
 }

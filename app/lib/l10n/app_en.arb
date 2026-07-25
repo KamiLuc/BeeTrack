@@ -502,5 +502,15 @@
   "honeyBatchCertRequestStatusRejected": "Rejected by admin",
   "honeyBatchCertificationRequestPending": "A certification request for this batch is already pending admin review.",
   "honeyBatchAlreadyCertifiedError": "This honey batch is already certified or being certified.",
-  "honeyBatchOpenPublicPage": "Open public verification page"
+  "honeyBatchOpenPublicPage": "Open public verification page",
+  "honeyBatchVerifyHashes": "Verify hashes",
+  "honeyBatchPdfHashLabel": "Lab PDF hash (SHA-256)",
+  "honeyBatchPdfHashExplainer": "Checksum of the uploaded lab report.",
+  "honeyBatchMetadataHashLabel": "Metadata hash (SHA-256)",
+  "honeyBatchMetadataHashExplainer": "Checksum of the batch's gathering date, amount, processing method, honey type, and PDF checksum together.",
+  "honeyBatchStoredHash": "Stored",
+  "honeyBatchOnChainHash": "On-chain",
+  "honeyBatchHashMatch": "Matches the record on the blockchain",
+  "honeyBatchHashMismatch": "Does not match the blockchain record - data may have changed",
+  "honeyBatchHashCheckUnavailable": "Live blockchain check unavailable right now"
 }

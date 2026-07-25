@@ -62,3 +62,9 @@ export function rejectCertificationRequest(id: number, reason: string): Promise<
     body: { reason },
   });
 }
+
+export function deleteCertificationRequest(id: number): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(`/admin/certification-requests/${id}`, {
+    method: "DELETE",
+  });
+}

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_exception.dart';
+import 'honey_batch_certification_model.dart';
 import 'honey_batch_model.dart';
 import 'processing_method.dart';
 
@@ -136,6 +137,18 @@ class HoneyBatchRepository {
         '/api/v1/honey-batches/$id/retry-certification',
       );
       return HoneyBatchModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<List<HoneyBatchCertificationModel>> getCertifications(int id) async {
+    try {
+      final response = await _api.dio.get('/api/v1/honey-batches/$id/certifications');
+      final body = response.data as Map<String, dynamic>;
+      return (body['items'] as List<dynamic>)
+          .map((e) => HoneyBatchCertificationModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

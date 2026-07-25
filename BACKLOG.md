@@ -103,6 +103,18 @@
 
 > Immutable honey batch certification stored on Polygon blockchain. Each batch gets a QR code that verifies authenticity via blockchain hash of lab PDF.
 >
-> **Blockchain Strategy:** Store minimal data on-chain (hash, metadata hash, timestamp) for cost efficiency. PDF hash links to lab report; scanning verifies hash hasn't changed. Certification runs fully asynchronously via a durable jobs queue and background worker — see [HONEY_BLOCKCHAIN_PLAN.md](HONEY_BLOCKCHAIN_PLAN.md).
+> **Blockchain Strategy:** Store minimal data on-chain (hash, metadata hash, timestamp) for cost efficiency. PDF hash links to lab report; scanning verifies hash hasn't changed. Certification runs fully asynchronously via a durable jobs queue and background worker.
 >
-> **Full task breakdown moved to its own file:** [HONEY_BLOCKCHAIN_BACKLOG.md](HONEY_BLOCKCHAIN_BACKLOG.md) — the async/jobs-queue redesign roughly doubled the task count, so it no longer fits comfortably inline here. Update status there as work progresses; this entry stays as the pointer.
+> Core flow (DB, models, blockchain integration, worker, API handlers, PDF upload, status badge) is done. Remaining items below; production-hardening items are optional — this is thesis/testnet scope.
+
+| ID       | Layer | Status | Title                        | Notes                                                                                                     |
+| -------- | ----- | ------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| HC-FE-16 | `FE`  | `[ ]`  | Verification details modal   | Backend endpoint `GET /api/v1/honey-batches/{id}/certifications` already exists (full history, most recent first); no FE consumer yet |
+| HC-FE-17 | `FE`  | `[x]`  | Hash comparison display      | Show stored hash vs. on-chain hash                                                                        |
+| HC-10-04 | `BE`  | `[ ]`  | Gas fee management            | *(optional)* `gas_used` already persisted per-certification row; gas relay/price-spike alerting unnecessary on free testnet gas |
+| HC-10-05 | `FE`  | `[ ]`  | Offline handling              | *(optional)* No local blockchain-write queue needed — app never triggers chain writes directly            |
+| HC-10-06 | `FE`  | `[ ]`  | Loading states                | Distinct UI per lifecycle state; "Certify" when `certification` is `null`, "Retry" on `failed`/`reverted`  |
+| HC-10-07 | `FE`  | `[ ]`  | Error handling                | Error copy mapped from lifecycle status (`null` = neutral, not an error; in-progress states aren't errors) |
+| HC-10-08 | `FE`  | `[ ]`  | Localization                  | l10n keys for all 7 lifecycle states + separate non-enum key for null-certification case                  |
+| HC-10-09 | `FE`  | `[ ]`  | Empty states                  |                                                                                                             |
+| HC-10-10 | `BE`  | `[ ]`  | Database indexing             | *(optional)* Already folded into migrations HC-DB-01–04 — this row is for any additional indexing found later |

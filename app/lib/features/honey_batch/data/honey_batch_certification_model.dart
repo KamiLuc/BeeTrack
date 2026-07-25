@@ -41,6 +41,8 @@ class HoneyBatchCertificationModel {
   final int? gasUsed;
   final DateTime? confirmationTimestamp;
   final DateTime? createdAt;
+  final String? onChainPdfHash;
+  final String? onChainMetadataHash;
 
   const HoneyBatchCertificationModel({
     required this.status,
@@ -49,6 +51,8 @@ class HoneyBatchCertificationModel {
     this.gasUsed,
     this.confirmationTimestamp,
     this.createdAt,
+    this.onChainPdfHash,
+    this.onChainMetadataHash,
   });
 
   factory HoneyBatchCertificationModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +67,8 @@ class HoneyBatchCertificationModel {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String).toLocal()
           : null,
+      onChainPdfHash: json['on_chain_pdf_hash'] as String?,
+      onChainMetadataHash: json['on_chain_metadata_hash'] as String?,
     );
   }
 }

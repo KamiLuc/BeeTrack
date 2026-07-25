@@ -41,6 +41,8 @@ void main() {
         'gas_used': 21000,
         'confirmation_timestamp': '2024-05-01T10:00:00Z',
         'created_at': '2024-04-30T09:00:00Z',
+        'on_chain_pdf_hash': 'hash-abc',
+        'on_chain_metadata_hash': 'metadata-hash-abc',
       };
       final m = HoneyBatchCertificationModel.fromJson(json);
       expect(m.status, CertificationStatus.confirmed);
@@ -56,6 +58,8 @@ void main() {
         m.createdAt!.isAtSameMomentAs(DateTime.parse('2024-04-30T09:00:00Z')),
         isTrue,
       );
+      expect(m.onChainPdfHash, 'hash-abc');
+      expect(m.onChainMetadataHash, 'metadata-hash-abc');
     });
 
     test('parses null optional fields', () {
@@ -67,6 +71,8 @@ void main() {
       expect(m.gasUsed, isNull);
       expect(m.confirmationTimestamp, isNull);
       expect(m.createdAt, isNull);
+      expect(m.onChainPdfHash, isNull);
+      expect(m.onChainMetadataHash, isNull);
     });
   });
 }

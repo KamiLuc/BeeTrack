@@ -107,6 +107,7 @@ HoneyBatchModel _batch({
       honeyType: honeyType,
       pdfFilename: pdfFilename,
       pdfFileHash: 'hash-1',
+      metadataHash: 'metadata-hash-1',
       certification: certification,
       certificationRequest: certificationRequest,
       createdAt: DateTime(2025, 6, 1),
@@ -263,6 +264,7 @@ void main() {
           'honey_type': 'Acacia',
           'pdf_filename': 'lab-report.pdf',
           'pdf_file_hash': 'hash-1',
+          'metadata_hash': 'metadata-hash-1',
           'created_at': '2025-06-01T00:00:00Z',
           'updated_at': '2025-06-01T00:00:00Z',
           'certification': null,
@@ -367,6 +369,30 @@ void main() {
     });
 
     testWidgets(
+        'shows the pending request badge instead of the stale Failed badge '
+        'after retrying a failed certification, and hides the Retry button '
+        '(regression: retrying used to leave the red Failed badge showing '
+        'forever because the request badge required certification == null)',
+        (tester) async {
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: const HoneyBatchCertificationModel(
+            status: CertificationStatus.failed,
+          ),
+          certificationRequest: const HoneyBatchCertificationRequestModel(
+            status: CertificationRequestStatus.pending,
+          ),
+        )),
+      );
+
+      expect(find.text(l10n.honeyBatchCertRequestStatusPending), findsOneWidget);
+      expect(find.text(l10n.honeyBatchStatusFailed), findsNothing);
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.honeyBatchRetry), findsNothing);
+    });
+
+    testWidgets(
         'shows the rejected certification request badge with the rejection '
         'reason as a tooltip, and still allows re-requesting certification', (
       tester,
@@ -453,6 +479,49 @@ void main() {
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
       expect(find.text(l10n.honeyBatchOpenPublicPage), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows Verify hashes menu item when confirmed, hides it otherwise',
+        (tester) async {
+      await tester.pumpWidget(wrap(_batch(certification: null)));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.honeyBatchVerifyHashes), findsNothing);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: const HoneyBatchCertificationModel(
+            status: CertificationStatus.confirmed,
+          ),
+        )),
+      );
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.honeyBatchVerifyHashes), findsOneWidget);
+    });
+
+    testWidgets(
+        'tapping Verify hashes shows the stored hashes and an unavailable '
+        'on-chain check when the API has no live certification data',
+        (tester) async {
+      await tester.pumpWidget(
+        wrap(_batch(
+          certification: const HoneyBatchCertificationModel(
+            status: CertificationStatus.confirmed,
+          ),
+        )),
+      );
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.honeyBatchVerifyHashes));
+      await tester.pumpAndSettle();
+
+      expect(find.text('hash-1'), findsOneWidget);
+      expect(find.text('metadata-hash-1'), findsOneWidget);
+      expect(find.text(l10n.honeyBatchHashCheckUnavailable), findsNWidgets(2));
     });
   });
 

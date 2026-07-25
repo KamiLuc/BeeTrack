@@ -19,6 +19,7 @@ HoneyBatchModel _fakeBatch({int id = 1}) => HoneyBatchModel(
       honeyType: 'Wildflower',
       pdfFilename: 'lab-$id.pdf',
       pdfFileHash: 'hash-$id',
+      metadataHash: 'metadata-hash-$id',
       createdAt: DateTime(2025, 6, 1),
       updatedAt: DateTime(2025, 6, 1),
     );

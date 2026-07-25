@@ -78,6 +78,8 @@ func adminCertificationError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusNotFound, "CERTIFICATION_REQUEST_NOT_FOUND", "certification request not found")
 	case errors.Is(err, service.ErrCertificationRequestNotPending):
 		respond.Error(w, http.StatusConflict, "CERTIFICATION_REQUEST_NOT_PENDING", err.Error())
+	case errors.Is(err, service.ErrCertificationRequestNotFailed):
+		respond.Error(w, http.StatusConflict, "CERTIFICATION_REQUEST_NOT_FAILED", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonRequired):
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonTooShort):
@@ -193,6 +195,24 @@ func (h *AdminCertificationHandler) Reject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	respond.JSON(w, http.StatusOK, certificationRequestJSON(certReq))
+}
+
+// Delete handles DELETE /api/v1/admin/certification-requests/{id} — removes a
+// certification request whose blockchain attempt failed or reverted, so the
+// admin panel can clear retry noise. Requests still pending review, in
+// flight, or confirmed can't be deleted this way.
+func (h *AdminCertificationHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := parseCertificationRequestID(r)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid certification request id")
+		return
+	}
+
+	if err := h.review.Delete(r.Context(), id); err != nil {
+		adminCertificationError(w, err)
+		return
+	}
+	respond.JSON(w, http.StatusOK, map[string]any{"deleted": true})
 }
 
 // PDF handles GET /api/v1/admin/honey-batches/{id}/pdf — serves a batch's lab

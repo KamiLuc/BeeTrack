@@ -12,6 +12,7 @@ class HoneyBatchModel {
   final String honeyType;
   final String pdfFilename;
   final String pdfFileHash;
+  final String metadataHash;
   final DateTime createdAt;
   final DateTime updatedAt;
   final HoneyBatchCertificationModel? certification;
@@ -27,6 +28,7 @@ class HoneyBatchModel {
     required this.honeyType,
     required this.pdfFilename,
     required this.pdfFileHash,
+    required this.metadataHash,
     required this.createdAt,
     required this.updatedAt,
     this.certification,
@@ -47,6 +49,7 @@ class HoneyBatchModel {
       honeyType: json['honey_type'] as String,
       pdfFilename: json['pdf_filename'] as String? ?? '',
       pdfFileHash: json['pdf_file_hash'] as String,
+      metadataHash: json['metadata_hash'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
       certification: json['certification'] != null

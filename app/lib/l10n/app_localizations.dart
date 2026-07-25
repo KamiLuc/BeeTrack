@@ -2449,6 +2449,66 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Otwórz publiczną stronę weryfikacji'**
   String get honeyBatchOpenPublicPage;
+
+  /// No description provided for @honeyBatchVerifyHashes.
+  ///
+  /// In pl, this message translates to:
+  /// **'Weryfikuj hashe'**
+  String get honeyBatchVerifyHashes;
+
+  /// No description provided for @honeyBatchPdfHashLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Hash PDF z badania (SHA-256)'**
+  String get honeyBatchPdfHashLabel;
+
+  /// No description provided for @honeyBatchPdfHashExplainer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Suma kontrolna przesłanego badania laboratoryjnego.'**
+  String get honeyBatchPdfHashExplainer;
+
+  /// No description provided for @honeyBatchMetadataHashLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Hash metadanych (SHA-256)'**
+  String get honeyBatchMetadataHashLabel;
+
+  /// No description provided for @honeyBatchMetadataHashExplainer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Suma kontrolna obliczona łącznie z daty pozyskania, ilości, metody przetwarzania, rodzaju miodu oraz sumy kontrolnej PDF-u.'**
+  String get honeyBatchMetadataHashExplainer;
+
+  /// No description provided for @honeyBatchStoredHash.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisany'**
+  String get honeyBatchStoredHash;
+
+  /// No description provided for @honeyBatchOnChainHash.
+  ///
+  /// In pl, this message translates to:
+  /// **'W blockchainie'**
+  String get honeyBatchOnChainHash;
+
+  /// No description provided for @honeyBatchHashMatch.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgodne z rekordem w blockchainie'**
+  String get honeyBatchHashMatch;
+
+  /// No description provided for @honeyBatchHashMismatch.
+  ///
+  /// In pl, this message translates to:
+  /// **'Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione'**
+  String get honeyBatchHashMismatch;
+
+  /// No description provided for @honeyBatchHashCheckUnavailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Weryfikacja na żywo chwilowo niedostępna'**
+  String get honeyBatchHashCheckUnavailable;
 }
 
 class _AppLocalizationsDelegate
