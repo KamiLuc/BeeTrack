@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/beetrack/backend/internal/blockchain"
@@ -120,15 +120,15 @@ func (w *BlockchainWorker) runJobLoop(ctx context.Context, interval time.Duratio
 		select {
 		case <-ticker.C:
 			if n, err := w.jobs.SweepStuckSubmitting(ctx, stuckSubmittingTimeout); err != nil {
-				log.Printf("blockchain worker: sweep stuck submitting jobs: %v", err)
+				slog.Error("sweep stuck submitting jobs failed", "component", "blockchain_worker", "error", err)
 			} else if n > 0 {
-				log.Printf("blockchain worker: reset %d stuck submitting job(s)", n)
+				slog.Warn("reset stuck submitting jobs", "component", "blockchain_worker", "count", n)
 			}
 
 			for {
 				processed, err := w.ProcessNextJob(ctx)
 				if err != nil {
-					log.Printf("blockchain worker: process job: %v", err)
+					slog.Error("process job failed", "component", "blockchain_worker", "error", err)
 				}
 				if !processed {
 					break
@@ -147,10 +147,10 @@ func (w *BlockchainWorker) runConfirmationLoop(ctx context.Context, interval tim
 		select {
 		case <-ticker.C:
 			if err := w.SweepStuckConfirming(ctx); err != nil {
-				log.Printf("blockchain worker: sweep stuck confirming jobs: %v", err)
+				slog.Error("sweep stuck confirming jobs failed", "component", "blockchain_worker", "error", err)
 			}
 			if err := w.PollSubmittedJobs(ctx); err != nil {
-				log.Printf("blockchain worker: poll submitted jobs: %v", err)
+				slog.Error("poll submitted jobs failed", "component", "blockchain_worker", "error", err)
 			}
 		case <-ctx.Done():
 			return
@@ -171,7 +171,7 @@ func (w *BlockchainWorker) SweepStuckConfirming(ctx context.Context) error {
 		return fmt.Errorf("list stuck confirming jobs: %w", err)
 	}
 	if len(jobs) > 0 {
-		log.Printf("blockchain worker: found %d stuck confirming job(s)", len(jobs))
+		slog.Warn("found stuck confirming jobs", "component", "blockchain_worker", "count", len(jobs))
 	}
 	var errs []error
 	for _, job := range jobs {

@@ -162,16 +162,23 @@ func (m *mockEmailTokenRepo) DeletePasswordResetTokensByUserID(_ context.Context
 }
 
 type mockMailer struct {
+	sendErr           error
 	verificationsSent []string
 	resetsSent        []string
 }
 
 func (m *mockMailer) SendVerificationEmail(_ context.Context, to, _, _, _ string) error {
+	if m.sendErr != nil {
+		return m.sendErr
+	}
 	m.verificationsSent = append(m.verificationsSent, to)
 	return nil
 }
 
 func (m *mockMailer) SendPasswordResetEmail(_ context.Context, to, _, _, _ string) error {
+	if m.sendErr != nil {
+		return m.sendErr
+	}
 	m.resetsSent = append(m.resetsSent, to)
 	return nil
 }
@@ -216,6 +223,19 @@ func TestRegister_Success(t *testing.T) {
 	}
 	if len(mailer.verificationsSent) != 1 {
 		t.Errorf("expected 1 verification email, got %d", len(mailer.verificationsSent))
+	}
+}
+
+func TestRegister_MailerFailureStillReturnsUser(t *testing.T) {
+	svc, _, _, _, mailer := newTestService()
+	mailer.sendErr = errors.New("smtp unavailable")
+
+	user, err := svc.Register(context.Background(), "user@example.com", "John", "password123", "en")
+	if err != nil {
+		t.Fatalf("expected mailer failure to be logged and swallowed, got error: %v", err)
+	}
+	if user.Email != "user@example.com" {
+		t.Errorf("expected email user@example.com, got %s", user.Email)
 	}
 }
 
@@ -516,6 +536,16 @@ func TestForgotPassword_Success(t *testing.T) {
 	}
 }
 
+func TestForgotPassword_MailerFailureStillReturnsNil(t *testing.T) {
+	svc, users, _, _, mailer := newTestService()
+	users.users["user@example.com"] = &model.User{ID: 1, Email: "user@example.com", Name: "John", Verified: true}
+	mailer.sendErr = errors.New("smtp unavailable")
+
+	if err := svc.ForgotPassword(context.Background(), "user@example.com", "en"); err != nil {
+		t.Fatalf("expected mailer failure to be logged and swallowed, got error: %v", err)
+	}
+}
+
 func TestForgotPassword_InvalidLang(t *testing.T) {
 	svc, users, _, _, _ := newTestService()
 	users.users["user@example.com"] = &model.User{ID: 1, Email: "user@example.com", Verified: true}
@@ -626,5 +656,17 @@ func TestResetPassword_WeakPassword(t *testing.T) {
 	err := svc.ResetPassword(context.Background(), "valid-token", "short")
 	if !errors.Is(err, ErrWeakPassword) {
 		t.Errorf("expected ErrWeakPassword, got %v", err)
+	}
+}
+
+// -- ResendVerification tests --
+
+func TestResendVerification_MailerFailureStillReturnsNil(t *testing.T) {
+	svc, users, _, _, mailer := newTestService()
+	users.users["user@example.com"] = &model.User{ID: 1, Email: "user@example.com", Name: "John", Verified: false}
+	mailer.sendErr = errors.New("smtp unavailable")
+
+	if err := svc.ResendVerification(context.Background(), "user@example.com", "en"); err != nil {
+		t.Fatalf("expected mailer failure to be logged and swallowed, got error: %v", err)
 	}
 }

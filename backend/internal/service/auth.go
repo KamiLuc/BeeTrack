@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/mail"
 	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/validation"
+	"github.com/beetrack/backend/pkg/logging"
 	"github.com/beetrack/backend/pkg/token"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -175,7 +175,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email, lang string) er
 
 	resetURL := s.apiURL + "/api/v1/auth/reset-password-form?token=" + rawToken + "&lang=" + lang
 	if err := s.mailer.SendPasswordResetEmail(ctx, user.Email, user.Name, resetURL, lang); err != nil {
-		log.Printf("failed to send password reset email to %s: %v", user.Email, err)
+		logging.FromContext(ctx).Error("failed to send password reset email", "email", user.Email, "error", err)
 	}
 
 	return nil
@@ -322,7 +322,7 @@ func (s *AuthService) Register(ctx context.Context, email, name, password, lang 
 	}
 
 	if err := s.sendVerificationEmail(ctx, u, lang); err != nil {
-		log.Printf("failed to send verification email to %s: %v", u.Email, err)
+		logging.FromContext(ctx).Error("failed to send verification email", "email", u.Email, "error", err)
 	}
 
 	return u, nil
@@ -347,7 +347,7 @@ func (s *AuthService) ResendVerification(ctx context.Context, email, lang string
 	}
 
 	if err := s.sendVerificationEmail(ctx, user, lang); err != nil {
-		log.Printf("failed to resend verification email to %s: %v", user.Email, err)
+		logging.FromContext(ctx).Error("failed to resend verification email", "email", user.Email, "error", err)
 	}
 
 	return nil

@@ -17,7 +17,7 @@ backend/           # Go API
     repository/    # DB queries (sqlx + raw SQL)
     middleware/    # Auth JWT middleware
   migrations/      # goose SQL migrations (NNN_description.sql)
-  pkg/             # Shared types (e.g. apierror)
+  pkg/             # Shared types (e.g. apierror) and utilities (e.g. logging)
 
 app/               # Flutter app
   lib/
@@ -158,6 +158,11 @@ hiveSvc   := service.NewHiveService(apiaryRepo, hiveRepo)
 - `middleware.OptionalAuth(jwtSecret)` — same decoding as `Auth`, but does not reject the request if the token is missing/invalid; used on public routes (e.g. listing search) that behave differently for authenticated callers.
 - `middleware.CORS(allowedOrigins)` — wraps the whole mux.
 - `middleware.UserIDFromContext(ctx)` — extracts userID; returns `(int64, bool)`.
+- `middleware.Logging` — outermost wrapper (around CORS); assigns/reuses an `X-Request-Id` header and logs one structured line per request. See "Logging" below.
+
+### Logging
+
+Server logs are structured JSON lines on stdout, via Go's `slog`, configured in `pkg/logging`. `middleware.Logging` assigns every request an `X-Request-Id` (reusing one if the caller already sent it) and attaches a logger carrying it to the request context; handlers and services that log through that context logger automatically tag their lines with `request_id`, and with `user_id` too once `Auth`/`OptionalAuth` validates a token — so every log line from a single request can be traced together. Verbosity is set via the `LOG_LEVEL` env var (`debug`/`info`/`warn`/`error`, default `info`). `cmd/seed` and `cmd/resetdb` are exempt — as human-run dev scripts, plain stdout progress output is more useful there than JSON.
 
 ### Doc comment convention
 

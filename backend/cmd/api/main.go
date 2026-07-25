@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/internal/worker"
 	"github.com/beetrack/backend/migrations"
+	"github.com/beetrack/backend/pkg/logging"
 	"github.com/beetrack/backend/pkg/mailer"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -31,13 +34,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	logging.Init(os.Stdout, cfg.LogLevel)
+
 	db, err := database.Open(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to open database", "error", err)
+		os.Exit(1)
 	}
 
 	if err := database.Migrate(db, migrations.FS); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
 	}
 
 	ctx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -241,9 +248,10 @@ func main() {
 
 	cors := middleware.CORS(cfg.AllowedOrigins)
 
-	log.Printf("Starting BeeTrack API on :%s", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, cors(mux)); err != nil {
-		log.Fatal(err)
+	slog.Info("starting BeeTrack API", "port", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, middleware.Logging(cors(mux))); err != nil {
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -256,18 +264,18 @@ func main() {
 func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain.HoneyCertReader {
 	blockchainCfg, err := config.LoadBlockchainConfig()
 	if err != nil {
-		log.Printf("Blockchain config not set, honey certification worker disabled: %v", err)
+		slog.Info("blockchain config not set, honey certification worker disabled", "error", err)
 		return nil
 	}
 
 	certWriter, err := blockchain.NewHoneyCertWriter(blockchainCfg)
 	if err != nil {
-		log.Printf("Failed to create blockchain writer, honey certification worker disabled: %v", err)
+		slog.Warn("failed to create blockchain writer, honey certification worker disabled", "error", err)
 		return nil
 	}
 	certReader, err := blockchain.NewHoneyCertReader(blockchainCfg)
 	if err != nil {
-		log.Printf("Failed to create blockchain reader, honey certification worker disabled: %v", err)
+		slog.Warn("failed to create blockchain reader, honey certification worker disabled", "error", err)
 		return nil
 	}
 
@@ -282,6 +290,6 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain
 		blockchainCfg.RequiredConfirmations,
 	)
 	go blockchainWorker.Run(ctx, blockchainCfg.JobPollInterval, blockchainCfg.ConfirmationPollInterval)
-	log.Println("Honey certification worker started")
+	slog.Info("honey certification worker started")
 	return certReader
 }

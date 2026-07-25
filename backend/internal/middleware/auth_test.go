@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/beetrack/backend/pkg/logging"
 	"github.com/beetrack/backend/pkg/token"
 )
 
@@ -64,6 +66,31 @@ func TestAuth_ValidTokenAttachesUserID(t *testing.T) {
 	}
 	if gotUserID != 42 {
 		t.Errorf("expected userID 42, got %d", gotUserID)
+	}
+}
+
+func TestAuth_ValidTokenEnrichesContextLogger(t *testing.T) {
+	tokenStr, err := token.NewAccessToken(42, "secret", 5)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	var gotLogger *slog.Logger
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotLogger = logging.FromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := Auth("secret")(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenStr)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if gotLogger == slog.Default() {
+		t.Fatal("expected a request-scoped logger enriched with user_id, got the default logger")
 	}
 }
 
@@ -141,5 +168,30 @@ func TestOptionalAuth_ValidTokenAttachesUserID(t *testing.T) {
 	}
 	if gotUserID != 7 {
 		t.Errorf("expected userID 7, got %d", gotUserID)
+	}
+}
+
+func TestOptionalAuth_ValidTokenEnrichesContextLogger(t *testing.T) {
+	tokenStr, err := token.NewAccessToken(7, "secret", 5)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	var gotLogger *slog.Logger
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotLogger = logging.FromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := OptionalAuth("secret")(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenStr)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if gotLogger == slog.Default() {
+		t.Fatal("expected a request-scoped logger enriched with user_id, got the default logger")
 	}
 }

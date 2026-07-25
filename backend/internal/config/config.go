@@ -15,6 +15,7 @@ type Config struct {
 	JWTAccessTTLMin   int
 	JWTRefreshTTLDays int
 	JWTSecret         string
+	LogLevel          string
 	PDFStoragePath    string
 	Port              string
 	SMTPFrom          string
@@ -44,6 +45,7 @@ func Load() (Config, error) {
 		JWTAccessTTLMin:   accessTTL,
 		JWTRefreshTTLDays: refreshTTL,
 		JWTSecret:         getEnv("JWT_SECRET", ""),
+		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		PDFStoragePath:    getEnv("PDF_STORAGE_PATH", "/data/pdfs"),
 		Port:              getEnv("PORT", "8080"),
 		SMTPFrom:          getEnv("SMTP_FROM", "noreply@beetrack.app"),
