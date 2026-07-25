@@ -133,7 +133,7 @@ class _HashRow extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _HashValue(label: l10n.honeyBatchStoredHash, value: stored),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         _HashValue(label: l10n.honeyBatchOnChainHash, value: onChain ?? '—'),
         const SizedBox(height: 6),
         Row(
@@ -174,21 +174,16 @@ class _HashValue extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-          ),
+        Text(
+          label,
+          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
-        Expanded(
-          child: SelectableText(
-            value,
-            style: textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-          ),
+        SelectableText(
+          value,
+          style: textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
         ),
       ],
     );

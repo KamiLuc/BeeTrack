@@ -1343,7 +1343,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get honeyBatchStoredHash => 'Zapisany';
 
   @override
-  String get honeyBatchOnChainHash => 'W blockchainie';
+  String get honeyBatchOnChainHash => 'Na blockchainie';
 
   @override
   String get honeyBatchHashMatch => 'Zgodne z rekordem w blockchainie';

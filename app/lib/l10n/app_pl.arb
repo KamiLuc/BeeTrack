@@ -531,7 +531,7 @@
   "honeyBatchMetadataHashLabel": "Hash metadanych (SHA-256)",
   "honeyBatchMetadataHashExplainer": "Suma kontrolna obliczona łącznie z daty pozyskania, ilości, metody przetwarzania, rodzaju miodu oraz sumy kontrolnej PDF-u.",
   "honeyBatchStoredHash": "Zapisany",
-  "honeyBatchOnChainHash": "W blockchainie",
+  "honeyBatchOnChainHash": "Na blockchainie",
   "honeyBatchHashMatch": "Zgodne z rekordem w blockchainie",
   "honeyBatchHashMismatch": "Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione",
   "honeyBatchHashCheckUnavailable": "Weryfikacja na żywo chwilowo niedostępna"

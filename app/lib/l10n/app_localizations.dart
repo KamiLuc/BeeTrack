@@ -2489,7 +2489,7 @@ abstract class AppLocalizations {
   /// No description provided for @honeyBatchOnChainHash.
   ///
   /// In pl, this message translates to:
-  /// **'W blockchainie'**
+  /// **'Na blockchainie'**
   String get honeyBatchOnChainHash;
 
   /// No description provided for @honeyBatchHashMatch.
