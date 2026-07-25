@@ -2,3 +2,4 @@
 backend/*.exe
 backend/cmd/seed/images/*
 !backend/cmd/seed/images/.gitkeep
+docs/openapi.html

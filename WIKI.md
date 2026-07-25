@@ -167,6 +167,10 @@ Every exported function in handler, service, and repository must have a doc comm
 func (h *ApiaryHandler) Create(w http.ResponseWriter, r *http.Request) { ... }
 ```
 
+### API documentation
+
+`docs/api.md` is the single source of truth for the HTTP API surface (routes, request/response shapes, errors). `docs/openapi.yaml` is generated from it by `docs/generate_openapi.py` and must never be hand-edited — re-run the script after changing `api.md`. A Go test (`cmd/api/openapi_sync_test.go`) compares every route registered in `main.go` against `openapi.yaml` and fails the build if they diverge, so `api.md` has to be kept current for new/changed routes.
+
 ### Migrations
 
 Files live in `backend/migrations/`, run automatically on startup via goose:

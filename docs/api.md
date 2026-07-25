@@ -651,34 +651,6 @@ Updates a hive's name, type, and status flags (`active`, `queenless`, `ready_for
 
 ---
 
-### PATCH /apiaries/{id}/hives/{hiveId}/frames 🔒
-
-Atomically increments the hive's frame count by `delta`. Used by the app after saving an inspection that added frames, to avoid a race condition with read-modify-write.
-
-**Request**
-```json
-{
-  "delta": 3
-}
-```
-
-- `delta` must be a positive integer
-
-**Response** `204 No Content`
-
-**Errors**
-| Code | Status | Description |
-|------|--------|-------------|
-| `MISSING_TOKEN` | 401 | No Bearer token in header |
-| `INVALID_TOKEN` | 401 | Token invalid or expired |
-| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
-| `INVALID_BODY` | 400 | Malformed JSON |
-| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
-| `HIVE_NOT_FOUND` | 404 | Hive does not exist in this apiary |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
-
----
-
 ### PATCH /apiaries/{id}/hives/{hiveId}/position 🔒
 
 Moves a hive to a new grid position. Both owners and members can move hives. Moving to the current position is a no-op.
@@ -1437,14 +1409,39 @@ Declines a pending invitation. The caller must be the invited user.
 
 ## Medicines
 
-### GET /medicines
+### GET /medicines 🔒
 
-Returns the list of known medicine names. No authentication required. Intended for autocomplete in treatment forms and AI/MCP voice assistants.
+Returns medicine names the authenticated user has previously entered when recording a treatment, most recent first. Intended for autocomplete in treatment forms. Empty array if the user has never recorded a treatment.
 
 **Response** `200 OK`
 ```json
-["Api Life Var","Api-Bioxal","Apiguard","Apivar","Apistan","Apiwarol","Bayvarol","Biowar 500","Formicpro","MAQS","Oxuvar","PolyVar Yellow","VarroMed"]
+["Apiwarol", "Bayvarol", "Api Life Var"]
 ```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /doses 🔒
+
+Returns doses the authenticated user has previously entered when recording a treatment, most recent first. Intended for autocomplete in treatment forms. Empty array if the user has never recorded a treatment.
+
+**Response** `200 OK`
+```json
+["1", "2", "0.5"]
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
 
@@ -1591,6 +1588,193 @@ Deletes a treatment record.
 | Code | Status | Description |
 |------|--------|-------------|
 | `TREATMENT_NOT_FOUND` | 404 | Treatment not found |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Feedings
+
+### GET /feed-types 🔒
+
+Returns feed types the authenticated user has previously entered when recording a feeding, most recent first. Intended for autocomplete in feeding forms. Empty array if the user has never recorded a feeding.
+
+**Response** `200 OK`
+```json
+["Sugar syrup 1:1", "Fondant", "Pollen patty"]
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /feed-amounts 🔒
+
+Returns amounts the authenticated user has previously entered when recording a feeding, most recent first. Intended for autocomplete in feeding forms. Empty array if the user has never recorded a feeding.
+
+**Response** `200 OK`
+```json
+["1L", "500ml", "2kg"]
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/feedings/bulk 🔒
+
+Creates one feeding record per hive in the apiary, all inside a single transaction. Same request body as the single-hive create endpoint.
+
+**Request**
+```json
+{
+  "fed_at": "2026-06-08T10:00:00Z",
+  "feed_type": "Sugar syrup 1:1",
+  "amount": "1L",
+  "notes": "applied evenly"
+}
+```
+
+- `amount` — optional, no default; unlike `dose` on treatments it's left empty if omitted.
+
+**Response** `201 Created`
+```json
+{ "count": 5 }
+```
+
+- `count` — number of feedings inserted (equals number of hives in the apiary at the time of the call). `0` if the apiary has no hives.
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `FED_AT_REQUIRED` | 400 | `fed_at` missing or zero |
+| `FEED_TYPE_REQUIRED` | 400 | `feed_type` empty |
+| `FEED_TYPE_TOO_LONG` | 400 | `feed_type` exceeds 50 characters |
+| `AMOUNT_TOO_LONG` | 400 | `amount` exceeds 20 characters |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/feedings 🔒
+
+Returns paginated feedings for a hive, ordered by `fed_at` descending.
+
+**Query Parameters**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | int | 20 | Max items to return |
+| `offset` | int | 0 | Number of items to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "hive_id": 10,
+      "fed_by": 5,
+      "fed_by_name": "Alice",
+      "fed_at": "2025-06-01T10:00:00Z",
+      "feed_type": "Sugar syrup 1:1",
+      "amount": "1L",
+      "notes": "Applied at the entrance",
+      "created_at": "2025-06-01T10:05:00Z",
+      "updated_at": "2025-06-01T10:05:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or caller is not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive does not belong to the apiary |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/hives/{hiveId}/feedings 🔒
+
+Creates a new feeding record. Caller must be a member of the apiary.
+
+**Request Body**
+```json
+{
+  "fed_at": "2025-06-01T10:00:00Z",
+  "feed_type": "Sugar syrup 1:1",
+  "amount": "1L",
+  "notes": "Applied at the entrance"
+}
+```
+
+**Response** `201 Created` — feeding object (same shape as list item above)
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `FED_AT_REQUIRED` | 400 | `fed_at` is missing or zero |
+| `FEED_TYPE_REQUIRED` | 400 | `feed_type` is empty |
+| `FEED_TYPE_TOO_LONG` | 400 | `feed_type` exceeds 50 characters |
+| `AMOUNT_TOO_LONG` | 400 | `amount` exceeds 20 characters |
+| `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
+| `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
+| `HIVE_NOT_FOUND` | 404 | Hive not found |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/hives/{hiveId}/feedings/{feedingId} 🔒
+
+Returns a single feeding.
+
+**Response** `200 OK` — feeding object
+
+**Errors** — same as POST above plus `FEEDING_NOT_FOUND` 404.
+
+---
+
+### PATCH /apiaries/{id}/hives/{hiveId}/feedings/{feedingId} 🔒
+
+Overwrites all mutable fields of an existing feeding.
+
+**Request Body** — same as POST (all fields required except `amount`)
+
+**Response** `200 OK` — updated feeding object
+
+**Errors** — same as POST above plus `FEEDING_NOT_FOUND` 404.
+
+---
+
+### DELETE /apiaries/{id}/hives/{hiveId}/feedings/{feedingId} 🔒
+
+Deletes a feeding record.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}`, `{hiveId}`, or `{feedingId}` is not a valid integer |
+| `FEEDING_NOT_FOUND` | 404 | Feeding not found |
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -2593,6 +2777,45 @@ Rejects a pending listing with a reason. The listing stays invisible to the publ
 | `REJECTION_REASON_REQUIRED` | 400 | `reason` is empty |
 | `LISTING_NOT_FOUND` | 404 | Listing does not exist |
 | `LISTING_NOT_PENDING` | 409 | Listing is not currently pending review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/listings/{id}/remove
+
+Takes a live (approved) listing off the marketplace, with a reason. Distinct from rejecting a pending listing — this removes one that was already public.
+
+**Request**
+```json
+{ "reason": "Reported as a scam by another user" }
+```
+
+**Response** `200 OK` — updated admin listing object (`status: "removed"`)
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `REJECTION_REASON_REQUIRED` | 400 | `reason` is empty |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `LISTING_NOT_APPROVED` | 409 | Listing is not currently approved (already pending, rejected, or removed) |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /admin/listings/{id}/restore
+
+Brings a removed listing back as approved and publicly visible again.
+
+**Response** `200 OK` — updated admin listing object (`status: "approved"`)
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `LISTING_NOT_FOUND` | 404 | Listing does not exist |
+| `LISTING_NOT_REMOVED` | 409 | Listing is not currently removed |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
