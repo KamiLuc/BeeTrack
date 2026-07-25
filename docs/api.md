@@ -2943,6 +2943,40 @@ Permanently deletes a certification request row. Only allowed once the request's
 
 ---
 
+### GET /admin/certification-requests/{id}/estimate-gas
+
+Dry-run gas cost preview for the `certify()` transaction the Epic 9 worker would submit if this request is approved. Nothing is signed or broadcast; the request can be in any status.
+
+**Response** `200 OK`
+```json
+{
+  "gas_units": 123456,
+  "gas_price_wei": "30000000000",
+  "estimated_cost_wei": "3700680000000000",
+  "estimated_cost_matic": 0.00370068,
+  "account_balance_wei": "12340000000000000000",
+  "account_balance_matic": 12.34,
+  "matic_pln_rate": 3.21,
+  "estimated_cost_pln": 0.0119,
+  "account_balance_pln": 39.6
+}
+```
+
+- `gas_price_wei`, `estimated_cost_wei`, `account_balance_wei` — decimal strings (values can exceed JS's safe integer range)
+- `account_balance_wei`/`account_balance_matic` — balance of the wallet that would submit the transaction
+- `matic_pln_rate`, `estimated_cost_pln`, `account_balance_pln` — `null` if the MATIC/PLN price feed (CoinGecko) is unreachable; the estimate itself still succeeds without it
+
+**Errors** — see [Admin](#admin) header errors, plus:
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CERTIFICATION_REQUEST_NOT_FOUND` | 404 | Certification request does not exist |
+| `BATCH_NOT_FOUND` | 404 | Request's linked batch does not exist |
+| `BLOCKCHAIN_NOT_CONFIGURED` | 503 | API started without blockchain env vars set, so there's no RPC connection to estimate against |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /admin/honey-batches/{id}/pdf
 
 Serves a batch's lab PDF regardless of ownership, for admin review.

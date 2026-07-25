@@ -47,8 +47,10 @@ func main() {
 	// handler.ChainCertReader interface would be a non-nil interface value
 	// (Go's typed-nil trap), defeating VerifyPage's certReader == nil check.
 	var verifyChainReader handler.ChainCertReader
+	var gasReader service.GasReader
 	if certReader := startHoneyCertificationWorker(ctx, db); certReader != nil {
 		verifyChainReader = certReader
+		gasReader = certReader
 	}
 
 	userRepo := repository.NewUserRepository(db)
@@ -89,6 +91,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	listingModerationSvc := service.NewListingModerationService(listingRepo, honeyBatchCertificationRequestRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
+	certificationGasEstimateSvc := service.NewCertificationGasEstimateService(honeyBatchCertificationRequestRepo, honeyBatchRepo, gasReader)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
@@ -107,7 +110,7 @@ func main() {
 	honeyBatchHandler := handler.NewHoneyBatchHandler(honeyBatchSvc, verifyChainReader)
 	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc, verifyChainReader)
 	adminListingHandler := handler.NewAdminListingHandler(listingModerationSvc)
-	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc)
+	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc, certificationGasEstimateSvc)
 
 	auth := middleware.Auth(cfg.JWTSecret)
 	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
@@ -233,6 +236,7 @@ func main() {
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/approve", admin(http.HandlerFunc(adminCertificationHandler.Approve)))
 	mux.Handle("POST /api/v1/admin/certification-requests/{id}/reject", admin(http.HandlerFunc(adminCertificationHandler.Reject)))
 	mux.Handle("DELETE /api/v1/admin/certification-requests/{id}", admin(http.HandlerFunc(adminCertificationHandler.Delete)))
+	mux.Handle("GET /api/v1/admin/certification-requests/{id}/estimate-gas", admin(http.HandlerFunc(adminCertificationHandler.EstimateGas)))
 	mux.Handle("GET /api/v1/admin/honey-batches/{id}/pdf", admin(http.HandlerFunc(adminCertificationHandler.PDF)))
 
 	cors := middleware.CORS(cfg.AllowedOrigins)

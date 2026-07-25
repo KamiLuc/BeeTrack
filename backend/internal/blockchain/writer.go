@@ -48,6 +48,18 @@ func isAlreadyCertifiedRevert(err error) bool {
 	return bytes.Equal(data[:4], alreadyCertifiedSelector)
 }
 
+// MinterAddress derives the public on-chain address of the configured
+// signing key. Safe to call from the HTTP request path (e.g. for a gas
+// estimate) — it never keeps the private key around afterward, unlike
+// HoneyCertWriter.
+func MinterAddress(cfg config.BlockchainConfig) (common.Address, error) {
+	privateKey, err := crypto.HexToECDSA(cfg.PrivateKey)
+	if err != nil {
+		return common.Address{}, fmt.Errorf("parse private key: %w", err)
+	}
+	return crypto.PubkeyToAddress(privateKey.PublicKey), nil
+}
+
 // HoneyCertWriter signs and broadcasts certify() transactions. Only the
 // background worker should hold one — never the HTTP request path.
 type HoneyCertWriter struct {

@@ -111,7 +111,7 @@
 | -------- | ----- | ------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | HC-FE-16 | `FE`  | `[x]`  | ~~Verification details modal~~ | **Descoped** — owners don't need in-app certification history; already fully visible in the admin panel. Endpoint (`GET /api/v1/honey-batches/{id}/certifications`) stays for the admin panel's use. |
 | HC-FE-17 | `FE`  | `[x]`  | Hash comparison display      | Show stored hash vs. on-chain hash                                                                        |
-| HC-10-04 | `BE`  | `[ ]`  | Gas fee management            | *(optional)* `gas_used` already persisted per-certification row; gas relay/price-spike alerting unnecessary on free testnet gas |
+| HC-10-04 | `BE`  | `[x]`  | Gas fee management            | Scoped down to a pre-approval gas cost preview — `GET /admin/certification-requests/{id}/estimate-gas` dry-runs `certify()` and returns cost in wei/POL/PLN. Gas relay retry-with-bumped-gas and price-spike alerting stay out of scope on free testnet gas |
 | HC-10-05 | `FE`  | `[ ]`  | Offline handling              | *(optional)* No local blockchain-write queue needed — app never triggers chain writes directly            |
 | HC-10-06 | `FE`  | `[ ]`  | Loading states                | Distinct UI per lifecycle state; "Certify" when `certification` is `null`, "Retry" on `failed`/`reverted`  |
 | HC-10-07 | `FE`  | `[ ]`  | Error handling                | Error copy mapped from lifecycle status (`null` = neutral, not an error; in-progress states aren't errors) |

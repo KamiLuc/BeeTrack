@@ -4,9 +4,11 @@ import { ApiError, getStoredToken, resourceUrl } from "../api/client";
 import {
   approveCertificationRequest,
   deleteCertificationRequest,
+  estimateCertificationGas,
   getCertificationRequest,
   rejectCertificationRequest,
   type CertificationRequest,
+  type GasEstimate,
 } from "../api/certifications";
 import { chainStatusBadgeClass, chainStatusGroup, chainStatusLabelKey } from "../certificationStatus";
 import { ReasonPicker } from "../components/ReasonPicker";
@@ -58,6 +60,9 @@ export function CertificationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
+  const [gasEstimateError, setGasEstimateError] = useState<string | null>(null);
+  const [estimatingGas, setEstimatingGas] = useState(false);
 
   const backToQueue = `/certifications?${params.toString()}`;
 
@@ -95,6 +100,20 @@ export function CertificationDetailPage() {
     }
   }
 
+  async function handleCheckGasEstimate() {
+    if (!req) return;
+    setEstimatingGas(true);
+    setGasEstimateError(null);
+    try {
+      setGasEstimate(await estimateCertificationGas(req.id));
+    } catch (err) {
+      setGasEstimate(null);
+      setGasEstimateError(err instanceof ApiError ? err.message : t("certificationDetail.gasEstimateError"));
+    } finally {
+      setEstimatingGas(false);
+    }
+  }
+
   async function handleDelete() {
     if (!req || !window.confirm(t("certificationDetail.deleteConfirm"))) return;
     setSubmitting(true);
@@ -114,6 +133,14 @@ export function CertificationDetailPage() {
   const isPending = req.status === "pending";
   const group = chainStatusGroup(req.job_status);
   const hasChainInfo = req.job_status !== null;
+  const insufficientBalance =
+    gasEstimate !== null && BigInt(gasEstimate.account_balance_wei) < BigInt(gasEstimate.estimated_cost_wei);
+  const balanceAfterMatic =
+    gasEstimate !== null
+      ? Number(BigInt(gasEstimate.account_balance_wei) - BigInt(gasEstimate.estimated_cost_wei)) / 1e18
+      : null;
+  const balanceAfterPln =
+    balanceAfterMatic !== null && gasEstimate?.matic_pln_rate != null ? balanceAfterMatic * gasEstimate.matic_pln_rate : null;
 
   return (
     <div>
@@ -210,6 +237,77 @@ export function CertificationDetailPage() {
               </dl>
             </>
           )}
+
+          {isPending && (
+            <>
+              <h2 className="card-title">{t("certificationDetail.gasEstimateTitle")}</h2>
+              <button className="btn-approve" disabled={estimatingGas} onClick={handleCheckGasEstimate}>
+                {estimatingGas && <span className="spinner" aria-hidden="true" />}
+                {estimatingGas
+                  ? t("certificationDetail.checkingGasEstimate")
+                  : gasEstimate
+                    ? t("certificationDetail.recheckGasEstimate")
+                    : t("certificationDetail.checkGasEstimate")}
+              </button>
+              {gasEstimateError && (
+                <p className="error" style={{ marginTop: "0.75rem" }}>
+                  {gasEstimateError}
+                </p>
+              )}
+              {gasEstimate && (
+                <dl className="detail-list" style={{ marginTop: "0.75rem" }}>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.gasUnits")}</dt>
+                    <dd>{gasEstimate.gas_units.toLocaleString(lang)}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.gasPrice")}</dt>
+                    <dd>{(Number(gasEstimate.gas_price_wei) / 1e9).toLocaleString(lang, { maximumFractionDigits: 4 })} Gwei</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.estimatedCost")}</dt>
+                    <dd>
+                      {gasEstimate.estimated_cost_matic.toLocaleString(lang, { maximumFractionDigits: 6 })} POL
+                      {gasEstimate.estimated_cost_pln !== null && (
+                        <> ({gasEstimate.estimated_cost_pln.toLocaleString(lang, { maximumFractionDigits: 2 })} PLN)</>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.polPlnRate")}</dt>
+                    <dd>
+                      {gasEstimate.matic_pln_rate !== null
+                        ? `1 POL = ${gasEstimate.matic_pln_rate.toLocaleString(lang, { maximumFractionDigits: 2 })} PLN`
+                        : t("certificationDetail.pricePlnUnavailable")}
+                    </dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.accountBalance")}</dt>
+                    <dd>
+                      {gasEstimate.account_balance_matic.toLocaleString(lang, { maximumFractionDigits: 4 })} POL
+                      {gasEstimate.account_balance_pln !== null && (
+                        <> ({gasEstimate.account_balance_pln.toLocaleString(lang, { maximumFractionDigits: 2 })} PLN)</>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>{t("certificationDetail.accountBalanceAfter")}</dt>
+                    <dd>
+                      {balanceAfterMatic!.toLocaleString(lang, { maximumFractionDigits: 4 })} POL
+                      {balanceAfterPln !== null && (
+                        <> ({balanceAfterPln.toLocaleString(lang, { maximumFractionDigits: 2 })} PLN)</>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              {insufficientBalance && (
+                <p className="error" style={{ marginTop: "0.75rem" }}>
+                  {t("certificationDetail.insufficientBalanceWarning")}
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -233,7 +331,7 @@ export function CertificationDetailPage() {
         <div className="actions">
           <button
             className="btn-approve"
-            disabled={submitting || reason.trim().length > 0}
+            disabled={submitting || reason.trim().length > 0 || insufficientBalance}
             onClick={handleApprove}
           >
             {t("certificationDetail.approve")}

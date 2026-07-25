@@ -34,8 +34,11 @@ type CertificationRecord struct {
 
 // HoneyCertReader provides read-only access to the HoneyCertification contract.
 type HoneyCertReader struct {
-	client   *ethclient.Client
-	contract *bind.BoundContract
+	client      *ethclient.Client
+	contract    *bind.BoundContract
+	parsedABI   abi.ABI
+	address     common.Address
+	fromAddress common.Address
 }
 
 // NewHoneyCertReader dials the configured Polygon RPC endpoint and returns a
@@ -52,10 +55,22 @@ func NewHoneyCertReader(cfg config.BlockchainConfig) (*HoneyCertReader, error) {
 		return nil, fmt.Errorf("parse ABI: %w", err)
 	}
 
+	fromAddress, err := MinterAddress(cfg)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+
 	address := common.HexToAddress(cfg.ContractAddress)
 	contract := bind.NewBoundContract(address, parsedABI, client, client, client)
 
-	return &HoneyCertReader{client: client, contract: contract}, nil
+	return &HoneyCertReader{
+		client:      client,
+		contract:    contract,
+		parsedABI:   parsedABI,
+		address:     address,
+		fromAddress: fromAddress,
+	}, nil
 }
 
 // Close releases the underlying RPC connection.
@@ -111,4 +126,40 @@ func (r *HoneyCertReader) GetTransactionStatus(ctx context.Context, txHash strin
 
 	confs := currentBlock - receipt.BlockNumber.Uint64() + 1
 	return true, receipt.Status == 0, receipt.BlockNumber.Uint64(), receipt.GasUsed, confs, nil
+}
+
+// EstimateCertifyGas dry-runs a certify(batchID, pdfHash, metadataHash) call
+// — via eth_estimateGas and eth_gasPrice — without signing or broadcasting
+// anything, so an admin can preview cost before approving a request.
+func (r *HoneyCertReader) EstimateCertifyGas(ctx context.Context, batchID int64, pdfHash, metadataHash [32]byte) (gasUnits uint64, gasPriceWei *big.Int, err error) {
+	data, err := r.parsedABI.Pack("certify", big.NewInt(batchID), pdfHash, metadataHash)
+	if err != nil {
+		return 0, nil, fmt.Errorf("pack certify call: %w", err)
+	}
+
+	gasUnits, err = r.client.EstimateGas(ctx, ethereum.CallMsg{
+		From: r.fromAddress,
+		To:   &r.address,
+		Data: data,
+	})
+	if err != nil {
+		return 0, nil, fmt.Errorf("estimate gas: %w", err)
+	}
+
+	gasPriceWei, err = r.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("suggest gas price: %w", err)
+	}
+
+	return gasUnits, gasPriceWei, nil
+}
+
+// AccountBalance returns the minter account's current native token (MATIC)
+// balance, in wei.
+func (r *HoneyCertReader) AccountBalance(ctx context.Context) (*big.Int, error) {
+	balance, err := r.client.BalanceAt(ctx, r.fromAddress, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get account balance: %w", err)
+	}
+	return balance, nil
 }

@@ -68,3 +68,19 @@ export function deleteCertificationRequest(id: number): Promise<{ deleted: boole
     method: "DELETE",
   });
 }
+
+export type GasEstimate = {
+  gas_units: number;
+  gas_price_wei: string;
+  estimated_cost_wei: string;
+  estimated_cost_matic: number;
+  account_balance_wei: string;
+  account_balance_matic: number;
+  matic_pln_rate: number | null;
+  estimated_cost_pln: number | null;
+  account_balance_pln: number | null;
+};
+
+export function estimateCertificationGas(id: number): Promise<GasEstimate> {
+  return request<GasEstimate>(`/admin/certification-requests/${id}/estimate-gas`);
+}

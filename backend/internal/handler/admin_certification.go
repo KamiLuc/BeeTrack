@@ -15,12 +15,34 @@ import (
 // AdminCertificationHandler handles HTTP requests for the admin honey batch
 // certification review queue.
 type AdminCertificationHandler struct {
-	review  *service.CertificationReviewService
-	batches *service.HoneyBatchService
+	review      *service.CertificationReviewService
+	batches     *service.HoneyBatchService
+	gasEstimate *service.CertificationGasEstimateService
 }
 
-func NewAdminCertificationHandler(review *service.CertificationReviewService, batches *service.HoneyBatchService) *AdminCertificationHandler {
-	return &AdminCertificationHandler{review: review, batches: batches}
+func NewAdminCertificationHandler(review *service.CertificationReviewService, batches *service.HoneyBatchService, gasEstimate *service.CertificationGasEstimateService) *AdminCertificationHandler {
+	return &AdminCertificationHandler{review: review, batches: batches, gasEstimate: gasEstimate}
+}
+
+// gasEstimateJSON shapes a GasEstimate for the wire — big.Int fields become
+// decimal strings since they can exceed JS's safe integer range.
+func gasEstimateJSON(est *service.GasEstimate) map[string]any {
+	out := map[string]any{
+		"gas_units":             est.GasUnits,
+		"gas_price_wei":         est.GasPriceWei.String(),
+		"estimated_cost_wei":    est.EstimatedCostWei.String(),
+		"estimated_cost_matic":  est.CostMatic(),
+		"account_balance_wei":   est.AccountBalanceWei.String(),
+		"account_balance_matic": est.BalanceMatic(),
+		"matic_pln_rate":        est.MaticPLNRate,
+		"estimated_cost_pln":    nil,
+		"account_balance_pln":   nil,
+	}
+	if est.MaticPLNRate != nil {
+		out["estimated_cost_pln"] = est.CostMatic() * *est.MaticPLNRate
+		out["account_balance_pln"] = est.BalanceMatic() * *est.MaticPLNRate
+	}
+	return out
 }
 
 func certificationRequestJSON(req *model.HoneyBatchCertificationRequestDetail) map[string]any {
@@ -84,6 +106,10 @@ func adminCertificationError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_SHORT", err.Error())
 	case errors.Is(err, service.ErrRejectionReasonTooLong):
 		respond.Error(w, http.StatusBadRequest, "REJECTION_REASON_TOO_LONG", err.Error())
+	case errors.Is(err, service.ErrBatchNotFound):
+		respond.Error(w, http.StatusNotFound, "BATCH_NOT_FOUND", err.Error())
+	case errors.Is(err, service.ErrBlockchainNotConfigured):
+		respond.Error(w, http.StatusServiceUnavailable, "BLOCKCHAIN_NOT_CONFIGURED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -208,6 +234,25 @@ func (h *AdminCertificationHandler) Delete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	respond.JSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+// EstimateGas handles GET /api/v1/admin/certification-requests/{id}/estimate-gas
+// — a dry-run gas cost preview (in wei, MATIC, and PLN) for the certify()
+// transaction the worker would eventually submit once the request is
+// approved. Nothing is signed or broadcast.
+func (h *AdminCertificationHandler) EstimateGas(w http.ResponseWriter, r *http.Request) {
+	id, err := parseCertificationRequestID(r)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, "INVALID_ID", "invalid certification request id")
+		return
+	}
+
+	est, err := h.gasEstimate.Estimate(r.Context(), id)
+	if err != nil {
+		adminCertificationError(w, err)
+		return
+	}
+	respond.JSON(w, http.StatusOK, gasEstimateJSON(est))
 }
 
 // PDF handles GET /api/v1/admin/honey-batches/{id}/pdf — serves a batch's lab

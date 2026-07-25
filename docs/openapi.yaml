@@ -321,6 +321,128 @@ paths:
                     message: Unexpected server error
       security:
       - bearerAuth: []
+  /api/v1/admin/certification-requests/{id}/estimate-gas:
+    get:
+      tags:
+      - Admin
+      summary: Dry-run gas cost preview for the `certify()` transaction the Epic 9 worker would submit
+        if this request is approved.
+      description: Dry-run gas cost preview for the `certify()` transaction the Epic 9 worker would submit
+        if this request is approved. Nothing is signed or broadcast; the request can be in any status.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gas_units:
+                    type: integer
+                  gas_price_wei:
+                    type: string
+                  estimated_cost_wei:
+                    type: string
+                  estimated_cost_matic:
+                    type: number
+                  account_balance_wei:
+                    type: string
+                  account_balance_matic:
+                    type: number
+                  matic_pln_rate:
+                    type: number
+                  estimated_cost_pln:
+                    type: number
+                  account_balance_pln:
+                    type: number
+              example:
+                gas_units: 123456
+                gas_price_wei: '30000000000'
+                estimated_cost_wei: '3700680000000000'
+                estimated_cost_matic: 0.00370068
+                account_balance_wei: '12340000000000000000'
+                account_balance_matic: 12.34
+                matic_pln_rate: 3.21
+                estimated_cost_pln: 0.0119
+                account_balance_pln: 39.6
+        '401':
+          description: No Bearer token in header; Token invalid or expired
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token in header
+                INVALID_TOKEN:
+                  value:
+                    code: INVALID_TOKEN
+                    message: Token invalid or expired
+        '403':
+          description: Caller is authenticated but not an admin
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                NOT_ADMIN:
+                  value:
+                    code: NOT_ADMIN
+                    message: Caller is authenticated but not an admin
+        '400':
+          description: Path `{id}` is not a valid integer
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}` is not a valid integer
+        '404':
+          description: Certification request does not exist; Request's linked batch does not exist
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                CERTIFICATION_REQUEST_NOT_FOUND:
+                  value:
+                    code: CERTIFICATION_REQUEST_NOT_FOUND
+                    message: Certification request does not exist
+                BATCH_NOT_FOUND:
+                  value:
+                    code: BATCH_NOT_FOUND
+                    message: Request's linked batch does not exist
+        '503':
+          description: API started without blockchain env vars set, so there's no RPC connection to estimate
+            against
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                BLOCKCHAIN_NOT_CONFIGURED:
+                  value:
+                    code: BLOCKCHAIN_NOT_CONFIGURED
+                    message: API started without blockchain env vars set, so there's no RPC connection
+                      to estimate against
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
   /api/v1/admin/certification-requests/{id}/reject:
     post:
       tags:

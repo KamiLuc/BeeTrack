@@ -7,7 +7,6 @@ package worker
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -217,11 +216,11 @@ func (w *BlockchainWorker) ProcessNextJob(ctx context.Context) (processed bool, 
 		return true, w.failJob(ctx, job, nil, errors.New("batch not found"))
 	}
 
-	pdfHash, err := decodeHash32(batch.PDFFileHash)
+	pdfHash, err := blockchain.DecodeHash32(batch.PDFFileHash)
 	if err != nil {
 		return true, w.failJob(ctx, job, nil, fmt.Errorf("decode pdf hash: %w", err))
 	}
-	metadataHash, err := decodeHash32(batch.MetadataHash)
+	metadataHash, err := blockchain.DecodeHash32(batch.MetadataHash)
 	if err != nil {
 		return true, w.failJob(ctx, job, nil, fmt.Errorf("decode metadata hash: %w", err))
 	}
@@ -396,17 +395,4 @@ func backoffDuration(attempt int) time.Duration {
 		}
 	}
 	return d
-}
-
-func decodeHash32(s string) ([32]byte, error) {
-	var out [32]byte
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return out, err
-	}
-	if len(b) != 32 {
-		return out, fmt.Errorf("expected 32 bytes, got %d", len(b))
-	}
-	copy(out[:], b)
-	return out, nil
 }

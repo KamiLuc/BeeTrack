@@ -211,9 +211,9 @@ func TestProcessNextJob_AlreadyCertifiedRevert(t *testing.T) {
 	certs := &mockCertRepo{}
 	writer := &mockWriter{err: blockchain.ErrAlreadyCertified}
 	batch := newTestBatch()
-	matchingHash, err := decodeHash32(batch.PDFFileHash)
+	matchingHash, err := blockchain.DecodeHash32(batch.PDFFileHash)
 	if err != nil {
-		t.Fatalf("decodeHash32: %v", err)
+		t.Fatalf("DecodeHash32: %v", err)
 	}
 	reader := &mockReader{record: &blockchain.CertificationRecord{
 		Timestamp:    time.Unix(1000, 0),
@@ -550,9 +550,9 @@ func TestProcessNextJob_MidBroadcastCrashRecovery(t *testing.T) {
 	// stuck job back to queued; here we just simulate ClaimNext returning it
 	// again for retry.
 	jobs.next = &model.BlockchainJob{ID: 1, BatchID: 7, AttemptCount: 1}
-	matchingHash, err := decodeHash32(newTestBatch().PDFFileHash)
+	matchingHash, err := blockchain.DecodeHash32(newTestBatch().PDFFileHash)
 	if err != nil {
-		t.Fatalf("decodeHash32: %v", err)
+		t.Fatalf("DecodeHash32: %v", err)
 	}
 	reader := &mockReader{record: &blockchain.CertificationRecord{
 		Timestamp:    time.Unix(2000, 0),

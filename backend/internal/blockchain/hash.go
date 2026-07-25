@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -24,4 +25,19 @@ func SHA256File(filePath string) ([32]byte, error) {
 	var sum [32]byte
 	copy(sum[:], h.Sum(nil))
 	return sum, nil
+}
+
+// DecodeHash32 decodes a lowercase-hex-encoded SHA256 hash (as stored on a
+// HoneyBatch) into the fixed-size array the contract bindings expect.
+func DecodeHash32(s string) ([32]byte, error) {
+	var out [32]byte
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return out, err
+	}
+	if len(b) != 32 {
+		return out, fmt.Errorf("expected 32 bytes, got %d", len(b))
+	}
+	copy(out[:], b)
+	return out, nil
 }

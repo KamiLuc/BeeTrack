@@ -472,6 +472,7 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | POST | `/api/v1/admin/certification-requests/{id}/approve` | Admin-only: approve a certification request, which enqueues the blockchain job |
 | POST | `/api/v1/admin/certification-requests/{id}/reject` | Admin-only: reject a certification request with a reason |
 | DELETE | `/api/v1/admin/certification-requests/{id}` | Admin-only: permanently delete a certification request, only once its blockchain job is `failed`/`reverted` |
+| GET | `/api/v1/admin/certification-requests/{id}/estimate-gas` | Admin-only: dry-run gas cost preview (wei/POL/PLN) for the certify() transaction, before approving |
 | GET | `/api/v1/admin/honey-batches/{id}/pdf` | Admin-only: serve a batch's lab PDF regardless of ownership |
 
 ---
