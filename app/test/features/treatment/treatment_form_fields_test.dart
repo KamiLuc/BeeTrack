@@ -196,5 +196,46 @@ void main() {
       expect(find.text('3'), findsOneWidget);
       expect(find.text('applied evenly'), findsOneWidget);
     });
+
+    testWidgets('accepts non-numeric free-text dose values like "5 ml"',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      final doseController = TextEditingController();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        treatedAt: date,
+        medicineController: TextEditingController(text: 'Apivar'),
+        doseController: doseController,
+        notesController: TextEditingController(),
+      ));
+
+      await tester.enterText(find.byType(TextFormField).at(1), '5 ml');
+      await tester.pump();
+
+      expect(find.text('5 ml'), findsOneWidget);
+      expect(doseController.text, '5 ml');
+      expect(formKey.currentState!.validate(), isTrue);
+    });
+
+    testWidgets(
+        'accepts free-text dose values with slashes like "1 pasek/ul"',
+        (tester) async {
+      final formKey = GlobalKey<FormState>();
+      final doseController = TextEditingController();
+      await tester.pumpWidget(_wrap(
+        formKey: formKey,
+        treatedAt: date,
+        medicineController: TextEditingController(text: 'Apivar'),
+        doseController: doseController,
+        notesController: TextEditingController(),
+      ));
+
+      await tester.enterText(find.byType(TextFormField).at(1), '1 pasek/ul');
+      await tester.pump();
+
+      expect(find.text('1 pasek/ul'), findsOneWidget);
+      expect(doseController.text, '1 pasek/ul');
+      expect(formKey.currentState!.validate(), isTrue);
+    });
   });
 }

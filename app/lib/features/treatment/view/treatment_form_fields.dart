@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/validation/size_tiers.dart';
@@ -109,11 +108,6 @@ class TreatmentFormFields extends StatelessWidget {
                   labelText: l10n.treatmentDose,
                   counterText: SizeTier.superSmall.counterText,
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
                 maxLength: SizeTier.superSmall.maxLength,
                 onChanged: (v) => doseController.text = v,
                 validator: (v) {
