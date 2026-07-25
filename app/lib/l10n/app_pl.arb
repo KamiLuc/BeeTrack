@@ -106,6 +106,8 @@
   "marketplaceMapTooltip": "Mapa ogłoszeń",
   "marketplaceMapTitle": "Mapa ogłoszeń",
   "marketplaceMapEmpty": "Brak ogłoszeń z lokalizacją pasującą do filtrów",
+  "marketplaceListingLocationTitle": "Lokalizacja ogłoszenia",
+  "marketplaceListingMapTooltip": "Pokaż lokalizację ogłoszenia",
   "marketplacePriceMinHint": "Cena od",
   "marketplacePriceMaxHint": "Cena do",
   "marketplaceFiltersButton": "Filtry",

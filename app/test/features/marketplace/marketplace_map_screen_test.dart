@@ -111,6 +111,32 @@ void main() {
     );
 
     testWidgets(
+      'uses the overridden title instead of the default "Marketplace map" '
+      'title when one is provided',
+      (tester) async {
+        final listing = _listing(
+          id: 1,
+          title: 'Located Honey',
+          lat: 50.06,
+          lng: 19.94,
+        );
+
+        await tester.pumpWidget(
+          await _wrap(
+            MarketplaceMapScreen(
+              listings: [listing],
+              title: 'Listing location',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Listing location'), findsOneWidget);
+        expect(find.text('Marketplace map'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'shows the empty state when no listings have a real location',
       (tester) async {
         final listings = [

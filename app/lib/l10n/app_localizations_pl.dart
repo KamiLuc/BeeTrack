@@ -270,6 +270,12 @@ class AppLocalizationsPl extends AppLocalizations {
       'Brak ogłoszeń z lokalizacją pasującą do filtrów';
 
   @override
+  String get marketplaceListingLocationTitle => 'Lokalizacja ogłoszenia';
+
+  @override
+  String get marketplaceListingMapTooltip => 'Pokaż lokalizację ogłoszenia';
+
+  @override
   String get marketplacePriceMinHint => 'Cena od';
 
   @override

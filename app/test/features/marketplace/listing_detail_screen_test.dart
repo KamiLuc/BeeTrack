@@ -15,6 +15,7 @@ import 'package:app/features/auth/bloc/auth_bloc.dart';
 import 'package:app/features/auth/data/auth_repository.dart';
 import 'package:app/features/marketplace/data/listing_model.dart';
 import 'package:app/features/marketplace/view/listing_detail_screen.dart';
+import 'package:app/features/marketplace/view/marketplace_map_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -222,6 +223,8 @@ Listing _listing({
   List<ListingImage> images = const [],
   double? price = 42.5,
   String category = 'honey',
+  double lat = 50.0647,
+  double lng = 19.945,
 }) => Listing(
   id: id,
   userId: 5,
@@ -231,8 +234,8 @@ Listing _listing({
   price: price,
   quantity: '10 jars',
   address: 'Krakow',
-  lat: 50.0647,
-  lng: 19.945,
+  lat: lat,
+  lng: lng,
   apiaryId: apiaryId,
   apiaryName: apiaryName,
   apiaryLat: apiaryLat,
@@ -287,11 +290,15 @@ void main() {
         expect(find.text('123456789'), findsNothing);
         expect(find.text('seller@example.com'), findsNothing);
 
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Call'));
+        final callButton = find.widgetWithText(OutlinedButton, 'Call');
+        await tester.ensureVisible(callButton);
+        await tester.tap(callButton);
         await tester.pumpAndSettle();
         expect(find.text('123456789'), findsOneWidget);
 
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Write'));
+        final writeButton = find.widgetWithText(OutlinedButton, 'Write');
+        await tester.ensureVisible(writeButton);
+        await tester.tap(writeButton);
         await tester.pumpAndSettle();
         expect(find.text('seller@example.com'), findsOneWidget);
       },
@@ -431,6 +438,79 @@ void main() {
         expect(find.byType(ApiariesMapScreen), findsOneWidget);
         expect(find.text(l10n.apiaryLocationTitle), findsOneWidget);
         expect(find.text(l10n.apiaryMapTitle), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'shows a "show on map" button for the listing\'s own location when '
+      'it has GPS coordinates',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: _listing()), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.widgetWithText(
+            OutlinedButton,
+            l10n.marketplaceListingMapTooltip,
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'hides the listing "show on map" button when the listing has no GPS '
+      'coordinates',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(
+            ListingDetailScreen(listing: _listing(lat: 0, lng: 0)),
+            apiClient: apiClient,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.widgetWithText(
+            OutlinedButton,
+            l10n.marketplaceListingMapTooltip,
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'tapping the listing "show on map" button opens MarketplaceMapScreen '
+      'with the listing location title',
+      (tester) async {
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        final (apiClient, _) = await _fakeApiClient();
+
+        await tester.pumpWidget(
+          _wrap(ListingDetailScreen(listing: _listing()), apiClient: apiClient),
+        );
+        await tester.pumpAndSettle();
+
+        final mapButtonFinder = find.widgetWithText(
+          OutlinedButton,
+          l10n.marketplaceListingMapTooltip,
+        );
+        await tester.ensureVisible(mapButtonFinder);
+        await tester.tap(mapButtonFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MarketplaceMapScreen), findsOneWidget);
+        expect(find.text(l10n.marketplaceListingLocationTitle), findsOneWidget);
+        expect(find.text(l10n.marketplaceMapTitle), findsNothing);
       },
     );
 

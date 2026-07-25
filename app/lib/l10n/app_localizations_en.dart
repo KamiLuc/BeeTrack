@@ -270,6 +270,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'No listings with a location match your filters';
 
   @override
+  String get marketplaceListingLocationTitle => 'Listing location';
+
+  @override
+  String get marketplaceListingMapTooltip => 'Show listing location';
+
+  @override
   String get marketplacePriceMinHint => 'Min price';
 
   @override

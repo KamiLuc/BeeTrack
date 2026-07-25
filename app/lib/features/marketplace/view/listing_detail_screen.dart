@@ -18,6 +18,7 @@ import '../data/listing_model.dart';
 import '../data/listing_price.dart';
 import '../data/listing_repository.dart';
 import 'create_listing_screen.dart';
+import 'marketplace_map_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
   final Listing listing;
@@ -132,6 +133,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         }
       } catch (_) {}
     }
+  }
+
+  void _openListingMap() {
+    final listing = _listing;
+    final l10n = AppLocalizations.of(context)!;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketplaceMapScreen(
+          listings: [listing],
+          title: l10n.marketplaceListingLocationTitle,
+        ),
+      ),
+    );
   }
 
   void _openApiaryMap() {
@@ -330,11 +344,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                             listing.category,
                                           ),
                                         ),
-                                        if (listing.address.isNotEmpty)
-                                          _InfoChip(
-                                            icon: Icons.location_on_outlined,
-                                            label: listing.address,
-                                          ),
                                         if (listing.quantity.isNotEmpty)
                                           _InfoChip(
                                             icon: Icons.inventory_2_outlined,
@@ -343,6 +352,34 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                           ),
                                       ],
                                     ),
+                                    if (listing.address.isNotEmpty ||
+                                        listing.lat != 0 ||
+                                        listing.lng != 0) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          if (listing.address.isNotEmpty)
+                                            _InfoChip(
+                                              icon: Icons.location_on_outlined,
+                                              label: listing.address,
+                                            ),
+                                          if (listing.lat != 0 ||
+                                              listing.lng != 0) ...[
+                                            const Spacer(),
+                                            OutlinedButton.icon(
+                                              onPressed: _openListingMap,
+                                              icon: const Icon(
+                                                Icons.map_outlined,
+                                                size: 18,
+                                              ),
+                                              label: Text(
+                                                l10n.marketplaceListingMapTooltip,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

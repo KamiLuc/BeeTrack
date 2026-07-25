@@ -106,6 +106,8 @@
   "marketplaceMapTooltip": "Map view",
   "marketplaceMapTitle": "Marketplace map",
   "marketplaceMapEmpty": "No listings with a location match your filters",
+  "marketplaceListingLocationTitle": "Listing location",
+  "marketplaceListingMapTooltip": "Show listing location",
   "marketplacePriceMinHint": "Min price",
   "marketplacePriceMaxHint": "Max price",
   "marketplaceFiltersButton": "Filters",

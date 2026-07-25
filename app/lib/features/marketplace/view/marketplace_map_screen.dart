@@ -15,7 +15,11 @@ import 'listing_detail_screen.dart';
 class MarketplaceMapScreen extends StatelessWidget {
   final List<Listing> listings;
 
-  const MarketplaceMapScreen({super.key, required this.listings});
+  /// Overrides the default "Marketplace map" AppBar title — useful when
+  /// showing a single listing's location from its detail screen.
+  final String? title;
+
+  const MarketplaceMapScreen({super.key, required this.listings, this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +30,7 @@ class MarketplaceMapScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.marketplaceMapTitle),
+        title: Text(title ?? l10n.marketplaceMapTitle),
         actions: const [ProfileIconButton()],
       ),
       body: located.isEmpty

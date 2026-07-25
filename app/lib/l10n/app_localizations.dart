@@ -590,6 +590,18 @@ abstract class AppLocalizations {
   /// **'Brak ogłoszeń z lokalizacją pasującą do filtrów'**
   String get marketplaceMapEmpty;
 
+  /// No description provided for @marketplaceListingLocationTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Lokalizacja ogłoszenia'**
+  String get marketplaceListingLocationTitle;
+
+  /// No description provided for @marketplaceListingMapTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż lokalizację ogłoszenia'**
+  String get marketplaceListingMapTooltip;
+
   /// No description provided for @marketplacePriceMinHint.
   ///
   /// In pl, this message translates to:
