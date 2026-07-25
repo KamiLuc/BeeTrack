@@ -2176,6 +2176,8 @@ Submits a batch owned by the caller for admin certification review — a first-t
 
 Public, no authentication. Looks up a batch by its public `verification_token` (opaque UUID, not the numeric `id`) and returns the batch's public representation — same fields as the honey batch object above, minus the internal numeric `id` and `certification_request` (that state is owner-only).
 
+Ignores the batch's soft-delete status: once a batch has ever been approved for on-chain certification, deleting it from the owner's dashboard only soft-deletes it, so this lookup and the HTML page, QR code, and PDF routes below all keep resolving — the on-chain certification is immutable and stays publicly verifiable no matter what the owner does on their own dashboard. A batch that never reached certification is hard-deleted instead, and genuinely 404s here.
+
 **Response** `200 OK`:
 
 ```json
@@ -2207,7 +2209,7 @@ Public, no authentication. Looks up a batch by its public `verification_token` (
 
 ### GET /verify/{token} (HTML page)
 
-**Not under the `/api/v1` base URL** — a plain top-level route: `GET {apiURL}/verify/{token}` (`apiURL` is the backend's own public URL, e.g. `http://localhost:8080/verify/{token}`). Public, no authentication.
+**Not under the `/api/v1` base URL** — a plain top-level route: `GET {apiURL}/verify/{token}` (`apiURL` is the backend's own public URL, e.g. `http://localhost:8080/verify/{token}`). Public, no authentication, same soft-delete handling as the JSON endpoint above.
 
 This is the exact URL encoded in a batch's QR code and its "verification_url" field — a self-contained, dependency-free HTML page (Go `html/template`, no JS, no SPA) so the link opens directly in any browser, including one launched straight from a phone's stock camera app scanning the QR. There is no in-app QR scanner or Flutter verification screen; this page is the entire verification experience.
 
@@ -2225,7 +2227,7 @@ Bilingual: `?lang=pl` or `?lang=en` query param overrides the language; otherwis
 
 ### GET /verify/{token}/qr-code
 
-Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL `{apiURL}/verify/{token}` (the HTML page above). Requires the batch to have a confirmed certification — a QR pointing at an uncertified batch would be misleading.
+Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL `{apiURL}/verify/{token}` (the HTML page above). Requires the batch to have a confirmed certification — a QR pointing at an uncertified batch would be misleading. Same soft-delete handling as the JSON endpoint above.
 
 **Response** `200 OK` — `image/png` binary, `Cache-Control: public, max-age=31536000, immutable`
 
@@ -2240,7 +2242,7 @@ Public, no authentication. Serves a 512x512 PNG QR code encoding the verificatio
 
 ### GET /verify/{token}/qr-code/download
 
-Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`, but adds a `Content-Disposition: attachment` header so the response triggers a browser download/save dialog instead of rendering inline. Same requirement (confirmed certification) and same caching.
+Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`, but adds a `Content-Disposition: attachment` header so the response triggers a browser download/save dialog instead of rendering inline. Same requirement (confirmed certification), same caching, and same soft-delete handling as the JSON endpoint above.
 
 The download filename is derived from the batch's metadata: `{gathering_date}_{honey_type}_{weight}kg.png` (e.g. `2024-05-01_wildflower_1.5kg.png`), with the honey type lowercased and non-alphanumeric characters collapsed to hyphens.
 
@@ -2257,7 +2259,7 @@ The download filename is derived from the batch's metadata: `{gathering_date}_{h
 
 ### GET /verify/{token}/pdf
 
-Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed certification — no public exposure of lab data for an uncertified batch.
+Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed certification — no public exposure of lab data for an uncertified batch. Same soft-delete handling as the JSON endpoint above.
 
 **Response** `200 OK` — `application/pdf` binary, `Cache-Control: public, max-age=86400`
 

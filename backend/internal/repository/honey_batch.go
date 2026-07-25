@@ -84,12 +84,15 @@ func (r *HoneyBatchRepository) GetByIDIgnoringDeletion(ctx context.Context, id i
 	return &b, nil
 }
 
-// GetByVerificationToken returns the non-deleted batch with the given
-// verification token, or nil if not found. Used by the public verification path.
+// GetByVerificationToken returns the batch with the given verification
+// token regardless of soft-delete status, or nil if not found. Used by the
+// public verification path: an on-chain certification is immutable and
+// must stay publicly verifiable even after the owner deletes the batch from
+// their own dashboard (see HoneyBatchRepository.SoftDelete).
 func (r *HoneyBatchRepository) GetByVerificationToken(ctx context.Context, token string) (*model.HoneyBatch, error) {
 	var b model.HoneyBatch
 	err := r.db.WithContext(ctx).
-		Where("verification_token = ? AND deleted_at IS NULL", token).
+		Where("verification_token = ?", token).
 		First(&b).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
