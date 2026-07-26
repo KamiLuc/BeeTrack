@@ -22,11 +22,13 @@
 2. [Honey Harvest Tracking](#2-honey-harvest-tracking)
 3. [Reports & Analytics](#3-reports--analytics)
 4. [Bulk Operations](#4-bulk-operations)
-5. [Voice Logging](#5-voice-logging)
-6. [Queen Recognition (AI Feature)](#6-queen-recognition-ai-feature)
-7. [MCP Server](#7-mcp-server)
-8. [Infrastructure & DevOps](#8-infrastructure--devops)
-9. [Honey Certification & Blockchain](#9-honey-certification--blockchain)
+5. [Queen Recognition (AI Feature)](#5-queen-recognition-ai-feature)
+6. [Infrastructure & DevOps](#6-infrastructure--devops)
+7. [Honey Certification & Blockchain](#7-honey-certification--blockchain)
+
+> Voice logging and the MCP-based AI assistant moved out of this backlog — see
+> [AI_ASSISTANT.md](AI_ASSISTANT.md) for the design and
+> [BACKLOG_AI_ASSISTANT.md](BACKLOG_AI_ASSISTANT.md) for its tickets.
 
 ---
 
@@ -41,18 +43,7 @@
 
 ---
 
-## 5. Voice Logging
-
-| ID       | Layer | Status | Title                                           | Notes                                                                                                                        |
-| -------- | ----- | ------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| VC-01-BE | `BE`  | `[ ]`  | Voice endpoint                                  | POST /api/v1/hives/{hiveId}/voice — accepts audio file, calls Whisper → Claude, dispatches to correct service                |
-| VC-02-BE | `BE`  | `[ ]`  | Claude intent parser                            | Given transcript + hive context, returns structured action (log_inspection / log_treatment / log_harvest) with fields filled |
-| VC-03-FE | `FE`  | `[ ]`  | Hold-to-record mic button on hive detail screen | Uses `record` package; sends audio to VC-01 on release; saves immediately, no confirmation step                              |
-| VC-04-FE | `FE`  | `[ ]`  | Result snackbar                                 | Show what was saved ("Inspection logged: queen added, brood good") so user knows what was recorded; tap to edit if wrong     |
-
----
-
-## 6. Queen Recognition (AI Feature)
+## 5. Queen Recognition (AI Feature)
 
 > **Deferred — implement after core app is stable.**
 
@@ -71,24 +62,7 @@
 
 ---
 
-## 7. MCP Server
-
-> **Deferred — enables AI voice assistant integration.**
-
-| ID        | Layer | Status | Title                      | Notes                                       |
-| --------- | ----- | ------ | --------------------------- | ------------------------------------------- |
-| MCP-01-BE | `BE`  | `[ ]`  | MCP server endpoint        | HTTP+SSE transport, runs alongside REST API |
-| MCP-02-BE | `BE`  | `[ ]`  | Tool: `create_inspection`  |                                             |
-| MCP-03-BE | `BE`  | `[ ]`  | Tool: `log_treatment`      |                                             |
-| MCP-04-BE | `BE`  | `[ ]`  | Tool: `log_harvest`        |                                             |
-| MCP-05-BE | `BE`  | `[ ]`  | Tool: `get_hive_summary`   | Latest inspection + active treatments       |
-| MCP-06-BE | `BE`  | `[ ]`  | Tool: `list_hives`         |                                             |
-| MCP-07-BE | `BE`  | `[ ]`  | Auth for MCP clients       | API key or OAuth                            |
-| MCP-08-BE | `BE`  | `[ ]`  | Voice pipeline integration | Whisper → Claude/GPT with MCP tools         |
-
----
-
-## 8. Infrastructure & DevOps
+## 6. Infrastructure & DevOps
 
 | ID        | Layer | Status | Title                                         | Notes |
 | --------- | ----- | ------ | --------------------------------------------- | ----- |
@@ -99,7 +73,7 @@
 
 ---
 
-## 9. Honey Certification & Blockchain
+## 7. Honey Certification & Blockchain
 
 > Immutable honey batch certification stored on Polygon blockchain. Each batch gets a QR code that verifies authenticity via blockchain hash of lab PDF.
 >
