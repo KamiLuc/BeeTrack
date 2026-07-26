@@ -9,7 +9,7 @@ import (
 	"github.com/beetrack/backend/internal/model"
 )
 
-func TestListUntreatedHivesNilDaysMeansNeverTreated(t *testing.T) {
+func TestListHivesMissingRecordsNilDaysMeansNeverHadOne(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {
@@ -21,16 +21,16 @@ func TestListUntreatedHivesNilDaysMeansNeverTreated(t *testing.T) {
 	treatments := &mockTreatmentLister{lastTreatedByID: map[int64]*time.Time{11: &longAgo}}
 	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, treatments, &mockHarvestLister{}, &mockFeedingLister{})
 
-	result, err := tools.ListUntreatedHives(context.Background(), 99, nil, nil)
+	result, err := tools.ListHivesMissingRecords(context.Background(), 99, nil, []string{"treatment"}, nil)
 	if err != nil {
-		t.Fatalf("ListUntreatedHives returned error: %v", err)
+		t.Fatalf("ListHivesMissingRecords returned error: %v", err)
 	}
 	if len(result) != 1 || result[0].Name != "Never Treated" {
 		t.Errorf("expected only the never-treated hive, got %+v", result)
 	}
 }
 
-func TestListUntreatedHivesWithDaysIncludesStaleTreatments(t *testing.T) {
+func TestListHivesMissingRecordsWithDaysIncludesStaleRecords(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {
@@ -45,9 +45,9 @@ func TestListUntreatedHivesWithDaysIncludesStaleTreatments(t *testing.T) {
 	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, treatments, &mockHarvestLister{}, &mockFeedingLister{})
 
 	days := 30
-	result, err := tools.ListUntreatedHives(context.Background(), 99, nil, &days)
+	result, err := tools.ListHivesMissingRecords(context.Background(), 99, nil, []string{"treatment"}, &days)
 	if err != nil {
-		t.Fatalf("ListUntreatedHives returned error: %v", err)
+		t.Fatalf("ListHivesMissingRecords returned error: %v", err)
 	}
 	names := map[string]bool{}
 	for _, r := range result {
@@ -58,49 +58,64 @@ func TestListUntreatedHivesWithDaysIncludesStaleTreatments(t *testing.T) {
 	}
 }
 
-func TestListUninspectedHivesNilDaysMeansNeverInspected(t *testing.T) {
+func TestListHivesMissingRecordsWithNoRecordTypesChecksAllThree(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {
-			{ID: 10, ApiaryID: 1, Name: "Never Inspected"},
-			{ID: 11, ApiaryID: 1, Name: "Inspected"},
-		},
+		1: {{ID: 10, ApiaryID: 1, Name: "Fully Attended"}},
 	}}
-	recent := time.Now().AddDate(0, 0, -1)
-	inspections := &mockInspectionLister{lastInspectedByID: map[int64]*time.Time{11: &recent}}
-	tools := NewHiveTools(apiaries, hives, inspections, &mockTreatmentLister{}, &mockHarvestLister{}, &mockFeedingLister{})
+	now := time.Now()
+	treatments := &mockTreatmentLister{lastTreatedByID: map[int64]*time.Time{10: &now}}
+	inspections := &mockInspectionLister{lastInspectedByID: map[int64]*time.Time{10: &now}}
+	feedings := &mockFeedingLister{lastFedByID: map[int64]*time.Time{10: &now}}
+	tools := NewHiveTools(apiaries, hives, inspections, treatments, &mockHarvestLister{}, feedings)
 
-	result, err := tools.ListUninspectedHives(context.Background(), 99, nil, nil)
+	result, err := tools.ListHivesMissingRecords(context.Background(), 99, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ListUninspectedHives returned error: %v", err)
+		t.Fatalf("ListHivesMissingRecords returned error: %v", err)
 	}
-	if len(result) != 1 || result[0].Name != "Never Inspected" {
-		t.Errorf("expected only the never-inspected hive, got %+v", result)
+	if len(result) != 0 {
+		t.Errorf("expected no hives missing anything, got %+v", result)
 	}
 }
 
-func TestListUnfedHivesNilDaysMeansNeverFed(t *testing.T) {
+func TestListHivesMissingRecordsReportsWhichTypesAreMissing(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {
-			{ID: 10, ApiaryID: 1, Name: "Never Fed"},
-			{ID: 11, ApiaryID: 1, Name: "Fed"},
-		},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
 	}}
-	recent := time.Now().AddDate(0, 0, -1)
-	feedings := &mockFeedingLister{lastFedByID: map[int64]*time.Time{11: &recent}}
-	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, &mockTreatmentLister{}, &mockHarvestLister{}, feedings)
+	now := time.Now()
+	treatments := &mockTreatmentLister{lastTreatedByID: map[int64]*time.Time{10: &now}}
+	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, treatments, &mockHarvestLister{}, &mockFeedingLister{})
 
-	result, err := tools.ListUnfedHives(context.Background(), 99, nil, nil)
+	result, err := tools.ListHivesMissingRecords(context.Background(), 99, nil, []string{"treatment", "inspection", "feeding"}, nil)
 	if err != nil {
-		t.Fatalf("ListUnfedHives returned error: %v", err)
+		t.Fatalf("ListHivesMissingRecords returned error: %v", err)
 	}
-	if len(result) != 1 || result[0].Name != "Never Fed" {
-		t.Errorf("expected only the never-fed hive, got %+v", result)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 hive, got %+v", result)
+	}
+	if _, treated := result[0].LastRecordedAt["treatment"]; treated {
+		t.Error("did not expect treatment to be reported as missing")
+	}
+	if _, inspected := result[0].LastRecordedAt["inspection"]; !inspected {
+		t.Error("expected inspection to be reported as missing")
+	}
+	if _, fed := result[0].LastRecordedAt["feeding"]; !fed {
+		t.Error("expected feeding to be reported as missing")
 	}
 }
 
-func TestUnrecentHivesToolsDispatchThroughRegistry(t *testing.T) {
+func TestListHivesMissingRecordsInvalidRecordTypeReturnsError(t *testing.T) {
+	apiaries := &mockApiaryLister{}
+	tools := NewHiveTools(apiaries, &mockHiveLister{}, &mockInspectionLister{}, &mockTreatmentLister{}, &mockHarvestLister{}, &mockFeedingLister{})
+
+	_, err := tools.ListHivesMissingRecords(context.Background(), 99, nil, []string{"harvest"}, nil)
+	if err == nil {
+		t.Fatal("expected an error for an invalid record type (harvest isn't supported here)")
+	}
+}
+
+func TestListHivesMissingRecordsToolDispatchesThroughRegistry(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
@@ -108,18 +123,14 @@ func TestUnrecentHivesToolsDispatchThroughRegistry(t *testing.T) {
 	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, &mockTreatmentLister{}, &mockHarvestLister{}, &mockFeedingLister{})
 
 	r := NewRegistry()
-	r.Register(tools.ListUntreatedHivesTool())
-	r.Register(tools.ListUninspectedHivesTool())
-	r.Register(tools.ListUnfedHivesTool())
+	r.Register(tools.ListHivesMissingRecordsTool())
 
-	for _, toolName := range []string{"list_untreated_hives", "list_uninspected_hives", "list_unfed_hives"} {
-		result, err := r.Call(context.Background(), 99, toolName, json.RawMessage(`{}`))
-		if err != nil {
-			t.Errorf("%s: Call returned error: %v", toolName, err)
-		}
-		if result == nil {
-			t.Errorf("%s: expected a non-nil result", toolName)
-		}
+	result, err := r.Call(context.Background(), 99, "list_hives_missing_records", json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatalf("Call returned error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected a non-nil result")
 	}
 }
 

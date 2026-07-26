@@ -82,14 +82,6 @@ func daysToRange(days *int) (time.Time, time.Time) {
 	return to.AddDate(0, 0, -*days), to
 }
 
-func (t *HiveTools) ListInspections(ctx context.Context, userID, hiveID int64, days *int) ([]InspectionSummary, error) {
-	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
-		return nil, err
-	}
-	from, to := daysToRange(days)
-	return t.listInspections(ctx, hiveID, from, to)
-}
-
 func (t *HiveTools) listInspections(ctx context.Context, hiveID int64, from, to time.Time) ([]InspectionSummary, error) {
 	inspections, err := t.inspections.ListByHiveIDsAndRange(ctx, []int64{hiveID}, from, to)
 	if err != nil {
@@ -111,14 +103,6 @@ func (t *HiveTools) listInspections(ctx context.Context, hiveID int64, from, to 
 	return summaries, nil
 }
 
-func (t *HiveTools) ListTreatments(ctx context.Context, userID, hiveID int64, days *int) ([]TreatmentSummary, error) {
-	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
-		return nil, err
-	}
-	from, to := daysToRange(days)
-	return t.listTreatments(ctx, hiveID, from, to)
-}
-
 func (t *HiveTools) listTreatments(ctx context.Context, hiveID int64, from, to time.Time) ([]TreatmentSummary, error) {
 	treatments, err := t.treatments.ListByHiveIDsAndRange(ctx, []int64{hiveID}, from, to)
 	if err != nil {
@@ -135,14 +119,6 @@ func (t *HiveTools) listTreatments(ctx context.Context, hiveID int64, from, to t
 		}
 	}
 	return summaries, nil
-}
-
-func (t *HiveTools) ListHarvests(ctx context.Context, userID, hiveID int64, days *int) ([]HarvestSummary, error) {
-	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
-		return nil, err
-	}
-	from, to := daysToRange(days)
-	return t.listHarvests(ctx, hiveID, from, to)
 }
 
 func (t *HiveTools) listHarvests(ctx context.Context, hiveID int64, from, to time.Time) ([]HarvestSummary, error) {
@@ -162,14 +138,6 @@ func (t *HiveTools) listHarvests(ctx context.Context, hiveID int64, from, to tim
 		}
 	}
 	return summaries, nil
-}
-
-func (t *HiveTools) ListFeedings(ctx context.Context, userID, hiveID int64, days *int) ([]FeedingSummary, error) {
-	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
-		return nil, err
-	}
-	from, to := daysToRange(days)
-	return t.listFeedings(ctx, hiveID, from, to)
 }
 
 func (t *HiveTools) listFeedings(ctx context.Context, hiveID int64, from, to time.Time) ([]FeedingSummary, error) {
@@ -277,66 +245,6 @@ func hiveDaysSchema(description string) InputSchema {
 			},
 		},
 		Required: []string{"hive_id"},
-	}
-}
-
-func (t *HiveTools) ListInspectionsTool() Tool {
-	return Tool{
-		Name:        "list_inspections",
-		Description: "List a hive's inspections, optionally limited to the last N days.",
-		InputSchema: hiveDaysSchema("Only include inspections from the last N days; omit for all of them."),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeHiveDaysInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListInspections(ctx, userID, in.HiveID, in.Days)
-		},
-	}
-}
-
-func (t *HiveTools) ListTreatmentsTool() Tool {
-	return Tool{
-		Name:        "list_treatments",
-		Description: "List a hive's treatments, optionally limited to the last N days.",
-		InputSchema: hiveDaysSchema("Only include treatments from the last N days; omit for all of them."),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeHiveDaysInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListTreatments(ctx, userID, in.HiveID, in.Days)
-		},
-	}
-}
-
-func (t *HiveTools) ListHarvestsTool() Tool {
-	return Tool{
-		Name:        "list_harvests",
-		Description: "List a hive's harvests, optionally limited to the last N days.",
-		InputSchema: hiveDaysSchema("Only include harvests from the last N days; omit for all of them."),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeHiveDaysInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListHarvests(ctx, userID, in.HiveID, in.Days)
-		},
-	}
-}
-
-func (t *HiveTools) ListFeedingsTool() Tool {
-	return Tool{
-		Name:        "list_feedings",
-		Description: "List a hive's feedings, optionally limited to the last N days.",
-		InputSchema: hiveDaysSchema("Only include feedings from the last N days; omit for all of them."),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeHiveDaysInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListFeedings(ctx, userID, in.HiveID, in.Days)
-		},
 	}
 }
 

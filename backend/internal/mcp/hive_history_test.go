@@ -89,27 +89,62 @@ func newTestHiveTools(hive *model.Hive) (*HiveTools, *mockInspectionLister, *moc
 	return tools, inspections, treatments, harvests, feedings
 }
 
-func TestListInspectionsReturnsMappedSummaries(t *testing.T) {
+func TestListHiveRecordsReturnsOnlyRequestedTypes(t *testing.T) {
 	hive := &model.Hive{ID: 10, ApiaryID: 1}
-	tools, inspections, _, _, _ := newTestHiveTools(hive)
+	tools, inspections, treatments, _, feedings := newTestHiveTools(hive)
 	inspections.byHiveID[10] = []*model.Inspection{
 		{ID: 100, HiveID: 10, QueenStatus: "seen", Notes: "looked good"},
 	}
+	treatments.byHiveID[10] = []*model.Treatment{{ID: 200, HiveID: 10, MedicineName: "Apiwarol"}}
+	feedings.byHiveID[10] = []*model.Feeding{{ID: 400, HiveID: 10}}
 
-	result, err := tools.ListInspections(context.Background(), 99, 10, nil)
+	result, err := tools.ListHiveRecords(context.Background(), 99, 10, []string{"inspection", "feeding"}, nil)
 	if err != nil {
-		t.Fatalf("ListInspections returned error: %v", err)
+		t.Fatalf("ListHiveRecords returned error: %v", err)
 	}
-	if len(result) != 1 || result[0].QueenStatus != "seen" || result[0].Notes != "looked good" {
-		t.Errorf("unexpected result: %+v", result)
+	if len(result.Inspections) != 1 || result.Inspections[0].QueenStatus != "seen" {
+		t.Errorf("unexpected inspections: %+v", result.Inspections)
+	}
+	if len(result.Feedings) != 1 {
+		t.Errorf("unexpected feedings: %+v", result.Feedings)
+	}
+	if result.Treatments != nil {
+		t.Errorf("expected treatments to be omitted since it wasn't requested, got %+v", result.Treatments)
 	}
 }
 
-func TestListInspectionsUnknownHiveReturnsErrHiveNotFound(t *testing.T) {
+func TestListHiveRecordsWithNoRecordTypesReturnsAllFour(t *testing.T) {
+	hive := &model.Hive{ID: 10, ApiaryID: 1}
+	tools, inspections, treatments, harvests, feedings := newTestHiveTools(hive)
+	inspections.byHiveID[10] = []*model.Inspection{{ID: 100, HiveID: 10}}
+	treatments.byHiveID[10] = []*model.Treatment{{ID: 200, HiveID: 10}}
+	harvests.byHiveID[10] = []*model.Harvest{{ID: 300, HiveID: 10}}
+	feedings.byHiveID[10] = []*model.Feeding{{ID: 400, HiveID: 10}}
+
+	result, err := tools.ListHiveRecords(context.Background(), 99, 10, nil, nil)
+	if err != nil {
+		t.Fatalf("ListHiveRecords returned error: %v", err)
+	}
+	if len(result.Inspections) != 1 || len(result.Treatments) != 1 || len(result.Harvests) != 1 || len(result.Feedings) != 1 {
+		t.Errorf("expected one of each record type, got %+v", result)
+	}
+}
+
+func TestListHiveRecordsInvalidRecordTypeReturnsError(t *testing.T) {
 	hive := &model.Hive{ID: 10, ApiaryID: 1}
 	tools, _, _, _, _ := newTestHiveTools(hive)
 
-	_, err := tools.ListInspections(context.Background(), 99, 999, nil)
+	_, err := tools.ListHiveRecords(context.Background(), 99, 10, []string{"nonsense"}, nil)
+	if err == nil {
+		t.Fatal("expected an error for an invalid record type")
+	}
+}
+
+func TestListHiveRecordsUnknownHiveReturnsErrHiveNotFound(t *testing.T) {
+	hive := &model.Hive{ID: 10, ApiaryID: 1}
+	tools, _, _, _, _ := newTestHiveTools(hive)
+
+	_, err := tools.ListHiveRecords(context.Background(), 99, 999, nil, nil)
 	if !errors.Is(err, ErrHiveNotFound) {
 		t.Errorf("expected ErrHiveNotFound, got %v", err)
 	}
@@ -185,24 +220,16 @@ func TestHiveHistoryToolsDispatchThroughRegistry(t *testing.T) {
 	feedings.byHiveID[10] = []*model.Feeding{{ID: 400, HiveID: 10}}
 
 	r := NewRegistry()
-	r.Register(tools.ListInspectionsTool())
-	r.Register(tools.ListTreatmentsTool())
-	r.Register(tools.ListHarvestsTool())
-	r.Register(tools.ListFeedingsTool())
+	r.Register(tools.ListHiveRecordsTool())
 	r.Register(tools.GetHiveSummaryTool())
 
-	cases := []struct {
-		tool string
-	}{
-		{"list_inspections"}, {"list_treatments"}, {"list_harvests"}, {"list_feedings"}, {"get_hive_summary"},
-	}
-	for _, c := range cases {
-		result, err := r.Call(context.Background(), 99, c.tool, json.RawMessage(`{"hive_id":10}`))
+	for _, c := range []string{"list_hive_records", "get_hive_summary"} {
+		result, err := r.Call(context.Background(), 99, c, json.RawMessage(`{"hive_id":10}`))
 		if err != nil {
-			t.Errorf("%s: Call returned error: %v", c.tool, err)
+			t.Errorf("%s: Call returned error: %v", c, err)
 		}
 		if result == nil {
-			t.Errorf("%s: expected a non-nil result", c.tool)
+			t.Errorf("%s: expected a non-nil result", c)
 		}
 	}
 }
@@ -212,9 +239,9 @@ func TestHiveHistoryToolsMissingHiveIDReturnsError(t *testing.T) {
 	tools, _, _, _, _ := newTestHiveTools(hive)
 
 	r := NewRegistry()
-	r.Register(tools.ListInspectionsTool())
+	r.Register(tools.ListHiveRecordsTool())
 
-	if _, err := r.Call(context.Background(), 99, "list_inspections", json.RawMessage(`{}`)); err == nil {
+	if _, err := r.Call(context.Background(), 99, "list_hive_records", json.RawMessage(`{}`)); err == nil {
 		t.Fatal("expected an error when hive_id is missing")
 	}
 }

@@ -7,19 +7,11 @@ import (
 	"time"
 )
 
-type UntreatedHive struct {
-	HiveSummary
-	LastTreatedAt *time.Time `json:"last_treated_at"`
-}
+var unrecentRecordTypes = []string{"inspection", "treatment", "feeding"}
 
-type UninspectedHive struct {
+type HiveMissingRecords struct {
 	HiveSummary
-	LastInspectedAt *time.Time `json:"last_inspected_at"`
-}
-
-type UnfedHive struct {
-	HiveSummary
-	LastFedAt *time.Time `json:"last_fed_at"`
+	LastRecordedAt map[string]*time.Time `json:"last_recorded_at"`
 }
 
 // cutoffFromDays turns an optional lookback window into a cutoff time; nil
@@ -42,10 +34,15 @@ func lacksRecentRecord(last, cutoff *time.Time) bool {
 	return last == nil || last.Before(*cutoff)
 }
 
-// ListUntreatedHives returns hives across userID's apiaries (or just
-// apiaryID's, if non-nil) with no treatment in the last days days, or never
-// treated at all if days is nil.
-func (t *HiveTools) ListUntreatedHives(ctx context.Context, userID int64, apiaryID *int64, days *int) ([]UntreatedHive, error) {
+// ListHivesMissingRecords returns hives across userID's apiaries (or just
+// apiaryID's, if non-nil) missing at least one of recordTypes (all three if
+// empty) in the last days days, or ever if days is nil. Each returned hive's
+// LastRecordedAt only lists the requested types it's actually missing.
+func (t *HiveTools) ListHivesMissingRecords(ctx context.Context, userID int64, apiaryID *int64, recordTypes []string, days *int) ([]HiveMissingRecords, error) {
+	types, err := validateRecordTypes(recordTypes, unrecentRecordTypes)
+	if err != nil {
+		return nil, err
+	}
 	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
 	if err != nil {
 		return nil, err
@@ -54,150 +51,75 @@ func (t *HiveTools) ListUntreatedHives(ctx context.Context, userID int64, apiary
 	if err != nil {
 		return nil, err
 	}
-	lastTreated, err := t.treatments.LastTreatmentDatesByHiveIDs(ctx, hiveIDsOf(hives))
-	if err != nil {
-		return nil, fmt.Errorf("get last treatment dates: %w", err)
+	hiveIDs := hiveIDsOf(hives)
+
+	lastByType := make(map[string]map[int64]*time.Time, len(types))
+	for _, rt := range types {
+		switch rt {
+		case "treatment":
+			lastByType[rt], err = t.treatments.LastTreatmentDatesByHiveIDs(ctx, hiveIDs)
+		case "inspection":
+			lastByType[rt], err = t.inspections.LastInspectionDatesByHiveIDs(ctx, hiveIDs)
+		case "feeding":
+			lastByType[rt], err = t.feedings.LastFeedingDatesByHiveIDs(ctx, hiveIDs)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("get last %s dates: %w", rt, err)
+		}
 	}
 
 	cutoff := cutoffFromDays(days)
-	var result []UntreatedHive
+	var result []HiveMissingRecords
 	for _, s := range summaries {
-		last := lastTreated[s.ID]
-		if !lacksRecentRecord(last, cutoff) {
-			continue
+		missing := map[string]*time.Time{}
+		for _, rt := range types {
+			last := lastByType[rt][s.ID]
+			if lacksRecentRecord(last, cutoff) {
+				missing[rt] = last
+			}
 		}
-		result = append(result, UntreatedHive{HiveSummary: s, LastTreatedAt: last})
+		if len(missing) > 0 {
+			result = append(result, HiveMissingRecords{HiveSummary: s, LastRecordedAt: missing})
+		}
 	}
 	return result, nil
 }
 
-// ListUninspectedHives returns hives with no inspection in the last days
-// days, or never inspected at all if days is nil.
-func (t *HiveTools) ListUninspectedHives(ctx context.Context, userID int64, apiaryID *int64, days *int) ([]UninspectedHive, error) {
-	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
-	if err != nil {
-		return nil, err
-	}
-	summaries, err := t.hiveSummaries(ctx, hives)
-	if err != nil {
-		return nil, err
-	}
-	lastInspected, err := t.inspections.LastInspectionDatesByHiveIDs(ctx, hiveIDsOf(hives))
-	if err != nil {
-		return nil, fmt.Errorf("get last inspection dates: %w", err)
-	}
-
-	cutoff := cutoffFromDays(days)
-	var result []UninspectedHive
-	for _, s := range summaries {
-		last := lastInspected[s.ID]
-		if !lacksRecentRecord(last, cutoff) {
-			continue
-		}
-		result = append(result, UninspectedHive{HiveSummary: s, LastInspectedAt: last})
-	}
-	return result, nil
+type listHivesMissingRecordsInput struct {
+	ApiaryID    *int64   `json:"apiary_id,omitempty"`
+	RecordTypes []string `json:"record_types,omitempty"`
+	Days        *int     `json:"days,omitempty"`
 }
 
-// ListUnfedHives returns hives with no feeding in the last days days, or
-// never fed at all if days is nil.
-func (t *HiveTools) ListUnfedHives(ctx context.Context, userID int64, apiaryID *int64, days *int) ([]UnfedHive, error) {
-	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
-	if err != nil {
-		return nil, err
-	}
-	summaries, err := t.hiveSummaries(ctx, hives)
-	if err != nil {
-		return nil, err
-	}
-	lastFed, err := t.feedings.LastFeedingDatesByHiveIDs(ctx, hiveIDsOf(hives))
-	if err != nil {
-		return nil, fmt.Errorf("get last feeding dates: %w", err)
-	}
-
-	cutoff := cutoffFromDays(days)
-	var result []UnfedHive
-	for _, s := range summaries {
-		last := lastFed[s.ID]
-		if !lacksRecentRecord(last, cutoff) {
-			continue
-		}
-		result = append(result, UnfedHive{HiveSummary: s, LastFedAt: last})
-	}
-	return result, nil
-}
-
-type listUnrecentHivesInput struct {
-	ApiaryID *int64 `json:"apiary_id,omitempty"`
-	Days     *int   `json:"days,omitempty"`
-}
-
-func decodeListUnrecentHivesInput(input json.RawMessage) (listUnrecentHivesInput, error) {
-	var in listUnrecentHivesInput
-	if len(input) > 0 {
-		if err := json.Unmarshal(input, &in); err != nil {
-			return in, fmt.Errorf("decode input: %w", err)
-		}
-	}
-	return in, nil
-}
-
-func unrecentHivesSchema(recordKind string) InputSchema {
-	return InputSchema{
-		Properties: map[string]any{
-			"apiary_id": map[string]any{
-				"type":        "integer",
-				"description": "Restrict results to this apiary's hives.",
-			},
-			"days": map[string]any{
-				"type":        "integer",
-				"description": fmt.Sprintf("Only include hives with no %s in the last N days; omit to mean 'never %s'.", recordKind, recordKind),
+func (t *HiveTools) ListHivesMissingRecordsTool() Tool {
+	return Tool{
+		Name:        "list_hives_missing_records",
+		Description: "List hives missing at least one of the given record types (inspection/treatment/feeding) in the last N days, or that have never had one at all if days is omitted. Pass record_types to check only some of them (e.g. [\"treatment\",\"feeding\"]); omit it for all three. Accepts an optional apiary_id to filter to one apiary.",
+		InputSchema: InputSchema{
+			Properties: map[string]any{
+				"apiary_id": map[string]any{
+					"type":        "integer",
+					"description": "Restrict results to this apiary's hives.",
+				},
+				"record_types": map[string]any{
+					"type":        "array",
+					"items":       map[string]any{"type": "string", "enum": unrecentRecordTypes},
+					"description": "Which record types to check; omit for all of them.",
+				},
+				"days": map[string]any{
+					"type":        "integer",
+					"description": "Only include hives missing a record in the last N days; omit to mean 'never had one'.",
+				},
 			},
 		},
-	}
-}
-
-func (t *HiveTools) ListUntreatedHivesTool() Tool {
-	return Tool{
-		Name:        "list_untreated_hives",
-		Description: "List hives with no treatment in the last N days, or never treated at all if days is omitted. Accepts an optional apiary_id to filter to one apiary.",
-		InputSchema: unrecentHivesSchema("treatment"),
 		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeListUnrecentHivesInput(input)
-			if err != nil {
-				return nil, err
+			var in listHivesMissingRecordsInput
+			if len(input) > 0 {
+				if err := json.Unmarshal(input, &in); err != nil {
+					return nil, fmt.Errorf("decode input: %w", err)
+				}
 			}
-			return t.ListUntreatedHives(ctx, userID, in.ApiaryID, in.Days)
-		},
-	}
-}
-
-func (t *HiveTools) ListUninspectedHivesTool() Tool {
-	return Tool{
-		Name:        "list_uninspected_hives",
-		Description: "List hives with no inspection in the last N days, or never inspected at all if days is omitted. Accepts an optional apiary_id to filter to one apiary.",
-		InputSchema: unrecentHivesSchema("inspection"),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeListUnrecentHivesInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListUninspectedHives(ctx, userID, in.ApiaryID, in.Days)
-		},
-	}
-}
-
-func (t *HiveTools) ListUnfedHivesTool() Tool {
-	return Tool{
-		Name:        "list_unfed_hives",
-		Description: "List hives with no feeding in the last N days, or never fed at all if days is omitted. Accepts an optional apiary_id to filter to one apiary.",
-		InputSchema: unrecentHivesSchema("feeding"),
-		Handler: func(ctx context.Context, userID int64, input json.RawMessage) (any, error) {
-			in, err := decodeListUnrecentHivesInput(input)
-			if err != nil {
-				return nil, err
-			}
-			return t.ListUnfedHives(ctx, userID, in.ApiaryID, in.Days)
+			return t.ListHivesMissingRecords(ctx, userID, in.ApiaryID, in.RecordTypes, in.Days)
 		},
 	}
 }
