@@ -544,8 +544,9 @@ not over that transport.
 
 | Tool | Purpose |
 |---|---|
-| `list_hives` | All hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest); accepts an optional `apiary_id` filter — also the tool voice logging's Phase 1 calls directly, filtered to the current apiary, to resolve a spoken hive name to a hive_id (§2.1) |
-| `get_hive_summary` | One hive's latest inspection, active treatments, last harvest |
+| `list_hives` | All hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases; accepts an optional `apiary_id` filter — also the tool voice logging's Phase 1 calls directly, filtered to the current apiary, to resolve a spoken hive name to a hive_id (§2.1) |
+| `list_inspections` / `list_treatments` / `list_harvests` / `list_feedings` | One hive's records of that type, filtered to a `(hive_id, days?)` window (all of history if `days` is omitted) — `Treatment` has no active/inactive concept in the schema, so these replace a single "active treatments" notion with a recency window each caller controls |
+| `get_hive_summary` | Aggregates the four tools above for one hive over the same optional day window, plus its status flags and diseases |
 | `list_untreated_hives` | Hives with no treatment since a given date (or ever) |
 | `list_hives_needing_food` | Hives currently flagged `needs_food`, or inferred from low `FramesFeed` in the latest inspection |
 | `compare_hives` | Side-by-side of key metrics (brood pattern, frame counts, disease flags, last inspection date) for a set of hive IDs |

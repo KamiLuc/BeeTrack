@@ -10,14 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrApiaryNotFound = errors.New("apiary not found")
-
 type ApiaryLister interface {
 	GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error)
 	ListByUserID(ctx context.Context, userID int64) ([]model.ApiaryMembership, error)
 }
 
 type HiveLister interface {
+	GetByID(ctx context.Context, hiveID int64) (*model.Hive, error)
 	ListByApiaryID(ctx context.Context, apiaryID int64) ([]*model.Hive, error)
 	ListDiseasesByHiveIDs(ctx context.Context, ids []int64) ([]*model.HiveDisease, error)
 }
@@ -38,12 +37,23 @@ type HiveSummary struct {
 // directly (bypassing the registry) by the voice worker's hive-name
 // resolution, filtered to the apiary it's recording in.
 type HiveTools struct {
-	apiaries ApiaryLister
-	hives    HiveLister
+	apiaries    ApiaryLister
+	hives       HiveLister
+	inspections InspectionLister
+	treatments  TreatmentLister
+	harvests    HarvestLister
+	feedings    FeedingLister
 }
 
-func NewHiveTools(apiaries ApiaryLister, hives HiveLister) *HiveTools {
-	return &HiveTools{apiaries: apiaries, hives: hives}
+func NewHiveTools(apiaries ApiaryLister, hives HiveLister, inspections InspectionLister, treatments TreatmentLister, harvests HarvestLister, feedings FeedingLister) *HiveTools {
+	return &HiveTools{
+		apiaries:    apiaries,
+		hives:       hives,
+		inspections: inspections,
+		treatments:  treatments,
+		harvests:    harvests,
+		feedings:    feedings,
+	}
 }
 
 // ListHives returns hives across every apiary userID belongs to, or just
@@ -111,9 +121,9 @@ type listHivesInput struct {
 	ApiaryID *int64 `json:"apiary_id,omitempty"`
 }
 
-// Tool adapts ListHives into a registry Tool: it JSON-decodes the model's
-// arguments and calls straight through to ListHives.
-func (t *HiveTools) Tool() Tool {
+// ListHivesTool adapts ListHives into a registry Tool: it JSON-decodes the
+// model's arguments and calls straight through to ListHives.
+func (t *HiveTools) ListHivesTool() Tool {
 	return Tool{
 		Name:        "list_hives",
 		Description: "List hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases. Accepts an optional apiary_id to filter to one apiary.",

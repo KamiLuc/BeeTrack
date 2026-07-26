@@ -45,6 +45,17 @@ func (r *HiveRepository) GetByIDAndApiaryID(ctx context.Context, hiveID, apiaryI
 	return &h, err
 }
 
+// GetByID returns the hive with the given id, regardless of apiary. Callers
+// that need ownership scoping (REST routes always have apiary_id from the
+// URL) must check the returned hive's ApiaryID themselves.
+func (r *HiveRepository) GetByID(ctx context.Context, hiveID int64) (*model.Hive, error) {
+	var h model.Hive
+	err := r.db.WithContext(ctx).
+		Where("id = ?", hiveID).
+		First(&h).Error
+	return &h, err
+}
+
 // ExistsByName reports whether an apiary already has a hive with the given name (case-insensitive),
 // excluding excludeHiveID from the check.
 func (r *HiveRepository) ExistsByName(ctx context.Context, apiaryID int64, name string, excludeHiveID int64) (bool, error) {

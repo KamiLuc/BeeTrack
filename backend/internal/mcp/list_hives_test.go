@@ -36,6 +36,17 @@ func (m *mockHiveLister) ListByApiaryID(_ context.Context, apiaryID int64) ([]*m
 	return m.hivesByApiary[apiaryID], nil
 }
 
+func (m *mockHiveLister) GetByID(_ context.Context, hiveID int64) (*model.Hive, error) {
+	for _, hives := range m.hivesByApiary {
+		for _, h := range hives {
+			if h.ID == hiveID {
+				return h, nil
+			}
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
 func (m *mockHiveLister) ListDiseasesByHiveIDs(_ context.Context, ids []int64) ([]*model.HiveDisease, error) {
 	var diseases []*model.HiveDisease
 	for _, id := range ids {
@@ -57,7 +68,7 @@ func TestListHivesWithoutFilterReturnsHivesAcrossAllApiaries(t *testing.T) {
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
 		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Queenless: true}},
 	}}
-	tools := NewHiveTools(apiaries, hives)
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
 	result, err := tools.ListHives(context.Background(), 99, nil)
 	if err != nil {
@@ -83,7 +94,7 @@ func TestListHivesAttachesDiseasesPerHive(t *testing.T) {
 			10: {"varroa", "nosema"},
 		},
 	}
-	tools := NewHiveTools(apiaries, hives)
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
 	result, err := tools.ListHives(context.Background(), 99, nil)
 	if err != nil {
@@ -103,7 +114,7 @@ func TestListHivesWithApiaryIDFiltersToThatApiary(t *testing.T) {
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
 		2: {{ID: 20, ApiaryID: 2, Name: "Hive B"}},
 	}}
-	tools := NewHiveTools(apiaries, hives)
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
 	apiaryID := int64(1)
 	result, err := tools.ListHives(context.Background(), 99, &apiaryID)
@@ -121,7 +132,7 @@ func TestListHivesWithApiaryIDNotAMemberReturnsErrApiaryNotFound(t *testing.T) {
 			return nil, "", gorm.ErrRecordNotFound
 		},
 	}
-	tools := NewHiveTools(apiaries, &mockHiveLister{})
+	tools := NewHiveTools(apiaries, &mockHiveLister{}, nil, nil, nil, nil)
 
 	apiaryID := int64(1)
 	_, err := tools.ListHives(context.Background(), 99, &apiaryID)
@@ -135,10 +146,10 @@ func TestHiveToolsToolDispatchesThroughRegistry(t *testing.T) {
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
 	}}
-	tools := NewHiveTools(apiaries, hives)
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
 	r := NewRegistry()
-	r.Register(tools.Tool())
+	r.Register(tools.ListHivesTool())
 
 	result, err := r.Call(context.Background(), 99, "list_hives", json.RawMessage(`{"apiary_id":1}`))
 	if err != nil {
@@ -157,10 +168,10 @@ func TestHiveToolsToolWithEmptyInputListsAllHives(t *testing.T) {
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
 	}}
-	tools := NewHiveTools(apiaries, hives)
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
 	r := NewRegistry()
-	r.Register(tools.Tool())
+	r.Register(tools.ListHivesTool())
 
 	result, err := r.Call(context.Background(), 99, "list_hives", nil)
 	if err != nil {
