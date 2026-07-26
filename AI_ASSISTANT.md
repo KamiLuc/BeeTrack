@@ -547,7 +547,7 @@ not over that transport.
 | `list_hives` | All hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases; accepts an optional `apiary_id` filter — also the tool voice logging's Phase 1 calls directly, filtered to the current apiary, to resolve a spoken hive name to a hive_id (§2.1) |
 | `list_inspections` / `list_treatments` / `list_harvests` / `list_feedings` | One hive's records of that type, filtered to a `(hive_id, days?)` window (all of history if `days` is omitted) — `Treatment` has no active/inactive concept in the schema, so these replace a single "active treatments" notion with a recency window each caller controls |
 | `get_hive_summary` | Aggregates the four tools above for one hive over the same optional day window, plus its status flags and diseases |
-| `list_untreated_hives` | Hives with no treatment since a given date (or ever) |
+| `list_untreated_hives` / `list_uninspected_hives` / `list_unfed_hives` | Hives across the caller's apiaries (or one, via `apiary_id`) with no record of that type in the last `days` days, or none ever if `days` is omitted — mirrors the `(apiary_id?, days?)` shape used elsewhere rather than an explicit `since` date |
 | `list_hives_needing_food` | Hives currently flagged `needs_food`, or inferred from low `FramesFeed` in the latest inspection |
 | `compare_hives` | Side-by-side of key metrics (brood pattern, frame counts, disease flags, last inspection date) for a set of hive IDs |
 | `search_listings` | Wraps the existing public `GET /api/v1/listings` search/filter — lets the assistant answer "find me X" marketplace questions |

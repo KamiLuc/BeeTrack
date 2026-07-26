@@ -11,9 +11,10 @@ import (
 )
 
 type mockInspectionLister struct {
-	byHiveID map[int64][]*model.Inspection
-	gotFrom  time.Time
-	gotTo    time.Time
+	byHiveID          map[int64][]*model.Inspection
+	lastInspectedByID map[int64]*time.Time
+	gotFrom           time.Time
+	gotTo             time.Time
 }
 
 func (m *mockInspectionLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Inspection, error) {
@@ -21,12 +22,33 @@ func (m *mockInspectionLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs 
 	return m.byHiveID[hiveIDs[0]], nil
 }
 
+func (m *mockInspectionLister) LastInspectionDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
+	out := make(map[int64]*time.Time, len(ids))
+	for _, id := range ids {
+		if t, ok := m.lastInspectedByID[id]; ok {
+			out[id] = t
+		}
+	}
+	return out, nil
+}
+
 type mockTreatmentLister struct {
-	byHiveID map[int64][]*model.Treatment
+	byHiveID        map[int64][]*model.Treatment
+	lastTreatedByID map[int64]*time.Time
 }
 
 func (m *mockTreatmentLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Treatment, error) {
 	return m.byHiveID[hiveIDs[0]], nil
+}
+
+func (m *mockTreatmentLister) LastTreatmentDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
+	out := make(map[int64]*time.Time, len(ids))
+	for _, id := range ids {
+		if t, ok := m.lastTreatedByID[id]; ok {
+			out[id] = t
+		}
+	}
+	return out, nil
 }
 
 type mockHarvestLister struct {
@@ -38,11 +60,22 @@ func (m *mockHarvestLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []i
 }
 
 type mockFeedingLister struct {
-	byHiveID map[int64][]*model.Feeding
+	byHiveID    map[int64][]*model.Feeding
+	lastFedByID map[int64]*time.Time
 }
 
 func (m *mockFeedingLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Feeding, error) {
 	return m.byHiveID[hiveIDs[0]], nil
+}
+
+func (m *mockFeedingLister) LastFeedingDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
+	out := make(map[int64]*time.Time, len(ids))
+	for _, id := range ids {
+		if t, ok := m.lastFedByID[id]; ok {
+			out[id] = t
+		}
+	}
+	return out, nil
 }
 
 func newTestHiveTools(hive *model.Hive) (*HiveTools, *mockInspectionLister, *mockTreatmentLister, *mockHarvestLister, *mockFeedingLister) {

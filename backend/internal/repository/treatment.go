@@ -112,6 +112,33 @@ func (r *TreatmentRepository) ListByHiveIDsAndRange(ctx context.Context, hiveIDs
 	return treatments, nil
 }
 
+// LastTreatmentDatesByHiveIDs returns the latest treated_at per hive ID for the given set of hive IDs.
+func (r *TreatmentRepository) LastTreatmentDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error) {
+	if len(ids) == 0 {
+		return map[int64]*time.Time{}, nil
+	}
+	type row struct {
+		HiveID    int64
+		TreatedAt time.Time
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Select("hive_id, MAX(treated_at) AS treated_at").
+		Where("hive_id IN ?", ids).
+		Group("hive_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]*time.Time, len(rows))
+	for _, r := range rows {
+		t := r.TreatedAt
+		out[r.HiveID] = &t
+	}
+	return out, nil
+}
+
 // Update persists all mutable fields of t.
 func (r *TreatmentRepository) Update(ctx context.Context, t *model.Treatment) error {
 	return r.db.WithContext(ctx).

@@ -56,12 +56,12 @@ func NewHiveTools(apiaries ApiaryLister, hives HiveLister, inspections Inspectio
 	}
 }
 
-// ListHives returns hives across every apiary userID belongs to, or just
+// resolveHives returns hives across every apiary userID belongs to, or just
 // apiaryID's hives if it's non-nil.
-func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64) ([]HiveSummary, error) {
+func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, userID int64, apiaryID *int64) ([]*model.Hive, error) {
 	var apiaryIDs []int64
 	if apiaryID != nil {
-		if _, _, err := t.apiaries.GetMembership(ctx, *apiaryID, userID); err != nil {
+		if _, _, err := apiaries.GetMembership(ctx, *apiaryID, userID); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, ErrApiaryNotFound
 			}
@@ -69,7 +69,7 @@ func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64
 		}
 		apiaryIDs = []int64{*apiaryID}
 	} else {
-		memberships, err := t.apiaries.ListByUserID(ctx, userID)
+		memberships, err := apiaries.ListByUserID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("list apiaries: %w", err)
 		}
@@ -78,20 +78,29 @@ func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64
 		}
 	}
 
-	var hives []*model.Hive
+	var result []*model.Hive
 	for _, id := range apiaryIDs {
-		apiaryHives, err := t.hives.ListByApiaryID(ctx, id)
+		apiaryHives, err := hives.ListByApiaryID(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("list hives: %w", err)
 		}
-		hives = append(hives, apiaryHives...)
+		result = append(result, apiaryHives...)
 	}
+	return result, nil
+}
 
-	hiveIDs := make([]int64, len(hives))
+func hiveIDsOf(hives []*model.Hive) []int64 {
+	ids := make([]int64, len(hives))
 	for i, h := range hives {
-		hiveIDs[i] = h.ID
+		ids[i] = h.ID
 	}
-	diseases, err := t.hives.ListDiseasesByHiveIDs(ctx, hiveIDs)
+	return ids
+}
+
+// hiveSummaries builds a HiveSummary per hive, attaching each one's diseases
+// in a single batch lookup.
+func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive) ([]HiveSummary, error) {
+	diseases, err := t.hives.ListDiseasesByHiveIDs(ctx, hiveIDsOf(hives))
 	if err != nil {
 		return nil, fmt.Errorf("list hive diseases: %w", err)
 	}
@@ -115,6 +124,16 @@ func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64
 		}
 	}
 	return summaries, nil
+}
+
+// ListHives returns hives across every apiary userID belongs to, or just
+// apiaryID's hives if it's non-nil.
+func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64) ([]HiveSummary, error) {
+	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
+	if err != nil {
+		return nil, err
+	}
+	return t.hiveSummaries(ctx, hives)
 }
 
 type listHivesInput struct {

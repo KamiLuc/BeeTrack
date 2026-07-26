@@ -11,10 +11,12 @@ import (
 
 type InspectionLister interface {
 	ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Inspection, error)
+	LastInspectionDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error)
 }
 
 type TreatmentLister interface {
 	ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Treatment, error)
+	LastTreatmentDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error)
 }
 
 type HarvestLister interface {
@@ -23,6 +25,7 @@ type HarvestLister interface {
 
 type FeedingLister interface {
 	ListByHiveIDsAndRange(ctx context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Feeding, error)
+	LastFeedingDatesByHiveIDs(ctx context.Context, ids []int64) (map[int64]*time.Time, error)
 }
 
 type InspectionSummary struct {
