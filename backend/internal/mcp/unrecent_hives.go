@@ -39,7 +39,7 @@ func lacksRecentRecord(last, cutoff *time.Time) bool {
 // empty) in the last days days, or ever if days is nil. Each returned hive's
 // LastRecordedAt only lists the requested types it's actually missing.
 func (t *HiveTools) ListHivesMissingRecords(ctx context.Context, userID int64, apiaryID *int64, recordTypes []string, days *int) ([]HiveMissingRecords, error) {
-	types, err := validateRecordTypes(recordTypes, unrecentRecordTypes)
+	types, err := validateAllowedValues(recordTypes, unrecentRecordTypes, "record_type")
 	if err != nil {
 		return nil, err
 	}

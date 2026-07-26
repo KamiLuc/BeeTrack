@@ -13,8 +13,8 @@ func TestListHivesMissingRecordsNilDaysMeansNeverHadOne(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {
-			{ID: 10, ApiaryID: 1, Name: "Never Treated"},
-			{ID: 11, ApiaryID: 1, Name: "Treated Long Ago"},
+			{ID: 10, ApiaryID: 1, Name: "Never Treated", Active: true},
+			{ID: 11, ApiaryID: 1, Name: "Treated Long Ago", Active: true},
 		},
 	}}
 	longAgo := time.Now().AddDate(-1, 0, 0)
@@ -34,9 +34,9 @@ func TestListHivesMissingRecordsWithDaysIncludesStaleRecords(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {
-			{ID: 10, ApiaryID: 1, Name: "Never Treated"},
-			{ID: 11, ApiaryID: 1, Name: "Treated Long Ago"},
-			{ID: 12, ApiaryID: 1, Name: "Treated Recently"},
+			{ID: 10, ApiaryID: 1, Name: "Never Treated", Active: true},
+			{ID: 11, ApiaryID: 1, Name: "Treated Long Ago", Active: true},
+			{ID: 12, ApiaryID: 1, Name: "Treated Recently", Active: true},
 		},
 	}}
 	longAgo := time.Now().AddDate(0, 0, -60)
@@ -61,7 +61,7 @@ func TestListHivesMissingRecordsWithDaysIncludesStaleRecords(t *testing.T) {
 func TestListHivesMissingRecordsWithNoRecordTypesChecksAllThree(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Fully Attended"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Fully Attended", Active: true}},
 	}}
 	now := time.Now()
 	treatments := &mockTreatmentLister{lastTreatedByID: map[int64]*time.Time{10: &now}}
@@ -81,7 +81,7 @@ func TestListHivesMissingRecordsWithNoRecordTypesChecksAllThree(t *testing.T) {
 func TestListHivesMissingRecordsReportsWhichTypesAreMissing(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
 	}}
 	now := time.Now()
 	treatments := &mockTreatmentLister{lastTreatedByID: map[int64]*time.Time{10: &now}}
@@ -118,7 +118,7 @@ func TestListHivesMissingRecordsInvalidRecordTypeReturnsError(t *testing.T) {
 func TestListHivesMissingRecordsToolDispatchesThroughRegistry(t *testing.T) {
 	apiaries := &mockApiaryLister{memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, &mockInspectionLister{}, &mockTreatmentLister{}, &mockHarvestLister{}, &mockFeedingLister{})
 

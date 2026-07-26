@@ -56,8 +56,9 @@ func NewHiveTools(apiaries ApiaryLister, hives HiveLister, inspections Inspectio
 	}
 }
 
-// resolveHives returns hives across every apiary userID belongs to, or just
-// apiaryID's hives if it's non-nil.
+// resolveHives returns active hives across every apiary userID belongs to,
+// or just apiaryID's, if it's non-nil. Inactive hives are excluded, same as
+// the app's own bulk-action hive selection.
 func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, userID int64, apiaryID *int64) ([]*model.Hive, error) {
 	var apiaryIDs []int64
 	if apiaryID != nil {
@@ -84,7 +85,11 @@ func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, 
 		if err != nil {
 			return nil, fmt.Errorf("list hives: %w", err)
 		}
-		result = append(result, apiaryHives...)
+		for _, h := range apiaryHives {
+			if h.Active {
+				result = append(result, h)
+			}
+		}
 	}
 	return result, nil
 }
@@ -145,7 +150,7 @@ type listHivesInput struct {
 func (t *HiveTools) ListHivesTool() Tool {
 	return Tool{
 		Name:        "list_hives",
-		Description: "List hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases. Accepts an optional apiary_id to filter to one apiary.",
+		Description: "List active hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases. Accepts an optional apiary_id to filter to one apiary.",
 		InputSchema: InputSchema{
 			Properties: map[string]any{
 				"apiary_id": map[string]any{

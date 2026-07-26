@@ -22,7 +22,7 @@ func (t *HiveTools) ListHiveRecords(ctx context.Context, userID, hiveID int64, r
 	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
 		return nil, err
 	}
-	types, err := validateRecordTypes(recordTypes, hiveRecordTypes)
+	types, err := validateAllowedValues(recordTypes, hiveRecordTypes, "record_type")
 	if err != nil {
 		return nil, err
 	}

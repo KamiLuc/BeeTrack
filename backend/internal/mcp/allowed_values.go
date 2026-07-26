@@ -2,9 +2,10 @@ package mcp
 
 import "fmt"
 
-// validateRecordTypes checks raw against valid, de-duplicating as it goes.
-// An empty raw means "all of valid."
-func validateRecordTypes(raw []string, valid []string) ([]string, error) {
+// validateAllowedValues checks raw against valid, de-duplicating as it goes.
+// An empty raw means "all of valid." fieldName only names the field in the
+// error message (e.g. "record_type", "status").
+func validateAllowedValues(raw []string, valid []string, fieldName string) ([]string, error) {
 	if len(raw) == 0 {
 		return valid, nil
 	}
@@ -16,7 +17,7 @@ func validateRecordTypes(raw []string, valid []string) ([]string, error) {
 	var out []string
 	for _, s := range raw {
 		if !validSet[s] {
-			return nil, fmt.Errorf("invalid record_type: %q", s)
+			return nil, fmt.Errorf("invalid %s: %q", fieldName, s)
 		}
 		if !seen[s] {
 			seen[s] = true

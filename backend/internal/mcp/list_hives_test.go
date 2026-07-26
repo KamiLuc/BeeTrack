@@ -65,8 +65,8 @@ func TestListHivesWithoutFilterReturnsHivesAcrossAllApiaries(t *testing.T) {
 		},
 	}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
-		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Queenless: true}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
+		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Active: true, Queenless: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
@@ -82,13 +82,34 @@ func TestListHivesWithoutFilterReturnsHivesAcrossAllApiaries(t *testing.T) {
 	}
 }
 
+func TestListHivesExcludesInactiveHives(t *testing.T) {
+	apiaries := &mockApiaryLister{
+		memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}},
+	}
+	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
+		1: {
+			{ID: 10, ApiaryID: 1, Name: "Active Hive", Active: true},
+			{ID: 11, ApiaryID: 1, Name: "Inactive Hive", Active: false},
+		},
+	}}
+	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
+
+	result, err := tools.ListHives(context.Background(), 99, nil)
+	if err != nil {
+		t.Fatalf("ListHives returned error: %v", err)
+	}
+	if len(result) != 1 || result[0].Name != "Active Hive" {
+		t.Errorf("expected only the active hive, got %+v", result)
+	}
+}
+
 func TestListHivesAttachesDiseasesPerHive(t *testing.T) {
 	apiaries := &mockApiaryLister{
 		memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}},
 	}
 	hives := &mockHiveLister{
 		hivesByApiary: map[int64][]*model.Hive{
-			1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
+			1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
 		},
 		diseasesByHiveID: map[int64][]string{
 			10: {"varroa", "nosema"},
@@ -111,8 +132,8 @@ func TestListHivesAttachesDiseasesPerHive(t *testing.T) {
 func TestListHivesWithApiaryIDFiltersToThatApiary(t *testing.T) {
 	apiaries := &mockApiaryLister{}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
-		2: {{ID: 20, ApiaryID: 2, Name: "Hive B"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
+		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Active: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
@@ -144,7 +165,7 @@ func TestListHivesWithApiaryIDNotAMemberReturnsErrApiaryNotFound(t *testing.T) {
 func TestHiveToolsToolDispatchesThroughRegistry(t *testing.T) {
 	apiaries := &mockApiaryLister{}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
@@ -166,7 +187,7 @@ func TestHiveToolsToolWithEmptyInputListsAllHives(t *testing.T) {
 		memberships: []model.ApiaryMembership{{Apiary: &model.Apiary{ID: 1}}},
 	}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
-		1: {{ID: 10, ApiaryID: 1, Name: "Hive A"}},
+		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
