@@ -13,6 +13,8 @@ import (
 	"github.com/beetrack/backend/internal/config"
 	"github.com/beetrack/backend/internal/database"
 	"github.com/beetrack/backend/internal/handler"
+	"github.com/beetrack/backend/internal/llm"
+	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/repository"
 	"github.com/beetrack/backend/internal/service"
@@ -100,6 +102,19 @@ func main() {
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 	certificationGasEstimateSvc := service.NewCertificationGasEstimateService(honeyBatchCertificationRequestRepo, honeyBatchRepo, gasReader)
 
+	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
+	listingTools := mcp.NewListingTools(listingSvc)
+	assistantRegistry := mcp.NewRegistry()
+	assistantRegistry.Register(hiveTools.ListHivesTool())
+	assistantRegistry.Register(hiveTools.ListHiveRecordsTool())
+	assistantRegistry.Register(hiveTools.GetHiveSummaryTool())
+	assistantRegistry.Register(hiveTools.ListHivesMissingRecordsTool())
+	assistantRegistry.Register(hiveTools.ListHivesByStatusTool())
+	assistantRegistry.Register(hiveTools.CompareHivesTool())
+	assistantRegistry.Register(hiveTools.GetDashboardSummaryTool())
+	assistantRegistry.Register(listingTools.SearchListingsTool())
+	assistantRegistry.Register(listingTools.GetListingTool())
+
 	authHandler := handler.NewAuthHandler(authSvc)
 	apiaryHandler := handler.NewApiaryHandler(apiarySvc)
 	invitationHandler := handler.NewInvitationHandler(invitationSvc)
@@ -118,6 +133,18 @@ func main() {
 	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc, verifyChainReader)
 	adminListingHandler := handler.NewAdminListingHandler(listingModerationSvc)
 	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc, certificationGasEstimateSvc)
+
+	// Unlike cfg's other settings, a missing key shouldn't stop the rest of the
+	// API from starting — same graceful-degradation approach as the blockchain
+	// worker below.
+	var assistantHandler *handler.AssistantHandler
+	if anthropicKey := config.AnthropicAPIKey(); anthropicKey != "" {
+		llmClient := llm.NewClient(anthropicKey)
+		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry)
+		assistantHandler = handler.NewAssistantHandler(assistantSvc)
+	} else {
+		slog.Warn("ANTHROPIC_API_KEY not set — assistant endpoint disabled")
+	}
 
 	auth := middleware.Auth(cfg.JWTSecret)
 	optionalAuth := middleware.OptionalAuth(cfg.JWTSecret)
@@ -231,6 +258,10 @@ func main() {
 	mux.HandleFunc("GET /api/v1/verify/{token}/qr-code/download", honeyBatchVerifyHandler.QRCodeDownload)
 	mux.HandleFunc("GET /api/v1/verify/{token}/pdf", honeyBatchVerifyHandler.PDF)
 	mux.HandleFunc("GET /verify/{token}", honeyBatchVerifyHandler.VerifyPage)
+
+	if assistantHandler != nil {
+		mux.Handle("POST /api/v1/assistant/messages", auth(http.HandlerFunc(assistantHandler.Messages)))
+	}
 
 	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.List)))
 	mux.Handle("GET /api/v1/admin/listings/{id}", admin(http.HandlerFunc(adminListingHandler.Get)))

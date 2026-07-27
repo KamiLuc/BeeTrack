@@ -523,12 +523,13 @@ Go backend — AssistantHandler → AssistantService
         │  every tool call is implicitly filtered to the caller's own apiaries/hives —
         │  same ownership check pattern as REST handlers (`GetMembership`)
         ▼
-   PostgreSQL (read-only queries; nothing new to migrate for v1 tools)
+   PostgreSQL (tool queries are read-only; conversation history is the one thing
+               the assistant path writes — assistant_conversations/_message_logs/_tool_calls)
         │
         ▼
    Claude synthesizes a natural-language answer from tool results
         ▼
-Response streamed back to the chat screen
+Response streamed back to the chat screen, tagged with conversationId on the first turn
 ```
 
 The MCP server runs **in-process** inside the existing `cmd/api` binary rather than as
@@ -574,10 +575,18 @@ New Flutter feature, `features/assistant/`, following the existing Cubit pattern
   `AppSection` entry alongside Apiaries/Marketplace/Honey Batches), signed-in only.
 - Streams the response so the beekeeper sees the answer arrive incrementally rather
   than waiting on the full agent loop (which may take several tool-call round trips).
-- No conversation history persisted server-side for v1 — each message includes the
-  full prior turns from the client, same stateless-server approach the rest of the
-  API already uses (JWT auth, no server sessions). A `conversations` table is a
-  natural v2 if beekeepers want history across app restarts.
+- Conversation history is persisted server-side (`assistant_conversations` /
+  `assistant_message_logs` / `assistant_tool_calls`, AST-17/18-BE) so the client sends
+  only the new message plus the `conversationId` it was handed on the first turn —
+  not the full history every call. This is a deliberate departure from the rest of the
+  API's stateless, JWT-only approach: it's what lets a beekeeper resume a conversation
+  after closing the app, or eventually from a different device, without the client
+  having to keep and resend an ever-growing transcript itself.
+
+  This doesn't scale forever — a long-running conversation will eventually exceed
+  Claude's context window. Truncating or summarizing older turns before they're sent
+  back to Claude is a known gap, deferred until a real conversation is long enough to
+  hit it.
 
 ### 3.5 Auth
 

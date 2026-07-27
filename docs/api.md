@@ -3010,3 +3010,46 @@ Returns the caller's favorited listings, most recently favorited first. Hidden l
 | `MISSING_TOKEN` | 401 | No Bearer token |
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## AI Assistant
+
+Only registered when the API is started with `ANTHROPIC_API_KEY` set — if the key is missing, the API still starts normally, but this route is not registered at all (any request to it gets a plain 404, not a JSON error).
+
+### POST /assistant/messages 🔒
+
+Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API. There is no server-side conversation persistence — the client resends the full message history on every request, and Claude sees the whole thing again each turn. Behind the scenes, Claude can call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's own `userID`, capped at 8 tool-call round trips per request.
+
+**Request**
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Which hives haven't been inspected in 2 weeks?" },
+    { "role": "assistant", "content": "Let me check..." },
+    { "role": "user", "content": "Just apiary 3, please." }
+  ]
+}
+```
+
+- `messages` must not be empty
+- The last message in the array must have `role: "user"`
+
+**Response** `200 OK` — `Content-Type: text/event-stream`
+
+Unlike other endpoints, this streams a Server-Sent Events body instead of a single JSON response. Once streaming starts the HTTP status is already committed to 200, so a mid-stream failure is reported as an `error` event, not an HTTP error status.
+
+| Event | Payload | Description |
+|-------|---------|--------------|
+| `delta` | `{ "text": "..." }` | A chunk of assistant text as Claude generates it. Zero or more per request. |
+| `done` | `{ "done": true }` | Sent once, after the last `delta`, on success. |
+| `error` | `{ "message": "..." }` | Sent instead of `done` if the agent loop fails partway through (e.g. the Claude API errors out or a tool call fails). |
+
+**Errors** (returned as ordinary JSON before streaming begins — none of these occur once the SSE stream has started)
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_BODY` | 400 | Malformed JSON |
+| `EMPTY_MESSAGES` | 400 | `messages` array is empty |
+| `INVALID_LAST_MESSAGE` | 400 | Last message's `role` is not `"user"` |

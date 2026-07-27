@@ -5609,6 +5609,76 @@ paths:
               medicine_name: Apiwarol
               dose: '2'
               notes: applied evenly
+  /api/v1/assistant/messages:
+    post:
+      tags:
+      - AI Assistant
+      summary: Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API.
+      description: Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API.
+        There is no server-side conversation persistence — the client resends the full message history
+        on every request, and Claude sees the whole thing again each turn. Behind the scenes, Claude can
+        call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's
+        own `userID`, capped at 8 tool-call round trips per request.
+      responses:
+        '200':
+          description: '`Content-Type: text/event-stream`'
+        '401':
+          description: No Bearer token in header; Token invalid or expired
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token in header
+                INVALID_TOKEN:
+                  value:
+                    code: INVALID_TOKEN
+                    message: Token invalid or expired
+        '400':
+          description: Malformed JSON; `messages` array is empty; Last message's `role` is not `"user"`
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_BODY:
+                  value:
+                    code: INVALID_BODY
+                    message: Malformed JSON
+                EMPTY_MESSAGES:
+                  value:
+                    code: EMPTY_MESSAGES
+                    message: '`messages` array is empty'
+                INVALID_LAST_MESSAGE:
+                  value:
+                    code: INVALID_LAST_MESSAGE
+                    message: Last message's `role` is not `"user"`
+      security:
+      - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+            example:
+              messages:
+              - role: user
+                content: Which hives haven't been inspected in 2 weeks?
+              - role: assistant
+                content: Let me check...
+              - role: user
+                content: Just apiary 3, please.
   /api/v1/auth/forgot-password:
     post:
       tags:
@@ -8364,10 +8434,14 @@ paths:
       tags:
       - Honey Batches
       summary: Public, no authentication.
-      description: Public, no authentication. Looks up a batch by its public `verification_token` (opaque
-        UUID, not the numeric `id`) and returns the batch's public representation — same fields as the
+      description: 'Public, no authentication. Looks up a batch by its public `verification_token` (opaque
+        UUID, not the numeric `id`) and returns the batch''s public representation — same fields as the
         honey batch object above, minus the internal numeric `id` and `certification_request` (that state
-        is owner-only).
+        is owner-only).  Ignores the batch''s soft-delete status: once a batch has ever been approved
+        for on-chain certification, deleting it from the owner''s dashboard only soft-deletes it, so this
+        lookup and the HTML page, QR code, and PDF routes below all keep resolving — the on-chain certification
+        is immutable and stays publicly verifiable no matter what the owner does on their own dashboard.
+        A batch that never reached certification is hard-deleted instead, and genuinely 404s here.'
       parameters:
       - name: token
         in: path
@@ -8447,7 +8521,8 @@ paths:
       - Honey Batches
       summary: Public, no authentication.
       description: Public, no authentication. Serves the lab PDF for a batch. Requires a confirmed certification
-        — no public exposure of lab data for an uncertified batch.
+        — no public exposure of lab data for an uncertified batch. Same soft-delete handling as the JSON
+        endpoint above.
       parameters:
       - name: token
         in: path
@@ -8500,7 +8575,8 @@ paths:
       summary: Public, no authentication.
       description: Public, no authentication. Serves a 512x512 PNG QR code encoding the verification URL
         `{apiURL}/verify/{token}` (the HTML page above). Requires the batch to have a confirmed certification
-        — a QR pointing at an uncertified batch would be misleading.
+        — a QR pointing at an uncertified batch would be misleading. Same soft-delete handling as the
+        JSON endpoint above.
       parameters:
       - name: token
         in: path
@@ -8553,10 +8629,10 @@ paths:
       summary: Public, no authentication.
       description: 'Public, no authentication. Serves the identical PNG as `GET /verify/{token}/qr-code`,
         but adds a `Content-Disposition: attachment` header so the response triggers a browser download/save
-        dialog instead of rendering inline. Same requirement (confirmed certification) and same caching.  The
-        download filename is derived from the batch''s metadata: `{gathering_date}_{honey_type}_{weight}kg.png`
-        (e.g. `2024-05-01_wildflower_1.5kg.png`), with the honey type lowercased and non-alphanumeric
-        characters collapsed to hyphens.'
+        dialog instead of rendering inline. Same requirement (confirmed certification), same caching,
+        and same soft-delete handling as the JSON endpoint above.  The download filename is derived from
+        the batch''s metadata: `{gathering_date}_{honey_type}_{weight}kg.png` (e.g. `2024-05-01_wildflower_1.5kg.png`),
+        with the honey type lowercased and non-alphanumeric characters collapsed to hyphens.'
       parameters:
       - name: token
         in: path
@@ -8611,26 +8687,26 @@ paths:
         (`apiURL` is the...'
       description: '**Not under the `/api/v1` base URL** — a plain top-level route: `GET {apiURL}/verify/{token}`
         (`apiURL` is the backend''s own public URL, e.g. `http://localhost:8080/verify/{token}`). Public,
-        no authentication.  This is the exact URL encoded in a batch''s QR code and its "verification_url"
-        field — a self-contained, dependency-free HTML page (Go `html/template`, no JS, no SPA) so the
-        link opens directly in any browser, including one launched straight from a phone''s stock camera
-        app scanning the QR. There is no in-app QR scanner or Flutter verification screen; this page is
-        the entire verification experience.  Shows honey type, processing method, gathering date, amount,
-        batch ID (the verification token, never the internal numeric id), certification status, lab PDF
-        hash, and metadata hash. Once the certification is confirmed, also shows the contract address,
-        block number, transaction hash, and a link to the Polygon Amoy block explorer (`https://amoy.polygonscan.com/tx/{hash}`).  An
-        intro paragraph above the hashes (and a one-line explainer under each) explains what the two hashes
-        are and why the live check below matters. Once the certification is confirmed, the page also does
-        a live read against the deployed smart contract (bounded by a 5-second timeout so a slow RPC never
-        hangs the page) and shows a badge under each hash: "Matches the record on the blockchain" (green)
-        if it equals the on-chain value, "Does not match — data may have changed" (red) if it doesn''t,
-        or "Live check unavailable right now" (grey) if blockchain isn''t configured on the server or
-        the RPC call errors/times out. This live check never causes the page itself to fail — it only
-        affects the badges.  Once the certification is confirmed, a "Download lab PDF" button (pointing
-        at the public `GET /verify/{token}/pdf` endpoint above) is shown alongside the "View on block
-        explorer" button, in a row at the bottom of the proof card.  Bilingual: `?lang=pl` or `?lang=en`
-        query param overrides the language; otherwise the `Accept-Language` header is sniffed for `pl`,
-        defaulting to English.'
+        no authentication, same soft-delete handling as the JSON endpoint above.  This is the exact URL
+        encoded in a batch''s QR code and its "verification_url" field — a self-contained, dependency-free
+        HTML page (Go `html/template`, no JS, no SPA) so the link opens directly in any browser, including
+        one launched straight from a phone''s stock camera app scanning the QR. There is no in-app QR
+        scanner or Flutter verification screen; this page is the entire verification experience.  Shows
+        honey type, processing method, gathering date, amount, batch ID (the verification token, never
+        the internal numeric id), certification status, lab PDF hash, and metadata hash. Once the certification
+        is confirmed, also shows the contract address, block number, transaction hash, and a link to the
+        Polygon Amoy block explorer (`https://amoy.polygonscan.com/tx/{hash}`).  An intro paragraph above
+        the hashes (and a one-line explainer under each) explains what the two hashes are and why the
+        live check below matters. Once the certification is confirmed, the page also does a live read
+        against the deployed smart contract (bounded by a 5-second timeout so a slow RPC never hangs the
+        page) and shows a badge under each hash: "Matches the record on the blockchain" (green) if it
+        equals the on-chain value, "Does not match — data may have changed" (red) if it doesn''t, or "Live
+        check unavailable right now" (grey) if blockchain isn''t configured on the server or the RPC call
+        errors/times out. This live check never causes the page itself to fail — it only affects the badges.  Once
+        the certification is confirmed, a "Download lab PDF" button (pointing at the public `GET /verify/{token}/pdf`
+        endpoint above) is shown alongside the "View on block explorer" button, in a row at the bottom
+        of the proof card.  Bilingual: `?lang=pl` or `?lang=en` query param overrides the language; otherwise
+        the `Accept-Language` header is sniffed for `pl`, defaulting to English.'
       parameters:
       - name: token
         in: path

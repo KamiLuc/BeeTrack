@@ -23,6 +23,14 @@ func LoadAIConfig() (AIConfig, error) {
 	return cfg, nil
 }
 
+// Deliberately bypasses AIConfig's validate(), which also hard-requires
+// OPENAI_API_KEY/AUDIO_STORAGE_PATH for voice logging (not yet built) — an
+// unconfigured key here just means the assistant route isn't registered,
+// not that the whole API fails to start.
+func AnthropicAPIKey() string {
+	return getEnv("ANTHROPIC_API_KEY", "")
+}
+
 func (c AIConfig) validate() error {
 	if c.AnthropicAPIKey == "" {
 		return fmt.Errorf("ANTHROPIC_API_KEY is required")
