@@ -552,6 +552,7 @@ not over that transport.
 | `compare_hives` | Side-by-side of key metrics (brood pattern, frame counts, disease flags, last inspection date) for a set of hive IDs |
 | `search_listings` | Wraps the existing public `GET /api/v1/listings` search/filter — lets the assistant answer "find me X" marketplace questions |
 | `get_listing` | Single listing detail, for follow-up questions about a specific result |
+| `get_dashboard_summary` | Cross-apiary rollup: apiary count, active hive count, counts per status flag (queenless/needs_food/sick/ready_for_harvest), and recent inspection/treatment/feeding/harvest counts plus total kg harvested, over an optional day window. Accepts optional `apiary_id` (scope to one apiary) and `days` (all-time if omitted). Not a wrap of an existing endpoint — the app's own Dashboard screen is a per-apiary PDF report, not a stats aggregate |
 
 Each tool is a thin wrapper: it takes the caller's `userID` (never trusted from the
 model, always injected by the service before the agent loop starts) plus model-supplied

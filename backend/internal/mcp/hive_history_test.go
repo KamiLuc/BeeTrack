@@ -19,7 +19,11 @@ type mockInspectionLister struct {
 
 func (m *mockInspectionLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Inspection, error) {
 	m.gotFrom, m.gotTo = from, to
-	return m.byHiveID[hiveIDs[0]], nil
+	var out []*model.Inspection
+	for _, id := range hiveIDs {
+		out = append(out, m.byHiveID[id]...)
+	}
+	return out, nil
 }
 
 func (m *mockInspectionLister) LastInspectionDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
@@ -38,7 +42,11 @@ type mockTreatmentLister struct {
 }
 
 func (m *mockTreatmentLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Treatment, error) {
-	return m.byHiveID[hiveIDs[0]], nil
+	var out []*model.Treatment
+	for _, id := range hiveIDs {
+		out = append(out, m.byHiveID[id]...)
+	}
+	return out, nil
 }
 
 func (m *mockTreatmentLister) LastTreatmentDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
@@ -56,7 +64,11 @@ type mockHarvestLister struct {
 }
 
 func (m *mockHarvestLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Harvest, error) {
-	return m.byHiveID[hiveIDs[0]], nil
+	var out []*model.Harvest
+	for _, id := range hiveIDs {
+		out = append(out, m.byHiveID[id]...)
+	}
+	return out, nil
 }
 
 type mockFeedingLister struct {
@@ -65,7 +77,11 @@ type mockFeedingLister struct {
 }
 
 func (m *mockFeedingLister) ListByHiveIDsAndRange(_ context.Context, hiveIDs []int64, from, to time.Time) ([]*model.Feeding, error) {
-	return m.byHiveID[hiveIDs[0]], nil
+	var out []*model.Feeding
+	for _, id := range hiveIDs {
+		out = append(out, m.byHiveID[id]...)
+	}
+	return out, nil
 }
 
 func (m *mockFeedingLister) LastFeedingDatesByHiveIDs(_ context.Context, ids []int64) (map[int64]*time.Time, error) {
