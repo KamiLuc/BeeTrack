@@ -120,25 +120,29 @@ loop as the blockchain worker), claims one, sets status = 'processing'
   hive mentioned in the transcript to a hive_id.                                │
         │                                                                       │
         ▼                                                                       │
-  PHASE 2 — write: for each resolved (hive_id, topic) pair, Claude calls        │
+  PHASE 2 — propose: for each resolved (hive_id, topic) pair, Claude calls     │
   one write tool with that hive_id fixed in the arguments:                     │
      - create_inspection / create_treatment / create_harvest / create_feeding / update_hive_status   │
         │  picks 1..N tools + fills each one's arguments from the transcript    │
         ▼                                                                       │
-  Backend executes each tool call in turn against the corresponding             │
-  existing service (service.InspectionService.Create /                        │
-  TreatmentService.Create / HarvestService.Create / FeedingService.Create),     │
-  writing one voice_actions row per call                                      │
+  Backend does NOT call the service layer yet — it just writes one             │
+  voice_actions row per call (tool_name + tool_arguments, status =            │
+  'proposed'). Nothing in inspections/treatments/harvests/feedings/hives       │
+  changes at this point                                                       │
         │                                                                    │
         ▼                                                                   ─┘
-Recording marked status = 'completed'; the audio file is deleted (§2.4) — the
-transcript, already persisted, is all that's kept from here on
+Recording marked status = 'completed' (meaning: processed, proposals ready for
+review — not "applied"); the audio file is deleted (§2.4) — the transcript,
+already persisted, is all that's kept from here on
         │
         ▼
 [The recording drops off the recording dialog's pending list (§2.5) once it leaves
  `processing`; next time the beekeeper opens the separate Voice Activity screen (§2.6)
- or pulls to refresh there, they see its actions: "Hive 3 — Inspection logged: brood
- good" + "Hive 3 — Feeding logged: 1L syrup", each tap-to-edit/undo]
+ or pulls to refresh there, they see it awaiting review: "Hive 3 — Inspection: brood
+ good" + "Hive 3 — Feeding: 1L syrup", with the transcript and Accept/Reject buttons.
+ Accept executes every proposed action for that recording against the real services;
+ Reject deletes the proposals outright — nothing was ever written to hives/inspections/
+ etc. either way until Accept]
 ```
 
 The mic is a toggle, not a hold — tap to start, tap again to stop and submit. This
@@ -176,14 +180,15 @@ the grid screen itself is scoped, and keeping resolution to a smaller, unambiguo
 hive set is both cheaper for Claude and safer (no risk of matching a same-named hive
 in a different apiary the beekeeper isn't even standing in).
 
-Nothing about existing inspection/treatment/harvest/feeding validation changes — the
-worker's Phase 2 is a new entry point in front of the *same* service-layer `Create`
-calls used by the manual forms, so a bad transcript-derived value fails the same
-validation a bad form submission would (e.g. `ErrInvalidBroodPattern`). Each action is
-validated and saved independently: if the feeding fields are bad but the inspection
-is fine, the inspection is still saved and only the feeding action comes back as an
-error (§2.4) — one bad action doesn't roll back a good one, or the sibling recordings
-still queued behind it.
+Nothing about existing inspection/treatment/harvest/feeding validation changes — it
+just moves later. The worker's Phase 2 only *proposes* arguments; the same
+service-layer `Create` calls used by the manual forms don't run until the beekeeper
+taps Accept (§2.6), so a bad transcript-derived value fails the same validation a bad
+form submission would (e.g. `ErrInvalidBroodPattern`) at Accept time, not worker time.
+Each action is executed and saved independently at Accept: if the feeding fields are
+bad but the inspection is fine, the inspection is still saved and only the feeding
+action comes back as an error (§2.4) — one bad action doesn't roll back a good one, or
+the sibling actions accepted alongside it.
 
 ### 2.2 Design decisions
 
@@ -230,12 +235,20 @@ still queued behind it.
   actions the transcript actually describes — a long recording that's all about one
   inspection still produces exactly one `create_inspection` call; it doesn't fragment
   just because it's long.
-- **No confirmation step before saving.** Since results now only ever show up later
-  (§2.1's queuing means there's nothing to confirm at record time even if we wanted
-  to), the Voice Activity screen's edit/undo (§2.6) *is* the correct/undo path, not a
-  pre-save review screen. This keeps the flow hands-free, which is the whole point in
-  the field: a real undo mechanism after the fact is what makes it safe to skip a
-  confirmation step before it.
+- **Actions are proposed, not applied, until the beekeeper reviews them.** Recording
+  stays hands-free — there's no confirmation prompt *during* recording — but nothing
+  Claude proposes touches `inspections`/`treatments`/`harvests`/`feedings`/`hives`
+  until the beekeeper opens the Voice Activity screen (§2.6), reads the transcript and
+  proposed actions for that recording, and taps **Accept** or **Reject**. This is a
+  per-*recording* decision, not per-action: one recording's proposals (however many
+  topics it split into, §2.1) are accepted or rejected as a batch, matching how the
+  beekeeper experiences it — one recording, one message to review. Reject deletes the
+  proposal rows outright; nothing was ever created, so there's nothing to undo.
+  Accept runs each proposed tool call against the real service layer, independently
+  per action (a bad action's validation failure doesn't block its siblings, same as
+  before). There is deliberately no further "undo after Accept" mechanism — once
+  applied, a voice-created record is an ordinary record, editable/deletable the same
+  way a manually created one is (§2.6).
 - **Hive naming is required, not optional.** Since the button no longer implies a
   hive, a recording that never names one has nothing to resolve against. The app's
   recording UI should hint this upfront (e.g. a placeholder tip "say the hive name
@@ -299,13 +312,13 @@ still queued behind it.
 |---|---|
 | `POST /api/v1/apiaries/{id}/voice` | Apiary-scoped, not hive-scoped — multipart, field `audio` (webm/m4a/wav); rejects synchronously with `RECORDING_TOO_LONG` if the file's duration exceeds the same hard cap the client enforces (§2.2) — a server-side safety net, not just a client-side limit; otherwise stores the file, inserts a `pending` `voice_recordings` row, and returns `202 Accepted` with `{ recording_id, status: "pending" }` immediately — no Whisper/Claude work happens in this request (§2.1) |
 
-### 2.4 Persistence, review & undo
+### 2.4 Persistence & review
 
 Because one recording can now produce several actions, the log needs a
 one-recording-to-many-actions shape: one row for the recording/transcript itself, and
-one child row per tool call Claude made against it. This log is no longer just an
+one child row per tool call Claude proposed against it. This log is no longer just an
 engineering trail — it's also what backs a user-facing **Voice Activity** list (§2.6)
-so the beekeeper can see what the assistant did and undo it if something went wrong,
+so the beekeeper can see what the assistant is proposing and accept or reject it,
 not only what a developer can `SELECT` from psql:
 
 ```sql
@@ -314,10 +327,21 @@ CREATE TABLE voice_recordings (
     id                BIGSERIAL PRIMARY KEY,
     user_id           BIGINT NOT NULL REFERENCES users(id),
     apiary_id         BIGINT NOT NULL REFERENCES apiaries(id), -- known from the URL
-    status            TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'processing' |
-                                                         -- 'completed' | 'failed' | 'cancelled'
-                                                         -- ('cancelled' set by the beekeeper
-                                                         -- via §2.5, only while still 'pending')
+    status            TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'processing' | 'completed' |
+                                                         -- 'accepted' | 'rejected' | 'failed' |
+                                                         -- 'cancelled'
+                                                         -- ('cancelled' set by the beekeeper via
+                                                         -- §2.5, only while still 'pending';
+                                                         -- 'completed' means the worker finished
+                                                         -- and proposals are awaiting review —
+                                                         -- it moves to 'accepted'/'rejected' once
+                                                         -- the beekeeper reviews it, §2.6.
+                                                         -- A 'completed' recording with zero
+                                                         -- actionable proposals, e.g.
+                                                         -- NO_ACTION_RECOGNIZED or an
+                                                         -- all-'error' action set, has nothing to
+                                                         -- accept/reject and just stays
+                                                         -- 'completed')
     audio_path        TEXT,                      -- UUID-named file under AUDIO_STORAGE_PATH
                                                     -- (same convention as inspection images);
                                                     -- cleared once transcription succeeds
@@ -348,19 +372,28 @@ CREATE TABLE voice_actions (
                                                      -- 'create_harvest' | 'create_feeding' |
                                                      -- 'update_hive_status';
                                                      -- NULL when hive resolution itself failed
-    tool_arguments      JSONB,                      -- exact structured args Claude filled in
-    previous_hive_state JSONB,                      -- only for 'update_hive_status': the flags'
-                                                      -- values before this change, so Undo can
-                                                      -- restore them instead of deleting a row
-    result_type         TEXT NOT NULL,              -- 'inspection' | 'treatment' | 'harvest' |
-                                                      -- 'feeding' | 'hive_status' | 'error'
+    tool_arguments      JSONB,                      -- exact structured args Claude filled in;
+                                                       -- this IS the proposal — nothing has been
+                                                       -- executed yet when this row is written
+    status              TEXT NOT NULL DEFAULT 'proposed', -- 'proposed' | 'applied' | 'error'
+                                                       -- ('error' = failed at Accept time, e.g.
+                                                       -- ErrInvalidBroodPattern, OR a
+                                                       -- HIVE_NOT_IDENTIFIED row written straight
+                                                       -- to 'error' at worker time, §2.2)
+    previous_hive_state JSONB,                      -- only for 'update_hive_status', captured at
+                                                      -- Accept time (immediately before the PATCH
+                                                      -- call) — kept for diagnostic visibility,
+                                                      -- not for an undo path (there isn't one,
+                                                      -- §2.2)
+    result_type         TEXT,                       -- 'inspection' | 'treatment' | 'harvest' |
+                                                      -- 'feeding' | 'hive_status' | 'error';
+                                                      -- NULL while status = 'proposed'
     result_record_id    BIGINT,                     -- FK-less pointer to the created/updated
-                                                       -- row, if any (the hive itself, for
-                                                       -- 'hive_status')
-    error_message       TEXT,                       -- set when result_type = 'error'
-                                                      -- (includes HIVE_NOT_IDENTIFIED cases)
-    reverted_at         TIMESTAMPTZ,                 -- set when the beekeeper undoes this action
-                                                      -- (§2.6); NULL means still in effect
+                                                       -- row; only set once status = 'applied'
+                                                       -- (the hive itself, for 'hive_status')
+    error_message       TEXT,                       -- set when status = 'error'
+                                                      -- (includes HIVE_NOT_IDENTIFIED and
+                                                      -- Accept-time validation failures)
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
@@ -369,19 +402,21 @@ A recording with no recognizable action at all (`NO_ACTION_RECOGNIZED`, §2.2) s
 gets its `voice_recordings` row — just zero `voice_actions` children — so "the
 assistant heard nothing useful" is as visible in the log as a successful split. A
 recording that named a hive but couldn't resolve it (`HIVE_NOT_IDENTIFIED`) gets one
-`voice_actions` row with `spoken_hive_name` set, `hive_id` NULL, and `result_type =
-'error'` — so "the beekeeper said a name we couldn't match" is distinguishable in the
-log from "the beekeeper didn't name a hive at all." A `POOR_AUDIO_QUALITY` rejection
-still gets its `voice_recordings` row (transcript included, however unreliable it is)
-plus one `voice_actions` error row with `tool_name` NULL — Claude was never called for
-that recording at all, which the log makes visible the same way a failed hive match
-does.
+`voice_actions` row with `spoken_hive_name` set, `hive_id` NULL, and `status =
+'error'` straight away (there's nothing to propose or review for it) — so "the
+beekeeper said a name we couldn't match" is distinguishable in the log from "the
+beekeeper didn't name a hive at all." A `POOR_AUDIO_QUALITY` rejection still gets its
+`voice_recordings` row (transcript included, however unreliable it is) plus one
+`voice_actions` error row with `tool_name` NULL — Claude was never called for that
+recording at all, which the log makes visible the same way a failed hive match does.
 
-The transcript and per-action arguments stay even after an action is reverted (the row
-is marked, not deleted) — that's what makes "why did the assistant only log the
-feeding and not the inspection I also described?" answerable after the fact, whether
-the beekeeper is debugging it themselves from the Voice Activity screen or it's being
-looked at from psql during development.
+The transcript and every proposed action's arguments stay in the log regardless of
+what the beekeeper decides — Accept flips a row's `status` to `applied` (or `error`,
+if the real service call fails) and fills in `result_type`/`result_record_id`; Reject
+deletes the recording's `voice_actions` rows outright, since nothing was ever created
+for them (§2.2). The `voice_recordings` row itself (and its transcript) is never
+deleted by either action — only the child `voice_actions` rows are affected by
+Reject.
 
 Audio itself is only ever *transiently* stored — it has to exist on disk long enough
 for the worker to pick it up and run Whisper on it (the whole reason it's queued
@@ -434,7 +469,7 @@ actions. This one only ever shows recordings that haven't finished processing ye
     it's too late to stop cleanly, and the (probably small) remaining wait is shorter
     than the complexity of interrupting a job partway through and rolling back
     whatever it had already done. If the result turns out wrong once it completes,
-    that's what Undo (§2.6) is for.
+    that's what Reject (§2.6) is for — nothing is applied yet at that point anyway.
 - Once a recording leaves `pending`/`processing` (whichever way), it drops out of this
   list — there's nothing left to play-before-processing or cancel. The locally saved
   audio file is deleted at that point too, since the transcript (kept server-side,
@@ -447,38 +482,50 @@ New backend surface for this:
 |---|---|
 | `DELETE /api/v1/apiaries/{id}/voice-recordings/{recordingId}` | Cancel: sets `status = 'cancelled'` and deletes the server-side audio file; only valid while `status = 'pending'` — returns a conflict error if the worker has already claimed it (`processing`) or it's already terminal |
 
-### 2.6 Reviewing & undoing voice actions
+### 2.6 Reviewing, accepting & rejecting voice actions
 
-Because processing is now asynchronous, this screen is not just a review/undo
-convenience — it's *the* place the beekeeper finds out what a queued recording
-actually did, since the upload response (§2.1) never carries a result.
+Because processing is now asynchronous *and* nothing is applied without review, this
+screen is the whole review step, not just a convenience — it's where the beekeeper
+finds out what a queued recording heard, decides whether to trust it, and is the only
+place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings`/`hives`.
 
 - **Voice Activity screen** — a new history-icon button in the apiary grid's bottom
   amber banner (next to the mic button) opens a paginated list of past voice
   recordings for *this apiary*, newest first (same page-based pagination pattern as
-  `InspectionHistoryScreen`). Each recording shows its status — "Queued" /
-  "Processing…" / its resulting action rows once `completed` (hive, action type, a
-  one-line summary, tap-to-edit) / an error reason once `failed`. Reverted actions
-  show as struck-through/"undone" rather than disappearing, so the history stays
-  honest about what actually happened. The screen refreshes on open and via
-  pull-to-refresh — same lightweight polling-on-demand approach already used for the
-  honey batch certification badge's in-progress state, no push notifications or
-  websockets needed for v1.
-- **Editing** a successful action doesn't need a new editing UI at all: a voice-created
-  inspection/treatment/harvest/feeding is stored as exactly the same row a manually
-  created one would be, so tapping a row just opens the existing edit screen for that
-  record type (`InspectionFormScreen`, `TreatmentFormScreen`, etc., already in edit
-  mode) — the same screen reached from the hive detail history lists.
-- **Undo** removes the underlying record via that record type's *existing* delete
-  service call (e.g. `InspectionService.Delete`) and sets `reverted_at` on the
-  `voice_actions` row — it does not delete the log row itself, so an undone action is
-  still visible (as reverted) rather than vanishing from the history. `update_hive_status`
-  actions undo differently, since there's no row to delete: it calls the existing
-  `PATCH .../hives/{hiveId}` with the flags from `previous_hive_state`, restoring
-  exactly what they were before, then sets `reverted_at` the same way.
+  `InspectionHistoryScreen`), styled like a message list: each row is one recording
+  with a status chip — "Queued" / "Processing…" / "Awaiting review" (`completed` with
+  actionable proposals) / "Accepted" / "Rejected" / an error reason (`failed`,
+  `NO_ACTION_RECOGNIZED`, `HIVE_NOT_IDENTIFIED`) / "Cancelled". The screen refreshes on
+  open and via pull-to-refresh — same lightweight polling-on-demand approach already
+  used for the honey batch certification badge's in-progress state, no push
+  notifications or websockets needed for v1.
+- **Tapping a recording** opens its detail view: the transcript text, then the list of
+  proposed actions (hive, action type, the fields Claude filled in — e.g. "Hive 3 —
+  Inspection: brood pattern good" / "Hive 3 — Feeding: 1L syrup"). While the recording
+  is `completed` (awaiting review) and has at least one non-error proposal, the detail
+  view ends with two buttons: **Accept** and **Reject**. This is a whole-recording
+  decision, not per-action — a beekeeper reviews and decides on everything one
+  recording produced together, matching how they experienced it as one message.
+- **Accept** calls the backend, which runs each proposed action's real service call in
+  turn (`InspectionService.Create`, `TreatmentService.Create`, ..., or the
+  `PATCH .../hives/{hiveId}` flow for `update_hive_status`) — independently per action,
+  so one bad action's validation error doesn't block its siblings from being applied
+  (§2.1). The recording moves to `accepted`; each action's row updates in place
+  (`status`, `result_type`, `result_record_id`, or `error_message` if that one action's
+  Create call failed). From this point on a voice-created record is an ordinary
+  record — tapping it opens the existing edit screen for that type
+  (`InspectionFormScreen`, `TreatmentFormScreen`, etc., already in edit mode), the same
+  screen reached from the hive detail history lists. There is no separate undo step
+  after Accept — editing or deleting it is exactly like editing or deleting a manually
+  created record.
+- **Reject** calls the backend, which deletes the recording's `voice_actions` rows
+  outright (nothing was ever created, so there's nothing to remove from
+  `inspections`/etc.) and moves the recording to `rejected`. The transcript stays on
+  the `voice_recordings` row for reference — "what did I even say that time" — but the
+  proposed actions themselves are gone.
 - **Error and cancelled rows** (`NO_ACTION_RECOGNIZED` / `HIVE_NOT_IDENTIFIED` /
-  `POOR_AUDIO_QUALITY` / a recording-level `failed` status / `cancelled` via §2.5)
-  have no record to edit or undo — they're listed for transparency only ("couldn't
+  `POOR_AUDIO_QUALITY` / a recording-level `failed` status / `cancelled` via §2.5) have
+  no proposal to accept or reject — they're listed for transparency only ("couldn't
   understand this recording" / "couldn't tell which hive" / "recording wasn't clear
   enough" / "cancelled").
 
@@ -486,8 +533,9 @@ New backend surface for this:
 
 | Endpoint | Notes |
 |---|---|
-| `GET /api/v1/apiaries/{id}/voice-recordings` | Paginated (`limit`/`offset`), newest first; each item is a recording with its `status` and, once `completed`, its nested `voice_actions` (resolved hive, action type, a short summary, `reverted_at`, and enough of `result_record_id` to deep-link into the corresponding edit screen) — this is what the Voice Activity screen polls/refreshes against |
-| `DELETE /api/v1/apiaries/{id}/voice-actions/{actionId}` | Undo: deletes the underlying record via the existing per-type delete service call and sets `reverted_at`; a no-op error if the action has no `result_record_id` (nothing was created) or is already reverted |
+| `GET /api/v1/apiaries/{id}/voice-recordings` | Paginated (`limit`/`offset`), newest first; each item is a recording with its `status` and, once `completed`/`accepted`/`rejected`, its nested `voice_actions` (resolved hive, action type, proposed fields, `status`, and — once applied — `result_record_id` to deep-link into the corresponding edit screen) — this is what the Voice Activity screen polls/refreshes against |
+| `POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept` | Only valid while `status = 'completed'`; executes every non-error proposed action against the real service layer, independently per action, and moves the recording to `accepted` |
+| `POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject` | Only valid while `status = 'completed'`; hard-deletes the recording's `voice_actions` rows and moves the recording to `rejected` — the `voice_recordings` row and its transcript are kept |
 
 ---
 

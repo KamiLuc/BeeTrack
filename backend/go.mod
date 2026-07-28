@@ -3,6 +3,7 @@ module github.com/beetrack/backend
 go 1.25.7
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/anthropics/anthropic-sdk-go v1.61.0
 	github.com/ethereum/go-ethereum v1.17.4
 	github.com/go-pdf/fpdf v0.9.0
@@ -14,11 +15,13 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.52.0
 	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/datatypes v1.2.7
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
 
 require (
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
@@ -36,6 +39,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
@@ -65,4 +69,5 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
+	gorm.io/driver/mysql v1.5.6 // indirect
 )
