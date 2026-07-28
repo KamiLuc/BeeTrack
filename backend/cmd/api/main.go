@@ -106,6 +106,7 @@ func main() {
 	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
 	listingTools := mcp.NewListingTools(listingSvc)
 	assistantRegistry := mcp.NewRegistry()
+	assistantRegistry.Register(hiveTools.ListApiariesTool())
 	assistantRegistry.Register(hiveTools.ListHivesTool())
 	assistantRegistry.Register(hiveTools.ListHiveRecordsTool())
 	assistantRegistry.Register(hiveTools.GetHiveSummaryTool())
@@ -141,7 +142,7 @@ func main() {
 	var assistantHandler *handler.AssistantHandler
 	if anthropicKey := config.AnthropicAPIKey(); anthropicKey != "" {
 		llmClient := llm.NewClient(anthropicKey)
-		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry, assistantRepo)
+		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry, assistantRepo, config.AnthropicModel())
 		assistantHandler = handler.NewAssistantHandler(assistantSvc)
 	} else {
 		slog.Warn("ANTHROPIC_API_KEY not set — assistant endpoint disabled")

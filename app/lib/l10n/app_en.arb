@@ -516,5 +516,10 @@
   "honeyBatchOnChainHash": "On-chain",
   "honeyBatchHashMatch": "Matches the record on the blockchain",
   "honeyBatchHashMismatch": "Does not match the blockchain record - data may have changed",
-  "honeyBatchHashCheckUnavailable": "Live blockchain check unavailable right now"
+  "honeyBatchHashCheckUnavailable": "Live blockchain check unavailable right now",
+
+  "assistantTitle": "Assistant",
+  "assistantEmpty": "Ask me anything related to beekeeping.",
+  "assistantInputHint": "Message the assistant",
+  "assistantError": "Something went wrong. Please try again."
 }

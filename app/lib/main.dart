@@ -10,6 +10,7 @@ import 'core/locale/locale_controller.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_drawer.dart';
+import 'features/assistant/view/assistant_screen.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/view/login_screen.dart';
@@ -110,6 +111,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   onSelectSection: (s) => setState(() => _section = s),
                 ),
               AppSection.honeyBatches => HoneyBatchesHomeScreen(
+                  onSelectSection: (s) => setState(() => _section = s),
+                ),
+              AppSection.assistant => AssistantScreen(
                   onSelectSection: (s) => setState(() => _section = s),
                 ),
             };

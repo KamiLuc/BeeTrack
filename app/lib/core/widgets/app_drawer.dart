@@ -5,7 +5,7 @@ import '../../features/auth/bloc/auth_bloc.dart';
 import '../../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 
-enum AppSection { apiaries, marketplace, honeyBatches }
+enum AppSection { apiaries, marketplace, honeyBatches, assistant }
 
 /// A navigation-drawer list tile with an explicit, consistent "active
 /// section" highlight — used by both drawers so the selected indicator
@@ -93,6 +93,12 @@ class AuthenticatedAppDrawer extends StatelessWidget {
               label: l10n.marketplaceTitle,
               selected: current == AppSection.marketplace,
               onTap: () => _select(context, AppSection.marketplace),
+            ),
+            _DrawerNavTile(
+              icon: Icons.smart_toy_outlined,
+              label: l10n.assistantTitle,
+              selected: current == AppSection.assistant,
+              onTap: () => _select(context, AppSection.assistant),
             ),
             const Spacer(),
             ListTile(

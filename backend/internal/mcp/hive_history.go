@@ -161,7 +161,7 @@ func (t *HiveTools) listFeedings(ctx context.Context, hiveID int64, from, to tim
 // GetHiveSummary aggregates one hive's inspections, treatments, harvests, and
 // feedings within the given lookback window (or all of it, if days is nil).
 func (t *HiveTools) GetHiveSummary(ctx context.Context, userID, hiveID int64, days *int) (*HiveHistory, error) {
-	hive, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID)
+	hive, apiaryName, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,6 +197,7 @@ func (t *HiveTools) GetHiveSummary(ctx context.Context, userID, hiveID int64, da
 		Hive: HiveSummary{
 			ID:              hive.ID,
 			ApiaryID:        hive.ApiaryID,
+			ApiaryName:      apiaryName,
 			Name:            hive.Name,
 			Type:            hive.Type,
 			Active:          hive.Active,
@@ -223,7 +224,7 @@ func decodeHiveDaysInput(input json.RawMessage) (hiveDaysInput, error) {
 	var in hiveDaysInput
 	if len(input) > 0 {
 		if err := json.Unmarshal(input, &in); err != nil {
-			return in, fmt.Errorf("decode input: %w", err)
+			return in, fmt.Errorf("hive_id must be the numeric id from list_hives, not a hive name: %w", err)
 		}
 	}
 	if in.HiveID <= 0 {

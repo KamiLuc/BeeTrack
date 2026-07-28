@@ -1347,4 +1347,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get honeyBatchHashCheckUnavailable =>
       'Live blockchain check unavailable right now';
+
+  @override
+  String get assistantTitle => 'Assistant';
+
+  @override
+  String get assistantEmpty => 'Ask me anything related to beekeeping.';
+
+  @override
+  String get assistantInputHint => 'Message the assistant';
+
+  @override
+  String get assistantError => 'Something went wrong. Please try again.';
 }

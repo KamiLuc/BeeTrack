@@ -33,15 +33,17 @@ func (t *HiveTools) CompareHives(ctx context.Context, userID int64, hiveIDs []in
 	}
 
 	hives := make([]*model.Hive, len(hiveIDs))
+	apiaryNames := make(map[int64]string, len(hiveIDs))
 	for i, id := range hiveIDs {
-		hive, err := authorizeHive(ctx, t.apiaries, t.hives, userID, id)
+		hive, apiaryName, err := authorizeHive(ctx, t.apiaries, t.hives, userID, id)
 		if err != nil {
 			return nil, err
 		}
 		hives[i] = hive
+		apiaryNames[hive.ApiaryID] = apiaryName
 	}
 
-	summaries, err := t.hiveSummaries(ctx, hives)
+	summaries, err := t.hiveSummaries(ctx, hives, apiaryNames)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +112,7 @@ func (t *HiveTools) CompareHivesTool() Tool {
 			var in compareHivesInput
 			if len(input) > 0 {
 				if err := json.Unmarshal(input, &in); err != nil {
-					return nil, fmt.Errorf("decode input: %w", err)
+					return nil, fmt.Errorf("hive_ids must be the numeric ids from list_hives, not hive names: %w", err)
 				}
 			}
 			return t.CompareHives(ctx, userID, in.HiveIDs)

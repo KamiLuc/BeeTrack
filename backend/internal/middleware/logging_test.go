@@ -108,6 +108,62 @@ func TestLogging_DefaultsStatusTo200WhenWriteHeaderNotCalled(t *testing.T) {
 	}
 }
 
+// nonFlushingResponseWriter implements only http.ResponseWriter, deliberately
+// omitting Flush(), to exercise the no-op path in statusWriter.Flush().
+type nonFlushingResponseWriter struct {
+	header http.Header
+}
+
+func (w *nonFlushingResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = http.Header{}
+	}
+	return w.header
+}
+
+func (w *nonFlushingResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
+
+func (w *nonFlushingResponseWriter) WriteHeader(statusCode int) {}
+
+func TestLogging_FlushesUnderlyingRecorderWhenSupported(t *testing.T) {
+	captureLog(t)
+	flushing := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatal("expected ResponseWriter passed to handler to implement http.Flusher")
+		}
+		flusher.Flush()
+	})
+	handler := Logging(flushing)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if !rec.Flushed {
+		t.Error("expected the underlying httptest.ResponseRecorder to have been flushed")
+	}
+}
+
+func TestLogging_FlushNoOpsWhenUnderlyingWriterDoesNotSupportIt(t *testing.T) {
+	captureLog(t)
+	var asserted bool
+	handler := Logging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		asserted = ok
+		if ok {
+			flusher.Flush()
+		}
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	handler.ServeHTTP(&nonFlushingResponseWriter{}, req)
+
+	if !asserted {
+		t.Fatal("expected statusWriter to still satisfy http.Flusher even when the underlying writer doesn't")
+	}
+}
+
 func TestLogging_AttachesRequestScopedLoggerToContext(t *testing.T) {
 	buf := captureLog(t)
 	var gotSameLogger bool

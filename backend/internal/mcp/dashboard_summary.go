@@ -23,7 +23,7 @@ type DashboardSummary struct {
 
 // apiaryID nil means every apiary userID belongs to; days nil means all-time.
 func (t *HiveTools) GetDashboardSummary(ctx context.Context, userID int64, apiaryID *int64, days *int) (DashboardSummary, error) {
-	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
+	hives, apiaryNames, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
 	if err != nil {
 		return DashboardSummary{}, err
 	}
@@ -37,7 +37,7 @@ func (t *HiveTools) GetDashboardSummary(ctx context.Context, userID int64, apiar
 		apiaryCount = len(memberships)
 	}
 
-	summaries, err := t.hiveSummaries(ctx, hives)
+	summaries, err := t.hiveSummaries(ctx, hives, apiaryNames)
 	if err != nil {
 		return DashboardSummary{}, err
 	}

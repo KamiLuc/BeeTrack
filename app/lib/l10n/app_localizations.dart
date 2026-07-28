@@ -2533,6 +2533,30 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Weryfikacja na żywo chwilowo niedostępna'**
   String get honeyBatchHashCheckUnavailable;
+
+  /// No description provided for @assistantTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Asystent'**
+  String get assistantTitle;
+
+  /// No description provided for @assistantEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapytaj mnie o cokolwiek związanego z pszczelarstwem.'**
+  String get assistantEmpty;
+
+  /// No description provided for @assistantInputHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Napisz wiadomość do asystenta'**
+  String get assistantInputHint;
+
+  /// No description provided for @assistantError.
+  ///
+  /// In pl, this message translates to:
+  /// **'Coś poszło nie tak. Spróbuj ponownie.'**
+  String get assistantError;
 }
 
 class _AppLocalizationsDelegate

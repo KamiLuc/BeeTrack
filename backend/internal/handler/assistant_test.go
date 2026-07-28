@@ -84,7 +84,7 @@ func (s *fakeAssistantStore) CreateToolCall(_ context.Context, _ *model.Assistan
 }
 
 func newTestAssistantHandler() *AssistantHandler {
-	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), newFakeAssistantStore())
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), newFakeAssistantStore(), "")
 	return NewAssistantHandler(svc)
 }
 
@@ -133,7 +133,7 @@ func TestAssistantMessagesRejectsConversationOwnedByAnotherUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create conversation: %v", err)
 	}
-	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store)
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store, "")
 	h := NewAssistantHandler(svc)
 	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.Messages))
 
@@ -167,7 +167,7 @@ func (f *erroringAssistantMessageStreamer) NewStreaming(_ context.Context, _ ant
 }
 
 func TestAssistantMessagesStreamsErrorEventOnTurnRunnerFailure(t *testing.T) {
-	svc := service.NewAssistantService(&erroringAssistantMessageStreamer{}, mcp.NewRegistry(), newFakeAssistantStore())
+	svc := service.NewAssistantService(&erroringAssistantMessageStreamer{}, mcp.NewRegistry(), newFakeAssistantStore(), "")
 	h := NewAssistantHandler(svc)
 	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.Messages))
 
@@ -214,7 +214,7 @@ func TestAssistantMessagesReusesGivenConversationID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create conversation: %v", err)
 	}
-	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store)
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store, "")
 	h := NewAssistantHandler(svc)
 	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.Messages))
 

@@ -477,3 +477,73 @@ func TestToolResultParamMarksErrorsAsIsError(t *testing.T) {
 		t.Errorf("expected an error tool result, got %+v", errBlock.OfToolResult)
 	}
 }
+
+// toolUseMessageWithText simulates a turn where the model writes some filler text (e.g. "Let me check
+// that:") before calling a tool, which real Claude turns can do.
+func toolUseMessageWithText(text, id, name string) *anthropic.Message {
+	return &anthropic.Message{
+		Content: []anthropic.ContentBlockUnion{
+			{Type: "text", Text: text},
+			{Type: "tool_use", ID: id, Name: name, Input: json.RawMessage(`{}`)},
+		},
+		StopReason: anthropic.StopReasonToolUse,
+	}
+}
+
+func TestAssistantRunWritesSeparatorAfterATurnWithFillerTextBeforeToolUse(t *testing.T) {
+	registry := mcp.NewRegistry()
+	registry.Register(mcp.Tool{
+		Name:    "list_hives",
+		Handler: func(_ context.Context, _ int64, _ json.RawMessage) (any, error) { return "ok", nil },
+	})
+
+	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+		toolUseMessageWithText("Let me check that:", "toolu_1", "list_hives"),
+		textMessage("you have 3 hives"),
+	}}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
+
+	w := &fakeStreamWriter{}
+	if err := svc.Run(context.Background(), 1, conv, "how many hives?", w); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	found := false
+	for _, d := range w.deltas {
+		if d == "\n\n" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a \\n\\n separator delta between turns, got deltas: %+v", w.deltas)
+	}
+}
+
+func TestAssistantRunSkipsSeparatorWhenToolUseTurnHasNoText(t *testing.T) {
+	registry := mcp.NewRegistry()
+	registry.Register(mcp.Tool{
+		Name:    "list_hives",
+		Handler: func(_ context.Context, _ int64, _ json.RawMessage) (any, error) { return "ok", nil },
+	})
+
+	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+		toolUseMessage("toolu_1", "list_hives", map[string]any{}),
+		textMessage("you have 3 hives"),
+	}}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
+
+	w := &fakeStreamWriter{}
+	if err := svc.Run(context.Background(), 1, conv, "how many hives?", w); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	for _, d := range w.deltas {
+		if d == "\n\n" {
+			t.Errorf("expected no separator when the tool-use turn had no filler text, got deltas: %+v", w.deltas)
+		}
+	}
+}

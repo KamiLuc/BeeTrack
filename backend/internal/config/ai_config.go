@@ -31,6 +31,15 @@ func AnthropicAPIKey() string {
 	return getEnv("ANTHROPIC_API_KEY", "")
 }
 
+// AnthropicModel is the model the assistant agent loop uses. Set ANTHROPIC_MODEL to override, e.g.:
+//
+//	ANTHROPIC_MODEL=claude-haiku-4-5         # default — cheapest/fastest, weaker at multi-step tool use
+//	ANTHROPIC_MODEL=claude-sonnet-5          # better multi-step tool use, higher cost
+//	ANTHROPIC_MODEL=claude-opus-5            # highest quality, highest cost
+func AnthropicModel() string {
+	return getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5")
+}
+
 func (c AIConfig) validate() error {
 	if c.AnthropicAPIKey == "" {
 		return fmt.Errorf("ANTHROPIC_API_KEY is required")

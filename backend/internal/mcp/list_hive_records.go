@@ -19,7 +19,7 @@ type HiveRecords struct {
 // four if recordTypes is empty), each within the given lookback window (or
 // all of history, if days is nil).
 func (t *HiveTools) ListHiveRecords(ctx context.Context, userID, hiveID int64, recordTypes []string, days *int) (*HiveRecords, error) {
-	if _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
+	if _, _, err := authorizeHive(ctx, t.apiaries, t.hives, userID, hiveID); err != nil {
 		return nil, err
 	}
 	types, err := validateAllowedValues(recordTypes, hiveRecordTypes, "record_type")
@@ -79,7 +79,7 @@ func (t *HiveTools) ListHiveRecordsTool() Tool {
 			var in listHiveRecordsInput
 			if len(input) > 0 {
 				if err := json.Unmarshal(input, &in); err != nil {
-					return nil, fmt.Errorf("decode input: %w", err)
+					return nil, fmt.Errorf("hive_id must be the numeric id from list_hives, not a hive name: %w", err)
 				}
 			}
 			if in.HiveID <= 0 {

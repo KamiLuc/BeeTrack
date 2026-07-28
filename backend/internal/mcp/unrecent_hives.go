@@ -43,11 +43,11 @@ func (t *HiveTools) ListHivesMissingRecords(ctx context.Context, userID int64, a
 	if err != nil {
 		return nil, err
 	}
-	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
+	hives, apiaryNames, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
 	if err != nil {
 		return nil, err
 	}
-	summaries, err := t.hiveSummaries(ctx, hives)
+	summaries, err := t.hiveSummaries(ctx, hives, apiaryNames)
 	if err != nil {
 		return nil, err
 	}

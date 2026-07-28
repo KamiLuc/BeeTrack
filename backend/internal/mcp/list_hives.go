@@ -24,6 +24,7 @@ type HiveLister interface {
 type HiveSummary struct {
 	ID              int64    `json:"id"`
 	ApiaryID        int64    `json:"apiary_id"`
+	ApiaryName      string   `json:"apiary_name"`
 	Name            string   `json:"name"`
 	Type            string   `json:"type"`
 	Active          bool     `json:"active"`
@@ -57,25 +58,31 @@ func NewHiveTools(apiaries ApiaryLister, hives HiveLister, inspections Inspectio
 }
 
 // resolveHives returns active hives across every apiary userID belongs to,
-// or just apiaryID's, if it's non-nil. Inactive hives are excluded, same as
-// the app's own bulk-action hive selection.
-func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, userID int64, apiaryID *int64) ([]*model.Hive, error) {
+// or just apiaryID's, if it's non-nil, along with each involved apiary's
+// name (keyed by apiary ID) so callers can label hives by apiary without a
+// second lookup. Inactive hives are excluded, same as the app's own
+// bulk-action hive selection.
+func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, userID int64, apiaryID *int64) ([]*model.Hive, map[int64]string, error) {
+	apiaryNames := make(map[int64]string)
 	var apiaryIDs []int64
 	if apiaryID != nil {
-		if _, _, err := apiaries.GetMembership(ctx, *apiaryID, userID); err != nil {
+		apiary, _, err := apiaries.GetMembership(ctx, *apiaryID, userID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrApiaryNotFound
+				return nil, nil, ErrApiaryNotFound
 			}
-			return nil, fmt.Errorf("get apiary membership: %w", err)
+			return nil, nil, fmt.Errorf("get apiary membership: %w", err)
 		}
 		apiaryIDs = []int64{*apiaryID}
+		apiaryNames[*apiaryID] = apiary.Name
 	} else {
 		memberships, err := apiaries.ListByUserID(ctx, userID)
 		if err != nil {
-			return nil, fmt.Errorf("list apiaries: %w", err)
+			return nil, nil, fmt.Errorf("list apiaries: %w", err)
 		}
 		for _, m := range memberships {
 			apiaryIDs = append(apiaryIDs, m.Apiary.ID)
+			apiaryNames[m.Apiary.ID] = m.Apiary.Name
 		}
 	}
 
@@ -83,7 +90,7 @@ func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, 
 	for _, id := range apiaryIDs {
 		apiaryHives, err := hives.ListByApiaryID(ctx, id)
 		if err != nil {
-			return nil, fmt.Errorf("list hives: %w", err)
+			return nil, nil, fmt.Errorf("list hives: %w", err)
 		}
 		for _, h := range apiaryHives {
 			if h.Active {
@@ -91,7 +98,7 @@ func resolveHives(ctx context.Context, apiaries ApiaryLister, hives HiveLister, 
 			}
 		}
 	}
-	return result, nil
+	return result, apiaryNames, nil
 }
 
 func hiveIDsOf(hives []*model.Hive) []int64 {
@@ -103,8 +110,9 @@ func hiveIDsOf(hives []*model.Hive) []int64 {
 }
 
 // hiveSummaries builds a HiveSummary per hive, attaching each one's diseases
-// in a single batch lookup.
-func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive) ([]HiveSummary, error) {
+// in a single batch lookup. apiaryNames labels each hive's ApiaryName; a
+// missing entry just leaves it blank rather than failing the whole call.
+func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive, apiaryNames map[int64]string) ([]HiveSummary, error) {
 	diseases, err := t.hives.ListDiseasesByHiveIDs(ctx, hiveIDsOf(hives))
 	if err != nil {
 		return nil, fmt.Errorf("list hive diseases: %w", err)
@@ -119,6 +127,7 @@ func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive) ([]H
 		summaries[i] = HiveSummary{
 			ID:              h.ID,
 			ApiaryID:        h.ApiaryID,
+			ApiaryName:      apiaryNames[h.ApiaryID],
 			Name:            h.Name,
 			Type:            h.Type,
 			Active:          h.Active,
@@ -134,11 +143,11 @@ func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive) ([]H
 // ListHives returns hives across every apiary userID belongs to, or just
 // apiaryID's hives if it's non-nil.
 func (t *HiveTools) ListHives(ctx context.Context, userID int64, apiaryID *int64) ([]HiveSummary, error) {
-	hives, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
+	hives, apiaryNames, err := resolveHives(ctx, t.apiaries, t.hives, userID, apiaryID)
 	if err != nil {
 		return nil, err
 	}
-	return t.hiveSummaries(ctx, hives)
+	return t.hiveSummaries(ctx, hives, apiaryNames)
 }
 
 type listHivesInput struct {

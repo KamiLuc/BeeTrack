@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/beetrack/backend/internal/service"
@@ -85,6 +86,7 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 	sse := sseWriter{w: w, flusher: flusher}
 	_ = sse.writeEvent("conversation", map[string]int64{"conversation_id": conv.ID})
 	if err := h.assistant.Run(r.Context(), userID, conv, req.Message, sse); err != nil {
+		slog.ErrorContext(r.Context(), "assistant run failed", "conversation_id", conv.ID, "error", err)
 		_ = sse.writeEvent("error", map[string]string{"message": err.Error()})
 		return
 	}

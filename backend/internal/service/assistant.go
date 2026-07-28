@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	assistantModel        = anthropic.ModelClaudeSonnet5
+	defaultAssistantModel = anthropic.ModelClaudeHaiku4_5
 	assistantMaxTokens    = 2048
 	assistantMaxToolTurns = 8
-	assistantSystemPrompt = "You are the BeeTrack apiary assistant, helping a beekeeper understand their own hives and browse the public marketplace. Only use the information the tools return; never invent hive data, statuses, or listings."
+	assistantSystemPrompt = "You are the BeeTrack apiary assistant, helping a beekeeper understand their own hives and browse the public marketplace. Only use the information the tools return; never invent hive data, statuses, or listings. Always reply in the same language the user's message is written in. Your scope covers three kinds of questions: (1) the caller's own data via tools (hives, apiaries, listings), (2) general beekeeping knowledge and practices (e.g. how to merge hives, treat varroa, judge brood pattern) — answer these directly from your own knowledge even when no tool applies, (3) the BeeTrack app itself. Only decline questions clearly outside all three, e.g. unrelated small talk, other topics, or requests to write code. When referring to a hive, apiary, or listing, always use its name/title from the tool result (e.g. \"Rapeseed Honey\") rather than its raw numeric id; only mention the id if the user explicitly asks for it or several results share the same name."
 )
 
 var (
@@ -85,11 +85,17 @@ type AssistantService struct {
 	turns    turnRunner
 	registry *mcp.Registry
 	repo     AssistantStore
+	model    anthropic.Model
 }
 
-// messages is typically &llm.Client.Messages.
-func NewAssistantService(messages messageStreamer, registry *mcp.Registry, repo AssistantStore) *AssistantService {
-	return &AssistantService{turns: streamTurnRunner{messages: messages}, registry: registry, repo: repo}
+// messages is typically &llm.Client.Messages. model selects the Claude model for the agent loop — pass ""
+// to use defaultAssistantModel (see config.AnthropicModel for the env var that controls this in main.go).
+func NewAssistantService(messages messageStreamer, registry *mcp.Registry, repo AssistantStore, model string) *AssistantService {
+	m := anthropic.Model(model)
+	if m == "" {
+		m = defaultAssistantModel
+	}
+	return &AssistantService{turns: streamTurnRunner{messages: messages}, registry: registry, repo: repo, model: m}
 }
 
 // ResolveConversation loads conversationID if given (rejecting one that doesn't exist or belongs to a
@@ -217,7 +223,7 @@ func (s *AssistantService) Run(ctx context.Context, userID int64, conv *model.As
 
 	for turn := 0; turn < assistantMaxToolTurns; turn++ {
 		msg, err := s.turns.runTurn(ctx, anthropic.MessageNewParams{
-			Model:     assistantModel,
+			Model:     s.model,
 			MaxTokens: assistantMaxTokens,
 			System:    []anthropic.TextBlockParam{{Text: assistantSystemPrompt}},
 			Messages:  messages,
@@ -242,6 +248,15 @@ func (s *AssistantService) Run(ctx context.Context, userID int64, conv *model.As
 			toolCalls = append(toolCalls, toolCallLog(block.Name, block.Input, result, callErr))
 		}
 		messages = append(messages, anthropic.NewUserMessage(results...))
+
+		// If this turn had any filler text before its tool call(s) (e.g. "Let me check that:"),
+		// separate it from the next turn's text so they don't run together mid-sentence once
+		// concatenated client-side — the stream has no other boundary marker between turns.
+		if finalText(msg) != "" {
+			if err := w.WriteDelta("\n\n"); err != nil {
+				return fmt.Errorf("write turn separator: %w", err)
+			}
+		}
 	}
 	return ErrAssistantTooManyToolTurns
 }

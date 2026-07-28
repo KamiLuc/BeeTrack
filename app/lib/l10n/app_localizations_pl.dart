@@ -1367,4 +1367,17 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get honeyBatchHashCheckUnavailable =>
       'Weryfikacja na żywo chwilowo niedostępna';
+
+  @override
+  String get assistantTitle => 'Asystent';
+
+  @override
+  String get assistantEmpty =>
+      'Zapytaj mnie o cokolwiek związanego z pszczelarstwem.';
+
+  @override
+  String get assistantInputHint => 'Napisz wiadomość do asystenta';
+
+  @override
+  String get assistantError => 'Coś poszło nie tak. Spróbuj ponownie.';
 }

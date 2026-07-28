@@ -538,5 +538,10 @@
   "honeyBatchOnChainHash": "Na blockchainie",
   "honeyBatchHashMatch": "Zgodne z rekordem w blockchainie",
   "honeyBatchHashMismatch": "Niezgodne z rekordem w blockchainie - dane mogły zostać zmienione",
-  "honeyBatchHashCheckUnavailable": "Weryfikacja na żywo chwilowo niedostępna"
+  "honeyBatchHashCheckUnavailable": "Weryfikacja na żywo chwilowo niedostępna",
+
+  "assistantTitle": "Asystent",
+  "assistantEmpty": "Zapytaj mnie o cokolwiek związanego z pszczelarstwem.",
+  "assistantInputHint": "Napisz wiadomość do asystenta",
+  "assistantError": "Coś poszło nie tak. Spróbuj ponownie."
 }
