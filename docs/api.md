@@ -3019,21 +3019,18 @@ Only registered when the API is started with `ANTHROPIC_API_KEY` set — if the 
 
 ### POST /assistant/messages 🔒
 
-Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API. There is no server-side conversation persistence — the client resends the full message history on every request, and Claude sees the whole thing again each turn. Behind the scenes, Claude can call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's own `userID`, capped at 8 tool-call round trips per request.
+Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API. The server owns conversation history: pass `conversation_id` to continue an existing conversation, or omit it to start a new one — the server loads/persists the message trail (`assistant_conversations`/`assistant_message_logs`/`assistant_tool_calls`). Behind the scenes, Claude can call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's own `userID`, capped at 8 tool-call round trips per request.
 
 **Request**
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "Which hives haven't been inspected in 2 weeks?" },
-    { "role": "assistant", "content": "Let me check..." },
-    { "role": "user", "content": "Just apiary 3, please." }
-  ]
+  "conversation_id": 42,
+  "message": "Just apiary 3, please."
 }
 ```
 
-- `messages` must not be empty
-- The last message in the array must have `role: "user"`
+- `conversation_id` is optional int64 — omit to start a new conversation, pass an existing one to continue it (must belong to the caller)
+- `message` must be a non-empty string
 
 **Response** `200 OK` — `Content-Type: text/event-stream`
 
@@ -3041,6 +3038,7 @@ Unlike other endpoints, this streams a Server-Sent Events body instead of a sing
 
 | Event | Payload | Description |
 |-------|---------|--------------|
+| `conversation` | `{ "conversation_id": 42 }` | Sent first, before any `delta`. Lets the client learn the id on a brand-new conversation so it can pass it on the next call. |
 | `delta` | `{ "text": "..." }` | A chunk of assistant text as Claude generates it. Zero or more per request. |
 | `done` | `{ "done": true }` | Sent once, after the last `delta`, on success. |
 | `error` | `{ "message": "..." }` | Sent instead of `done` if the agent loop fails partway through (e.g. the Claude API errors out or a tool call fails). |
@@ -3051,5 +3049,5 @@ Unlike other endpoints, this streams a Server-Sent Events body instead of a sing
 | `MISSING_TOKEN` | 401 | No Bearer token in header |
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_BODY` | 400 | Malformed JSON |
-| `EMPTY_MESSAGES` | 400 | `messages` array is empty |
-| `INVALID_LAST_MESSAGE` | 400 | Last message's `role` is not `"user"` |
+| `EMPTY_MESSAGE` | 400 | `message` is empty |
+| `CONVERSATION_NOT_FOUND` | 404 | `conversation_id` doesn't exist or doesn't belong to the caller |

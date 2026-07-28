@@ -5614,11 +5614,11 @@ paths:
       tags:
       - AI Assistant
       summary: Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API.
-      description: Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API.
-        There is no server-side conversation persistence — the client resends the full message history
-        on every request, and Claude sees the whole thing again each turn. Behind the scenes, Claude can
-        call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's
-        own `userID`, capped at 8 tool-call round trips per request.
+      description: 'Runs one turn of the AI apiary assistant''s agent loop against the Claude Messages
+        API. The server owns conversation history: pass `conversation_id` to continue an existing conversation,
+        or omit it to start a new one — the server loads/persists the message trail (`assistant_conversations`/`assistant_message_logs`/`assistant_tool_calls`).
+        Behind the scenes, Claude can call the internal MCP tool registry (hive/apiary/marketplace read
+        tools) scoped to the caller''s own `userID`, capped at 8 tool-call round trips per request.'
       responses:
         '200':
           description: '`Content-Type: text/event-stream`'
@@ -5637,7 +5637,7 @@ paths:
                     code: INVALID_TOKEN
                     message: Token invalid or expired
         '400':
-          description: Malformed JSON; `messages` array is empty; Last message's `role` is not `"user"`
+          description: Malformed JSON; `message` is empty
           content:
             application/json:
               schema: *id001
@@ -5646,14 +5646,20 @@ paths:
                   value:
                     code: INVALID_BODY
                     message: Malformed JSON
-                EMPTY_MESSAGES:
+                EMPTY_MESSAGE:
                   value:
-                    code: EMPTY_MESSAGES
-                    message: '`messages` array is empty'
-                INVALID_LAST_MESSAGE:
+                    code: EMPTY_MESSAGE
+                    message: '`message` is empty'
+        '404':
+          description: '`conversation_id` doesn''t exist or doesn''t belong to the caller'
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                CONVERSATION_NOT_FOUND:
                   value:
-                    code: INVALID_LAST_MESSAGE
-                    message: Last message's `role` is not `"user"`
+                    code: CONVERSATION_NOT_FOUND
+                    message: '`conversation_id` doesn''t exist or doesn''t belong to the caller'
       security:
       - bearerAuth: []
       requestBody:
@@ -5662,23 +5668,13 @@ paths:
             schema:
               type: object
               properties:
-                messages:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      role:
-                        type: string
-                      content:
-                        type: string
+                conversation_id:
+                  type: integer
+                message:
+                  type: string
             example:
-              messages:
-              - role: user
-                content: Which hives haven't been inspected in 2 weeks?
-              - role: assistant
-                content: Let me check...
-              - role: user
-                content: Just apiary 3, please.
+              conversation_id: 42
+              message: Just apiary 3, please.
   /api/v1/auth/forgot-password:
     post:
       tags:

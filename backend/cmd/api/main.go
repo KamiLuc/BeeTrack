@@ -80,6 +80,7 @@ func main() {
 	honeyBatchCertificationRequestRepo := repository.NewHoneyBatchCertificationRequestRepository(db)
 	honeyBatchQRCodeRepo := repository.NewHoneyBatchQRCodeRepository(db)
 	blockchainJobRepo := repository.NewBlockchainJobRepository(db)
+	assistantRepo := repository.NewAssistantRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -140,7 +141,7 @@ func main() {
 	var assistantHandler *handler.AssistantHandler
 	if anthropicKey := config.AnthropicAPIKey(); anthropicKey != "" {
 		llmClient := llm.NewClient(anthropicKey)
-		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry)
+		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry, assistantRepo)
 		assistantHandler = handler.NewAssistantHandler(assistantSvc)
 	} else {
 		slog.Warn("ANTHROPIC_API_KEY not set — assistant endpoint disabled")

@@ -8,6 +8,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/beetrack/backend/internal/mcp"
+	"github.com/beetrack/backend/internal/model"
 )
 
 type fakeStreamWriter struct {
@@ -53,32 +54,88 @@ func toolUseMessage(id, name string, input map[string]any) *anthropic.Message {
 	}
 }
 
-func newTestAssistant(runner turnRunner) (*AssistantService, *mcp.Registry) {
-	registry := mcp.NewRegistry()
-	return &AssistantService{turns: runner, registry: registry}, registry
+// fakeAssistantStore is an in-memory AssistantStore, keyed by incrementing IDs, good enough to drive the
+// agent loop's persistence calls in tests without a real DB.
+type fakeAssistantStore struct {
+	conversations map[int64]*model.AssistantConversation
+	messages      map[int64][]*model.AssistantMessageLog
+	toolCalls     []*model.AssistantToolCall
+	nextConvID    int64
+	nextMsgID     int64
+	createMsgErr  error
+	listMsgErr    error
 }
 
-func TestAssistantRunRejectsEmptyHistory(t *testing.T) {
-	svc, _ := newTestAssistant(&fakeTurnRunner{})
-	if err := svc.Run(context.Background(), 1, nil, &fakeStreamWriter{}); !errors.Is(err, ErrAssistantEmptyMessages) {
-		t.Fatalf("expected ErrAssistantEmptyMessages, got %v", err)
+func newFakeAssistantStore() *fakeAssistantStore {
+	return &fakeAssistantStore{
+		conversations: make(map[int64]*model.AssistantConversation),
+		messages:      make(map[int64][]*model.AssistantMessageLog),
 	}
 }
 
-func TestAssistantRunRejectsNonUserLastMessage(t *testing.T) {
-	svc, _ := newTestAssistant(&fakeTurnRunner{})
-	history := []AssistantMessage{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "hello"}}
-	if err := svc.Run(context.Background(), 1, history, &fakeStreamWriter{}); !errors.Is(err, ErrAssistantLastMessageUser) {
-		t.Fatalf("expected ErrAssistantLastMessageUser, got %v", err)
+func (s *fakeAssistantStore) CreateConversation(_ context.Context, userID int64) (*model.AssistantConversation, error) {
+	s.nextConvID++
+	conv := &model.AssistantConversation{ID: s.nextConvID, UserID: userID}
+	s.conversations[conv.ID] = conv
+	return conv, nil
+}
+
+func (s *fakeAssistantStore) GetConversationByID(_ context.Context, id int64) (*model.AssistantConversation, error) {
+	return s.conversations[id], nil
+}
+
+func (s *fakeAssistantStore) ListMessageLogs(_ context.Context, conversationID int64) ([]*model.AssistantMessageLog, error) {
+	if s.listMsgErr != nil {
+		return nil, s.listMsgErr
+	}
+	return s.messages[conversationID], nil
+}
+
+func (s *fakeAssistantStore) CreateMessageLog(_ context.Context, log *model.AssistantMessageLog) error {
+	if s.createMsgErr != nil {
+		return s.createMsgErr
+	}
+	s.nextMsgID++
+	log.ID = s.nextMsgID
+	s.messages[log.ConversationID] = append(s.messages[log.ConversationID], log)
+	return nil
+}
+
+func (s *fakeAssistantStore) CreateToolCall(_ context.Context, call *model.AssistantToolCall) error {
+	s.toolCalls = append(s.toolCalls, call)
+	return nil
+}
+
+func newTestAssistant(runner turnRunner) (*AssistantService, *mcp.Registry, *fakeAssistantStore) {
+	registry := mcp.NewRegistry()
+	store := newFakeAssistantStore()
+	return &AssistantService{turns: runner, registry: registry, repo: store}, registry, store
+}
+
+func testConversation(t *testing.T, store *fakeAssistantStore, userID int64) *model.AssistantConversation {
+	t.Helper()
+	conv, err := store.CreateConversation(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	return conv
+}
+
+func TestAssistantRunRejectsEmptyMessage(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 1)
+	if err := svc.Run(context.Background(), 1, conv, "", &fakeStreamWriter{}); !errors.Is(err, ErrAssistantEmptyMessage) {
+		t.Fatalf("expected ErrAssistantEmptyMessage, got %v", err)
 	}
 }
 
 func TestAssistantRunEndsOnNonToolUseStopReason(t *testing.T) {
 	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("hello beekeeper")}}
-	svc, _ := newTestAssistant(runner)
+	svc, _, store := newTestAssistant(runner)
+	conv := testConversation(t, store, 1)
 	w := &fakeStreamWriter{}
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, w)
+	err := svc.Run(context.Background(), 1, conv, "hi", w)
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
@@ -87,6 +144,33 @@ func TestAssistantRunEndsOnNonToolUseStopReason(t *testing.T) {
 	}
 	if len(w.deltas) != 1 || w.deltas[0] != "chunk" {
 		t.Errorf("expected the writer passed through to the turn runner, got %+v", w.deltas)
+	}
+
+	msgs := store.messages[conv.ID]
+	if len(msgs) != 2 || msgs[0].Role != model.AssistantMessageRoleUser || msgs[1].Role != model.AssistantMessageRoleAssistant {
+		t.Fatalf("expected [user, assistant] persisted, got %+v", msgs)
+	}
+	if msgs[1].Content != "hello beekeeper" {
+		t.Errorf("expected persisted assistant content %q, got %q", "hello beekeeper", msgs[1].Content)
+	}
+}
+
+func TestAssistantRunLoadsPriorHistoryIntoTheTurn(t *testing.T) {
+	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("still 3 hives")}}
+	svc, _, store := newTestAssistant(runner)
+	conv := testConversation(t, store, 1)
+	store.messages[conv.ID] = []*model.AssistantMessageLog{
+		{ID: 1, ConversationID: conv.ID, Role: model.AssistantMessageRoleUser, Content: "how many hives?"},
+		{ID: 2, ConversationID: conv.ID, Role: model.AssistantMessageRoleAssistant, Content: "3 hives"},
+	}
+
+	if err := svc.Run(context.Background(), 1, conv, "still correct?", &fakeStreamWriter{}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	sent := runner.calls[0].Messages
+	if len(sent) != 3 {
+		t.Fatalf("expected 2 history messages + the new one sent to Claude, got %d", len(sent))
 	}
 }
 
@@ -107,9 +191,11 @@ func TestAssistantRunCallsToolThenReturnsFinalAnswer(t *testing.T) {
 		toolUseMessage("toolu_1", "list_hives", map[string]any{"apiary_id": 5}),
 		textMessage("you have 3 hives"),
 	}}
-	svc := &AssistantService{turns: runner, registry: registry}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 42)
 
-	err := svc.Run(context.Background(), 42, []AssistantMessage{{Role: "user", Content: "how many hives?"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 42, conv, "how many hives?", &fakeStreamWriter{})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
@@ -118,6 +204,13 @@ func TestAssistantRunCallsToolThenReturnsFinalAnswer(t *testing.T) {
 	}
 	if gotUserID != 42 || gotName != "list_hives" || string(gotInput) != `{"apiary_id":5}` {
 		t.Errorf("tool called with unexpected args: userID=%d name=%s input=%s", gotUserID, gotName, gotInput)
+	}
+
+	if len(store.toolCalls) != 1 || store.toolCalls[0].ToolName != "list_hives" || store.toolCalls[0].IsError {
+		t.Fatalf("expected 1 persisted successful tool call, got %+v", store.toolCalls)
+	}
+	if store.toolCalls[0].MessageID == 0 {
+		t.Errorf("expected the tool call linked to the persisted assistant message, got MessageID=0")
 	}
 }
 
@@ -134,14 +227,19 @@ func TestAssistantRunToolErrorIsRelayedAsToolResultAndLoopContinues(t *testing.T
 		toolUseMessage("toolu_1", "broken_tool", map[string]any{}),
 		textMessage("sorry, that failed"),
 	}}
-	svc := &AssistantService{turns: runner, registry: registry}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
 	if len(runner.calls) != 2 {
 		t.Fatalf("expected the loop to continue past a tool error, got %d turns", len(runner.calls))
+	}
+	if len(store.toolCalls) != 1 || !store.toolCalls[0].IsError {
+		t.Fatalf("expected 1 persisted tool call marked as an error, got %+v", store.toolCalls)
 	}
 }
 
@@ -175,9 +273,11 @@ func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
 		multiToolUseMessage([2]string{"toolu_1", "list_hives"}, [2]string{"toolu_2", "get_dashboard_summary"}),
 		textMessage("here you go"),
 	}}
-	svc := &AssistantService{turns: runner, registry: registry}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
@@ -189,6 +289,9 @@ func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
 	if len(toolResultsMsg.Content) != 2 {
 		t.Fatalf("expected 2 tool_result blocks fed back in one user message, got %d", len(toolResultsMsg.Content))
 	}
+	if len(store.toolCalls) != 2 {
+		t.Fatalf("expected 2 persisted tool calls, got %d", len(store.toolCalls))
+	}
 }
 
 func TestAssistantRunUnregisteredToolNameRelayedAsToolResultAndLoopContinues(t *testing.T) {
@@ -197,9 +300,11 @@ func TestAssistantRunUnregisteredToolNameRelayedAsToolResultAndLoopContinues(t *
 		toolUseMessage("toolu_1", "does_not_exist", map[string]any{}),
 		textMessage("sorry, I couldn't do that"),
 	}}
-	svc := &AssistantService{turns: runner, registry: registry}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
@@ -223,9 +328,11 @@ func TestAssistantRunExceedingMaxToolTurnsReturnsError(t *testing.T) {
 		Handler: func(_ context.Context, _ int64, _ json.RawMessage) (any, error) { return nil, nil },
 	})
 	runner := &fakeTurnRunner{responses: responses}
-	svc := &AssistantService{turns: runner, registry: registry}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
 	if !errors.Is(err, ErrAssistantTooManyToolTurns) {
 		t.Fatalf("expected ErrAssistantTooManyToolTurns, got %v", err)
 	}
@@ -236,11 +343,84 @@ func TestAssistantRunExceedingMaxToolTurnsReturnsError(t *testing.T) {
 
 func TestAssistantRunPropagatesTurnRunnerError(t *testing.T) {
 	runner := &fakeTurnRunner{errs: []error{errors.New("stream broke")}, responses: []*anthropic.Message{nil}}
-	svc, _ := newTestAssistant(runner)
+	svc, _, store := newTestAssistant(runner)
+	conv := testConversation(t, store, 1)
 
-	err := svc.Run(context.Background(), 1, []AssistantMessage{{Role: "user", Content: "hi"}}, &fakeStreamWriter{})
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestAssistantRunSucceedsDespitePersistFailure(t *testing.T) {
+	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("hello beekeeper")}}
+	svc, _, store := newTestAssistant(runner)
+	conv := testConversation(t, store, 1)
+	store.createMsgErr = errors.New("db down")
+
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
+	if err != nil {
+		t.Fatalf("expected a logging failure to not abort the response, got %v", err)
+	}
+	if len(store.messages[conv.ID]) != 0 {
+		t.Errorf("expected no messages persisted when CreateMessageLog always fails, got %+v", store.messages[conv.ID])
+	}
+}
+
+func TestAssistantRunPropagatesHistoryLoadError(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 1)
+	store.listMsgErr = errors.New("db down")
+
+	err := svc.Run(context.Background(), 1, conv, "hi", &fakeStreamWriter{})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestResolveConversationCreatesNewWhenNilGiven(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv, err := svc.ResolveConversation(context.Background(), 7, nil)
+	if err != nil {
+		t.Fatalf("ResolveConversation returned error: %v", err)
+	}
+	if conv.UserID != 7 {
+		t.Errorf("expected new conversation owned by userID 7, got %d", conv.UserID)
+	}
+	if _, ok := store.conversations[conv.ID]; !ok {
+		t.Errorf("expected the new conversation to be persisted")
+	}
+}
+
+func TestResolveConversationLoadsExistingOwnedConversation(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	existing := testConversation(t, store, 7)
+
+	conv, err := svc.ResolveConversation(context.Background(), 7, &existing.ID)
+	if err != nil {
+		t.Fatalf("ResolveConversation returned error: %v", err)
+	}
+	if conv.ID != existing.ID {
+		t.Errorf("expected the existing conversation returned, got %+v", conv)
+	}
+}
+
+func TestResolveConversationRejectsUnknownID(t *testing.T) {
+	svc, _, _ := newTestAssistant(&fakeTurnRunner{})
+	unknown := int64(999)
+	_, err := svc.ResolveConversation(context.Background(), 7, &unknown)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
+	}
+}
+
+func TestResolveConversationRejectsConversationOwnedByAnotherUser(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	other := testConversation(t, store, 99)
+
+	_, err := svc.ResolveConversation(context.Background(), 7, &other.ID)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
 	}
 }
 
@@ -270,9 +450,9 @@ func TestToolParamsConvertsRegistryToolsToAnthropicSchema(t *testing.T) {
 }
 
 func TestToMessageParamsMapsRoles(t *testing.T) {
-	history := []AssistantMessage{
-		{Role: "user", Content: "hi"},
-		{Role: "assistant", Content: "hello"},
+	history := []*model.AssistantMessageLog{
+		{Role: model.AssistantMessageRoleUser, Content: "hi"},
+		{Role: model.AssistantMessageRoleAssistant, Content: "hello"},
 	}
 	params := toMessageParams(history)
 	if len(params) != 2 {

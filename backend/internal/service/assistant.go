@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 	"github.com/beetrack/backend/internal/mcp"
+	"github.com/beetrack/backend/internal/model"
+	"gorm.io/datatypes"
 )
 
 const (
@@ -21,16 +25,10 @@ const (
 )
 
 var (
-	ErrAssistantEmptyMessages    = errors.New("messages must not be empty")
-	ErrAssistantLastMessageUser  = errors.New("the last message must be from the user")
-	ErrAssistantTooManyToolTurns = errors.New("assistant exceeded the maximum number of tool-call turns")
+	ErrAssistantEmptyMessage         = errors.New("message must not be empty")
+	ErrAssistantTooManyToolTurns     = errors.New("assistant exceeded the maximum number of tool-call turns")
+	ErrAssistantConversationNotFound = errors.New("conversation not found")
 )
-
-// The client resends every prior turn each request — nothing is persisted server-side for v1.
-type AssistantMessage struct {
-	Role    string
-	Content string
-}
 
 type AssistantStreamWriter interface {
 	WriteDelta(text string) error
@@ -72,15 +70,42 @@ func (r streamTurnRunner) runTurn(ctx context.Context, params anthropic.MessageN
 	return &msg, nil
 }
 
+// AssistantStore is the persistence interface for assistant conversations and their message/tool-call
+// trail, satisfied by *repository.AssistantRepository.
+type AssistantStore interface {
+	CreateConversation(ctx context.Context, userID int64) (*model.AssistantConversation, error)
+	GetConversationByID(ctx context.Context, id int64) (*model.AssistantConversation, error)
+	ListMessageLogs(ctx context.Context, conversationID int64) ([]*model.AssistantMessageLog, error)
+	CreateMessageLog(ctx context.Context, log *model.AssistantMessageLog) error
+	CreateToolCall(ctx context.Context, call *model.AssistantToolCall) error
+}
+
 // userID always comes from the caller, never from the model's own input.
 type AssistantService struct {
 	turns    turnRunner
 	registry *mcp.Registry
+	repo     AssistantStore
 }
 
 // messages is typically &llm.Client.Messages.
-func NewAssistantService(messages messageStreamer, registry *mcp.Registry) *AssistantService {
-	return &AssistantService{turns: streamTurnRunner{messages: messages}, registry: registry}
+func NewAssistantService(messages messageStreamer, registry *mcp.Registry, repo AssistantStore) *AssistantService {
+	return &AssistantService{turns: streamTurnRunner{messages: messages}, registry: registry, repo: repo}
+}
+
+// ResolveConversation loads conversationID if given (rejecting one that doesn't exist or belongs to a
+// different user), or starts a new conversation for userID if nil.
+func (s *AssistantService) ResolveConversation(ctx context.Context, userID int64, conversationID *int64) (*model.AssistantConversation, error) {
+	if conversationID == nil {
+		return s.repo.CreateConversation(ctx, userID)
+	}
+	conv, err := s.repo.GetConversationByID(ctx, *conversationID)
+	if err != nil {
+		return nil, err
+	}
+	if conv == nil || conv.UserID != userID {
+		return nil, ErrAssistantConversationNotFound
+	}
+	return conv, nil
 }
 
 func (s *AssistantService) toolParams() []anthropic.ToolUnionParam {
@@ -99,11 +124,11 @@ func (s *AssistantService) toolParams() []anthropic.ToolUnionParam {
 	return params
 }
 
-func toMessageParams(history []AssistantMessage) []anthropic.MessageParam {
+func toMessageParams(history []*model.AssistantMessageLog) []anthropic.MessageParam {
 	params := make([]anthropic.MessageParam, len(history))
 	for i, m := range history {
 		block := anthropic.NewTextBlock(m.Content)
-		if m.Role == "assistant" {
+		if m.Role == model.AssistantMessageRoleAssistant {
 			params[i] = anthropic.NewAssistantMessage(block)
 		} else {
 			params[i] = anthropic.NewUserMessage(block)
@@ -123,17 +148,72 @@ func toolResultParam(toolUseID string, result any, callErr error) anthropic.Cont
 	return anthropic.NewToolResultBlock(toolUseID, string(data), false)
 }
 
-// Text streams to w on every turn, not just the final one.
-func (s *AssistantService) Run(ctx context.Context, userID int64, history []AssistantMessage, w AssistantStreamWriter) error {
-	if len(history) == 0 {
-		return ErrAssistantEmptyMessages
+// toolCallLog builds the assistant_tool_calls row for one MCP call — Result holds the marshaled tool
+// result, or the error message when callErr is set, mirroring toolResultParam's own success/error shape.
+func toolCallLog(name string, input json.RawMessage, result any, callErr error) *model.AssistantToolCall {
+	var resultJSON []byte
+	if callErr != nil {
+		resultJSON, _ = json.Marshal(map[string]string{"error": callErr.Error()})
+	} else {
+		resultJSON, _ = json.Marshal(result)
 	}
-	if history[len(history)-1].Role != "user" {
-		return ErrAssistantLastMessageUser
+	return &model.AssistantToolCall{
+		ToolName: name,
+		Input:    datatypes.JSON(input),
+		Result:   datatypes.JSON(resultJSON),
+		IsError:  callErr != nil,
+	}
+}
+
+func finalText(msg *anthropic.Message) string {
+	var sb strings.Builder
+	for _, block := range msg.Content {
+		if block.Type == "text" {
+			sb.WriteString(block.Text)
+		}
+	}
+	return sb.String()
+}
+
+// Logging failures are reported but never returned, so a DB hiccup here can't fail an SSE response
+// already in flight.
+func (s *AssistantService) persistUserMessage(ctx context.Context, conversationID int64, message string) {
+	log := &model.AssistantMessageLog{ConversationID: conversationID, Role: model.AssistantMessageRoleUser, Content: message}
+	if err := s.repo.CreateMessageLog(ctx, log); err != nil {
+		slog.Error("persist assistant user message", "conversation_id", conversationID, "error", err)
+	}
+}
+
+func (s *AssistantService) persistAssistantTurn(ctx context.Context, conversationID int64, text string, toolCalls []*model.AssistantToolCall) {
+	log := &model.AssistantMessageLog{ConversationID: conversationID, Role: model.AssistantMessageRoleAssistant, Content: text}
+	if err := s.repo.CreateMessageLog(ctx, log); err != nil {
+		slog.Error("persist assistant reply", "conversation_id", conversationID, "error", err)
+		return
+	}
+	for _, call := range toolCalls {
+		call.MessageID = log.ID
+		if err := s.repo.CreateToolCall(ctx, call); err != nil {
+			slog.Error("persist assistant tool call", "conversation_id", conversationID, "message_id", log.ID, "tool_name", call.ToolName, "error", err)
+		}
+	}
+}
+
+// Text streams to w on every turn, not just the final one. conv must already be resolved (and its
+// ownership checked) via ResolveConversation before calling Run.
+func (s *AssistantService) Run(ctx context.Context, userID int64, conv *model.AssistantConversation, message string, w AssistantStreamWriter) error {
+	if message == "" {
+		return ErrAssistantEmptyMessage
 	}
 
-	messages := toMessageParams(history)
+	history, err := s.repo.ListMessageLogs(ctx, conv.ID)
+	if err != nil {
+		return fmt.Errorf("load conversation history: %w", err)
+	}
+	s.persistUserMessage(ctx, conv.ID, message)
+
+	messages := append(toMessageParams(history), anthropic.NewUserMessage(anthropic.NewTextBlock(message)))
 	tools := s.toolParams()
+	var toolCalls []*model.AssistantToolCall
 
 	for turn := 0; turn < assistantMaxToolTurns; turn++ {
 		msg, err := s.turns.runTurn(ctx, anthropic.MessageNewParams{
@@ -147,6 +227,7 @@ func (s *AssistantService) Run(ctx context.Context, userID int64, history []Assi
 			return err
 		}
 		if msg.StopReason != anthropic.StopReasonToolUse {
+			s.persistAssistantTurn(ctx, conv.ID, finalText(msg), toolCalls)
 			return nil
 		}
 
@@ -158,6 +239,7 @@ func (s *AssistantService) Run(ctx context.Context, userID int64, history []Assi
 			}
 			result, callErr := s.registry.Call(ctx, userID, block.Name, block.Input)
 			results = append(results, toolResultParam(block.ID, result, callErr))
+			toolCalls = append(toolCalls, toolCallLog(block.Name, block.Input, result, callErr))
 		}
 		messages = append(messages, anthropic.NewUserMessage(results...))
 	}

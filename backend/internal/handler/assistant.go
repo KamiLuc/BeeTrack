@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -18,23 +19,11 @@ func NewAssistantHandler(assistant *service.AssistantService) *AssistantHandler 
 }
 
 type assistantMessageRequest struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	ConversationID *int64 `json:"conversation_id"`
+	Message        string `json:"message"`
 }
 
-type assistantMessagesRequest struct {
-	Messages []assistantMessageRequest `json:"messages"`
-}
-
-func (req assistantMessagesRequest) toHistory() []service.AssistantMessage {
-	history := make([]service.AssistantMessage, len(req.Messages))
-	for i, m := range req.Messages {
-		history[i] = service.AssistantMessage{Role: m.Role, Content: m.Content}
-	}
-	return history
-}
-
-// The client distinguishes delta/done/error via the SSE `event:` field.
+// The client distinguishes conversation/delta/done/error via the SSE `event:` field.
 type sseWriter struct {
 	w       http.ResponseWriter
 	flusher http.Flusher
@@ -64,17 +53,22 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req assistantMessagesRequest
+	var req assistantMessageRequest
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	history := req.toHistory()
-	if len(history) == 0 {
-		respond.Error(w, http.StatusBadRequest, "EMPTY_MESSAGES", "messages must not be empty")
+	if req.Message == "" {
+		respond.Error(w, http.StatusBadRequest, "EMPTY_MESSAGE", "message must not be empty")
 		return
 	}
-	if history[len(history)-1].Role != "user" {
-		respond.Error(w, http.StatusBadRequest, "INVALID_LAST_MESSAGE", "the last message must be from the user")
+
+	conv, err := h.assistant.ResolveConversation(r.Context(), userID, req.ConversationID)
+	if errors.Is(err, service.ErrAssistantConversationNotFound) {
+		respond.Error(w, http.StatusNotFound, "CONVERSATION_NOT_FOUND", "conversation not found")
+		return
+	}
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to resolve conversation")
 		return
 	}
 
@@ -89,7 +83,8 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	sse := sseWriter{w: w, flusher: flusher}
-	if err := h.assistant.Run(r.Context(), userID, history, sse); err != nil {
+	_ = sse.writeEvent("conversation", map[string]int64{"conversation_id": conv.ID})
+	if err := h.assistant.Run(r.Context(), userID, conv, req.Message, sse); err != nil {
 		_ = sse.writeEvent("error", map[string]string{"message": err.Error()})
 		return
 	}
