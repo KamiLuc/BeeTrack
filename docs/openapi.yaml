@@ -5609,6 +5609,105 @@ paths:
               medicine_name: Apiwarol
               dose: '2'
               notes: applied evenly
+  /api/v1/apiaries/{id}/voice:
+    post:
+      tags:
+      - Voice Logging
+      summary: Uploads a voice recording to be transcribed and turned into a proposed inspection log entry.
+      description: 'Uploads a voice recording to be transcribed and turned into a proposed inspection
+        log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`,
+        `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for
+        the client''s ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.  The
+        uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted
+        with status `pending`. Transcription and log-entry generation happen asynchronously in a background
+        worker (not yet implemented) — this endpoint only enqueues the recording.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recording_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                recording_id: 7
+                status: pending
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path id is not a valid integer; MIME type not allowed
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path id is not a valid integer
+                INVALID_AUDIO_TYPE:
+                  value:
+                    code: INVALID_AUDIO_TYPE
+                    message: MIME type not allowed
+        '413':
+          description: File exceeds 15 MB
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_TOO_LONG:
+                  value:
+                    code: RECORDING_TOO_LONG
+                    message: File exceeds 15 MB
+        '404':
+          description: Apiary does not exist or user is not a member
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+        '422':
+          description: Caller already has 20 stored recordings
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MAX_RECORDINGS_REACHED:
+                  value:
+                    code: MAX_RECORDINGS_REACHED
+                    message: Caller already has 20 stored recordings
+        '500':
+          description: Unexpected server error; Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
   /api/v1/assistant/conversations:
     get:
       tags:
@@ -5717,16 +5816,6 @@ paths:
                   value:
                     code: CONVERSATION_NOT_FOUND
                     message: '`id` doesn''t exist or doesn''t belong to the caller'
-        '500':
-          description: Unexpected server error
-          content:
-            application/json:
-              schema: *id001
-              examples:
-                INTERNAL_ERROR:
-                  value:
-                    code: INTERNAL_ERROR
-                    message: Unexpected server error
       security:
       - bearerAuth: []
   /api/v1/assistant/conversations/{id}/messages:
