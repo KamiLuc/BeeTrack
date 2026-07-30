@@ -286,6 +286,18 @@ the sibling actions accepted alongside it.
   Claude is prompted in the detected language so field values (notes) preserve the
   beekeeper's own words — the same detected language is used for hive-name matching,
   so Polish diacritics in a hive's name aren't a mismatch source.
+- **Transient Whisper failures are retried; everything else fails immediately.** A
+  timeout, 5xx, or rate-limit response from Whisper doesn't mean the audio is bad —
+  it means the call itself didn't go through — so the worker bumps `retry_count`, sets
+  `next_attempt_at` (backoff: 5s / 30s / 2m), and puts the recording back to `pending`
+  for its own poll loop to pick up again, rather than making the beekeeper re-record
+  something the app already has safely stored. After 3 attempts it gives up and moves
+  to `failed`. A non-transient failure (corrupt file, unsupported codec, a 4xx from
+  Whisper) is not retried — retrying an input Whisper will never accept just delays
+  the same `failed` outcome, so it goes straight there. This is a different mechanism
+  from stuck-`processing` recovery below: retry handles a call that came back with an
+  error; stuck-`processing` recovery handles a call that never came back at all
+  (worker crash/restart mid-request).
 - **Bad audio is rejected before it ever reaches Claude, not guessed at.** Whisper
   returns per-segment confidence alongside the transcript (avg log-probability,
   no-speech probability). If a meaningful portion of the recording comes back
@@ -353,6 +365,17 @@ CREATE TABLE voice_recordings (
                                                      -- error, corrupt file) — distinct from a
                                                      -- per-action error, which lives on the
                                                      -- voice_actions row instead
+    retry_count       SMALLINT NOT NULL DEFAULT 0, -- transient Whisper failures only (timeout,
+                                                     -- 5xx, rate limit); bumped each attempt.
+                                                     -- 'failed' only once retry_count hits
+                                                     -- MAX_WHISPER_RETRIES (3) — a non-transient
+                                                     -- failure (corrupt file, unsupported format)
+                                                     -- goes straight to 'failed', no retry
+    next_attempt_at   TIMESTAMPTZ,                  -- set to now()+backoff on a transient
+                                                     -- failure, row goes back to 'pending'; the
+                                                     -- poll loop skips 'pending' rows whose
+                                                     -- next_attempt_at is still in the future.
+                                                     -- Backoff: 5s / 30s / 2m (attempt 1/2/3)
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at      TIMESTAMPTZ                 -- when the worker finished with it
                                                     -- (either outcome)
