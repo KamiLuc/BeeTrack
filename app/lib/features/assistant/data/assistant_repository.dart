@@ -4,12 +4,48 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_exception.dart';
+import 'assistant_chat_message.dart';
+import 'assistant_conversation_summary.dart';
 import 'assistant_event.dart';
 
 class AssistantRepository {
   final ApiClient _api;
 
   AssistantRepository({required ApiClient api}) : _api = api;
+
+  Future<List<AssistantConversationSummary>> fetchConversations() async {
+    try {
+      final response = await _api.dio.get('/api/v1/assistant/conversations');
+      final data = response.data['conversations'] as List<dynamic>;
+      return data
+          .map((e) => AssistantConversationSummary.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<List<AssistantChatMessage>> fetchMessages(int conversationId) async {
+    try {
+      final response = await _api.dio.get('/api/v1/assistant/conversations/$conversationId/messages');
+      final data = response.data['messages'] as List<dynamic>;
+      return data.map((e) {
+        final map = e as Map<String, dynamic>;
+        final role = map['role'] == 'assistant' ? AssistantChatRole.assistant : AssistantChatRole.user;
+        return AssistantChatMessage(role: role, text: map['content'] as String? ?? '');
+      }).toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> deleteConversation(int conversationId) async {
+    try {
+      await _api.dio.delete('/api/v1/assistant/conversations/$conversationId');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 
   Stream<AssistantEvent> sendMessage({
     required String message,

@@ -17,6 +17,15 @@ type AssistantConversation struct {
 	CreatedAt time.Time
 }
 
+// AssistantConversationSummary is a read model for the chat history sidebar — one row per conversation,
+// not a table of its own.
+type AssistantConversationSummary struct {
+	ID           int64
+	CreatedAt    time.Time
+	Preview      string
+	MessageCount int64
+}
+
 type AssistantMessageLog struct {
 	ID             int64
 	ConversationID int64

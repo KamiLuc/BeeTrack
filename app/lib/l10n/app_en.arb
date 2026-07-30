@@ -521,5 +521,12 @@
   "assistantTitle": "Assistant",
   "assistantEmpty": "Ask me anything related to beekeeping.",
   "assistantInputHint": "Message the assistant",
-  "assistantError": "Something went wrong. Please try again."
+  "assistantError": "Something went wrong. Please try again.",
+  "assistantNewChat": "New chat",
+  "assistantToggleHistory": "Show/hide chat history",
+  "assistantHistoryEmpty": "No past conversations yet.",
+  "assistantHistoryUntitled": "New conversation",
+  "assistantLimitReached": "This conversation has reached its message limit. Start a new chat to keep going.",
+  "assistantDeleteConversationConfirm": "Delete conversation?",
+  "assistantDeleteConversationWarning": "This conversation and its messages will be permanently deleted."
 }

@@ -4,11 +4,38 @@ import 'dart:typed_data';
 import 'package:app/core/api/api_client.dart';
 import 'package:app/core/api/api_exception.dart';
 import 'package:app/core/storage/token_storage.dart';
+import 'package:app/features/assistant/data/assistant_chat_message.dart';
 import 'package:app/features/assistant/data/assistant_event.dart';
 import 'package:app/features/assistant/data/assistant_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Records the last request made through it and returns a canned JSON response.
+class _RecordingAdapter implements HttpClientAdapter {
+  RequestOptions? lastOptions;
+  int statusCode = 200;
+  Object? responseData;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    lastOptions = options;
+    return ResponseBody.fromString(
+      jsonEncode(responseData),
+      statusCode,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 class _StreamingAdapter implements HttpClientAdapter {
   RequestOptions? lastOptions;
@@ -158,5 +185,82 @@ void main() {
             .having((e) => e.message, 'message', 'nope'),
       ),
     );
+  });
+
+  group('fetchConversations', () {
+    test('GETs and parses the conversation list', () async {
+      final recorder = _RecordingAdapter()
+        ..responseData = {
+          'conversations': [
+            {
+              'id': 1,
+              'created_at': '2026-01-01T00:00:00Z',
+              'preview': 'how many hives?',
+              'message_count': 4,
+            },
+          ],
+        };
+      final prefs2 = await SharedPreferences.getInstance();
+      final apiClient = ApiClient(
+        storage: TokenStorage(prefs2),
+        baseUrl: 'https://api.test',
+      )..dio.httpClientAdapter = recorder;
+      final repo = AssistantRepository(api: apiClient);
+
+      final conversations = await repo.fetchConversations();
+
+      expect(recorder.lastOptions!.method, 'GET');
+      expect(recorder.lastOptions!.path, '/api/v1/assistant/conversations');
+      expect(conversations, hasLength(1));
+      expect(conversations.single.id, 1);
+      expect(conversations.single.preview, 'how many hives?');
+      expect(conversations.single.messageCount, 4);
+    });
+  });
+
+  group('fetchMessages', () {
+    test('GETs and parses the message history', () async {
+      final recorder = _RecordingAdapter()
+        ..responseData = {
+          'conversation_id': 1,
+          'messages': [
+            {'role': 'user', 'content': 'hi', 'created_at': '2026-01-01T00:00:00Z'},
+            {'role': 'assistant', 'content': 'hello', 'created_at': '2026-01-01T00:00:01Z'},
+          ],
+        };
+      final prefs2 = await SharedPreferences.getInstance();
+      final apiClient = ApiClient(
+        storage: TokenStorage(prefs2),
+        baseUrl: 'https://api.test',
+      )..dio.httpClientAdapter = recorder;
+      final repo = AssistantRepository(api: apiClient);
+
+      final messages = await repo.fetchMessages(1);
+
+      expect(recorder.lastOptions!.method, 'GET');
+      expect(recorder.lastOptions!.path, '/api/v1/assistant/conversations/1/messages');
+      expect(messages, hasLength(2));
+      expect(messages[0].role, AssistantChatRole.user);
+      expect(messages[0].text, 'hi');
+      expect(messages[1].role, AssistantChatRole.assistant);
+      expect(messages[1].text, 'hello');
+    });
+  });
+
+  group('deleteConversation', () {
+    test('sends DELETE to the conversation endpoint', () async {
+      final recorder = _RecordingAdapter()..statusCode = 204;
+      final prefs2 = await SharedPreferences.getInstance();
+      final apiClient = ApiClient(
+        storage: TokenStorage(prefs2),
+        baseUrl: 'https://api.test',
+      )..dio.httpClientAdapter = recorder;
+      final repo = AssistantRepository(api: apiClient);
+
+      await repo.deleteConversation(5);
+
+      expect(recorder.lastOptions!.method, 'DELETE');
+      expect(recorder.lastOptions!.path, '/api/v1/assistant/conversations/5');
+    });
   });
 }

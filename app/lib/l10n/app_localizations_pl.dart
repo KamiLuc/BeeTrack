@@ -1380,4 +1380,27 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get assistantError => 'Coś poszło nie tak. Spróbuj ponownie.';
+
+  @override
+  String get assistantNewChat => 'Nowy czat';
+
+  @override
+  String get assistantToggleHistory => 'Pokaż/ukryj historię czatu';
+
+  @override
+  String get assistantHistoryEmpty => 'Brak wcześniejszych rozmów.';
+
+  @override
+  String get assistantHistoryUntitled => 'Nowa rozmowa';
+
+  @override
+  String get assistantLimitReached =>
+      'Ta rozmowa osiągnęła limit wiadomości. Rozpocznij nowy czat, aby kontynuować.';
+
+  @override
+  String get assistantDeleteConversationConfirm => 'Usunąć rozmowę?';
+
+  @override
+  String get assistantDeleteConversationWarning =>
+      'Ta rozmowa i jej wiadomości zostaną trwale usunięte.';
 }

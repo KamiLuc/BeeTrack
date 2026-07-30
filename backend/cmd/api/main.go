@@ -263,6 +263,9 @@ func main() {
 
 	if assistantHandler != nil {
 		mux.Handle("POST /api/v1/assistant/messages", auth(http.HandlerFunc(assistantHandler.Messages)))
+		mux.Handle("GET /api/v1/assistant/conversations", auth(http.HandlerFunc(assistantHandler.ListConversations)))
+		mux.Handle("GET /api/v1/assistant/conversations/{id}/messages", auth(http.HandlerFunc(assistantHandler.ConversationMessages)))
+		mux.Handle("DELETE /api/v1/assistant/conversations/{id}", auth(http.HandlerFunc(assistantHandler.DeleteConversation)))
 	}
 
 	mux.Handle("GET /api/v1/admin/listings", admin(http.HandlerFunc(adminListingHandler.List)))

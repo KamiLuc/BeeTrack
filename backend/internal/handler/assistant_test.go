@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,6 +20,12 @@ import (
 )
 
 const testAssistantAuthSecret = "test-assistant-secret"
+
+// nonFlushingWriter embeds http.ResponseWriter through its interface type, so Flush isn't promoted and it
+// doesn't satisfy http.Flusher — simulating a ResponseWriter that can't stream.
+type nonFlushingWriter struct {
+	http.ResponseWriter
+}
 
 // fakeAssistantDecoder replays one canned text turn ending in end_turn, just
 // enough to exercise the handler's SSE framing without a real Anthropic call.
@@ -53,11 +60,15 @@ func (f *fakeAssistantMessageStreamer) NewStreaming(_ context.Context, _ anthrop
 // conversation resolution without a real DB.
 type fakeAssistantStore struct {
 	conversations map[int64]*model.AssistantConversation
+	messages      map[int64][]*model.AssistantMessageLog
 	nextConvID    int64
 }
 
 func newFakeAssistantStore() *fakeAssistantStore {
-	return &fakeAssistantStore{conversations: make(map[int64]*model.AssistantConversation)}
+	return &fakeAssistantStore{
+		conversations: make(map[int64]*model.AssistantConversation),
+		messages:      make(map[int64][]*model.AssistantMessageLog),
+	}
 }
 
 func (s *fakeAssistantStore) CreateConversation(_ context.Context, userID int64) (*model.AssistantConversation, error) {
@@ -71,11 +82,33 @@ func (s *fakeAssistantStore) GetConversationByID(_ context.Context, id int64) (*
 	return s.conversations[id], nil
 }
 
-func (s *fakeAssistantStore) ListMessageLogs(_ context.Context, _ int64) ([]*model.AssistantMessageLog, error) {
-	return nil, nil
+func (s *fakeAssistantStore) ListConversations(_ context.Context, userID int64) ([]*model.AssistantConversationSummary, error) {
+	var summaries []*model.AssistantConversationSummary
+	for _, conv := range s.conversations {
+		if conv.UserID != userID {
+			continue
+		}
+		summaries = append(summaries, &model.AssistantConversationSummary{ID: conv.ID, CreatedAt: conv.CreatedAt})
+	}
+	return summaries, nil
 }
 
-func (s *fakeAssistantStore) CreateMessageLog(_ context.Context, _ *model.AssistantMessageLog) error {
+func (s *fakeAssistantStore) ListMessageLogs(_ context.Context, conversationID int64) ([]*model.AssistantMessageLog, error) {
+	return s.messages[conversationID], nil
+}
+
+func (s *fakeAssistantStore) CountMessageLogs(_ context.Context, conversationID int64) (int64, error) {
+	return int64(len(s.messages[conversationID])), nil
+}
+
+func (s *fakeAssistantStore) DeleteConversation(_ context.Context, id int64) error {
+	delete(s.conversations, id)
+	delete(s.messages, id)
+	return nil
+}
+
+func (s *fakeAssistantStore) CreateMessageLog(_ context.Context, log *model.AssistantMessageLog) error {
+	s.messages[log.ConversationID] = append(s.messages[log.ConversationID], log)
 	return nil
 }
 
@@ -188,6 +221,33 @@ func TestAssistantMessagesStreamsErrorEventOnTurnRunnerFailure(t *testing.T) {
 	}
 }
 
+func TestAssistantMessagesDoesNotCreateAConversationWhenStreamingIsUnsupported(t *testing.T) {
+	store := newFakeAssistantStore()
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store, "")
+	h := NewAssistantHandler(svc)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.Messages))
+
+	r := httptest.NewRequest("POST", "/api/v1/assistant/messages", strings.NewReader(`{"message":"hi"}`))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := nonFlushingWriter{ResponseWriter: httptest.NewRecorder()}
+	handler.ServeHTTP(w, r)
+
+	rec := w.ResponseWriter.(*httptest.ResponseRecorder)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "STREAMING_UNSUPPORTED") {
+		t.Errorf("expected STREAMING_UNSUPPORTED code, got: %s", rec.Body.String())
+	}
+	if len(store.conversations) != 0 {
+		t.Errorf("expected no conversation to be created, got %+v", store.conversations)
+	}
+}
+
 func TestAssistantMessagesStreamsConversationDeltasAndDone(t *testing.T) {
 	w := assistantRequest(t, 7, `{"message":"hi"}`)
 	if w.Code != http.StatusOK {
@@ -233,5 +293,228 @@ func TestAssistantMessagesReusesGivenConversationID(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"conversation_id":1`) {
 		t.Errorf("expected the given conversation_id echoed back, got: %s", w.Body.String())
+	}
+}
+
+func TestAssistantMessagesRejectsConversationAtMessageLimit(t *testing.T) {
+	store := newFakeAssistantStore()
+	conv, err := store.CreateConversation(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		store.messages[conv.ID] = append(store.messages[conv.ID], &model.AssistantMessageLog{ConversationID: conv.ID})
+	}
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store, "")
+	h := NewAssistantHandler(svc)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.Messages))
+
+	body, _ := json.Marshal(map[string]any{"conversation_id": conv.ID, "message": "hi"})
+	r := httptest.NewRequest("POST", "/api/v1/assistant/messages", strings.NewReader(string(body)))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "CONVERSATION_LIMIT_REACHED") {
+		t.Errorf("expected CONVERSATION_LIMIT_REACHED code, got: %s", w.Body.String())
+	}
+}
+
+func newTestListConversationsHandler(store *fakeAssistantStore) *AssistantHandler {
+	svc := service.NewAssistantService(&fakeAssistantMessageStreamer{}, mcp.NewRegistry(), store, "")
+	return NewAssistantHandler(svc)
+}
+
+func TestListConversationsRequiresAuth(t *testing.T) {
+	h := newTestListConversationsHandler(newFakeAssistantStore())
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.ListConversations))
+
+	r := httptest.NewRequest("GET", "/api/v1/assistant/conversations", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestListConversationsReturnsOnlyCallersConversations(t *testing.T) {
+	store := newFakeAssistantStore()
+	mine, err := store.CreateConversation(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	if _, err := store.CreateConversation(context.Background(), 99); err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	h := newTestListConversationsHandler(store)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.ListConversations))
+
+	r := httptest.NewRequest("GET", "/api/v1/assistant/conversations", nil)
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Conversations []struct {
+			ID int64 `json:"id"`
+		} `json:"conversations"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(body.Conversations) != 1 || body.Conversations[0].ID != mine.ID {
+		t.Fatalf("expected only the caller's conversation, got %+v", body.Conversations)
+	}
+}
+
+func TestConversationMessagesRequiresAuth(t *testing.T) {
+	h := newTestListConversationsHandler(newFakeAssistantStore())
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.ConversationMessages))
+
+	r := httptest.NewRequest("GET", "/api/v1/assistant/conversations/1/messages", nil)
+	r.SetPathValue("id", "1")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestConversationMessagesRejectsUnownedConversation(t *testing.T) {
+	store := newFakeAssistantStore()
+	other, err := store.CreateConversation(context.Background(), 99)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	h := newTestListConversationsHandler(store)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.ConversationMessages))
+
+	r := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/assistant/conversations/%d/messages", other.ID), nil)
+	r.SetPathValue("id", fmt.Sprintf("%d", other.ID))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestConversationMessagesReturnsHistory(t *testing.T) {
+	store := newFakeAssistantStore()
+	conv, err := store.CreateConversation(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	store.messages[conv.ID] = []*model.AssistantMessageLog{
+		{ID: 1, ConversationID: conv.ID, Role: model.AssistantMessageRoleUser, Content: "hi"},
+		{ID: 2, ConversationID: conv.ID, Role: model.AssistantMessageRoleAssistant, Content: "hello"},
+	}
+	h := newTestListConversationsHandler(store)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.ConversationMessages))
+
+	r := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/assistant/conversations/%d/messages", conv.ID), nil)
+	r.SetPathValue("id", fmt.Sprintf("%d", conv.ID))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "hello") {
+		t.Errorf("expected message content in response, got: %s", w.Body.String())
+	}
+}
+
+func TestDeleteConversationRequiresAuth(t *testing.T) {
+	h := newTestListConversationsHandler(newFakeAssistantStore())
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.DeleteConversation))
+
+	r := httptest.NewRequest("DELETE", "/api/v1/assistant/conversations/1", nil)
+	r.SetPathValue("id", "1")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestDeleteConversationRemovesOwnedConversation(t *testing.T) {
+	store := newFakeAssistantStore()
+	conv, err := store.CreateConversation(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	h := newTestListConversationsHandler(store)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.DeleteConversation))
+
+	r := httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/assistant/conversations/%d", conv.ID), nil)
+	r.SetPathValue("id", fmt.Sprintf("%d", conv.ID))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+	if _, ok := store.conversations[conv.ID]; ok {
+		t.Errorf("expected the conversation to be deleted from the store")
+	}
+}
+
+func TestDeleteConversationRejectsUnownedConversation(t *testing.T) {
+	store := newFakeAssistantStore()
+	other, err := store.CreateConversation(context.Background(), 99)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	h := newTestListConversationsHandler(store)
+	handler := middleware.Auth(testAssistantAuthSecret)(http.HandlerFunc(h.DeleteConversation))
+
+	r := httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/assistant/conversations/%d", other.ID), nil)
+	r.SetPathValue("id", fmt.Sprintf("%d", other.ID))
+	tok, err := token.NewAccessToken(7, testAssistantAuthSecret, 5)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	r.Header.Set("Authorization", "Bearer "+tok)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+	if _, ok := store.conversations[other.ID]; !ok {
+		t.Errorf("expected the other user's conversation to remain")
 	}
 }

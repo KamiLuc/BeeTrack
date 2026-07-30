@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:app/features/assistant/cubit/assistant_cubit.dart';
 import 'package:app/features/assistant/data/assistant_chat_message.dart';
+import 'package:app/features/assistant/data/assistant_conversation_summary.dart';
 import 'package:app/features/assistant/data/assistant_event.dart';
 import 'package:app/features/assistant/data/assistant_repository.dart';
 
@@ -164,5 +165,181 @@ void main() {
       await controller.close();
       await first;
     });
+
+    blocTest<AssistantCubit, AssistantState>(
+      'is a no-op once the message limit is reached',
+      build: () => cubit,
+      seed: () => AssistantState(
+        messages: List.generate(
+          assistantMaxMessagesPerConversation,
+          (_) => const AssistantChatMessage(role: AssistantChatRole.user, text: 'x'),
+        ),
+      ),
+      act: (c) => c.sendMessage('one more'),
+      expect: () => [],
+      verify: (_) {
+        verifyNever(() => repo.sendMessage(
+              message: any(named: 'message'),
+              conversationId: any(named: 'conversationId'),
+            ));
+      },
+    );
+  });
+
+  group('loadConversations', () {
+    blocTest<AssistantCubit, AssistantState>(
+      'populates conversations on success',
+      build: () {
+        when(() => repo.fetchConversations()).thenAnswer((_) async => [
+              AssistantConversationSummary(
+                id: 1,
+                createdAt: DateTime(2026, 1, 1),
+                preview: 'hi',
+                messageCount: 2,
+              ),
+            ]);
+        return cubit;
+      },
+      act: (c) => c.loadConversations(),
+      expect: () => [
+        isA<AssistantState>().having((s) => s.isLoadingConversations, 'isLoadingConversations', true),
+        isA<AssistantState>()
+            .having((s) => s.isLoadingConversations, 'isLoadingConversations', false)
+            .having((s) => s.conversations.length, 'conversations.length', 1),
+      ],
+    );
+
+    blocTest<AssistantCubit, AssistantState>(
+      'clears the loading flag when the repo call fails',
+      build: () {
+        when(() => repo.fetchConversations()).thenThrow(Exception('boom'));
+        return cubit;
+      },
+      act: (c) => c.loadConversations(),
+      expect: () => [
+        isA<AssistantState>().having((s) => s.isLoadingConversations, 'isLoadingConversations', true),
+        isA<AssistantState>().having((s) => s.isLoadingConversations, 'isLoadingConversations', false),
+      ],
+    );
+  });
+
+  group('startNewChat', () {
+    blocTest<AssistantCubit, AssistantState>(
+      'resets messages and conversationId but keeps the conversation list',
+      build: () => cubit,
+      seed: () => const AssistantState(
+        messages: [AssistantChatMessage(role: AssistantChatRole.user, text: 'hi')],
+        conversationId: 5,
+      ),
+      act: (c) => c.startNewChat(),
+      expect: () => [
+        isA<AssistantState>()
+            .having((s) => s.messages, 'messages', isEmpty)
+            .having((s) => s.conversationId, 'conversationId', isNull),
+      ],
+    );
+  });
+
+  group('openConversation', () {
+    blocTest<AssistantCubit, AssistantState>(
+      'loads and shows the conversation history',
+      build: () {
+        when(() => repo.fetchMessages(7)).thenAnswer((_) async => [
+              const AssistantChatMessage(role: AssistantChatRole.user, text: 'hi'),
+              const AssistantChatMessage(role: AssistantChatRole.assistant, text: 'hello'),
+            ]);
+        return cubit;
+      },
+      act: (c) => c.openConversation(7),
+      expect: () => [
+        isA<AssistantState>()
+            .having((s) => s.isLoadingMessages, 'isLoadingMessages', true)
+            .having((s) => s.conversationId, 'conversationId', 7),
+        isA<AssistantState>()
+            .having((s) => s.isLoadingMessages, 'isLoadingMessages', false)
+            .having((s) => s.messages.length, 'messages.length', 2),
+      ],
+    );
+
+    blocTest<AssistantCubit, AssistantState>(
+      'is a no-op when the conversation is already open',
+      build: () => cubit,
+      seed: () => const AssistantState(conversationId: 7),
+      act: (c) => c.openConversation(7),
+      expect: () => [],
+      verify: (_) {
+        verifyNever(() => repo.fetchMessages(any()));
+      },
+    );
+
+    blocTest<AssistantCubit, AssistantState>(
+      'sets hasError when loading history fails',
+      build: () {
+        when(() => repo.fetchMessages(7)).thenThrow(Exception('boom'));
+        return cubit;
+      },
+      act: (c) => c.openConversation(7),
+      expect: () => [
+        isA<AssistantState>().having((s) => s.isLoadingMessages, 'isLoadingMessages', true),
+        isA<AssistantState>()
+            .having((s) => s.isLoadingMessages, 'isLoadingMessages', false)
+            .having((s) => s.hasError, 'hasError', true),
+      ],
+    );
+  });
+
+  group('deleteConversation', () {
+    blocTest<AssistantCubit, AssistantState>(
+      'removes the conversation from the list',
+      build: () {
+        when(() => repo.deleteConversation(1)).thenAnswer((_) async {});
+        return cubit;
+      },
+      seed: () => AssistantState(
+        conversations: [
+          AssistantConversationSummary(id: 1, createdAt: DateTime(2026, 1, 1), preview: 'a', messageCount: 2),
+          AssistantConversationSummary(id: 2, createdAt: DateTime(2026, 1, 2), preview: 'b', messageCount: 2),
+        ],
+      ),
+      act: (c) => c.deleteConversation(1),
+      expect: () => [
+        isA<AssistantState>()
+            .having((s) => s.conversations.map((e) => e.id).toList(), 'conversation ids', [2]),
+      ],
+    );
+
+    blocTest<AssistantCubit, AssistantState>(
+      'resets the open chat when deleting the currently open conversation',
+      build: () {
+        when(() => repo.deleteConversation(1)).thenAnswer((_) async {});
+        return cubit;
+      },
+      seed: () => AssistantState(
+        conversationId: 1,
+        messages: const [AssistantChatMessage(role: AssistantChatRole.user, text: 'hi')],
+        conversations: [
+          AssistantConversationSummary(id: 1, createdAt: DateTime(2026, 1, 1), preview: 'a', messageCount: 2),
+        ],
+      ),
+      act: (c) => c.deleteConversation(1),
+      expect: () => [
+        isA<AssistantState>()
+            .having((s) => s.conversationId, 'conversationId', isNull)
+            .having((s) => s.messages, 'messages', isEmpty)
+            .having((s) => s.conversations, 'conversations', isEmpty),
+      ],
+    );
+
+    blocTest<AssistantCubit, AssistantState>(
+      'sets hasError when the repo call fails',
+      build: () {
+        when(() => repo.deleteConversation(1)).thenThrow(Exception('boom'));
+        return cubit;
+      },
+      act: (c) => c.deleteConversation(1),
+      expect: () => [
+        isA<AssistantState>().having((s) => s.hasError, 'hasError', true),
+      ],
+    );
   });
 }

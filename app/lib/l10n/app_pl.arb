@@ -543,5 +543,12 @@
   "assistantTitle": "Asystent",
   "assistantEmpty": "Zapytaj mnie o cokolwiek związanego z pszczelarstwem.",
   "assistantInputHint": "Napisz wiadomość do asystenta",
-  "assistantError": "Coś poszło nie tak. Spróbuj ponownie."
+  "assistantError": "Coś poszło nie tak. Spróbuj ponownie.",
+  "assistantNewChat": "Nowy czat",
+  "assistantToggleHistory": "Pokaż/ukryj historię czatu",
+  "assistantHistoryEmpty": "Brak wcześniejszych rozmów.",
+  "assistantHistoryUntitled": "Nowa rozmowa",
+  "assistantLimitReached": "Ta rozmowa osiągnęła limit wiadomości. Rozpocznij nowy czat, aby kontynuować.",
+  "assistantDeleteConversationConfirm": "Usunąć rozmowę?",
+  "assistantDeleteConversationWarning": "Ta rozmowa i jej wiadomości zostaną trwale usunięte."
 }

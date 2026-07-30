@@ -84,11 +84,41 @@ func (s *fakeAssistantStore) GetConversationByID(_ context.Context, id int64) (*
 	return s.conversations[id], nil
 }
 
+func (s *fakeAssistantStore) ListConversations(_ context.Context, userID int64) ([]*model.AssistantConversationSummary, error) {
+	var summaries []*model.AssistantConversationSummary
+	for _, conv := range s.conversations {
+		if conv.UserID != userID {
+			continue
+		}
+		var preview string
+		for _, m := range s.messages[conv.ID] {
+			if m.Role == model.AssistantMessageRoleUser {
+				preview = m.Content
+				break
+			}
+		}
+		summaries = append(summaries, &model.AssistantConversationSummary{
+			ID: conv.ID, CreatedAt: conv.CreatedAt, Preview: preview, MessageCount: int64(len(s.messages[conv.ID])),
+		})
+	}
+	return summaries, nil
+}
+
 func (s *fakeAssistantStore) ListMessageLogs(_ context.Context, conversationID int64) ([]*model.AssistantMessageLog, error) {
 	if s.listMsgErr != nil {
 		return nil, s.listMsgErr
 	}
 	return s.messages[conversationID], nil
+}
+
+func (s *fakeAssistantStore) CountMessageLogs(_ context.Context, conversationID int64) (int64, error) {
+	return int64(len(s.messages[conversationID])), nil
+}
+
+func (s *fakeAssistantStore) DeleteConversation(_ context.Context, id int64) error {
+	delete(s.conversations, id)
+	delete(s.messages, id)
+	return nil
 }
 
 func (s *fakeAssistantStore) CreateMessageLog(_ context.Context, log *model.AssistantMessageLog) error {
@@ -419,6 +449,114 @@ func TestResolveConversationRejectsConversationOwnedByAnotherUser(t *testing.T) 
 	other := testConversation(t, store, 99)
 
 	_, err := svc.ResolveConversation(context.Background(), 7, &other.ID)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
+	}
+}
+
+func TestCheckMessageLimitAllowsUnderLimit(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 1)
+	store.messages[conv.ID] = make([]*model.AssistantMessageLog, assistantMaxMessagesPerConversation-1)
+
+	if err := svc.CheckMessageLimit(context.Background(), conv.ID); err != nil {
+		t.Fatalf("expected no error under the limit, got %v", err)
+	}
+}
+
+func TestCheckMessageLimitRejectsAtLimit(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 1)
+	store.messages[conv.ID] = make([]*model.AssistantMessageLog, assistantMaxMessagesPerConversation)
+
+	err := svc.CheckMessageLimit(context.Background(), conv.ID)
+	if !errors.Is(err, ErrAssistantConversationLimitReached) {
+		t.Fatalf("expected ErrAssistantConversationLimitReached, got %v", err)
+	}
+}
+
+func TestListConversationsReturnsOnlyCallersConversations(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	mine := testConversation(t, store, 7)
+	testConversation(t, store, 99)
+	store.messages[mine.ID] = []*model.AssistantMessageLog{
+		{ID: 1, ConversationID: mine.ID, Role: model.AssistantMessageRoleUser, Content: "hi"},
+	}
+
+	summaries, err := svc.ListConversations(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("ListConversations returned error: %v", err)
+	}
+	if len(summaries) != 1 || summaries[0].ID != mine.ID || summaries[0].Preview != "hi" {
+		t.Fatalf("expected only the caller's conversation with its preview, got %+v", summaries)
+	}
+}
+
+func TestConversationMessagesReturnsHistoryForOwnedConversation(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 7)
+	store.messages[conv.ID] = []*model.AssistantMessageLog{
+		{ID: 1, ConversationID: conv.ID, Role: model.AssistantMessageRoleUser, Content: "hi"},
+		{ID: 2, ConversationID: conv.ID, Role: model.AssistantMessageRoleAssistant, Content: "hello"},
+	}
+
+	logs, err := svc.ConversationMessages(context.Background(), 7, conv.ID)
+	if err != nil {
+		t.Fatalf("ConversationMessages returned error: %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(logs))
+	}
+}
+
+func TestConversationMessagesRejectsConversationOwnedByAnotherUser(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	other := testConversation(t, store, 99)
+
+	_, err := svc.ConversationMessages(context.Background(), 7, other.ID)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
+	}
+}
+
+func TestConversationMessagesRejectsUnknownConversation(t *testing.T) {
+	svc, _, _ := newTestAssistant(&fakeTurnRunner{})
+
+	_, err := svc.ConversationMessages(context.Background(), 7, 999)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
+	}
+}
+
+func TestDeleteConversationRemovesOwnedConversation(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	conv := testConversation(t, store, 7)
+
+	if err := svc.DeleteConversation(context.Background(), 7, conv.ID); err != nil {
+		t.Fatalf("DeleteConversation returned error: %v", err)
+	}
+	if _, ok := store.conversations[conv.ID]; ok {
+		t.Errorf("expected the conversation to be deleted")
+	}
+}
+
+func TestDeleteConversationRejectsConversationOwnedByAnotherUser(t *testing.T) {
+	svc, _, store := newTestAssistant(&fakeTurnRunner{})
+	other := testConversation(t, store, 99)
+
+	err := svc.DeleteConversation(context.Background(), 7, other.ID)
+	if !errors.Is(err, ErrAssistantConversationNotFound) {
+		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
+	}
+	if _, ok := store.conversations[other.ID]; !ok {
+		t.Errorf("expected the other user's conversation to remain")
+	}
+}
+
+func TestDeleteConversationRejectsUnknownConversation(t *testing.T) {
+	svc, _, _ := newTestAssistant(&fakeTurnRunner{})
+
+	err := svc.DeleteConversation(context.Background(), 7, 999)
 	if !errors.Is(err, ErrAssistantConversationNotFound) {
 		t.Fatalf("expected ErrAssistantConversationNotFound, got %v", err)
 	}

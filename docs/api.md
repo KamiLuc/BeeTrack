@@ -3051,3 +3051,85 @@ Unlike other endpoints, this streams a Server-Sent Events body instead of a sing
 | `INVALID_BODY` | 400 | Malformed JSON |
 | `EMPTY_MESSAGE` | 400 | `message` is empty |
 | `CONVERSATION_NOT_FOUND` | 404 | `conversation_id` doesn't exist or doesn't belong to the caller |
+| `CONVERSATION_LIMIT_REACHED` | 403 | Conversation already has 10 logged messages (5 user + 5 assistant turns) |
+
+---
+
+### GET /assistant/conversations 🔒
+
+Returns the caller's conversations, newest first, for the chat history sidebar.
+
+**Response** `200 OK`
+```json
+{
+  "conversations": [
+    {
+      "id": 42,
+      "created_at": "2026-06-01T12:00:00Z",
+      "preview": "Just apiary 3, please.",
+      "message_count": 6
+    }
+  ]
+}
+```
+
+- `preview` — the conversation's first user message
+- `message_count` — total logged messages (user + assistant) in the conversation
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /assistant/conversations/{id}/messages 🔒
+
+Returns a single conversation's full message trail, so the client can resume it.
+
+**Response** `200 OK`
+```json
+{
+  "conversation_id": 42,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Just apiary 3, please.",
+      "created_at": "2026-06-01T12:00:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's what's happening in apiary 3...",
+      "created_at": "2026-06-01T12:00:05Z"
+    }
+  ]
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CONVERSATION_NOT_FOUND` | 404 | `id` doesn't exist or doesn't belong to the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### DELETE /assistant/conversations/{id} 🔒
+
+Deletes a conversation and its message/tool-call trail (cascades via FK).
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token in header |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
+| `CONVERSATION_NOT_FOUND` | 404 | `id` doesn't exist or doesn't belong to the caller |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |

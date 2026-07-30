@@ -21,13 +21,18 @@ const (
 	defaultAssistantModel = anthropic.ModelClaudeHaiku4_5
 	assistantMaxTokens    = 2048
 	assistantMaxToolTurns = 8
-	assistantSystemPrompt = "You are the BeeTrack apiary assistant, helping a beekeeper understand their own hives and browse the public marketplace. Only use the information the tools return; never invent hive data, statuses, or listings. Always reply in the same language the user's message is written in. Your scope covers three kinds of questions: (1) the caller's own data via tools (hives, apiaries, listings), (2) general beekeeping knowledge and practices (e.g. how to merge hives, treat varroa, judge brood pattern) — answer these directly from your own knowledge even when no tool applies, (3) the BeeTrack app itself. Only decline questions clearly outside all three, e.g. unrelated small talk, other topics, or requests to write code. When referring to a hive, apiary, or listing, always use its name/title from the tool result (e.g. \"Rapeseed Honey\") rather than its raw numeric id; only mention the id if the user explicitly asks for it or several results share the same name."
+	// assistantMaxMessagesPerConversation keeps conversations short enough to stay within a single Claude
+	// context window and bound per-conversation API cost; counts logged rows (user + assistant), so 10 is
+	// 5 round trips.
+	assistantMaxMessagesPerConversation = 10
+	assistantSystemPrompt               = "You are the BeeTrack apiary assistant, helping a beekeeper understand their own hives and browse the public marketplace. Only use the information the tools return; never invent hive data, statuses, or listings. Always reply in the same language the user's message is written in. Your scope covers three kinds of questions: (1) the caller's own data via tools (hives, apiaries, listings), (2) general beekeeping knowledge and practices (e.g. how to merge hives, treat varroa, judge brood pattern) — answer these directly from your own knowledge even when no tool applies, (3) the BeeTrack app itself. Only decline questions clearly outside all three, e.g. unrelated small talk, other topics, or requests to write code. When referring to a hive, apiary, or listing, always use its name/title from the tool result (e.g. \"Rapeseed Honey\") rather than its raw numeric id; only mention the id if the user explicitly asks for it or several results share the same name."
 )
 
 var (
-	ErrAssistantEmptyMessage         = errors.New("message must not be empty")
-	ErrAssistantTooManyToolTurns     = errors.New("assistant exceeded the maximum number of tool-call turns")
-	ErrAssistantConversationNotFound = errors.New("conversation not found")
+	ErrAssistantEmptyMessage             = errors.New("message must not be empty")
+	ErrAssistantTooManyToolTurns         = errors.New("assistant exceeded the maximum number of tool-call turns")
+	ErrAssistantConversationNotFound     = errors.New("conversation not found")
+	ErrAssistantConversationLimitReached = errors.New("conversation has reached the maximum number of messages")
 )
 
 type AssistantStreamWriter interface {
@@ -75,7 +80,10 @@ func (r streamTurnRunner) runTurn(ctx context.Context, params anthropic.MessageN
 type AssistantStore interface {
 	CreateConversation(ctx context.Context, userID int64) (*model.AssistantConversation, error)
 	GetConversationByID(ctx context.Context, id int64) (*model.AssistantConversation, error)
+	ListConversations(ctx context.Context, userID int64) ([]*model.AssistantConversationSummary, error)
+	DeleteConversation(ctx context.Context, id int64) error
 	ListMessageLogs(ctx context.Context, conversationID int64) ([]*model.AssistantMessageLog, error)
+	CountMessageLogs(ctx context.Context, conversationID int64) (int64, error)
 	CreateMessageLog(ctx context.Context, log *model.AssistantMessageLog) error
 	CreateToolCall(ctx context.Context, call *model.AssistantToolCall) error
 }
@@ -112,6 +120,49 @@ func (s *AssistantService) ResolveConversation(ctx context.Context, userID int64
 		return nil, ErrAssistantConversationNotFound
 	}
 	return conv, nil
+}
+
+// CheckMessageLimit rejects conversationID once it holds assistantMaxMessagesPerConversation logged
+// messages. Callers must run this before committing SSE response headers, since a limit hit needs to come
+// back as a normal JSON error rather than a mid-stream one.
+func (s *AssistantService) CheckMessageLimit(ctx context.Context, conversationID int64) error {
+	count, err := s.repo.CountMessageLogs(ctx, conversationID)
+	if err != nil {
+		return fmt.Errorf("count conversation messages: %w", err)
+	}
+	if count >= assistantMaxMessagesPerConversation {
+		return ErrAssistantConversationLimitReached
+	}
+	return nil
+}
+
+// ListConversations returns userID's conversations, newest first, for the chat history sidebar.
+func (s *AssistantService) ListConversations(ctx context.Context, userID int64) ([]*model.AssistantConversationSummary, error) {
+	return s.repo.ListConversations(ctx, userID)
+}
+
+// ConversationMessages returns conversationID's full message trail so the client can resume it, rejecting
+// one that doesn't exist or belongs to a different user the same way ResolveConversation does.
+func (s *AssistantService) ConversationMessages(ctx context.Context, userID, conversationID int64) ([]*model.AssistantMessageLog, error) {
+	conv, err := s.repo.GetConversationByID(ctx, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	if conv == nil || conv.UserID != userID {
+		return nil, ErrAssistantConversationNotFound
+	}
+	return s.repo.ListMessageLogs(ctx, conversationID)
+}
+
+func (s *AssistantService) DeleteConversation(ctx context.Context, userID, conversationID int64) error {
+	conv, err := s.repo.GetConversationByID(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	if conv == nil || conv.UserID != userID {
+		return ErrAssistantConversationNotFound
+	}
+	return s.repo.DeleteConversation(ctx, conversationID)
 }
 
 func (s *AssistantService) toolParams() []anthropic.ToolUnionParam {

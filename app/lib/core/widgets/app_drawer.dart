@@ -76,31 +76,37 @@ class AuthenticatedAppDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            _DrawerNavTile(
-              icon: Icons.hive_outlined,
-              label: l10n.apiaryTitle,
-              selected: current == AppSection.apiaries,
-              onTap: () => _select(context, AppSection.apiaries),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _DrawerNavTile(
+                    icon: Icons.hive_outlined,
+                    label: l10n.apiaryTitle,
+                    selected: current == AppSection.apiaries,
+                    onTap: () => _select(context, AppSection.apiaries),
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.hexagon_outlined,
+                    label: l10n.honeyBatchTitle,
+                    selected: current == AppSection.honeyBatches,
+                    onTap: () => _select(context, AppSection.honeyBatches),
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.storefront_outlined,
+                    label: l10n.marketplaceTitle,
+                    selected: current == AppSection.marketplace,
+                    onTap: () => _select(context, AppSection.marketplace),
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.smart_toy_outlined,
+                    label: l10n.assistantTitle,
+                    selected: current == AppSection.assistant,
+                    onTap: () => _select(context, AppSection.assistant),
+                  ),
+                ],
+              ),
             ),
-            _DrawerNavTile(
-              icon: Icons.hexagon_outlined,
-              label: l10n.honeyBatchTitle,
-              selected: current == AppSection.honeyBatches,
-              onTap: () => _select(context, AppSection.honeyBatches),
-            ),
-            _DrawerNavTile(
-              icon: Icons.storefront_outlined,
-              label: l10n.marketplaceTitle,
-              selected: current == AppSection.marketplace,
-              onTap: () => _select(context, AppSection.marketplace),
-            ),
-            _DrawerNavTile(
-              icon: Icons.smart_toy_outlined,
-              label: l10n.assistantTitle,
-              selected: current == AppSection.assistant,
-              onTap: () => _select(context, AppSection.assistant),
-            ),
-            const Spacer(),
             ListTile(
               leading: const Icon(Icons.logout),
               title: Text(l10n.authLogout),

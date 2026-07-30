@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/beetrack/backend/internal/service"
 	"github.com/beetrack/backend/pkg/respond"
@@ -22,6 +23,19 @@ func NewAssistantHandler(assistant *service.AssistantService) *AssistantHandler 
 type assistantMessageRequest struct {
 	ConversationID *int64 `json:"conversation_id"`
 	Message        string `json:"message"`
+}
+
+type conversationSummaryResponse struct {
+	ID           int64     `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	Preview      string    `json:"preview"`
+	MessageCount int64     `json:"message_count"`
+}
+
+type messageLogResponse struct {
+	Role      string    `json:"role"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // The client distinguishes conversation/delta/done/error via the SSE `event:` field.
@@ -63,6 +77,14 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Checked before ResolveConversation so a request that can't stream never leaves behind an empty,
+	// message-less conversation row.
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		respond.Error(w, http.StatusInternalServerError, "STREAMING_UNSUPPORTED", "streaming is not supported")
+		return
+	}
+
 	conv, err := h.assistant.ResolveConversation(r.Context(), userID, req.ConversationID)
 	if errors.Is(err, service.ErrAssistantConversationNotFound) {
 		respond.Error(w, http.StatusNotFound, "CONVERSATION_NOT_FOUND", "conversation not found")
@@ -73,11 +95,15 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		respond.Error(w, http.StatusInternalServerError, "STREAMING_UNSUPPORTED", "streaming is not supported")
+	if err := h.assistant.CheckMessageLimit(r.Context(), conv.ID); err != nil {
+		if errors.Is(err, service.ErrAssistantConversationLimitReached) {
+			respond.Error(w, http.StatusForbidden, "CONVERSATION_LIMIT_REACHED", "this conversation has reached the maximum number of messages")
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to check conversation limit")
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -91,4 +117,77 @@ func (h *AssistantHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = sse.writeEvent("done", map[string]bool{"done": true})
+}
+
+// ListConversations handles GET /api/v1/assistant/conversations — the caller's conversations, newest
+// first, for the chat history sidebar.
+func (h *AssistantHandler) ListConversations(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	summaries, err := h.assistant.ListConversations(r.Context(), userID)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list conversations")
+		return
+	}
+
+	out := make([]conversationSummaryResponse, len(summaries))
+	for i, s := range summaries {
+		out[i] = conversationSummaryResponse{ID: s.ID, CreatedAt: s.CreatedAt, Preview: s.Preview, MessageCount: s.MessageCount}
+	}
+	respond.JSON(w, http.StatusOK, map[string]any{"conversations": out})
+}
+
+// ConversationMessages handles GET /api/v1/assistant/conversations/{id}/messages — one conversation's
+// full message trail, so the client can resume it.
+func (h *AssistantHandler) ConversationMessages(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+	id, ok := parsePathID(w, r, "id", "invalid conversation id")
+	if !ok {
+		return
+	}
+
+	logs, err := h.assistant.ConversationMessages(r.Context(), userID, id)
+	if errors.Is(err, service.ErrAssistantConversationNotFound) {
+		respond.Error(w, http.StatusNotFound, "CONVERSATION_NOT_FOUND", "conversation not found")
+		return
+	}
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to load conversation")
+		return
+	}
+
+	out := make([]messageLogResponse, len(logs))
+	for i, m := range logs {
+		out[i] = messageLogResponse{Role: m.Role, Content: m.Content, CreatedAt: m.CreatedAt}
+	}
+	respond.JSON(w, http.StatusOK, map[string]any{"conversation_id": id, "messages": out})
+}
+
+// DeleteConversation handles DELETE /api/v1/assistant/conversations/{id}.
+func (h *AssistantHandler) DeleteConversation(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+	id, ok := parsePathID(w, r, "id", "invalid conversation id")
+	if !ok {
+		return
+	}
+
+	err := h.assistant.DeleteConversation(r.Context(), userID, id)
+	if errors.Is(err, service.ErrAssistantConversationNotFound) {
+		respond.Error(w, http.StatusNotFound, "CONVERSATION_NOT_FOUND", "conversation not found")
+		return
+	}
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete conversation")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

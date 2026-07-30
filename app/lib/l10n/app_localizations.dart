@@ -2557,6 +2557,48 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Coś poszło nie tak. Spróbuj ponownie.'**
   String get assistantError;
+
+  /// No description provided for @assistantNewChat.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowy czat'**
+  String get assistantNewChat;
+
+  /// No description provided for @assistantToggleHistory.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż/ukryj historię czatu'**
+  String get assistantToggleHistory;
+
+  /// No description provided for @assistantHistoryEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak wcześniejszych rozmów.'**
+  String get assistantHistoryEmpty;
+
+  /// No description provided for @assistantHistoryUntitled.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nowa rozmowa'**
+  String get assistantHistoryUntitled;
+
+  /// No description provided for @assistantLimitReached.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta rozmowa osiągnęła limit wiadomości. Rozpocznij nowy czat, aby kontynuować.'**
+  String get assistantLimitReached;
+
+  /// No description provided for @assistantDeleteConversationConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunąć rozmowę?'**
+  String get assistantDeleteConversationConfirm;
+
+  /// No description provided for @assistantDeleteConversationWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta rozmowa i jej wiadomości zostaną trwale usunięte.'**
+  String get assistantDeleteConversationWarning;
 }
 
 class _AppLocalizationsDelegate

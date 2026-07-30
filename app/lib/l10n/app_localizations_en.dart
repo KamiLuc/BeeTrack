@@ -1359,4 +1359,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantError => 'Something went wrong. Please try again.';
+
+  @override
+  String get assistantNewChat => 'New chat';
+
+  @override
+  String get assistantToggleHistory => 'Show/hide chat history';
+
+  @override
+  String get assistantHistoryEmpty => 'No past conversations yet.';
+
+  @override
+  String get assistantHistoryUntitled => 'New conversation';
+
+  @override
+  String get assistantLimitReached =>
+      'This conversation has reached its message limit. Start a new chat to keep going.';
+
+  @override
+  String get assistantDeleteConversationConfirm => 'Delete conversation?';
+
+  @override
+  String get assistantDeleteConversationWarning =>
+      'This conversation and its messages will be permanently deleted.';
 }
