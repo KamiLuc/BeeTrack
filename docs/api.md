@@ -3132,33 +3132,4 @@ Deletes a conversation and its message/tool-call trail (cascades via FK).
 | `INVALID_TOKEN` | 401 | Token invalid or expired |
 | `INVALID_ID` | 400 | Path `{id}` is not a valid integer |
 | `CONVERSATION_NOT_FOUND` | 404 | `id` doesn't exist or doesn't belong to the caller |
-
----
-
-## Voice Logging
-
-### POST /apiaries/{id}/voice 🔒
-
-Uploads a voice recording to be transcribed and turned into a proposed inspection log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`, `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for the client's ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.
-
-The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. Transcription and log-entry generation happen asynchronously in a background worker (not yet implemented) — this endpoint only enqueues the recording.
-
-**Response** `202 Accepted`
-```json
-{
-  "recording_id": 7,
-  "status": "pending"
-}
-```
-
-**Errors**
-| Code | Status | Description |
-|------|--------|-------------|
-| `MISSING_TOKEN` | 401 | No Bearer token |
-| `INVALID_ID` | 400 | Path id is not a valid integer |
-| `INVALID_AUDIO_TYPE` | 400 | MIME type not allowed |
-| `RECORDING_TOO_LONG` | 413 | File exceeds 15 MB |
-| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
-| `MAX_RECORDINGS_REACHED` | 422 | Caller already has 20 stored recordings |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |

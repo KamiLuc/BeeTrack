@@ -20,14 +20,6 @@ func (r *VoiceRepository) CreateRecording(ctx context.Context, rec *model.VoiceR
 	return r.db.WithContext(ctx).Create(rec).Error
 }
 
-func (r *VoiceRepository) CountRecordingsByUserID(ctx context.Context, userID int64) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.VoiceRecording{}).
-		Where("user_id = ?", userID).
-		Count(&count).Error
-	return count, err
-}
-
 // Returns nil, nil if not found — callers must still check UserID themselves before treating this as an ownership check.
 func (r *VoiceRepository) GetRecordingByID(ctx context.Context, id int64) (*model.VoiceRecording, error) {
 	var rec model.VoiceRecording

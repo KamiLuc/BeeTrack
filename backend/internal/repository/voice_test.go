@@ -52,25 +52,6 @@ func TestVoiceRepository_CreateRecording(t *testing.T) {
 	}
 }
 
-func TestVoiceRepository_CountRecordingsByUserID(t *testing.T) {
-	repo, mock := newVoiceTestRepo(t)
-
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "voice_recordings" WHERE user_id = $1`)).
-		WithArgs(int64(7)).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-
-	count, err := repo.CountRecordingsByUserID(context.Background(), 7)
-	if err != nil {
-		t.Fatalf("CountRecordingsByUserID returned error: %v", err)
-	}
-	if count != 3 {
-		t.Fatalf("expected count 3, got %d", count)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
-	}
-}
-
 func TestVoiceRepository_GetRecordingByID_Found(t *testing.T) {
 	repo, mock := newVoiceTestRepo(t)
 
