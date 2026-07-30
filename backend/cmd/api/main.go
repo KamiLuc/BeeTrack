@@ -81,6 +81,7 @@ func main() {
 	honeyBatchQRCodeRepo := repository.NewHoneyBatchQRCodeRepository(db)
 	blockchainJobRepo := repository.NewBlockchainJobRepository(db)
 	assistantRepo := repository.NewAssistantRepository(db)
+	voiceRepo := repository.NewVoiceRepository(db)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -102,6 +103,7 @@ func main() {
 	listingModerationSvc := service.NewListingModerationService(listingRepo, honeyBatchCertificationRequestRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 	certificationGasEstimateSvc := service.NewCertificationGasEstimateService(honeyBatchCertificationRequestRepo, honeyBatchRepo, gasReader)
+	voiceSvc := service.NewVoiceService(apiaryRepo, voiceRepo, cfg.AudioStoragePath)
 
 	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
 	listingTools := mcp.NewListingTools(listingSvc)
@@ -135,6 +137,7 @@ func main() {
 	honeyBatchVerifyHandler := handler.NewHoneyBatchVerifyHandler(honeyBatchSvc, verifyChainReader)
 	adminListingHandler := handler.NewAdminListingHandler(listingModerationSvc)
 	adminCertificationHandler := handler.NewAdminCertificationHandler(certificationReviewSvc, honeyBatchSvc, certificationGasEstimateSvc)
+	voiceHandler := handler.NewVoiceHandler(voiceSvc)
 
 	// Unlike cfg's other settings, a missing key shouldn't stop the rest of the
 	// API from starting — same graceful-degradation approach as the blockchain
@@ -232,6 +235,8 @@ func main() {
 	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images", auth(http.HandlerFunc(inspectionImageHandler.Upload)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}", auth(http.HandlerFunc(inspectionImageHandler.Delete)))
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file", auth(http.HandlerFunc(inspectionImageHandler.ServeFile)))
+
+	mux.Handle("POST /api/v1/apiaries/{id}/voice", auth(http.HandlerFunc(voiceHandler.Upload)))
 
 	mux.Handle("POST /api/v1/listings", auth(http.HandlerFunc(listingHandler.Create)))
 	mux.Handle("GET /api/v1/listings", optionalAuth(http.HandlerFunc(listingHandler.Search)))
