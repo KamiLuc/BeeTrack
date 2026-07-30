@@ -10,6 +10,7 @@ type Config struct {
 	AllowedOrigins    string
 	APIURL            string
 	AppURL            string
+	AudioStoragePath  string
 	DatabaseURL       string
 	ImageStoragePath  string
 	JWTAccessTTLMin   int
@@ -40,6 +41,7 @@ func Load() (Config, error) {
 		AllowedOrigins:    getEnv("CORS_ALLOWED_ORIGINS", "*"),
 		APIURL:            getEnv("API_URL", "http://localhost:8080"),
 		AppURL:            getEnv("APP_URL", "http://localhost:5000"),
+		AudioStoragePath:  getEnv("AUDIO_STORAGE_PATH", "/data/audio"),
 		DatabaseURL:       getEnv("DATABASE_URL", ""),
 		ImageStoragePath:  getEnv("IMAGE_STORAGE_PATH", "/data/images"),
 		JWTAccessTTLMin:   accessTTL,

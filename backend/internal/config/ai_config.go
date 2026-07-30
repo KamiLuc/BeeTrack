@@ -4,17 +4,15 @@ import "fmt"
 
 // AIConfig holds settings for the voice-logging and assistant features.
 type AIConfig struct {
-	AnthropicAPIKey  string
-	OpenAIAPIKey     string
-	AudioStoragePath string
+	AnthropicAPIKey string
+	OpenAIAPIKey    string
 }
 
 // LoadAIConfig reads AI feature settings from the environment and validates them.
 func LoadAIConfig() (AIConfig, error) {
 	cfg := AIConfig{
-		AnthropicAPIKey:  getEnv("ANTHROPIC_API_KEY", ""),
-		OpenAIAPIKey:     getEnv("OPENAI_API_KEY", ""),
-		AudioStoragePath: getEnv("AUDIO_STORAGE_PATH", "/data/audio"),
+		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
+		OpenAIAPIKey:    getEnv("OPENAI_API_KEY", ""),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -24,9 +22,9 @@ func LoadAIConfig() (AIConfig, error) {
 }
 
 // Deliberately bypasses AIConfig's validate(), which also hard-requires
-// OPENAI_API_KEY/AUDIO_STORAGE_PATH for voice logging (not yet built) — an
-// unconfigured key here just means the assistant route isn't registered,
-// not that the whole API fails to start.
+// OPENAI_API_KEY for voice logging (not yet built) — an unconfigured key
+// here just means the assistant route isn't registered, not that the
+// whole API fails to start.
 func AnthropicAPIKey() string {
 	return getEnv("ANTHROPIC_API_KEY", "")
 }

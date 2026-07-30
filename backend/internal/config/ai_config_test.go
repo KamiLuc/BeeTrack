@@ -11,27 +11,24 @@ func TestAIConfigValidate(t *testing.T) {
 		{
 			name: "valid",
 			cfg: AIConfig{
-				AnthropicAPIKey:  "sk-ant-test",
-				OpenAIAPIKey:     "sk-openai-test",
-				AudioStoragePath: "/data/audio",
+				AnthropicAPIKey: "sk-ant-test",
+				OpenAIAPIKey:    "sk-openai-test",
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing anthropic key",
 			cfg: AIConfig{
-				AnthropicAPIKey:  "",
-				OpenAIAPIKey:     "sk-openai-test",
-				AudioStoragePath: "/data/audio",
+				AnthropicAPIKey: "",
+				OpenAIAPIKey:    "sk-openai-test",
 			},
 			wantErr: true,
 		},
 		{
 			name: "missing openai key",
 			cfg: AIConfig{
-				AnthropicAPIKey:  "sk-ant-test",
-				OpenAIAPIKey:     "",
-				AudioStoragePath: "/data/audio",
+				AnthropicAPIKey: "sk-ant-test",
+				OpenAIAPIKey:    "",
 			},
 			wantErr: true,
 		},

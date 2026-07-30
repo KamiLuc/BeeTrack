@@ -42,6 +42,7 @@ services:
     environment:
       API_URL: http://localhost:8080
       APP_URL: http://localhost:5000
+      AUDIO_STORAGE_PATH: /data/audio
       DATABASE_URL: postgres://postgres:password@db:5432/beetrack?sslmode=disable
       IMAGE_STORAGE_PATH: /data/images
       PDF_STORAGE_PATH: /data/pdfs
@@ -51,10 +52,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
+      - audio_data:/data/audio
       - images_data:/data/images
       - pdfs_data:/data/pdfs
 
 volumes:
   postgres_data:
+  audio_data:
   images_data:
   pdfs_data:
