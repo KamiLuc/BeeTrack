@@ -2,13 +2,11 @@ package config
 
 import "fmt"
 
-// AIConfig holds settings for the voice-logging and assistant features.
 type AIConfig struct {
 	AnthropicAPIKey string
 	OpenAIAPIKey    string
 }
 
-// LoadAIConfig reads AI feature settings from the environment and validates them.
 func LoadAIConfig() (AIConfig, error) {
 	cfg := AIConfig{
 		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),

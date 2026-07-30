@@ -41,9 +41,6 @@ const (
 	VoiceActionResultTypeError      = "error"
 )
 
-// VoiceRecording is one uploaded voice memo and its worker lifecycle. No hive_id here — a single
-// recording can name zero, one, or several hives within the apiary; which hive(s) it resolved to
-// lives per-action on VoiceAction instead.
 type VoiceRecording struct {
 	ID               int64
 	UserID           int64
@@ -59,9 +56,6 @@ type VoiceRecording struct {
 	ProcessedAt      *time.Time
 }
 
-// VoiceAction is one proposed (and later applied/errored) tool call Claude produced against a
-// VoiceRecording's transcript. ToolArguments IS the proposal — nothing is executed against
-// inspections/treatments/harvests/feedings/hives until Accept runs the real service call.
 type VoiceAction struct {
 	ID                int64
 	VoiceRecordingID  int64
