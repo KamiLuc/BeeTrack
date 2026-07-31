@@ -12,6 +12,15 @@ import (
 
 const defaultWhisperBaseURL = "https://api.openai.com/v1"
 
+type WhisperAPIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *WhisperAPIError) Error() string {
+	return fmt.Sprintf("whisper API returned status %d: %s", e.StatusCode, e.Body)
+}
+
 type WhisperClient struct {
 	apiKey     string
 	baseURL    string
@@ -87,7 +96,7 @@ func (c *WhisperClient) Transcribe(ctx context.Context, audio io.Reader, filenam
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("whisper API returned status %d: %s", resp.StatusCode, respBody)
+		return nil, &WhisperAPIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var result TranscriptionResult

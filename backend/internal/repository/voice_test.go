@@ -36,7 +36,8 @@ func TestVoiceRepository_CreateRecording(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "voice_recordings"`)).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+			sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
@@ -206,6 +207,115 @@ func TestVoiceRepository_ListActionsByRecordingID(t *testing.T) {
 	}
 	if actions[0].Sequence != 1 || actions[1].Sequence != 2 {
 		t.Fatalf("actions not returned in expected order: %+v", actions)
+	}
+}
+
+func TestVoiceRepository_ClaimNext_Found(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_recordings" WHERE status = $1 AND (next_attempt_at IS NULL OR next_attempt_at <= NOW()) ORDER BY created_at ASC,"voice_recordings"."id" LIMIT $2 FOR UPDATE SKIP LOCKED`)).
+		WithArgs(model.VoiceRecordingStatusPending, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "apiary_id", "status", "created_at"}).
+			AddRow(1, 7, 3, model.VoiceRecordingStatusPending, time.Now()))
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "voice_recordings" SET`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	rec, err := repo.ClaimNext(context.Background())
+	if err != nil {
+		t.Fatalf("ClaimNext returned error: %v", err)
+	}
+	if rec == nil || rec.ID != 1 || rec.Status != model.VoiceRecordingStatusProcessing {
+		t.Fatalf("unexpected recording: %+v", rec)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_ClaimNext_NoneAvailable(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_recordings" WHERE status = $1`)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "apiary_id", "status", "created_at"}))
+	mock.ExpectRollback()
+
+	rec, err := repo.ClaimNext(context.Background())
+	if err != nil {
+		t.Fatalf("ClaimNext returned error: %v", err)
+	}
+	if rec != nil {
+		t.Fatalf("expected nil recording, got %+v", rec)
+	}
+}
+
+func TestVoiceRepository_MarkCompleted(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "voice_recordings" SET`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	if err := repo.MarkCompleted(context.Background(), 1, "hive three looked good", "en"); err != nil {
+		t.Fatalf("MarkCompleted returned error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_MarkFailed(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "voice_recordings" SET`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	if err := repo.MarkFailed(context.Background(), 1, "POOR_AUDIO_QUALITY"); err != nil {
+		t.Fatalf("MarkFailed returned error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_MarkRetry(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "voice_recordings" SET`)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	if err := repo.MarkRetry(context.Background(), 1, "timeout", time.Now().Add(5*time.Second)); err != nil {
+		t.Fatalf("MarkRetry returned error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_SweepStuckProcessing(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "voice_recordings" SET`)).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
+
+	n, err := repo.SweepStuckProcessing(context.Background(), 5*time.Minute)
+	if err != nil {
+		t.Fatalf("SweepStuckProcessing returned error: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2 rows reset, got %d", n)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }
 

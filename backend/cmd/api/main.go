@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/beetrack/backend/internal/blockchain"
 	"github.com/beetrack/backend/internal/config"
@@ -82,6 +83,8 @@ func main() {
 	blockchainJobRepo := repository.NewBlockchainJobRepository(db)
 	assistantRepo := repository.NewAssistantRepository(db)
 	voiceRepo := repository.NewVoiceRepository(db)
+
+	startVoiceWorker(ctx, voiceRepo, cfg.AudioStoragePath)
 
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
@@ -333,4 +336,19 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain
 	go blockchainWorker.Run(ctx, blockchainCfg.JobPollInterval, blockchainCfg.ConfirmationPollInterval)
 	slog.Info("honey certification worker started")
 	return certReader
+}
+
+const voicePollInterval = 5 * time.Second
+
+func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, audioStoragePath string) {
+	apiKey := config.OpenAIAPIKey()
+	if apiKey == "" {
+		slog.Warn("OPENAI_API_KEY not set, voice worker disabled")
+		return
+	}
+	whisperClient := llm.NewWhisperClient(apiKey)
+	audioStore := worker.NewFileAudioStore(audioStoragePath)
+	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore)
+	go voiceWorker.Run(ctx, voicePollInterval)
+	slog.Info("voice worker started")
 }

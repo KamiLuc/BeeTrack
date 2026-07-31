@@ -52,6 +52,7 @@ type VoiceRecording struct {
 	ErrorMessage     *string
 	RetryCount       int
 	NextAttemptAt    *time.Time
+	ClaimedAt        *time.Time
 	CreatedAt        time.Time
 	ProcessedAt      *time.Time
 }

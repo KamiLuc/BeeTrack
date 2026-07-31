@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type VoiceRepository struct {
@@ -56,6 +58,79 @@ func (r *VoiceRepository) UpdateRecording(ctx context.Context, rec *model.VoiceR
 
 func (r *VoiceRepository) DeleteRecording(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&model.VoiceRecording{}, id).Error
+}
+
+func (r *VoiceRepository) ClaimNext(ctx context.Context) (*model.VoiceRecording, error) {
+	var rec model.VoiceRecording
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())",
+				model.VoiceRecordingStatusPending).
+			Order("created_at ASC").
+			Limit(1).
+			First(&rec).Error
+		if err != nil {
+			return err
+		}
+		return tx.Model(&rec).Updates(map[string]any{
+			"status":     model.VoiceRecordingStatusProcessing,
+			"claimed_at": gorm.Expr("NOW()"),
+		}).Error
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	rec.Status = model.VoiceRecordingStatusProcessing
+	return &rec, nil
+}
+
+func (r *VoiceRepository) MarkCompleted(ctx context.Context, id int64, transcript, language string) error {
+	updates := map[string]any{
+		"status":       model.VoiceRecordingStatusCompleted,
+		"transcript":   transcript,
+		"audio_path":   nil,
+		"claimed_at":   nil,
+		"processed_at": gorm.Expr("NOW()"),
+	}
+	if language != "" {
+		updates["detected_language"] = language
+	}
+	return r.db.WithContext(ctx).Model(&model.VoiceRecording{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func (r *VoiceRepository) MarkFailed(ctx context.Context, id int64, errMsg string) error {
+	return r.db.WithContext(ctx).Model(&model.VoiceRecording{}).Where("id = ?", id).Updates(map[string]any{
+		"status":        model.VoiceRecordingStatusFailed,
+		"error_message": errMsg,
+		"audio_path":    nil,
+		"claimed_at":    nil,
+		"processed_at":  gorm.Expr("NOW()"),
+	}).Error
+}
+
+func (r *VoiceRepository) MarkRetry(ctx context.Context, id int64, errMsg string, nextAttemptAt time.Time) error {
+	return r.db.WithContext(ctx).Model(&model.VoiceRecording{}).Where("id = ?", id).Updates(map[string]any{
+		"status":          model.VoiceRecordingStatusPending,
+		"retry_count":     gorm.Expr("retry_count + 1"),
+		"error_message":   errMsg,
+		"next_attempt_at": nextAttemptAt,
+		"claimed_at":      nil,
+	}).Error
+}
+
+// Does not touch retry_count — distinct from the Whisper-call retry above.
+func (r *VoiceRepository) SweepStuckProcessing(ctx context.Context, olderThan time.Duration) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.VoiceRecording{}).
+		Where("status = ? AND claimed_at < ?", model.VoiceRecordingStatusProcessing, time.Now().Add(-olderThan)).
+		Updates(map[string]any{
+			"status":     model.VoiceRecordingStatusPending,
+			"claimed_at": nil,
+		})
+	return result.RowsAffected, result.Error
 }
 
 func (r *VoiceRepository) CreateAction(ctx context.Context, action *model.VoiceAction) error {

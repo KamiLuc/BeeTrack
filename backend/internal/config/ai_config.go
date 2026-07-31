@@ -27,6 +27,10 @@ func AnthropicAPIKey() string {
 	return getEnv("ANTHROPIC_API_KEY", "")
 }
 
+func OpenAIAPIKey() string {
+	return getEnv("OPENAI_API_KEY", "")
+}
+
 // AnthropicModel is the model the assistant agent loop uses. Set ANTHROPIC_MODEL to override, e.g.:
 //
 //	ANTHROPIC_MODEL=claude-haiku-4-5         # default — cheapest/fastest, weaker at multi-step tool use
