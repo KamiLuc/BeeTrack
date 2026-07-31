@@ -97,6 +97,13 @@ Response `202 Accepted`: { recording_id, status: "pending" }
  hive 5, back-to-back, without waiting on hive 3's processing]
 ```
 
+The same recording dialog also opens from a mic icon on `HiveDetailScreen` — recording
+against one specific hive rather than the apiary grid. That path posts to
+`POST /api/v1/apiaries/{id}/hives/{hiveId}/voice` instead (§2.3), and the inserted
+`voice_recordings` row gets `hive_id` set directly from the URL. Everything else about
+enqueueing is identical; the only difference is that the worker already knows the
+target hive and skips Phase 1 entirely for that recording (§2.2).
+
 **Half 2 — background worker (asynchronous, one recording at a time or with limited
 concurrency):**
 
@@ -113,10 +120,12 @@ loop as the blockchain worker), claims one, sets status = 'processing'
   Claude (§2.2); recording marked status = 'failed'                            │
         │  (passes)                                                            │
         ▼                                                                      │
-  PHASE 1 — resolve target: Claude is given the transcript + *this              │  every step's
-  apiary's* hives (id, name) via the same `list_hives` read tool the            │  input/output
-  chat assistant uses (§3.3, called directly as a Go function here, not         │  gets persisted
-  over MCP transport, filtered to this apiary). It matches the hive             │  — see §2.4
+  PHASE 1 — resolve target: skipped entirely if the recording already has a     │  every step's
+  hive_id (recorded from HiveDetailScreen, §2.1) — Phase 2 runs directly        │  input/output
+  against that hive. Otherwise, Claude is given the transcript + *this          │  gets persisted
+  apiary's* hives (id, name) via the same `list_hives` read tool the            │  — see §2.4
+  chat assistant uses (§3.3, called directly as a Go function here, not         │
+  over MCP transport, filtered to this apiary). It matches the hive             │
   mentioned in the transcript to a single hive_id. If the transcript names      │
   more than one distinct hive, Phase 1 writes a single `MULTIPLE_HIVES_MENTIONED`│
   `voice_actions` error row and Phase 2 is skipped for this recording (§2.2)    │
@@ -170,22 +179,35 @@ hands-free tool. Queuing decouples "how long the AI takes" from "how fast the
 beekeeper can talk" — three recordings taken 10 seconds apart just become three
 `pending` rows, processed in the order they were queued.
 
-Putting the button on the apiary grid (rather than a single hive's screen) means the
-endpoint knows *which apiary* from the URL, same as every other `/apiaries/{id}/...`
-route, but still can't infer *which hive* — hive identification has to happen from
-speech, which is why Phase 1 exists. Each recording targets exactly one hive: if the
-transcript names more than one ("Hive 3 looked good... Hive 4 needs feeding"), the
-whole recording is rejected as `MULTIPLE_HIVES_MENTIONED` rather than split across
-both (§2.2) — the beekeeper re-records one hive at a time instead, which the queuing
-design above already makes cheap (three recordings 10 seconds apart is no slower than
-one recording naming three hives). This keeps each `voice_actions` row's hive
-unambiguous for the Voice Activity screen, and keeps Phase 1 resolution to "does this
-transcript name exactly one of this apiary's hives" rather than needing to split a
-transcript across several. Resolution also deliberately does not cross apiaries: a
-beekeeper working one apiary's hives at a time matches how the grid screen itself is
-scoped, and keeping resolution to a smaller, unambiguous hive set is both cheaper for
-Claude and safer (no risk of matching a same-named hive in a different apiary the
-beekeeper isn't even standing in).
+The apiary grid's button means the endpoint knows *which apiary* from the URL, same
+as every other `/apiaries/{id}/...` route, but still can't infer *which hive* — hive
+identification has to happen from speech, which is why Phase 1 exists. Each recording
+targets exactly one hive: if the transcript names more than one ("Hive 3 looked
+good... Hive 4 needs feeding"), the whole recording is rejected as
+`MULTIPLE_HIVES_MENTIONED` rather than split across both (§2.2) — the beekeeper
+re-records one hive at a time instead, which the queuing design above already makes
+cheap (three recordings 10 seconds apart is no slower than one recording naming three
+hives). This keeps each `voice_actions` row's hive unambiguous for the Voice Activity
+screen, and keeps Phase 1 resolution to "does this transcript name exactly one of this
+apiary's hives" rather than needing to split a transcript across several. Resolution
+also deliberately does not cross apiaries: a beekeeper working one apiary's hives at a
+time matches how the grid screen itself is scoped, and keeping resolution to a
+smaller, unambiguous hive set is both cheaper for Claude and safer (no risk of
+matching a same-named hive in a different apiary the beekeeper isn't even standing
+in).
+
+`HiveDetailScreen`'s button sidesteps all of this: the endpoint knows *which hive*
+too, straight from the URL, so there's nothing left for Phase 1 to resolve — it's
+skipped entirely, no `list_hives` call and no Claude call for hive matching at all.
+This is deliberately a one-way trust: if the beekeeper is standing at Hive 4's screen
+and says "Hive 3 needs feeding," the recording is still logged against Hive 4 — the
+screen the recording was started from always wins, and nothing cross-checks the
+transcript against it. `HIVE_NOT_IDENTIFIED` and `MULTIPLE_HIVES_MENTIONED` (§2.2)
+only ever apply to apiary-grid recordings, since those are Phase 1 outcomes and this
+path never runs Phase 1. This mirrors how a beekeeper actually works — tapping record
+on one hive's own screen is as unambiguous as it gets, and second-guessing that
+context from noisy transcription would only make the feature less trustworthy, not
+more.
 
 Nothing about existing inspection/treatment/harvest/feeding validation changes — it
 just moves later. The worker's Phase 2 only *proposes* arguments; the same
@@ -256,10 +278,12 @@ the sibling actions accepted alongside it.
   before). There is deliberately no further "undo after Accept" mechanism — once
   applied, a voice-created record is an ordinary record, editable/deletable the same
   way a manually created one is (§2.6).
-- **Hive naming is required, not optional.** Since the button no longer implies a
-  hive, a recording that never names one has nothing to resolve against. The app's
-  recording UI should hint this upfront (e.g. a placeholder tip "say the hive name
-  first") rather than the beekeeper discovering it only after an empty result.
+- **Hive naming is required, not optional — for apiary-grid recordings.** Since that
+  button doesn't imply a hive, a recording that never names one has nothing to resolve
+  against. The app's recording UI should hint this upfront (e.g. a placeholder tip "say
+  the hive name first") rather than the beekeeper discovering it only after an empty
+  result. `HiveDetailScreen` recordings have no such requirement — the hive is already
+  fixed by context, so nothing needs to be said at all (§2.1).
 - **Ambiguous or unmatched hive names don't guess.** If the spoken name matches more
   than one hive in the current apiary (duplicate hive names are allowed by the data
   model even though most beekeepers won't create them) or matches nothing closely
@@ -276,6 +300,16 @@ the sibling actions accepted alongside it.
   Phase 1 still ran, it just didn't resolve to something Phase 2 can act on. The app
   tells the beekeeper to record one hive at a time instead, which costs nothing extra
   given queuing already supports firing off several recordings back-to-back (§2.1).
+- **Recording from a known hive skips Phase 1 entirely.** A `HiveDetailScreen`
+  recording has `hive_id` set on its `voice_recordings` row straight from the URL
+  (§2.3, §2.4), so the worker never fetches `list_hives` or calls Claude to resolve a
+  hive for it — it goes directly to Phase 2 with that hive_id fixed. This is strictly
+  cheaper (one fewer Claude call per recording) and removes an entire class of failure
+  (`HIVE_NOT_IDENTIFIED`/`MULTIPLE_HIVES_MENTIONED` can't happen here, since there's no
+  resolution step to fail). The tradeoff is that this path trusts the screen over the
+  transcript completely: it does not cross-check the transcript against the fixed
+  hive_id, so a misspoken hive name in the recording is silently ignored rather than
+  flagged (§2.1).
 - **Per-hive context is fetched after resolution, not upfront.** Once Phase 1 resolves
   a hive_id, the backend loads *that* hive's context before Phase 2 — type and last
   inspection's frame counts (so "added two frames" resolves to a delta relative to
@@ -339,6 +373,7 @@ the sibling actions accepted alongside it.
 | Endpoint | Notes |
 |---|---|
 | `POST /api/v1/apiaries/{id}/voice` | Apiary-scoped, not hive-scoped — multipart, field `audio` (webm/m4a/wav); rejects synchronously with `RECORDING_TOO_LONG` if the file's duration exceeds the same hard cap the client enforces (§2.2) — a server-side safety net, not just a client-side limit; otherwise stores the file, inserts a `pending` `voice_recordings` row, and returns `202 Accepted` with `{ recording_id, status: "pending" }` immediately — no Whisper/Claude work happens in this request (§2.1) |
+| `POST /api/v1/apiaries/{id}/hives/{hiveId}/voice` | Hive-scoped sibling of the endpoint above, from `HiveDetailScreen`'s recording button (§2.1) — same multipart shape, same validation, same response; the only difference is the inserted `voice_recordings` row gets `hive_id` set directly from the URL, which is what lets the worker skip Phase 1 for that recording (§2.2, §2.4) |
 
 ### 2.4 Persistence & review
 
@@ -355,6 +390,12 @@ CREATE TABLE voice_recordings (
     id                BIGSERIAL PRIMARY KEY,
     user_id           BIGINT NOT NULL REFERENCES users(id),
     apiary_id         BIGINT NOT NULL REFERENCES apiaries(id), -- known from the URL
+    hive_id           BIGINT REFERENCES hives(id),  -- set only when recorded from
+                                                       -- HiveDetailScreen (§2.1, §2.3);
+                                                       -- NULL for apiary-grid recordings,
+                                                       -- even once Phase 1 resolves one —
+                                                       -- that per-action result lives on
+                                                       -- voice_actions.hive_id instead
     status            TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'processing' | 'completed' |
                                                          -- 'accepted' | 'rejected' | 'failed' |
                                                          -- 'cancelled'
@@ -396,9 +437,6 @@ CREATE TABLE voice_recordings (
     processed_at      TIMESTAMPTZ                 -- when the worker finished with it
                                                     -- (either outcome)
 );
--- No hive_id here: a single recording can name zero, one, or several hives within
--- the apiary — which hive(s) it resolved to lives per-action below, not on the
--- recording itself.
 
 CREATE TABLE voice_actions (
     id                  BIGSERIAL PRIMARY KEY,

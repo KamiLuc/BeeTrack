@@ -58,6 +58,10 @@
 | VC-20-FE | `FE`  | `[ ]`  | Cancel a pending recording (FE)                   | Calls VC-14-BE while `pending`; hidden once `processing` (§2.5)                                                                             |
 | VC-21-FE | `FE`  | `[ ]`  | Voice Activity screen                              | History-icon button next to the mic icon; paginated recording list with status chips; tapping a recording opens transcript + proposed actions + Accept/Reject buttons (calls VC-15/16-BE) while `completed`; accepted actions tap through to the normal edit screen (§2.6) |
 | VC-22-FE | `FE`  | `[ ]`  | l10n strings for voice logging UI                 | Recording dialog, statuses (incl. Awaiting review/Accepted/Rejected), Accept/Reject buttons, error copy (`NO_ACTION_RECOGNIZED`, `HIVE_NOT_IDENTIFIED`, `MULTIPLE_HIVES_MENTIONED`, `POOR_AUDIO_QUALITY`, `RECORDING_TOO_LONG`) |
+| VC-23-BE | `BE`  | `[ ]`  | Migration: `voice_recordings.hive_id`             | Nullable, `REFERENCES hives(id)`; set only by the hive-scoped enqueue endpoint below (VC-24-BE), NULL for apiary-grid recordings even after Phase 1 resolves one — that per-action result stays on `voice_actions.hive_id` instead (§2.1, §2.4) |
+| VC-24-BE | `BE`  | `[ ]`  | `POST /apiaries/{id}/hives/{hiveId}/voice`        | Hive-scoped sibling of VC-05-BE's endpoint; same multipart/validation/response shape, but sets `hive_id` on the inserted row from the URL (§2.1, §2.3) |
+| VC-25-BE | `BE`  | `[ ]`  | Worker: skip Phase 1 when `hive_id` already known | If the claimed recording already has `hive_id` set (VC-23/24-BE), the worker skips the `list_hives` fetch and the Claude hive-resolution call entirely and goes straight to Phase 2 with that hive_id fixed — no cross-check against the transcript, the screen the recording was started from always wins (§2.1, §2.2) |
+| VC-26-FE | `FE`  | `[ ]`  | Mic icon + recording dialog on `HiveDetailScreen` | Same recording dialog/controls as VC-17/18/19-FE, reused on the hive screen; uploads to VC-24-BE instead of VC-05-BE; no "say the hive name" hint needed here since the hive is already known (§2.1, §2.2) |
 
 ---
 
