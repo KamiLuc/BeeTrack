@@ -113,15 +113,17 @@ loop as the blockchain worker), claims one, sets status = 'processing'
   Claude (§2.2); recording marked status = 'failed'                            │
         │  (passes)                                                            │
         ▼                                                                      │
-  PHASE 1 — resolve targets: Claude is given the transcript + *this             │  every step's
+  PHASE 1 — resolve target: Claude is given the transcript + *this              │  every step's
   apiary's* hives (id, name) via the same `list_hives` read tool the            │  input/output
   chat assistant uses (§3.3, called directly as a Go function here, not         │  gets persisted
-  over MCP transport, filtered to this apiary). It matches each named           │  — see §2.4
-  hive mentioned in the transcript to a hive_id.                                │
+  over MCP transport, filtered to this apiary). It matches the hive             │  — see §2.4
+  mentioned in the transcript to a single hive_id. If the transcript names      │
+  more than one distinct hive, Phase 1 writes a single `MULTIPLE_HIVES_MENTIONED`│
+  `voice_actions` error row and Phase 2 is skipped for this recording (§2.2)    │
         │                                                                       │
         ▼                                                                       │
-  PHASE 2 — propose: for each resolved (hive_id, topic) pair, Claude calls     │
-  one write tool with that hive_id fixed in the arguments:                     │
+  PHASE 2 — propose: for the one resolved hive_id, Claude calls 1..N write     │
+  tools with that hive_id fixed in the arguments:                             │
      - create_inspection / create_treatment / create_harvest / create_feeding / update_hive_status   │
         │  picks 1..N tools + fills each one's arguments from the transcript    │
         ▼                                                                       │
@@ -171,14 +173,19 @@ beekeeper can talk" — three recordings taken 10 seconds apart just become thre
 Putting the button on the apiary grid (rather than a single hive's screen) means the
 endpoint knows *which apiary* from the URL, same as every other `/apiaries/{id}/...`
 route, but still can't infer *which hive* — hive identification has to happen from
-speech, which is why Phase 1 exists. This also means one recording can name more than
-one hive within that apiary ("Hive 3 looked good... Hive 4 needs feeding") and produce
-actions against each — each `voice_actions` row's `hive` is what lets the Voice
-Activity screen say which hive each result belongs to. It deliberately does not
-resolve across apiaries: a beekeeper working one apiary's hives at a time matches how
-the grid screen itself is scoped, and keeping resolution to a smaller, unambiguous
-hive set is both cheaper for Claude and safer (no risk of matching a same-named hive
-in a different apiary the beekeeper isn't even standing in).
+speech, which is why Phase 1 exists. Each recording targets exactly one hive: if the
+transcript names more than one ("Hive 3 looked good... Hive 4 needs feeding"), the
+whole recording is rejected as `MULTIPLE_HIVES_MENTIONED` rather than split across
+both (§2.2) — the beekeeper re-records one hive at a time instead, which the queuing
+design above already makes cheap (three recordings 10 seconds apart is no slower than
+one recording naming three hives). This keeps each `voice_actions` row's hive
+unambiguous for the Voice Activity screen, and keeps Phase 1 resolution to "does this
+transcript name exactly one of this apiary's hives" rather than needing to split a
+transcript across several. Resolution also deliberately does not cross apiaries: a
+beekeeper working one apiary's hives at a time matches how the grid screen itself is
+scoped, and keeping resolution to a smaller, unambiguous hive set is both cheaper for
+Claude and safer (no risk of matching a same-named hive in a different apiary the
+beekeeper isn't even standing in).
 
 Nothing about existing inspection/treatment/harvest/feeding validation changes — it
 just moves later. The worker's Phase 2 only *proposes* arguments; the same
@@ -261,6 +268,14 @@ the sibling actions accepted alongside it.
   it as "Couldn't tell which hive — please open it and log manually" instead of
   silently writing to the wrong colony's history. Matching only needs to be forgiving
   of minor mishearing (Whisper transcription noise), not of genuinely ambiguous input.
+- **One recording, one hive.** Unlike `HIVE_NOT_IDENTIFIED` above (a naming problem —
+  the spoken name doesn't clearly match anything), naming *multiple distinct* hives
+  clearly is a policy rejection, not an ambiguity: Phase 2 never runs, and the
+  recording gets a single `MULTIPLE_HIVES_MENTIONED` `voice_actions` error row instead
+  of per-hive proposals — same storage shape as `HIVE_NOT_IDENTIFIED` (§2.4), since
+  Phase 1 still ran, it just didn't resolve to something Phase 2 can act on. The app
+  tells the beekeeper to record one hive at a time instead, which costs nothing extra
+  given queuing already supports firing off several recordings back-to-back (§2.1).
 - **Per-hive context is fetched after resolution, not upfront.** Once Phase 1 resolves
   a hive_id, the backend loads *that* hive's context before Phase 2 — type and last
   inspection's frame counts (so "added two frames" resolves to a delta relative to
@@ -313,10 +328,11 @@ the sibling actions accepted alongside it.
   confidently map a clean transcript to a named hive plus any of the five write
   actions at all (e.g. silence, unrelated speech, small talk), the endpoint returns a
   distinct `NO_ACTION_RECOGNIZED` error and the app shows "Couldn't understand that —
-  try again" rather than guessing. If it maps *some* but not all of what was said
-  (e.g. it caught the feeding but not the inspection, or resolved one hive but not a
-  second one mentioned), that's a partial result, not a failure — the app shows what
-  was saved and the beekeeper can fill in the rest manually.
+  try again" rather than guessing. If it maps *some* but not all of what was said for
+  the one resolved hive (e.g. it caught the feeding but not the inspection), that's a
+  partial result, not a failure — the app shows what was saved and the beekeeper can
+  fill in the rest manually. (Naming a second hive is not a partial result — that's the
+  `MULTIPLE_HIVES_MENTIONED` rejection above, §2.2.)
 
 ### 2.3 New backend surface
 
@@ -428,7 +444,11 @@ recording that named a hive but couldn't resolve it (`HIVE_NOT_IDENTIFIED`) gets
 `voice_actions` row with `spoken_hive_name` set, `hive_id` NULL, and `status =
 'error'` straight away (there's nothing to propose or review for it) — so "the
 beekeeper said a name we couldn't match" is distinguishable in the log from "the
-beekeeper didn't name a hive at all." A `POOR_AUDIO_QUALITY` rejection still gets its
+beekeeper didn't name a hive at all." A recording that named more than one hive
+(`MULTIPLE_HIVES_MENTIONED`, §2.2) gets the same one-error-row shape, `hive_id` NULL,
+`tool_name` NULL — Phase 1 ran and found more than one valid match, so this is
+distinguishable in the log from both "no match" and "no hive named at all." A
+`POOR_AUDIO_QUALITY` rejection still gets its
 `voice_recordings` row (transcript included, however unreliable it is) plus one
 `voice_actions` error row with `tool_name` NULL — Claude was never called for that
 recording at all, which the log makes visible the same way a failed hive match does.
@@ -518,7 +538,8 @@ place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings
   `InspectionHistoryScreen`), styled like a message list: each row is one recording
   with a status chip — "Queued" / "Processing…" / "Awaiting review" (`completed` with
   actionable proposals) / "Accepted" / "Rejected" / an error reason (`failed`,
-  `NO_ACTION_RECOGNIZED`, `HIVE_NOT_IDENTIFIED`) / "Cancelled". The screen refreshes on
+  `NO_ACTION_RECOGNIZED`, `HIVE_NOT_IDENTIFIED`, `MULTIPLE_HIVES_MENTIONED`) /
+  "Cancelled". The screen refreshes on
   open and via pull-to-refresh — same lightweight polling-on-demand approach already
   used for the honey batch certification badge's in-progress state, no push
   notifications or websockets needed for v1.
@@ -547,10 +568,11 @@ place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings
   the `voice_recordings` row for reference — "what did I even say that time" — but the
   proposed actions themselves are gone.
 - **Error and cancelled rows** (`NO_ACTION_RECOGNIZED` / `HIVE_NOT_IDENTIFIED` /
-  `POOR_AUDIO_QUALITY` / a recording-level `failed` status / `cancelled` via §2.5) have
-  no proposal to accept or reject — they're listed for transparency only ("couldn't
-  understand this recording" / "couldn't tell which hive" / "recording wasn't clear
-  enough" / "cancelled").
+  `MULTIPLE_HIVES_MENTIONED` / `POOR_AUDIO_QUALITY` / a recording-level `failed` status
+  / `cancelled` via §2.5) have no proposal to accept or reject — they're listed for
+  transparency only ("couldn't understand this recording" / "couldn't tell which hive"
+  / "mentioned more than one hive — please record one hive at a time" / "recording
+  wasn't clear enough" / "cancelled").
 
 New backend surface for this:
 
