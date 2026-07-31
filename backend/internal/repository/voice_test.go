@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/beetrack/backend/internal/model"
+	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -156,6 +157,32 @@ func TestVoiceRepository_DeleteRecording(t *testing.T) {
 
 	if err := repo.DeleteRecording(context.Background(), 1); err != nil {
 		t.Fatalf("DeleteRecording returned error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_CreateLLMCall(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "voice_llm_calls"`)).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectCommit()
+
+	call := &model.VoiceLLMCall{
+		VoiceRecordingID: 1,
+		Phase:            model.VoiceLLMCallPhaseResolveHive,
+		Request:          datatypes.JSON(`{"transcript":"hive three looked good"}`),
+		Response:         datatypes.JSON(`{"outcome":"matched","hive_id":42}`),
+	}
+	if err := repo.CreateLLMCall(context.Background(), call); err != nil {
+		t.Fatalf("CreateLLMCall returned error: %v", err)
+	}
+	if call.ID != 1 {
+		t.Fatalf("expected id 1, got %d", call.ID)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)

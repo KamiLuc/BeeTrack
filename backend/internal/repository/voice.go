@@ -149,3 +149,7 @@ func (r *VoiceRepository) ListActionsByRecordingID(ctx context.Context, recordin
 func (r *VoiceRepository) UpdateAction(ctx context.Context, action *model.VoiceAction) error {
 	return r.db.WithContext(ctx).Save(action).Error
 }
+
+func (r *VoiceRepository) CreateLLMCall(ctx context.Context, call *model.VoiceLLMCall) error {
+	return r.db.WithContext(ctx).Create(call).Error
+}

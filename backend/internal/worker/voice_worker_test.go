@@ -41,6 +41,10 @@ type mockVoiceRepo struct {
 
 	createdAction      *model.VoiceAction
 	createActionCalled bool
+	createdActions     []*model.VoiceAction
+
+	createdLLMCalls  []*model.VoiceLLMCall
+	createLLMCallErr error
 }
 
 func (m *mockVoiceRepo) ClaimNext(ctx context.Context) (*model.VoiceRecording, error) {
@@ -78,7 +82,13 @@ func (m *mockVoiceRepo) SweepStuckProcessing(ctx context.Context, olderThan time
 func (m *mockVoiceRepo) CreateAction(ctx context.Context, action *model.VoiceAction) error {
 	m.createActionCalled = true
 	m.createdAction = action
+	m.createdActions = append(m.createdActions, action)
 	return nil
+}
+
+func (m *mockVoiceRepo) CreateLLMCall(ctx context.Context, call *model.VoiceLLMCall) error {
+	m.createdLLMCalls = append(m.createdLLMCalls, call)
+	return m.createLLMCallErr
 }
 
 type mockTranscriber struct {
@@ -109,9 +119,11 @@ func (m *mockAudioStore) Delete(path string) error {
 }
 
 type mockHiveLister struct {
-	hives     []mcp.HiveSummary
-	err       error
-	callCount int
+	hives      []mcp.HiveSummary
+	err        error
+	callCount  int
+	summary    *mcp.HiveHistory
+	summaryErr error
 }
 
 func (m *mockHiveLister) ListHives(ctx context.Context, userID int64, apiaryID *int64) ([]mcp.HiveSummary, error) {
@@ -119,15 +131,27 @@ func (m *mockHiveLister) ListHives(ctx context.Context, userID int64, apiaryID *
 	return m.hives, m.err
 }
 
+func (m *mockHiveLister) GetHiveSummary(ctx context.Context, userID, hiveID int64, days *int) (*mcp.HiveHistory, error) {
+	if m.summary == nil && m.summaryErr == nil {
+		return &mcp.HiveHistory{}, nil
+	}
+	return m.summary, m.summaryErr
+}
+
 type mockHiveResolver struct {
-	message   *anthropic.Message
-	err       error
-	callCount int
+	resolveMessage *anthropic.Message
+	resolveErr     error
+	proposeMessage *anthropic.Message
+	proposeErr     error
+	callCount      int
 }
 
 func (m *mockHiveResolver) New(ctx context.Context, params anthropic.MessageNewParams, opts ...option.RequestOption) (*anthropic.Message, error) {
 	m.callCount++
-	return m.message, m.err
+	if params.ToolChoice.OfTool != nil {
+		return m.resolveMessage, m.resolveErr
+	}
+	return m.proposeMessage, m.proposeErr
 }
 
 func resolveHiveMessage(t *testing.T, input resolveHiveInput) *anthropic.Message {
@@ -139,6 +163,15 @@ func resolveHiveMessage(t *testing.T, input resolveHiveInput) *anthropic.Message
 	return &anthropic.Message{
 		Content: []anthropic.ContentBlockUnion{{Type: "tool_use", Name: resolveHiveToolName, Input: data}},
 	}
+}
+
+func toolUseMessage(t *testing.T, calls ...[2]string) *anthropic.Message {
+	t.Helper()
+	content := make([]anthropic.ContentBlockUnion, len(calls))
+	for i, c := range calls {
+		content[i] = anthropic.ContentBlockUnion{Type: "tool_use", Name: c[0], Input: json.RawMessage(c[1])}
+	}
+	return &anthropic.Message{Content: content}
 }
 
 func clearAudioPath(rec *model.VoiceRecording, path string) *model.VoiceRecording {
@@ -171,9 +204,17 @@ func TestVoiceWorker_ProcessNext_HappyPath(t *testing.T) {
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	audio := &mockAudioStore{}
-	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	hives := &mockHiveLister{
+		hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}},
+		summary: &mcp.HiveHistory{
+			Hive: mcp.HiveSummary{Type: "langstroth", Queenless: true, Diseases: []string{"varroa"}},
+		},
+	}
 	hiveID := int64(42)
-	resolver := &mockHiveResolver{message: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID})}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
 	w := newTranscribedWorker(repo, transcriber, audio, hives, resolver)
 
 	processed, err := w.ProcessNext(context.Background())
@@ -190,10 +231,35 @@ func TestVoiceWorker_ProcessNext_HappyPath(t *testing.T) {
 		t.Errorf("unexpected completed transcript/language: %q/%q", repo.completedText, repo.completedLanguage)
 	}
 	if repo.createActionCalled {
-		t.Error("expected no voice_actions row when the hive resolved cleanly")
+		t.Error("expected no voice_actions row when Claude proposes nothing")
 	}
 	if len(audio.deleted) != 1 || audio.deleted[0] != "audio.wav" {
 		t.Errorf("expected audio file to be deleted, got %+v", audio.deleted)
+	}
+	if len(repo.createdLLMCalls) != 2 {
+		t.Fatalf("expected 2 voice_llm_calls rows (resolve_hive + propose_actions), got %d", len(repo.createdLLMCalls))
+	}
+	if repo.createdLLMCalls[0].Phase != model.VoiceLLMCallPhaseResolveHive || repo.createdLLMCalls[0].IsError {
+		t.Errorf("expected a successful resolve_hive llm call row, got %+v", repo.createdLLMCalls[0])
+	}
+	if repo.createdLLMCalls[1].Phase != model.VoiceLLMCallPhaseProposeActions || repo.createdLLMCalls[1].IsError {
+		t.Errorf("expected a successful propose_actions llm call row, got %+v", repo.createdLLMCalls[1])
+	}
+
+	var resolveReq resolveHiveRequest
+	if err := json.Unmarshal(repo.createdLLMCalls[0].Request, &resolveReq); err != nil {
+		t.Fatalf("unmarshal resolve_hive request: %v", err)
+	}
+	if resolveReq.Transcript != "hive three looked good" || len(resolveReq.Hives) != 1 || resolveReq.Hives[0] != (hiveOption{ID: 42, Name: "Hive 3"}) {
+		t.Errorf("expected resolve_hive request to contain the transcript and hive list actually sent, got %+v", resolveReq)
+	}
+
+	var proposeReq proposeActionsRequest
+	if err := json.Unmarshal(repo.createdLLMCalls[1].Request, &proposeReq); err != nil {
+		t.Fatalf("unmarshal propose_actions request: %v", err)
+	}
+	if proposeReq.Transcript != "hive three looked good" || proposeReq.HiveContext.Type != "langstroth" || !proposeReq.HiveContext.Queenless || len(proposeReq.HiveContext.Diseases) != 1 || proposeReq.HiveContext.Diseases[0] != "varroa" {
+		t.Errorf("expected propose_actions request to contain the transcript and hive context actually sent, got %+v", proposeReq)
 	}
 }
 
@@ -357,7 +423,7 @@ func TestVoiceWorker_ProcessNext_HiveNotIdentified(t *testing.T) {
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}, {ID: 2, Name: "Hive 2"}}}
 	spoken := "the bees"
-	resolver := &mockHiveResolver{message: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeNotIdentified, SpokenHiveName: &spoken})}
+	resolver := &mockHiveResolver{resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeNotIdentified, SpokenHiveName: &spoken})}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -389,7 +455,7 @@ func TestVoiceWorker_ProcessNext_MultipleHivesMentioned(t *testing.T) {
 		Segments: []llm.TranscriptionSegment{{Text: "hive 3 looked good, hive 4 needs feeding", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 3, Name: "Hive 3"}, {ID: 4, Name: "Hive 4"}}}
-	resolver := &mockHiveResolver{message: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMultiple})}
+	resolver := &mockHiveResolver{resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMultiple})}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -434,7 +500,7 @@ func TestVoiceWorker_ProcessNext_HallucinatedHiveIDFallsBackToNotIdentified(t *t
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
 	bogusID := int64(999)
-	resolver := &mockHiveResolver{message: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &bogusID})}
+	resolver := &mockHiveResolver{resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &bogusID})}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -453,7 +519,7 @@ func TestVoiceWorker_ProcessNext_ClaudeNoToolCallFailsRecording(t *testing.T) {
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{message: &anthropic.Message{
+	resolver := &mockHiveResolver{resolveMessage: &anthropic.Message{
 		Content: []anthropic.ContentBlockUnion{{Type: "text", Text: "sorry, I can't help with that"}},
 	}}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
@@ -477,7 +543,7 @@ func TestVoiceWorker_ProcessNext_MalformedToolInputFailsRecording(t *testing.T) 
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{message: &anthropic.Message{
+	resolver := &mockHiveResolver{resolveMessage: &anthropic.Message{
 		Content: []anthropic.ContentBlockUnion{{Type: "tool_use", Name: resolveHiveToolName, Input: []byte("{not valid json")}},
 	}}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
@@ -501,7 +567,7 @@ func TestVoiceWorker_ProcessNext_ClaudeErrorFailsRecording(t *testing.T) {
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{err: errors.New("anthropic api unavailable")}
+	resolver := &mockHiveResolver{resolveErr: errors.New("anthropic api unavailable")}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -512,6 +578,40 @@ func TestVoiceWorker_ProcessNext_ClaudeErrorFailsRecording(t *testing.T) {
 	}
 	if repo.completedCalled {
 		t.Error("expected recording NOT to be marked completed")
+	}
+	if len(repo.createdLLMCalls) != 1 || !repo.createdLLMCalls[0].IsError || repo.createdLLMCalls[0].Phase != model.VoiceLLMCallPhaseResolveHive {
+		t.Fatalf("expected a failed resolve_hive llm call row, got %+v", repo.createdLLMCalls)
+	}
+	var stored map[string]string
+	if err := json.Unmarshal(repo.createdLLMCalls[0].Response, &stored); err != nil {
+		t.Fatalf("unmarshal stored error response: %v", err)
+	}
+	if stored["error"] != "anthropic api unavailable" {
+		t.Errorf("expected the raw Claude error to be stored, got %+v", stored)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_LLMCallLogFailureIsBestEffort(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec, createLLMCallErr: errors.New("db unavailable")}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Language: "en",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to still be marked completed even when logging the llm call fails")
 	}
 }
 
@@ -536,7 +636,7 @@ func TestVoiceWorker_ProcessNext_MatchedWithNilHiveIDFallsBackToNotIdentified(t 
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{message: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched})}
+	resolver := &mockHiveResolver{resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched})}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -544,6 +644,251 @@ func TestVoiceWorker_ProcessNext_MatchedWithNilHiveIDFallsBackToNotIdentified(t 
 	}
 	if !repo.createActionCalled || *repo.createdAction.ErrorMessage != "HIVE_NOT_IDENTIFIED" {
 		t.Fatalf("expected matched with nil hive_id to fall back to HIVE_NOT_IDENTIFIED, got %+v", repo.createdAction)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposesSingleAction(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good, brood pattern was excellent",
+		Language: "en",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good, brood pattern was excellent", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{
+		hives:   []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}},
+		summary: &mcp.HiveHistory{Hive: mcp.HiveSummary{ID: 42, Type: "langstroth"}},
+	}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t, [2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"excellent"}`}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 1 {
+		t.Fatalf("expected 1 proposed action, got %d: %+v", len(repo.createdActions), repo.createdActions)
+	}
+	action := repo.createdActions[0]
+	if action.Status != model.VoiceActionStatusProposed {
+		t.Errorf("expected status proposed, got %q", action.Status)
+	}
+	if action.HiveID == nil || *action.HiveID != hiveID {
+		t.Errorf("expected hive_id %d, got %+v", hiveID, action.HiveID)
+	}
+	if action.ToolName == nil || *action.ToolName != model.VoiceActionToolCreateInspection {
+		t.Errorf("expected tool_name create_inspection, got %+v", action.ToolName)
+	}
+	if string(action.ToolArguments) != `{"brood_pattern":"excellent"}` {
+		t.Errorf("expected tool_arguments to be passed through verbatim, got %s", action.ToolArguments)
+	}
+	if action.Sequence != 1 {
+		t.Errorf("expected sequence 1, got %d", action.Sequence)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to be marked completed")
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposesMultipleActionsInOrder(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good and I gave them a litre of syrup",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good and I gave them a litre of syrup", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t,
+			[2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"good"}`},
+			[2]string{model.VoiceActionToolCreateFeeding, `{"feed_type":"syrup","amount":"1L"}`},
+		),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 2 {
+		t.Fatalf("expected 2 proposed actions, got %d: %+v", len(repo.createdActions), repo.createdActions)
+	}
+	if *repo.createdActions[0].ToolName != model.VoiceActionToolCreateInspection || repo.createdActions[0].Sequence != 1 {
+		t.Errorf("expected first action to be create_inspection with sequence 1, got %+v", repo.createdActions[0])
+	}
+	if *repo.createdActions[1].ToolName != model.VoiceActionToolCreateFeeding || repo.createdActions[1].Sequence != 2 {
+		t.Errorf("expected second action to be create_feeding with sequence 2, got %+v", repo.createdActions[1])
+	}
+}
+
+func TestVoiceWorker_ProcessNext_UnrecognizedToolNameIgnored(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t, [2]string{"update_hive_status", `{"queenless":true}`}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if repo.createActionCalled {
+		t.Errorf("expected an unrecognized tool name to be ignored, got %+v", repo.createdActions)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to still be marked completed")
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsClaudeErrorFailsRecording(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeErr:     errors.New("anthropic api unavailable"),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if !repo.failedCalled {
+		t.Fatal("expected recording to be marked failed when action proposal fails")
+	}
+	if repo.completedCalled {
+		t.Error("expected recording NOT to be marked completed")
+	}
+	if len(repo.createdLLMCalls) != 2 {
+		t.Fatalf("expected 2 llm call rows (resolve_hive success + propose_actions failure), got %d", len(repo.createdLLMCalls))
+	}
+	if repo.createdLLMCalls[1].Phase != model.VoiceLLMCallPhaseProposeActions || !repo.createdLLMCalls[1].IsError {
+		t.Errorf("expected a failed propose_actions llm call row, got %+v", repo.createdLLMCalls[1])
+	}
+}
+
+func TestVoiceWorker_ProcessNext_HiveSummaryErrorFailsRecording(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{
+		hives:      []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}},
+		summaryErr: errors.New("database unavailable"),
+	}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if !repo.failedCalled {
+		t.Fatal("expected recording to be marked failed when the hive summary lookup fails")
+	}
+	if resolver.callCount != 1 {
+		t.Errorf("expected Claude not to be called for action proposal when the hive summary lookup fails, got %d calls", resolver.callCount)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_MalformedProposedToolInputStoredVerbatim(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t, [2]string{model.VoiceActionToolCreateInspection, `{not valid json`}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 1 {
+		t.Fatalf("expected 1 proposed action even with malformed tool input, got %d", len(repo.createdActions))
+	}
+	if string(repo.createdActions[0].ToolArguments) != `{not valid json` {
+		t.Errorf("expected malformed tool_arguments to be stored verbatim without parsing, got %s", repo.createdActions[0].ToolArguments)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to be marked completed")
+	}
+}
+
+func TestVoiceWorker_ProcessNext_SignedFrameDeltaSurvivesRoundTrip(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three lost a frame of brood",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three lost a frame of brood", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t, [2]string{model.VoiceActionToolCreateInspection, `{"frames_added_brood":-1}`}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 1 {
+		t.Fatalf("expected 1 proposed action, got %d", len(repo.createdActions))
+	}
+	var got map[string]int
+	if err := json.Unmarshal(repo.createdActions[0].ToolArguments, &got); err != nil {
+		t.Fatalf("unmarshal stored tool_arguments: %v", err)
+	}
+	if got["frames_added_brood"] != -1 {
+		t.Errorf("expected frames_added_brood -1 to survive the raw JSON round-trip, got %d", got["frames_added_brood"])
+	}
+}
+
+func TestBuildHiveActionContext_PicksLatestInspection(t *testing.T) {
+	older := time.Now().Add(-48 * time.Hour)
+	newer := time.Now()
+	framesBrood := 5
+	h := &mcp.HiveHistory{
+		Hive: mcp.HiveSummary{Type: "langstroth", Queenless: true, Diseases: []string{"varroa"}},
+		Inspections: []mcp.InspectionSummary{
+			{InspectedAt: older, FramesBrood: nil},
+			{InspectedAt: newer, FramesBrood: &framesBrood},
+		},
+	}
+
+	got := buildHiveActionContext(h)
+
+	if got.Type != "langstroth" || !got.Queenless || len(got.Diseases) != 1 || got.Diseases[0] != "varroa" {
+		t.Errorf("expected hive flags to carry through, got %+v", got)
+	}
+	if got.LastInspection == nil || got.LastInspection.FramesBrood == nil || *got.LastInspection.FramesBrood != 5 {
+		t.Fatalf("expected the most recent inspection to be picked regardless of list order, got %+v", got.LastInspection)
 	}
 }
 
@@ -607,6 +952,67 @@ func TestResolveHiveTool_Schema(t *testing.T) {
 	for _, key := range []string{"hive_id", "spoken_hive_name"} {
 		if _, ok := properties[key]; !ok {
 			t.Errorf("expected InputSchema.Properties to contain %q", key)
+		}
+	}
+}
+
+func TestActionProposalTools_RequiredFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		tool     anthropic.ToolUnionParam
+		wantName string
+		wantReq  []string
+	}{
+		{"inspection", createInspectionTool(), model.VoiceActionToolCreateInspection, nil},
+		{"treatment", createTreatmentTool(), model.VoiceActionToolCreateTreatment, []string{"medicine_name"}},
+		{"harvest", createHarvestTool(), model.VoiceActionToolCreateHarvest, []string{"kilograms"}},
+		{"feeding", createFeedingTool(), model.VoiceActionToolCreateFeeding, []string{"feed_type"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tool := tt.tool.OfTool
+			if tool == nil {
+				t.Fatal("expected OfTool to be set")
+			}
+			if tool.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", tool.Name, tt.wantName)
+			}
+			if len(tool.InputSchema.Required) != len(tt.wantReq) {
+				t.Fatalf("Required = %+v, want %+v", tool.InputSchema.Required, tt.wantReq)
+			}
+			for i, key := range tt.wantReq {
+				if tool.InputSchema.Required[i] != key {
+					t.Errorf("Required[%d] = %q, want %q", i, tool.InputSchema.Required[i], key)
+				}
+			}
+		})
+	}
+}
+
+func TestActionProposalTools_ReturnsAllFour(t *testing.T) {
+	tools := actionProposalTools()
+	if len(tools) != 4 {
+		t.Fatalf("expected 4 tools, got %d", len(tools))
+	}
+	wantNames := map[string]bool{
+		model.VoiceActionToolCreateInspection: false,
+		model.VoiceActionToolCreateTreatment:  false,
+		model.VoiceActionToolCreateHarvest:    false,
+		model.VoiceActionToolCreateFeeding:    false,
+	}
+	for _, tool := range tools {
+		if tool.OfTool == nil {
+			t.Fatal("expected OfTool to be set")
+		}
+		if _, ok := wantNames[tool.OfTool.Name]; !ok {
+			t.Errorf("unexpected tool name %q", tool.OfTool.Name)
+		}
+		wantNames[tool.OfTool.Name] = true
+	}
+	for name, seen := range wantNames {
+		if !seen {
+			t.Errorf("expected tool %q to be present", name)
 		}
 	}
 }

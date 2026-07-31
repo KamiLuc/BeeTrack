@@ -473,6 +473,22 @@ CREATE TABLE voice_actions (
                                                       -- Accept-time validation failures)
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE voice_llm_calls (
+    id                  BIGSERIAL PRIMARY KEY,
+    voice_recording_id  BIGINT NOT NULL REFERENCES voice_recordings(id) ON DELETE CASCADE,
+    phase               TEXT NOT NULL, -- 'resolve_hive' | 'propose_actions' (Phase 1 / Phase 2)
+    request             JSONB NOT NULL, -- transcript + whatever context that phase sent Claude
+                                          -- (the apiary's hive list for resolve_hive; the resolved
+                                          -- hive's type/status/diseases/last inspection for
+                                          -- propose_actions)
+    response            JSONB,          -- Claude's raw message on success, or {"error": "..."} if
+                                          -- the API call itself failed
+    is_error            BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ON voice_llm_calls(voice_recording_id);
 ```
 
 A recording with no recognizable action at all (`NO_ACTION_RECOGNIZED`, §2.2) still
@@ -520,6 +536,17 @@ queue. If the worker itself dies mid-recording (not mid-action — e.g. a deploy
 restarts the process), the recording is left `processing`; the worker's polling loop
 picks up anything stuck in `processing` past a timeout and retries it from the top,
 the same recovery approach the blockchain worker already uses for stuck jobs.
+
+Every Phase 1/2 Claude call — not just the ones that end up producing a proposal or
+an error action — gets its own `voice_llm_calls` row: what was actually sent
+(transcript + hive list/context) and Claude's raw response, or the raw API error if
+the call itself failed. This is the same kind of audit trail
+`assistant_tool_calls` already provides for the chat assistant (§3), applied here
+because a bad `voice_actions` outcome is otherwise a dead end to debug — `tool_arguments`
+or `error_message` alone doesn't say *why* Claude picked those values or failed to
+respond the way Phase 1/2 expected. Writing this row is best-effort: a failure to
+persist it is logged and swallowed, never allowed to fail the recording itself, since
+it's a debugging aid, not part of the pipeline's actual outcome.
 
 ### 2.5 Recording popup: local playback & cancelling a pending recording
 
