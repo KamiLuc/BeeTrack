@@ -30,22 +30,20 @@ var (
 	ErrInvalidQueenStatus           = errors.New("invalid queen_status value")
 )
 
-var validDiseases = map[string]bool{
-	"american_foulbrood": true, "chalkbrood": true, "dwv": true,
-	"european_foulbrood": true, "laying_workers": true, "nosema": true, "varroa": true,
-}
+var validDiseases = toSet(model.ValidDiseases)
 
-var validAggressiveness = map[string]bool{
-	"aggressive": true, "calm": true, "mild": true, "very_aggressive": true,
-}
+var validAggressiveness = toSet(model.ValidAggressiveness)
 
-var validBroodPattern = map[string]bool{
-	"excellent": true, "good": true, "none": true, "poor": true,
-	"few": true, "medium": true, "many": true,
-}
+var validBroodPattern = toSet(model.ValidBroodPatterns)
 
-var validQueenStatus = map[string]bool{
-	"not_seen": true, "seen": true,
+var validQueenStatus = toSet(model.ValidQueenStatuses)
+
+func toSet(values []string) map[string]bool {
+	set := make(map[string]bool, len(values))
+	for _, v := range values {
+		set[v] = true
+	}
+	return set
 }
 
 // InspectionHiveReader is the subset of HiveRepository needed by InspectionService.

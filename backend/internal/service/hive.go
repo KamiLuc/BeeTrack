@@ -21,10 +21,7 @@ var (
 	ErrTargetApiaryFull    = errors.New("target apiary has no free space")
 )
 
-var validHiveDiseases = map[string]bool{
-	"american_foulbrood": true, "chalkbrood": true, "dwv": true,
-	"european_foulbrood": true, "laying_workers": true, "nosema": true, "varroa": true,
-}
+var validHiveDiseases = toSet(model.ValidDiseases)
 
 type ApiaryMembershipReader interface {
 	GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error)

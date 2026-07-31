@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+var (
+	ValidQueenStatuses  = []string{"not_seen", "seen"}
+	ValidBroodPatterns  = []string{"excellent", "good", "none", "poor", "few", "medium", "many"}
+	ValidAggressiveness = []string{"calm", "mild", "aggressive", "very_aggressive"}
+)
+
 type Inspection struct {
 	ID                    int64
 	HiveID                int64
