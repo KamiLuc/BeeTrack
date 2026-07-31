@@ -84,8 +84,6 @@ func main() {
 	assistantRepo := repository.NewAssistantRepository(db)
 	voiceRepo := repository.NewVoiceRepository(db)
 
-	startVoiceWorker(ctx, voiceRepo, cfg.AudioStoragePath)
-
 	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
 	authSvc := service.NewAuthService(userRepo, tokenRepo, emailTokenRepo, mail, cfg.APIURL, cfg.AppURL, cfg.JWTSecret, cfg.JWTAccessTTLMin, cfg.JWTRefreshTTLDays)
@@ -109,6 +107,9 @@ func main() {
 	voiceSvc := service.NewVoiceService(apiaryRepo, voiceRepo, cfg.AudioStoragePath)
 
 	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
+
+	startVoiceWorker(ctx, voiceRepo, hiveTools, cfg.AudioStoragePath)
+
 	listingTools := mcp.NewListingTools(listingSvc)
 	assistantRegistry := mcp.NewRegistry()
 	assistantRegistry.Register(hiveTools.ListApiariesTool())
@@ -340,15 +341,17 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain
 
 const voicePollInterval = 5 * time.Second
 
-func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, audioStoragePath string) {
-	apiKey := config.OpenAIAPIKey()
-	if apiKey == "" {
-		slog.Warn("OPENAI_API_KEY not set, voice worker disabled")
+func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, hives worker.HiveLister, audioStoragePath string) {
+	openaiKey := config.OpenAIAPIKey()
+	anthropicKey := config.AnthropicAPIKey()
+	if openaiKey == "" || anthropicKey == "" {
+		slog.Warn("OPENAI_API_KEY or ANTHROPIC_API_KEY not set, voice worker disabled")
 		return
 	}
-	whisperClient := llm.NewWhisperClient(apiKey)
+	whisperClient := llm.NewWhisperClient(openaiKey)
+	claudeClient := llm.NewClient(anthropicKey)
 	audioStore := worker.NewFileAudioStore(audioStoragePath)
-	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore)
+	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, &claudeClient.Messages, config.AnthropicModel())
 	go voiceWorker.Run(ctx, voicePollInterval)
 	slog.Info("voice worker started")
 }

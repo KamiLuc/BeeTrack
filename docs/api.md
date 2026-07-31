@@ -3141,7 +3141,7 @@ Deletes a conversation and its message/tool-call trail (cascades via FK).
 
 Uploads a voice recording to be transcribed and turned into a proposed inspection log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`, `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for the client's ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.
 
-The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs if `OPENAI_API_KEY` is set) polls for `pending` rows, transcribes the audio via Whisper, and moves the recording to `completed` or `failed`; log-entry proposal generation is not yet implemented, so a `completed` recording currently only carries its transcript — this endpoint only enqueues the recording.
+The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs if both `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are set) polls for `pending` rows, transcribes the audio via Whisper, then resolves which hive (if any) of the apiary's hives the transcript is about. If no hive is clearly named, or more than one is, a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED` or `MULTIPLE_HIVES_MENTIONED`); otherwise nothing is attached yet. Either way the recording moves to `completed` or `failed` — log-entry proposal generation is not yet implemented, so even a `completed` recording that resolved to a single hive currently carries only its transcript — this endpoint only enqueues the recording.
 
 **Response** `202 Accepted`
 ```json
