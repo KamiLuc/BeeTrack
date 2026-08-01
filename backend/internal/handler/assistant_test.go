@@ -9,9 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
+	"github.com/beetrack/backend/internal/llm"
 	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
@@ -27,33 +25,18 @@ type nonFlushingWriter struct {
 	http.ResponseWriter
 }
 
-// fakeAssistantDecoder replays one canned text turn ending in end_turn, just
-// enough to exercise the handler's SSE framing without a real Anthropic call.
-type fakeAssistantDecoder struct {
-	events []ssestream.Event
-	i      int
-}
-
-func (d *fakeAssistantDecoder) Next() bool {
-	if d.i >= len(d.events) {
-		return false
-	}
-	d.i++
-	return true
-}
-func (d *fakeAssistantDecoder) Event() ssestream.Event { return d.events[d.i-1] }
-func (d *fakeAssistantDecoder) Close() error           { return nil }
-func (d *fakeAssistantDecoder) Err() error             { return nil }
-
+// fakeAssistantMessageStreamer replays one canned text turn ending in "stop", just enough to exercise the
+// handler's SSE framing without a real OpenRouter call.
 type fakeAssistantMessageStreamer struct{}
 
-func (f *fakeAssistantMessageStreamer) NewStreaming(_ context.Context, _ anthropic.MessageNewParams, _ ...option.RequestOption) *ssestream.Stream[anthropic.MessageStreamEventUnion] {
-	events := []ssestream.Event{
-		{Type: "content_block_start", Data: []byte(`{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`)},
-		{Type: "content_block_delta", Data: []byte(`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi there"}}`)},
-		{Type: "message_delta", Data: []byte(`{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":3}}`)},
+func (f *fakeAssistantMessageStreamer) CreateChatCompletionStream(_ context.Context, _ llm.ChatCompletionRequest, onDelta func(string) error) (*llm.ChatCompletionStreamResult, error) {
+	if err := onDelta("hi there"); err != nil {
+		return nil, err
 	}
-	return ssestream.NewStream[anthropic.MessageStreamEventUnion](&fakeAssistantDecoder{events: events}, nil)
+	return &llm.ChatCompletionStreamResult{
+		Message:      llm.ChatMessage{Role: "assistant", Content: "hi there"},
+		FinishReason: "stop",
+	}, nil
 }
 
 // fakeAssistantStore is an in-memory service.AssistantStore, good enough to drive the handler's
@@ -185,18 +168,11 @@ func TestAssistantMessagesRejectsConversationOwnedByAnotherUser(t *testing.T) {
 	}
 }
 
-// erroringAssistantDecoder fails immediately, simulating an upstream Claude/stream error.
-type erroringAssistantDecoder struct{}
-
-func (erroringAssistantDecoder) Next() bool             { return false }
-func (erroringAssistantDecoder) Event() ssestream.Event { return ssestream.Event{} }
-func (erroringAssistantDecoder) Close() error           { return nil }
-func (erroringAssistantDecoder) Err() error             { return context.DeadlineExceeded }
-
+// erroringAssistantMessageStreamer fails immediately, simulating an upstream OpenRouter/stream error.
 type erroringAssistantMessageStreamer struct{}
 
-func (f *erroringAssistantMessageStreamer) NewStreaming(_ context.Context, _ anthropic.MessageNewParams, _ ...option.RequestOption) *ssestream.Stream[anthropic.MessageStreamEventUnion] {
-	return ssestream.NewStream[anthropic.MessageStreamEventUnion](erroringAssistantDecoder{}, nil)
+func (f *erroringAssistantMessageStreamer) CreateChatCompletionStream(_ context.Context, _ llm.ChatCompletionRequest, _ func(string) error) (*llm.ChatCompletionStreamResult, error) {
+	return nil, context.DeadlineExceeded
 }
 
 func TestAssistantMessagesStreamsErrorEventOnTurnRunnerFailure(t *testing.T) {

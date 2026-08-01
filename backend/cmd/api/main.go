@@ -147,12 +147,12 @@ func main() {
 	// API from starting — same graceful-degradation approach as the blockchain
 	// worker below.
 	var assistantHandler *handler.AssistantHandler
-	if anthropicKey := config.AnthropicAPIKey(); anthropicKey != "" {
-		llmClient := llm.NewClient(anthropicKey)
-		assistantSvc := service.NewAssistantService(&llmClient.Messages, assistantRegistry, assistantRepo, config.AnthropicModel())
+	if openRouterKey := config.OpenRouterAPIKey(); openRouterKey != "" {
+		openRouterClient := llm.NewOpenRouterClient(openRouterKey)
+		assistantSvc := service.NewAssistantService(openRouterClient, assistantRegistry, assistantRepo, config.OpenRouterModel())
 		assistantHandler = handler.NewAssistantHandler(assistantSvc)
 	} else {
-		slog.Warn("ANTHROPIC_API_KEY not set — assistant endpoint disabled")
+		slog.Warn("OPENROUTER_API_KEY not set — assistant endpoint disabled")
 	}
 
 	auth := middleware.Auth(cfg.JWTSecret)

@@ -6,22 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/param"
-	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
+	"github.com/beetrack/backend/internal/llm"
 	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/datatypes"
 )
 
 const (
-	defaultAssistantModel = anthropic.ModelClaudeHaiku4_5
+	defaultAssistantModel = "anthropic/claude-haiku-4.5"
 	assistantMaxTokens    = 2048
 	assistantMaxToolTurns = 8
-	// assistantMaxMessagesPerConversation keeps conversations short enough to stay within a single Claude
+	// assistantMaxMessagesPerConversation keeps conversations short enough to stay within a single LLM
 	// context window and bound per-conversation API cost; counts logged rows (user + assistant), so 10 is
 	// 5 round trips.
 	assistantMaxMessagesPerConversation = 10
@@ -39,40 +35,25 @@ type AssistantStreamWriter interface {
 	WriteDelta(text string) error
 }
 
-// Satisfied by &llm.Client.Messages; kept as its own interface so the agent loop is testable without a real
-// Anthropic connection.
-type messageStreamer interface {
-	NewStreaming(ctx context.Context, params anthropic.MessageNewParams, opts ...option.RequestOption) *ssestream.Stream[anthropic.MessageStreamEventUnion]
+// Satisfied by *llm.OpenRouterClient; kept as its own interface so the agent loop is testable without a
+// real OpenRouter connection.
+type chatStreamer interface {
+	CreateChatCompletionStream(ctx context.Context, req llm.ChatCompletionRequest, onDelta func(string) error) (*llm.ChatCompletionStreamResult, error)
 }
 
 // Kept separate from AssistantService's tool-orchestration loop so that loop is testable with canned
-// *anthropic.Message responses, without also having to fake the SDK's own SSE-accumulation internals.
+// *llm.ChatCompletionStreamResult responses, without also having to fake the SSE parsing/reassembly
+// internals (those live in and are tested by internal/llm's OpenRouterClient).
 type turnRunner interface {
-	runTurn(ctx context.Context, params anthropic.MessageNewParams, w AssistantStreamWriter) (*anthropic.Message, error)
+	runTurn(ctx context.Context, req llm.ChatCompletionRequest, w AssistantStreamWriter) (*llm.ChatCompletionStreamResult, error)
 }
 
 type streamTurnRunner struct {
-	messages messageStreamer
+	client chatStreamer
 }
 
-func (r streamTurnRunner) runTurn(ctx context.Context, params anthropic.MessageNewParams, w AssistantStreamWriter) (*anthropic.Message, error) {
-	stream := r.messages.NewStreaming(ctx, params)
-	var msg anthropic.Message
-	for stream.Next() {
-		event := stream.Current()
-		if event.Type == "content_block_delta" && event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-			if err := w.WriteDelta(event.Delta.Text); err != nil {
-				return nil, fmt.Errorf("write delta: %w", err)
-			}
-		}
-		if err := msg.Accumulate(event); err != nil {
-			return nil, fmt.Errorf("accumulate stream event: %w", err)
-		}
-	}
-	if err := stream.Err(); err != nil {
-		return nil, fmt.Errorf("stream claude response: %w", err)
-	}
-	return &msg, nil
+func (r streamTurnRunner) runTurn(ctx context.Context, req llm.ChatCompletionRequest, w AssistantStreamWriter) (*llm.ChatCompletionStreamResult, error) {
+	return r.client.CreateChatCompletionStream(ctx, req, w.WriteDelta)
 }
 
 // AssistantStore is the persistence interface for assistant conversations and their message/tool-call
@@ -93,17 +74,17 @@ type AssistantService struct {
 	turns    turnRunner
 	registry *mcp.Registry
 	repo     AssistantStore
-	model    anthropic.Model
+	model    string
 }
 
-// messages is typically &llm.Client.Messages. model selects the Claude model for the agent loop — pass ""
-// to use defaultAssistantModel (see config.AnthropicModel for the env var that controls this in main.go).
-func NewAssistantService(messages messageStreamer, registry *mcp.Registry, repo AssistantStore, model string) *AssistantService {
-	m := anthropic.Model(model)
-	if m == "" {
-		m = defaultAssistantModel
+// client is typically *llm.OpenRouterClient. model selects the OpenRouter model slug for the agent loop --
+// pass "" to use defaultAssistantModel (see config.OpenRouterModel for the env var that controls this in
+// main.go).
+func NewAssistantService(client chatStreamer, registry *mcp.Registry, repo AssistantStore, model string) *AssistantService {
+	if model == "" {
+		model = defaultAssistantModel
 	}
-	return &AssistantService{turns: streamTurnRunner{messages: messages}, registry: registry, repo: repo, model: m}
+	return &AssistantService{turns: streamTurnRunner{client: client}, registry: registry, repo: repo, model: model}
 }
 
 // ResolveConversation loads conversationID if given (rejecting one that doesn't exist or belongs to a
@@ -165,48 +146,55 @@ func (s *AssistantService) DeleteConversation(ctx context.Context, userID, conve
 	return s.repo.DeleteConversation(ctx, conversationID)
 }
 
-func (s *AssistantService) toolParams() []anthropic.ToolUnionParam {
+func (s *AssistantService) toolParams() []llm.Tool {
 	tools := s.registry.All()
-	params := make([]anthropic.ToolUnionParam, len(tools))
+	params := make([]llm.Tool, len(tools))
 	for i, t := range tools {
-		params[i] = anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-			Name:        t.Name,
-			Description: param.NewOpt(t.Description),
-			InputSchema: anthropic.ToolInputSchemaParam{
-				Properties: t.InputSchema.Properties,
-				Required:   t.InputSchema.Required,
+		schema, _ := json.Marshal(map[string]any{
+			"type":       "object",
+			"properties": t.InputSchema.Properties,
+			"required":   t.InputSchema.Required,
+		})
+		params[i] = llm.Tool{
+			Type: "function",
+			Function: llm.FunctionDef{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters:  schema,
 			},
-		}}
-	}
-	return params
-}
-
-func toMessageParams(history []*model.AssistantMessageLog) []anthropic.MessageParam {
-	params := make([]anthropic.MessageParam, len(history))
-	for i, m := range history {
-		block := anthropic.NewTextBlock(m.Content)
-		if m.Role == model.AssistantMessageRoleAssistant {
-			params[i] = anthropic.NewAssistantMessage(block)
-		} else {
-			params[i] = anthropic.NewUserMessage(block)
 		}
 	}
 	return params
 }
 
-func toolResultParam(toolUseID string, result any, callErr error) anthropic.ContentBlockParamUnion {
+func toMessageParams(history []*model.AssistantMessageLog) []llm.ChatMessage {
+	params := make([]llm.ChatMessage, len(history))
+	for i, m := range history {
+		role := "user"
+		if m.Role == model.AssistantMessageRoleAssistant {
+			role = "assistant"
+		}
+		params[i] = llm.ChatMessage{Role: role, Content: m.Content}
+	}
+	return params
+}
+
+// toolResultMessage builds the "tool" role message fed back for one tool call. Unlike Anthropic's
+// tool_result content blocks, OpenAI-compatible schema has no separate is_error flag on a tool message --
+// a failed call is just conveyed as error text in Content.
+func toolResultMessage(toolCallID string, result any, callErr error) llm.ChatMessage {
 	if callErr != nil {
-		return anthropic.NewToolResultBlock(toolUseID, callErr.Error(), true)
+		return llm.ChatMessage{Role: "tool", ToolCallID: toolCallID, Content: callErr.Error()}
 	}
 	data, err := json.Marshal(result)
 	if err != nil {
-		return anthropic.NewToolResultBlock(toolUseID, err.Error(), true)
+		return llm.ChatMessage{Role: "tool", ToolCallID: toolCallID, Content: err.Error()}
 	}
-	return anthropic.NewToolResultBlock(toolUseID, string(data), false)
+	return llm.ChatMessage{Role: "tool", ToolCallID: toolCallID, Content: string(data)}
 }
 
 // toolCallLog builds the assistant_tool_calls row for one MCP call — Result holds the marshaled tool
-// result, or the error message when callErr is set, mirroring toolResultParam's own success/error shape.
+// result, or the error message when callErr is set, mirroring toolResultMessage's own success/error shape.
 func toolCallLog(name string, input json.RawMessage, result any, callErr error) *model.AssistantToolCall {
 	var resultJSON []byte
 	if callErr != nil {
@@ -220,16 +208,6 @@ func toolCallLog(name string, input json.RawMessage, result any, callErr error) 
 		Result:   datatypes.JSON(resultJSON),
 		IsError:  callErr != nil,
 	}
-}
-
-func finalText(msg *anthropic.Message) string {
-	var sb strings.Builder
-	for _, block := range msg.Content {
-		if block.Type == "text" {
-			sb.WriteString(block.Text)
-		}
-	}
-	return sb.String()
 }
 
 // Logging failures are reported but never returned, so a DB hiccup here can't fail an SSE response
@@ -268,42 +246,41 @@ func (s *AssistantService) Run(ctx context.Context, userID int64, conv *model.As
 	}
 	s.persistUserMessage(ctx, conv.ID, message)
 
-	messages := append(toMessageParams(history), anthropic.NewUserMessage(anthropic.NewTextBlock(message)))
+	messages := append([]llm.ChatMessage{{Role: "system", Content: assistantSystemPrompt}}, toMessageParams(history)...)
+	messages = append(messages, llm.ChatMessage{Role: "user", Content: message})
 	tools := s.toolParams()
 	var toolCalls []*model.AssistantToolCall
 
 	for turn := 0; turn < assistantMaxToolTurns; turn++ {
-		msg, err := s.turns.runTurn(ctx, anthropic.MessageNewParams{
+		result, err := s.turns.runTurn(ctx, llm.ChatCompletionRequest{
 			Model:     s.model,
 			MaxTokens: assistantMaxTokens,
-			System:    []anthropic.TextBlockParam{{Text: assistantSystemPrompt}},
 			Messages:  messages,
 			Tools:     tools,
 		}, w)
 		if err != nil {
 			return err
 		}
-		if msg.StopReason != anthropic.StopReasonToolUse {
-			s.persistAssistantTurn(ctx, conv.ID, finalText(msg), toolCalls)
+		if result.FinishReason != "tool_calls" {
+			s.persistAssistantTurn(ctx, conv.ID, result.Message.Content, toolCalls)
 			return nil
 		}
 
-		messages = append(messages, msg.ToParam())
-		var results []anthropic.ContentBlockParamUnion
-		for _, block := range msg.Content {
-			if block.Type != "tool_use" {
-				continue
+		messages = append(messages, result.Message)
+		for _, call := range result.Message.ToolCalls {
+			args := json.RawMessage(call.Function.Arguments)
+			if len(args) == 0 {
+				args = json.RawMessage("{}")
 			}
-			result, callErr := s.registry.Call(ctx, userID, block.Name, block.Input)
-			results = append(results, toolResultParam(block.ID, result, callErr))
-			toolCalls = append(toolCalls, toolCallLog(block.Name, block.Input, result, callErr))
+			toolResult, callErr := s.registry.Call(ctx, userID, call.Function.Name, args)
+			messages = append(messages, toolResultMessage(call.ID, toolResult, callErr))
+			toolCalls = append(toolCalls, toolCallLog(call.Function.Name, args, toolResult, callErr))
 		}
-		messages = append(messages, anthropic.NewUserMessage(results...))
 
 		// If this turn had any filler text before its tool call(s) (e.g. "Let me check that:"),
 		// separate it from the next turn's text so they don't run together mid-sentence once
 		// concatenated client-side — the stream has no other boundary marker between turns.
-		if finalText(msg) != "" {
+		if result.Message.Content != "" {
 			if err := w.WriteDelta("\n\n"); err != nil {
 				return fmt.Errorf("write turn separator: %w", err)
 			}

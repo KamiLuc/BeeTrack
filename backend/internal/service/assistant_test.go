@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
-	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/beetrack/backend/internal/llm"
 	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/model"
 )
@@ -22,14 +23,14 @@ func (w *fakeStreamWriter) WriteDelta(text string) error {
 
 // fakeTurnRunner replays canned responses in order, one per call to runTurn.
 type fakeTurnRunner struct {
-	responses []*anthropic.Message
+	responses []*llm.ChatCompletionStreamResult
 	errs      []error
-	calls     []anthropic.MessageNewParams
+	calls     []llm.ChatCompletionRequest
 	i         int
 }
 
-func (f *fakeTurnRunner) runTurn(_ context.Context, params anthropic.MessageNewParams, w AssistantStreamWriter) (*anthropic.Message, error) {
-	f.calls = append(f.calls, params)
+func (f *fakeTurnRunner) runTurn(_ context.Context, req llm.ChatCompletionRequest, w AssistantStreamWriter) (*llm.ChatCompletionStreamResult, error) {
+	f.calls = append(f.calls, req)
 	idx := f.i
 	f.i++
 	if idx < len(f.errs) && f.errs[idx] != nil {
@@ -39,18 +40,21 @@ func (f *fakeTurnRunner) runTurn(_ context.Context, params anthropic.MessageNewP
 	return f.responses[idx], nil
 }
 
-func textMessage(text string) *anthropic.Message {
-	return &anthropic.Message{
-		Content:    []anthropic.ContentBlockUnion{{Type: "text", Text: text}},
-		StopReason: anthropic.StopReasonEndTurn,
+func textMessage(text string) *llm.ChatCompletionStreamResult {
+	return &llm.ChatCompletionStreamResult{
+		Message:      llm.ChatMessage{Role: "assistant", Content: text},
+		FinishReason: "stop",
 	}
 }
 
-func toolUseMessage(id, name string, input map[string]any) *anthropic.Message {
+func toolUseMessage(id, name string, input map[string]any) *llm.ChatCompletionStreamResult {
 	data, _ := json.Marshal(input)
-	return &anthropic.Message{
-		Content:    []anthropic.ContentBlockUnion{{Type: "tool_use", ID: id, Name: name, Input: data}},
-		StopReason: anthropic.StopReasonToolUse,
+	return &llm.ChatCompletionStreamResult{
+		Message: llm.ChatMessage{
+			Role:      "assistant",
+			ToolCalls: []llm.ToolCall{{ID: id, Type: "function", Function: llm.FunctionCall{Name: name, Arguments: string(data)}}},
+		},
+		FinishReason: "tool_calls",
 	}
 }
 
@@ -160,7 +164,7 @@ func TestAssistantRunRejectsEmptyMessage(t *testing.T) {
 }
 
 func TestAssistantRunEndsOnNonToolUseStopReason(t *testing.T) {
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("hello beekeeper")}}
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{textMessage("hello beekeeper")}}
 	svc, _, store := newTestAssistant(runner)
 	conv := testConversation(t, store, 1)
 	w := &fakeStreamWriter{}
@@ -186,7 +190,7 @@ func TestAssistantRunEndsOnNonToolUseStopReason(t *testing.T) {
 }
 
 func TestAssistantRunLoadsPriorHistoryIntoTheTurn(t *testing.T) {
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("still 3 hives")}}
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{textMessage("still 3 hives")}}
 	svc, _, store := newTestAssistant(runner)
 	conv := testConversation(t, store, 1)
 	store.messages[conv.ID] = []*model.AssistantMessageLog{
@@ -199,8 +203,8 @@ func TestAssistantRunLoadsPriorHistoryIntoTheTurn(t *testing.T) {
 	}
 
 	sent := runner.calls[0].Messages
-	if len(sent) != 3 {
-		t.Fatalf("expected 2 history messages + the new one sent to Claude, got %d", len(sent))
+	if len(sent) != 4 {
+		t.Fatalf("expected the system prompt + 2 history messages + the new one sent to the model, got %d", len(sent))
 	}
 }
 
@@ -217,7 +221,7 @@ func TestAssistantRunCallsToolThenReturnsFinalAnswer(t *testing.T) {
 		},
 	})
 
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		toolUseMessage("toolu_1", "list_hives", map[string]any{"apiary_id": 5}),
 		textMessage("you have 3 hives"),
 	}}
@@ -253,7 +257,7 @@ func TestAssistantRunToolErrorIsRelayedAsToolResultAndLoopContinues(t *testing.T
 		},
 	})
 
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		toolUseMessage("toolu_1", "broken_tool", map[string]any{}),
 		textMessage("sorry, that failed"),
 	}}
@@ -273,12 +277,15 @@ func TestAssistantRunToolErrorIsRelayedAsToolResultAndLoopContinues(t *testing.T
 	}
 }
 
-func multiToolUseMessage(calls ...[2]string) *anthropic.Message {
-	content := make([]anthropic.ContentBlockUnion, len(calls))
+func multiToolUseMessage(calls ...[2]string) *llm.ChatCompletionStreamResult {
+	toolCalls := make([]llm.ToolCall, len(calls))
 	for i, c := range calls {
-		content[i] = anthropic.ContentBlockUnion{Type: "tool_use", ID: c[0], Name: c[1], Input: json.RawMessage(`{}`)}
+		toolCalls[i] = llm.ToolCall{ID: c[0], Type: "function", Function: llm.FunctionCall{Name: c[1], Arguments: "{}"}}
 	}
-	return &anthropic.Message{Content: content, StopReason: anthropic.StopReasonToolUse}
+	return &llm.ChatCompletionStreamResult{
+		Message:      llm.ChatMessage{Role: "assistant", ToolCalls: toolCalls},
+		FinishReason: "tool_calls",
+	}
 }
 
 func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
@@ -299,7 +306,7 @@ func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
 		},
 	})
 
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		multiToolUseMessage([2]string{"toolu_1", "list_hives"}, [2]string{"toolu_2", "get_dashboard_summary"}),
 		textMessage("here you go"),
 	}}
@@ -315,9 +322,15 @@ func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
 		t.Errorf("expected both tools called in order, got %+v", calledNames)
 	}
 
-	toolResultsMsg := runner.calls[1].Messages[len(runner.calls[1].Messages)-1]
-	if len(toolResultsMsg.Content) != 2 {
-		t.Fatalf("expected 2 tool_result blocks fed back in one user message, got %d", len(toolResultsMsg.Content))
+	sentMessages := runner.calls[1].Messages
+	toolResultMsgs := sentMessages[len(sentMessages)-2:]
+	for _, m := range toolResultMsgs {
+		if m.Role != "tool" {
+			t.Errorf("expected a tool-role message per call, got %+v", m)
+		}
+	}
+	if toolResultMsgs[0].ToolCallID != "toolu_1" || toolResultMsgs[1].ToolCallID != "toolu_2" {
+		t.Errorf("expected one tool message per tool_call_id in order, got %+v", toolResultMsgs)
 	}
 	if len(store.toolCalls) != 2 {
 		t.Fatalf("expected 2 persisted tool calls, got %d", len(store.toolCalls))
@@ -326,7 +339,7 @@ func TestAssistantRunHandlesMultipleToolUseBlocksInOneTurn(t *testing.T) {
 
 func TestAssistantRunUnregisteredToolNameRelayedAsToolResultAndLoopContinues(t *testing.T) {
 	registry := mcp.NewRegistry()
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		toolUseMessage("toolu_1", "does_not_exist", map[string]any{}),
 		textMessage("sorry, I couldn't do that"),
 	}}
@@ -341,14 +354,50 @@ func TestAssistantRunUnregisteredToolNameRelayedAsToolResultAndLoopContinues(t *
 	if len(runner.calls) != 2 {
 		t.Fatalf("expected the loop to continue past an unregistered tool name, got %d turns", len(runner.calls))
 	}
-	toolResultsMsg := runner.calls[1].Messages[len(runner.calls[1].Messages)-1]
-	if len(toolResultsMsg.Content) != 1 || !toolResultsMsg.Content[0].OfToolResult.IsError.Value {
-		t.Errorf("expected an is_error tool result for the unregistered tool, got %+v", toolResultsMsg.Content)
+	toolResultMsg := runner.calls[1].Messages[len(runner.calls[1].Messages)-1]
+	if toolResultMsg.Role != "tool" || toolResultMsg.ToolCallID != "toolu_1" || !strings.Contains(toolResultMsg.Content, "unknown tool") {
+		t.Errorf("expected a tool message carrying the registry error, got %+v", toolResultMsg)
+	}
+}
+
+func TestAssistantRunTreatsEmptyToolCallArgumentsAsEmptyObject(t *testing.T) {
+	var gotInput json.RawMessage
+	registry := mcp.NewRegistry()
+	registry.Register(mcp.Tool{
+		Name: "list_hives",
+		Handler: func(_ context.Context, _ int64, input json.RawMessage) (any, error) {
+			gotInput = input
+			return "ok", nil
+		},
+	})
+
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
+		{
+			Message: llm.ChatMessage{
+				Role:      "assistant",
+				ToolCalls: []llm.ToolCall{{ID: "toolu_1", Type: "function", Function: llm.FunctionCall{Name: "list_hives", Arguments: ""}}},
+			},
+			FinishReason: "tool_calls",
+		},
+		textMessage("you have 3 hives"),
+	}}
+	store := newFakeAssistantStore()
+	svc := &AssistantService{turns: runner, registry: registry, repo: store}
+	conv := testConversation(t, store, 1)
+
+	if err := svc.Run(context.Background(), 1, conv, "how many hives?", &fakeStreamWriter{}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if string(gotInput) != "{}" {
+		t.Errorf("expected empty tool-call arguments normalized to {}, got %q", gotInput)
+	}
+	if len(store.toolCalls) != 1 || string(store.toolCalls[0].Input) != "{}" {
+		t.Errorf("expected the persisted tool call input normalized to {}, got %+v", store.toolCalls)
 	}
 }
 
 func TestAssistantRunExceedingMaxToolTurnsReturnsError(t *testing.T) {
-	responses := make([]*anthropic.Message, assistantMaxToolTurns)
+	responses := make([]*llm.ChatCompletionStreamResult, assistantMaxToolTurns)
 	for i := range responses {
 		responses[i] = toolUseMessage("toolu", "list_hives", map[string]any{})
 	}
@@ -372,7 +421,7 @@ func TestAssistantRunExceedingMaxToolTurnsReturnsError(t *testing.T) {
 }
 
 func TestAssistantRunPropagatesTurnRunnerError(t *testing.T) {
-	runner := &fakeTurnRunner{errs: []error{errors.New("stream broke")}, responses: []*anthropic.Message{nil}}
+	runner := &fakeTurnRunner{errs: []error{errors.New("stream broke")}, responses: []*llm.ChatCompletionStreamResult{nil}}
 	svc, _, store := newTestAssistant(runner)
 	conv := testConversation(t, store, 1)
 
@@ -383,7 +432,7 @@ func TestAssistantRunPropagatesTurnRunnerError(t *testing.T) {
 }
 
 func TestAssistantRunSucceedsDespitePersistFailure(t *testing.T) {
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{textMessage("hello beekeeper")}}
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{textMessage("hello beekeeper")}}
 	svc, _, store := newTestAssistant(runner)
 	conv := testConversation(t, store, 1)
 	store.createMsgErr = errors.New("db down")
@@ -562,7 +611,7 @@ func TestDeleteConversationRejectsUnknownConversation(t *testing.T) {
 	}
 }
 
-func TestToolParamsConvertsRegistryToolsToAnthropicSchema(t *testing.T) {
+func TestToolParamsConvertsRegistryToolsToOpenAISchema(t *testing.T) {
 	registry := mcp.NewRegistry()
 	registry.Register(mcp.Tool{
 		Name:        "list_hives",
@@ -575,15 +624,21 @@ func TestToolParamsConvertsRegistryToolsToAnthropicSchema(t *testing.T) {
 	svc := &AssistantService{registry: registry}
 
 	params := svc.toolParams()
-	if len(params) != 1 || params[0].OfTool == nil {
-		t.Fatalf("expected 1 converted tool, got %+v", params)
+	if len(params) != 1 || params[0].Type != "function" {
+		t.Fatalf("expected 1 converted function tool, got %+v", params)
 	}
-	tool := params[0].OfTool
-	if tool.Name != "list_hives" || tool.Description.Value != "lists hives" {
+	tool := params[0].Function
+	if tool.Name != "list_hives" || tool.Description != "lists hives" {
 		t.Errorf("unexpected tool conversion: %+v", tool)
 	}
-	if tool.InputSchema.Required[0] != "apiary_id" {
-		t.Errorf("expected required apiary_id, got %+v", tool.InputSchema.Required)
+	var schema struct {
+		Required []string `json:"required"`
+	}
+	if err := json.Unmarshal(tool.Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal parameters schema: %v", err)
+	}
+	if len(schema.Required) != 1 || schema.Required[0] != "apiary_id" {
+		t.Errorf("expected required apiary_id, got %+v", schema.Required)
 	}
 }
 
@@ -596,35 +651,36 @@ func TestToMessageParamsMapsRoles(t *testing.T) {
 	if len(params) != 2 {
 		t.Fatalf("expected 2 params, got %d", len(params))
 	}
-	if params[0].Role != anthropic.MessageParamRoleUser {
+	if params[0].Role != "user" {
 		t.Errorf("expected first message role user, got %v", params[0].Role)
 	}
-	if params[1].Role != anthropic.MessageParamRoleAssistant {
+	if params[1].Role != "assistant" {
 		t.Errorf("expected second message role assistant, got %v", params[1].Role)
 	}
 }
 
-func TestToolResultParamMarksErrorsAsIsError(t *testing.T) {
-	okBlock := toolResultParam("toolu_1", map[string]string{"a": "b"}, nil)
-	if okBlock.OfToolResult == nil || okBlock.OfToolResult.IsError.Value {
-		t.Errorf("expected a non-error tool result, got %+v", okBlock.OfToolResult)
+func TestToolResultMessageCarriesErrorTextInContent(t *testing.T) {
+	okMsg := toolResultMessage("toolu_1", map[string]string{"a": "b"}, nil)
+	if okMsg.Role != "tool" || okMsg.ToolCallID != "toolu_1" || strings.Contains(okMsg.Content, "nope") {
+		t.Errorf("expected a non-error tool message, got %+v", okMsg)
 	}
 
-	errBlock := toolResultParam("toolu_2", nil, errors.New("nope"))
-	if errBlock.OfToolResult == nil || !errBlock.OfToolResult.IsError.Value {
-		t.Errorf("expected an error tool result, got %+v", errBlock.OfToolResult)
+	errMsg := toolResultMessage("toolu_2", nil, errors.New("nope"))
+	if errMsg.Role != "tool" || errMsg.Content != "nope" {
+		t.Errorf("expected the tool message content to carry the error text, got %+v", errMsg)
 	}
 }
 
 // toolUseMessageWithText simulates a turn where the model writes some filler text (e.g. "Let me check
-// that:") before calling a tool, which real Claude turns can do.
-func toolUseMessageWithText(text, id, name string) *anthropic.Message {
-	return &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
-			{Type: "text", Text: text},
-			{Type: "tool_use", ID: id, Name: name, Input: json.RawMessage(`{}`)},
+// that:") before calling a tool, which real models can do.
+func toolUseMessageWithText(text, id, name string) *llm.ChatCompletionStreamResult {
+	return &llm.ChatCompletionStreamResult{
+		Message: llm.ChatMessage{
+			Role:      "assistant",
+			Content:   text,
+			ToolCalls: []llm.ToolCall{{ID: id, Type: "function", Function: llm.FunctionCall{Name: name, Arguments: "{}"}}},
 		},
-		StopReason: anthropic.StopReasonToolUse,
+		FinishReason: "tool_calls",
 	}
 }
 
@@ -635,7 +691,7 @@ func TestAssistantRunWritesSeparatorAfterATurnWithFillerTextBeforeToolUse(t *tes
 		Handler: func(_ context.Context, _ int64, _ json.RawMessage) (any, error) { return "ok", nil },
 	})
 
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		toolUseMessageWithText("Let me check that:", "toolu_1", "list_hives"),
 		textMessage("you have 3 hives"),
 	}}
@@ -666,7 +722,7 @@ func TestAssistantRunSkipsSeparatorWhenToolUseTurnHasNoText(t *testing.T) {
 		Handler: func(_ context.Context, _ int64, _ json.RawMessage) (any, error) { return "ok", nil },
 	})
 
-	runner := &fakeTurnRunner{responses: []*anthropic.Message{
+	runner := &fakeTurnRunner{responses: []*llm.ChatCompletionStreamResult{
 		toolUseMessage("toolu_1", "list_hives", map[string]any{}),
 		textMessage("you have 3 hives"),
 	}}

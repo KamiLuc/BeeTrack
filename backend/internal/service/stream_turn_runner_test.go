@@ -5,73 +5,57 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
+	"github.com/beetrack/backend/internal/llm"
 )
 
-// erroringStreamWriter simulates a client disconnecting mid-stream: every
-// WriteDelta call fails.
-type erroringStreamWriter struct{}
-
-func (erroringStreamWriter) WriteDelta(string) error { return errors.New("client disconnected") }
-
-// fakeSSEDecoder replays a canned sequence of raw SSE events for ssestream.NewStream.
-type fakeSSEDecoder struct {
-	events []ssestream.Event
-	i      int
+// fakeChatStreamer stands in for *llm.OpenRouterClient -- reassembly of streamed chunks into a final
+// ChatCompletionStreamResult is internal/llm's job (and tested there), so streamTurnRunner itself only
+// needs to prove it forwards the writer's WriteDelta as the onDelta callback and passes results through.
+type fakeChatStreamer struct {
+	result  *llm.ChatCompletionStreamResult
+	err     error
+	gotReq  llm.ChatCompletionRequest
+	deltaFn func(string) error
 }
 
-func (d *fakeSSEDecoder) Next() bool {
-	if d.i >= len(d.events) {
-		return false
+func (f *fakeChatStreamer) CreateChatCompletionStream(_ context.Context, req llm.ChatCompletionRequest, onDelta func(string) error) (*llm.ChatCompletionStreamResult, error) {
+	f.gotReq = req
+	f.deltaFn = onDelta
+	if f.err != nil {
+		return nil, f.err
 	}
-	d.i++
-	return true
-}
-func (d *fakeSSEDecoder) Event() ssestream.Event { return d.events[d.i-1] }
-func (d *fakeSSEDecoder) Close() error           { return nil }
-func (d *fakeSSEDecoder) Err() error             { return nil }
-
-type fakeMessageStreamer struct {
-	events []ssestream.Event
+	return f.result, nil
 }
 
-func (f *fakeMessageStreamer) NewStreaming(_ context.Context, _ anthropic.MessageNewParams, _ ...option.RequestOption) *ssestream.Stream[anthropic.MessageStreamEventUnion] {
-	return ssestream.NewStream[anthropic.MessageStreamEventUnion](&fakeSSEDecoder{events: f.events}, nil)
-}
-
-func TestStreamTurnRunnerForwardsTextDeltasAndAccumulatesStopReason(t *testing.T) {
-	events := []ssestream.Event{
-		{Type: "content_block_start", Data: []byte(`{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`)},
-		{Type: "content_block_delta", Data: []byte(`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello "}}`)},
-		{Type: "content_block_delta", Data: []byte(`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"world"}}`)},
-		{Type: "message_delta", Data: []byte(`{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}`)},
-	}
-	runner := streamTurnRunner{messages: &fakeMessageStreamer{events: events}}
+func TestStreamTurnRunnerForwardsWriteDeltaAndResult(t *testing.T) {
+	streamer := &fakeChatStreamer{result: &llm.ChatCompletionStreamResult{
+		Message:      llm.ChatMessage{Role: "assistant", Content: "hello world"},
+		FinishReason: "stop",
+	}}
+	runner := streamTurnRunner{client: streamer}
 	w := &fakeStreamWriter{}
 
-	msg, err := runner.runTurn(context.Background(), anthropic.MessageNewParams{}, w)
+	result, err := runner.runTurn(context.Background(), llm.ChatCompletionRequest{Model: "anthropic/claude-haiku-4.5"}, w)
 	if err != nil {
 		t.Fatalf("runTurn returned error: %v", err)
 	}
-	if len(w.deltas) != 2 || w.deltas[0] != "Hello " || w.deltas[1] != "world" {
-		t.Errorf("expected 2 forwarded text deltas, got %+v", w.deltas)
+	if result.Message.Content != "hello world" || result.FinishReason != "stop" {
+		t.Errorf("expected the streamer's result passed through unchanged, got %+v", result)
 	}
-	if msg.StopReason != anthropic.StopReasonEndTurn {
-		t.Errorf("expected accumulated stop_reason end_turn, got %v", msg.StopReason)
+
+	if err := streamer.deltaFn("chunk"); err != nil {
+		t.Fatalf("forwarded onDelta returned error: %v", err)
+	}
+	if len(w.deltas) != 1 || w.deltas[0] != "chunk" {
+		t.Errorf("expected onDelta forwarded to w.WriteDelta, got %+v", w.deltas)
 	}
 }
 
-func TestStreamTurnRunnerPropagatesWriteDeltaError(t *testing.T) {
-	events := []ssestream.Event{
-		{Type: "content_block_start", Data: []byte(`{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`)},
-		{Type: "content_block_delta", Data: []byte(`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}`)},
-	}
-	runner := streamTurnRunner{messages: &fakeMessageStreamer{events: events}}
+func TestStreamTurnRunnerPropagatesStreamerError(t *testing.T) {
+	runner := streamTurnRunner{client: &fakeChatStreamer{err: errors.New("stream broke")}}
 
-	_, err := runner.runTurn(context.Background(), anthropic.MessageNewParams{}, erroringStreamWriter{})
+	_, err := runner.runTurn(context.Background(), llm.ChatCompletionRequest{}, &fakeStreamWriter{})
 	if err == nil {
-		t.Fatal("expected an error when the stream writer fails, got nil")
+		t.Fatal("expected error when the streamer fails, got nil")
 	}
 }
