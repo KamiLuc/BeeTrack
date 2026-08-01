@@ -343,15 +343,15 @@ const voicePollInterval = 5 * time.Second
 
 func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, hives worker.HiveLister, audioStoragePath string) {
 	openaiKey := config.OpenAIAPIKey()
-	anthropicKey := config.AnthropicAPIKey()
-	if openaiKey == "" || anthropicKey == "" {
-		slog.Warn("OPENAI_API_KEY or ANTHROPIC_API_KEY not set, voice worker disabled")
+	openRouterKey := config.OpenRouterAPIKey()
+	if openaiKey == "" || openRouterKey == "" {
+		slog.Warn("OPENAI_API_KEY or OPENROUTER_API_KEY not set, voice worker disabled")
 		return
 	}
 	whisperClient := llm.NewWhisperClient(openaiKey)
-	claudeClient := llm.NewClient(anthropicKey)
+	openRouterClient := llm.NewOpenRouterClient(openRouterKey)
 	audioStore := worker.NewFileAudioStore(audioStoragePath)
-	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, &claudeClient.Messages, config.AnthropicModel())
+	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, openRouterClient, config.OpenRouterModel())
 	go voiceWorker.Run(ctx, voicePollInterval)
 	slog.Info("voice worker started")
 }

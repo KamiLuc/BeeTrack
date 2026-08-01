@@ -14,9 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/beetrack/backend/internal/llm"
 	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/model"
@@ -30,7 +27,7 @@ const (
 	poorQualityNoSpeechProb    = 0.6
 	poorQualitySegmentFraction = 0.5
 
-	defaultHiveResolutionModel = anthropic.ModelClaudeHaiku4_5
+	defaultHiveResolutionModel = "anthropic/claude-haiku-4.5"
 	hiveResolutionMaxTokens    = 256
 	resolveHiveToolName        = "resolve_hive"
 
@@ -68,8 +65,8 @@ type HiveLister interface {
 	GetHiveSummary(ctx context.Context, userID, hiveID int64, days *int) (*mcp.HiveHistory, error)
 }
 
-type HiveNameResolver interface {
-	New(ctx context.Context, params anthropic.MessageNewParams, opts ...option.RequestOption) (*anthropic.Message, error)
+type ChatCompleter interface {
+	CreateChatCompletion(ctx context.Context, req llm.ChatCompletionRequest) (*llm.ChatCompletionResponse, error)
 }
 
 type AudioStore interface {
@@ -98,17 +95,17 @@ type VoiceWorker struct {
 	transcriber Transcriber
 	audio       AudioStore
 	hives       HiveLister
-	claude      HiveNameResolver
-	model       anthropic.Model
+	llmClient   ChatCompleter
+	model       string
 }
 
-// model selects the Claude model used for hive-name resolution; pass "" to use defaultHiveResolutionModel.
-func NewVoiceWorker(recordings VoiceRecordingRepository, transcriber Transcriber, audio AudioStore, hives HiveLister, claude HiveNameResolver, model string) *VoiceWorker {
-	m := anthropic.Model(model)
-	if m == "" {
-		m = defaultHiveResolutionModel
+// model selects the model used for hive-name resolution and action proposal; pass "" to use
+// defaultHiveResolutionModel.
+func NewVoiceWorker(recordings VoiceRecordingRepository, transcriber Transcriber, audio AudioStore, hives HiveLister, llmClient ChatCompleter, model string) *VoiceWorker {
+	if model == "" {
+		model = defaultHiveResolutionModel
 	}
-	return &VoiceWorker{recordings: recordings, transcriber: transcriber, audio: audio, hives: hives, claude: claude, model: m}
+	return &VoiceWorker{recordings: recordings, transcriber: transcriber, audio: audio, hives: hives, llmClient: llmClient, model: model}
 }
 
 func (w *VoiceWorker) Run(ctx context.Context, pollInterval time.Duration) {
@@ -201,7 +198,7 @@ func (w *VoiceWorker) deleteAudio(path string) {
 	}
 }
 
-func (w *VoiceWorker) logLLMCall(ctx context.Context, recordingID int64, phase string, request any, response *anthropic.Message, callErr error) {
+func (w *VoiceWorker) logLLMCall(ctx context.Context, recordingID int64, phase string, request any, response any, callErr error) {
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		slog.Warn("marshal voice llm call request", "component", "voice_worker", "phase", phase, "error", err)
@@ -263,28 +260,30 @@ type resolveHiveInput struct {
 	SpokenHiveName *string `json:"spoken_hive_name,omitempty"`
 }
 
-func resolveHiveTool() anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-		Name:        resolveHiveToolName,
-		Description: param.NewOpt("Report which single hive (if any) the transcript is about, given the apiary's hive list."),
-		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{
-				"outcome": map[string]any{
-					"type": "string",
-					"enum": []string{resolveHiveOutcomeMatched, resolveHiveOutcomeNotIdentified, resolveHiveOutcomeMultiple},
-				},
-				"hive_id": map[string]any{
-					"type":        "integer",
-					"description": "Required when outcome is matched: the id of the one hive from the list this transcript is about.",
-				},
-				"spoken_hive_name": map[string]any{
-					"type":        "string",
-					"description": "Best-effort transcription of the hive name mentioned, when outcome is not_identified.",
-				},
-			},
-			Required: []string{"outcome"},
+func resolveHiveTool() llm.Tool {
+	return functionTool(resolveHiveToolName, "Report which single hive (if any) the transcript is about, given the apiary's hive list.", map[string]any{
+		"outcome": map[string]any{
+			"type": "string",
+			"enum": []string{resolveHiveOutcomeMatched, resolveHiveOutcomeNotIdentified, resolveHiveOutcomeMultiple},
 		},
-	}}
+		"hive_id": map[string]any{
+			"type":        "integer",
+			"description": "Required when outcome is matched: the id of the one hive from the list this transcript is about.",
+		},
+		"spoken_hive_name": map[string]any{
+			"type":        "string",
+			"description": "Best-effort transcription of the hive name mentioned, when outcome is not_identified.",
+		},
+	}, []string{"outcome"})
+}
+
+func functionTool(name, description string, properties map[string]any, required []string) llm.Tool {
+	schema, _ := json.Marshal(map[string]any{
+		"type":       "object",
+		"properties": properties,
+		"required":   required,
+	})
+	return llm.Tool{Type: "function", Function: llm.FunctionDef{Name: name, Description: description, Parameters: schema}}
 }
 
 type resolveHiveRequest struct {
@@ -311,25 +310,27 @@ func (w *VoiceWorker) resolveHive(ctx context.Context, rec *model.VoiceRecording
 		return nil, fmt.Errorf("marshal hive options: %w", err)
 	}
 
-	msg, err := w.claude.New(ctx, anthropic.MessageNewParams{
-		Model:      w.model,
-		MaxTokens:  hiveResolutionMaxTokens,
-		System:     []anthropic.TextBlockParam{{Text: hiveResolutionSystemPrompt}},
-		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(fmt.Sprintf("Transcript: %q\n\nHives in this apiary:\n%s", transcript, optionsJSON)))},
-		Tools:      []anthropic.ToolUnionParam{resolveHiveTool()},
-		ToolChoice: anthropic.ToolChoiceParamOfTool(resolveHiveToolName),
+	resp, err := w.llmClient.CreateChatCompletion(ctx, llm.ChatCompletionRequest{
+		Model:     w.model,
+		MaxTokens: hiveResolutionMaxTokens,
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: hiveResolutionSystemPrompt},
+			{Role: "user", Content: fmt.Sprintf("Transcript: %q\n\nHives in this apiary:\n%s", transcript, optionsJSON)},
+		},
+		Tools:      []llm.Tool{resolveHiveTool()},
+		ToolChoice: llm.ForceTool(resolveHiveToolName),
 	})
-	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseResolveHive, resolveHiveRequest{Transcript: transcript, Hives: options}, msg, err)
+	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseResolveHive, resolveHiveRequest{Transcript: transcript, Hives: options}, resp, err)
 	if err != nil {
 		return nil, fmt.Errorf("resolve hive: %w", err)
 	}
 
-	for _, block := range msg.Content {
-		if block.Type != "tool_use" || block.Name != resolveHiveToolName {
+	for _, call := range chatToolCalls(resp) {
+		if call.Function.Name != resolveHiveToolName {
 			continue
 		}
 		var in resolveHiveInput
-		if err := json.Unmarshal(block.Input, &in); err != nil {
+		if err := json.Unmarshal([]byte(call.Function.Arguments), &in); err != nil {
 			return nil, fmt.Errorf("decode resolve_hive input: %w", err)
 		}
 		if in.Outcome == resolveHiveOutcomeMatched && (in.HiveID == nil || !containsHiveID(options, *in.HiveID)) {
@@ -337,7 +338,14 @@ func (w *VoiceWorker) resolveHive(ctx context.Context, rec *model.VoiceRecording
 		}
 		return &in, nil
 	}
-	return nil, errors.New("claude did not call resolve_hive")
+	return nil, errors.New("model did not call resolve_hive")
+}
+
+func chatToolCalls(resp *llm.ChatCompletionResponse) []llm.ToolCall {
+	if len(resp.Choices) == 0 {
+		return nil
+	}
+	return resp.Choices[0].Message.ToolCalls
 }
 
 func containsHiveID(options []hiveOption, id int64) bool {
@@ -414,86 +422,59 @@ func buildHiveActionContext(h *mcp.HiveHistory) hiveActionContext {
 	return c
 }
 
-func createInspectionTool() anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-		Name:        model.VoiceActionToolCreateInspection,
-		Description: param.NewOpt("Propose logging a hive inspection."),
-		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{
-				"queen_status":            map[string]any{"type": "string", "enum": model.ValidQueenStatuses},
-				"brood_pattern":           map[string]any{"type": "string", "enum": model.ValidBroodPatterns},
-				"aggressiveness":          map[string]any{"type": "string", "enum": model.ValidAggressiveness},
-				"frames_brood":            map[string]any{"type": "integer", "description": "Absolute frame count with brood, 0-99."},
-				"frames_feed":             map[string]any{"type": "integer", "description": "Absolute frame count with feed, 0-99."},
-				"frames_pollen":           map[string]any{"type": "integer", "description": "Absolute frame count with pollen, 0-99."},
-				"queen_cells_count":       map[string]any{"type": "integer", "description": "Number of queen cells seen, 0-99."},
-				"frames_added_foundation": map[string]any{"type": "integer", "description": "Signed delta of foundation frames added since the hive's last known state."},
-				"frames_added_drawn":      map[string]any{"type": "integer", "description": "Signed delta of drawn frames added."},
-				"frames_added_brood":      map[string]any{"type": "integer", "description": "Signed delta of brood frames added."},
-				"frames_added_feed":       map[string]any{"type": "integer", "description": "Signed delta of feed frames added."},
-				"queen_added":             map[string]any{"type": "boolean", "description": "True if a new queen was introduced during this inspection."},
-				"diseases": map[string]any{
-					"type":        "array",
-					"description": "Diseases observed during this inspection, if any.",
-					"items": map[string]any{
-						"type": "string",
-						"enum": model.ValidDiseases,
-					},
-				},
-				"notes": map[string]any{"type": "string", "description": "Freeform notes, close to what the beekeeper said."},
+func createInspectionTool() llm.Tool {
+	return functionTool(model.VoiceActionToolCreateInspection, "Propose logging a hive inspection.", map[string]any{
+		"queen_status":            map[string]any{"type": "string", "enum": model.ValidQueenStatuses},
+		"brood_pattern":           map[string]any{"type": "string", "enum": model.ValidBroodPatterns},
+		"aggressiveness":          map[string]any{"type": "string", "enum": model.ValidAggressiveness},
+		"frames_brood":            map[string]any{"type": "integer", "description": "Absolute frame count with brood, 0-99."},
+		"frames_feed":             map[string]any{"type": "integer", "description": "Absolute frame count with feed, 0-99."},
+		"frames_pollen":           map[string]any{"type": "integer", "description": "Absolute frame count with pollen, 0-99."},
+		"queen_cells_count":       map[string]any{"type": "integer", "description": "Number of queen cells seen, 0-99."},
+		"frames_added_foundation": map[string]any{"type": "integer", "description": "Signed delta of foundation frames added since the hive's last known state."},
+		"frames_added_drawn":      map[string]any{"type": "integer", "description": "Signed delta of drawn frames added."},
+		"frames_added_brood":      map[string]any{"type": "integer", "description": "Signed delta of brood frames added."},
+		"frames_added_feed":       map[string]any{"type": "integer", "description": "Signed delta of feed frames added."},
+		"queen_added":             map[string]any{"type": "boolean", "description": "True if a new queen was introduced during this inspection."},
+		"diseases": map[string]any{
+			"type":        "array",
+			"description": "Diseases observed during this inspection, if any.",
+			"items": map[string]any{
+				"type": "string",
+				"enum": model.ValidDiseases,
 			},
 		},
-	}}
+		"notes": map[string]any{"type": "string", "description": "Freeform notes, close to what the beekeeper said."},
+	}, nil)
 }
 
-func createTreatmentTool() anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-		Name:        model.VoiceActionToolCreateTreatment,
-		Description: param.NewOpt("Propose logging a treatment applied to the hive."),
-		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{
-				"medicine_name": map[string]any{"type": "string", "description": "Name of the medicine/treatment used."},
-				"dose":          map[string]any{"type": "string", "description": `Dose given, e.g. "1 strip". Defaults to "1" if not mentioned.`},
-				"notes":         map[string]any{"type": "string"},
-			},
-			Required: []string{"medicine_name"},
-		},
-	}}
+func createTreatmentTool() llm.Tool {
+	return functionTool(model.VoiceActionToolCreateTreatment, "Propose logging a treatment applied to the hive.", map[string]any{
+		"medicine_name": map[string]any{"type": "string", "description": "Name of the medicine/treatment used."},
+		"dose":          map[string]any{"type": "string", "description": `Dose given, e.g. "1 strip". Defaults to "1" if not mentioned.`},
+		"notes":         map[string]any{"type": "string"},
+	}, []string{"medicine_name"})
 }
 
-func createHarvestTool() anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-		Name:        model.VoiceActionToolCreateHarvest,
-		Description: param.NewOpt("Propose logging honey harvested from the hive."),
-		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{
-				"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99."},
-				"half_frames": map[string]any{"type": "integer", "description": "Half frames harvested, 0-99."},
-				"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0."},
-				"notes":       map[string]any{"type": "string"},
-			},
-			Required: []string{"kilograms"},
-		},
-	}}
+func createHarvestTool() llm.Tool {
+	return functionTool(model.VoiceActionToolCreateHarvest, "Propose logging honey harvested from the hive.", map[string]any{
+		"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99."},
+		"half_frames": map[string]any{"type": "integer", "description": "Half frames harvested, 0-99."},
+		"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0."},
+		"notes":       map[string]any{"type": "string"},
+	}, []string{"kilograms"})
 }
 
-func createFeedingTool() anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{OfTool: &anthropic.ToolParam{
-		Name:        model.VoiceActionToolCreateFeeding,
-		Description: param.NewOpt("Propose logging feed given to the hive."),
-		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{
-				"feed_type": map[string]any{"type": "string", "description": "Type of feed given, e.g. sugar syrup, fondant."},
-				"amount":    map[string]any{"type": "string", "description": `Amount fed, e.g. "1L", "500g".`},
-				"notes":     map[string]any{"type": "string"},
-			},
-			Required: []string{"feed_type"},
-		},
-	}}
+func createFeedingTool() llm.Tool {
+	return functionTool(model.VoiceActionToolCreateFeeding, "Propose logging feed given to the hive.", map[string]any{
+		"feed_type": map[string]any{"type": "string", "description": "Type of feed given, e.g. sugar syrup, fondant."},
+		"amount":    map[string]any{"type": "string", "description": `Amount fed, e.g. "1L", "500g".`},
+		"notes":     map[string]any{"type": "string"},
+	}, []string{"feed_type"})
 }
 
-func actionProposalTools() []anthropic.ToolUnionParam {
-	return []anthropic.ToolUnionParam{createInspectionTool(), createTreatmentTool(), createHarvestTool(), createFeedingTool()}
+func actionProposalTools() []llm.Tool {
+	return []llm.Tool{createInspectionTool(), createTreatmentTool(), createHarvestTool(), createFeedingTool()}
 }
 
 type proposeActionsRequest struct {
@@ -512,31 +493,33 @@ func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecord
 		return fmt.Errorf("marshal hive context: %w", err)
 	}
 
-	msg, err := w.claude.New(ctx, anthropic.MessageNewParams{
+	resp, err := w.llmClient.CreateChatCompletion(ctx, llm.ChatCompletionRequest{
 		Model:     w.model,
 		MaxTokens: actionProposalMaxTokens,
-		System:    []anthropic.TextBlockParam{{Text: actionProposalSystemPrompt}},
-		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(fmt.Sprintf("Transcript: %q\n\nHive context:\n%s", transcript, contextJSON)))},
-		Tools:     actionProposalTools(),
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: actionProposalSystemPrompt},
+			{Role: "user", Content: fmt.Sprintf("Transcript: %q\n\nHive context:\n%s", transcript, contextJSON)},
+		},
+		Tools: actionProposalTools(),
 	})
-	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext}, msg, err)
+	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext}, resp, err)
 	if err != nil {
 		return fmt.Errorf("propose actions: %w", err)
 	}
 
 	sequence := 0
-	for _, block := range msg.Content {
-		if block.Type != "tool_use" || !proposableTools[block.Name] {
+	for _, call := range chatToolCalls(resp) {
+		if !proposableTools[call.Function.Name] {
 			continue
 		}
 		sequence++
-		toolName := block.Name
+		toolName := call.Function.Name
 		action := &model.VoiceAction{
 			VoiceRecordingID: rec.ID,
 			Sequence:         sequence,
 			HiveID:           &hiveID,
 			ToolName:         &toolName,
-			ToolArguments:    datatypes.JSON(block.Input),
+			ToolArguments:    datatypes.JSON(call.Function.Arguments),
 			Status:           model.VoiceActionStatusProposed,
 		}
 		if err := w.recordings.CreateAction(ctx, action); err != nil {

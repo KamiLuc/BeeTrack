@@ -358,6 +358,38 @@ func TestOpenRouterClientStreamNonOKResponseReturnsError(t *testing.T) {
 	}
 }
 
+func TestOpenRouterClientSendsForcedToolChoice(t *testing.T) {
+	var gotBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(ChatCompletionResponse{Choices: []Choice{{Message: ChatMessage{Role: "assistant"}}}})
+	}))
+	defer server.Close()
+
+	client := NewOpenRouterClient("test-api-key", WithOpenRouterBaseURL(server.URL))
+	_, err := client.CreateChatCompletion(context.Background(), ChatCompletionRequest{
+		Model:      "anthropic/claude-haiku-4.5",
+		Messages:   []ChatMessage{{Role: "user", Content: "hi"}},
+		ToolChoice: ForceTool("resolve_hive"),
+	})
+	if err != nil {
+		t.Fatalf("CreateChatCompletion returned error: %v", err)
+	}
+
+	toolChoice, ok := gotBody["tool_choice"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected tool_choice in request body, got %+v", gotBody)
+	}
+	if toolChoice["type"] != "function" {
+		t.Errorf("expected tool_choice.type %q, got %+v", "function", toolChoice)
+	}
+	fn, ok := toolChoice["function"].(map[string]any)
+	if !ok || fn["name"] != "resolve_hive" {
+		t.Errorf("expected tool_choice.function.name %q, got %+v", "resolve_hive", toolChoice)
+	}
+}
+
 func TestOpenRouterClientNonOKResponseReturnsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

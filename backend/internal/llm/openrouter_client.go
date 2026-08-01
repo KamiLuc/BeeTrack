@@ -81,12 +81,30 @@ type FunctionDef struct {
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
+// ToolChoiceFunction forces the model to call exactly one named tool -- set ChatCompletionRequest.ToolChoice
+// to its result (via ForceTool) instead of leaving tool choice to "auto" (the zero value).
+type ToolChoiceFunction struct {
+	Name string `json:"name"`
+}
+
+type ToolChoice struct {
+	Type     string             `json:"type"`
+	Function ToolChoiceFunction `json:"function"`
+}
+
+// ForceTool builds a ToolChoice that forces the model to call name, per the OpenAI-compatible
+// tool_choice={"type":"function","function":{"name":...}} shape.
+func ForceTool(name string) *ToolChoice {
+	return &ToolChoice{Type: "function", Function: ToolChoiceFunction{Name: name}}
+}
+
 type ChatCompletionRequest struct {
-	Model     string        `json:"model"`
-	Messages  []ChatMessage `json:"messages"`
-	Tools     []Tool        `json:"tools,omitempty"`
-	MaxTokens int           `json:"max_tokens,omitempty"`
-	Stream    bool          `json:"stream,omitempty"`
+	Model      string        `json:"model"`
+	Messages   []ChatMessage `json:"messages"`
+	Tools      []Tool        `json:"tools,omitempty"`
+	ToolChoice *ToolChoice   `json:"tool_choice,omitempty"`
+	MaxTokens  int           `json:"max_tokens,omitempty"`
+	Stream     bool          `json:"stream,omitempty"`
 }
 
 type ChatCompletionResponse struct {

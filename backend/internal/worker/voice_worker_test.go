@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/beetrack/backend/internal/llm"
 	"github.com/beetrack/backend/internal/mcp"
 	"github.com/beetrack/backend/internal/model"
@@ -139,39 +137,43 @@ func (m *mockHiveLister) GetHiveSummary(ctx context.Context, userID, hiveID int6
 }
 
 type mockHiveResolver struct {
-	resolveMessage *anthropic.Message
+	resolveMessage *llm.ChatCompletionResponse
 	resolveErr     error
-	proposeMessage *anthropic.Message
+	proposeMessage *llm.ChatCompletionResponse
 	proposeErr     error
 	callCount      int
+	requests       []llm.ChatCompletionRequest
 }
 
-func (m *mockHiveResolver) New(ctx context.Context, params anthropic.MessageNewParams, opts ...option.RequestOption) (*anthropic.Message, error) {
+func (m *mockHiveResolver) CreateChatCompletion(ctx context.Context, req llm.ChatCompletionRequest) (*llm.ChatCompletionResponse, error) {
 	m.callCount++
-	if params.ToolChoice.OfTool != nil {
+	m.requests = append(m.requests, req)
+	if req.ToolChoice != nil {
 		return m.resolveMessage, m.resolveErr
 	}
 	return m.proposeMessage, m.proposeErr
 }
 
-func resolveHiveMessage(t *testing.T, input resolveHiveInput) *anthropic.Message {
+func resolveHiveMessage(t *testing.T, input resolveHiveInput) *llm.ChatCompletionResponse {
 	t.Helper()
 	data, err := json.Marshal(input)
 	if err != nil {
 		t.Fatalf("marshal resolve_hive input: %v", err)
 	}
-	return &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{{Type: "tool_use", Name: resolveHiveToolName, Input: data}},
-	}
+	return toolCallResponse([2]string{resolveHiveToolName, string(data)})
 }
 
-func toolUseMessage(t *testing.T, calls ...[2]string) *anthropic.Message {
+func toolUseMessage(t *testing.T, calls ...[2]string) *llm.ChatCompletionResponse {
 	t.Helper()
-	content := make([]anthropic.ContentBlockUnion, len(calls))
+	return toolCallResponse(calls...)
+}
+
+func toolCallResponse(calls ...[2]string) *llm.ChatCompletionResponse {
+	toolCalls := make([]llm.ToolCall, len(calls))
 	for i, c := range calls {
-		content[i] = anthropic.ContentBlockUnion{Type: "tool_use", Name: c[0], Input: json.RawMessage(c[1])}
+		toolCalls[i] = llm.ToolCall{ID: c[0], Type: "function", Function: llm.FunctionCall{Name: c[0], Arguments: c[1]}}
 	}
-	return &anthropic.Message{Content: content}
+	return &llm.ChatCompletionResponse{Choices: []llm.Choice{{Message: llm.ChatMessage{Role: "assistant", ToolCalls: toolCalls}}}}
 }
 
 func clearAudioPath(rec *model.VoiceRecording, path string) *model.VoiceRecording {
@@ -511,6 +513,65 @@ func TestVoiceWorker_ProcessNext_HallucinatedHiveIDFallsBackToNotIdentified(t *t
 	}
 }
 
+func TestVoiceWorker_ProcessNext_ResolveHiveForcesToolChoiceButProposeActionsDoesNot(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Language: "en",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(resolver.requests) != 2 {
+		t.Fatalf("expected 2 llm requests (resolve_hive + propose_actions), got %d", len(resolver.requests))
+	}
+
+	resolveReq := resolver.requests[0]
+	if resolveReq.ToolChoice == nil || resolveReq.ToolChoice.Type != "function" || resolveReq.ToolChoice.Function.Name != resolveHiveToolName {
+		t.Errorf("expected resolve_hive request to force tool_choice=%q, got %+v", resolveHiveToolName, resolveReq.ToolChoice)
+	}
+	if len(resolveReq.Tools) != 1 || resolveReq.Tools[0].Function.Name != resolveHiveToolName {
+		t.Errorf("expected resolve_hive request to carry exactly the resolve_hive tool, got %+v", resolveReq.Tools)
+	}
+
+	proposeReq := resolver.requests[1]
+	if proposeReq.ToolChoice != nil {
+		t.Errorf("expected propose_actions request to leave tool choice unset, got %+v", proposeReq.ToolChoice)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ResolveHiveEmptyChoicesFailsRecording(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
+	resolver := &mockHiveResolver{resolveMessage: &llm.ChatCompletionResponse{Choices: []llm.Choice{}}}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if !repo.failedCalled {
+		t.Fatal("expected recording to be marked failed when the response has zero choices")
+	}
+	if repo.completedCalled {
+		t.Error("expected recording NOT to be marked completed")
+	}
+}
+
 func TestVoiceWorker_ProcessNext_ClaudeNoToolCallFailsRecording(t *testing.T) {
 	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
 	repo := &mockVoiceRepo{next: rec}
@@ -519,8 +580,8 @@ func TestVoiceWorker_ProcessNext_ClaudeNoToolCallFailsRecording(t *testing.T) {
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{resolveMessage: &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{{Type: "text", Text: "sorry, I can't help with that"}},
+	resolver := &mockHiveResolver{resolveMessage: &llm.ChatCompletionResponse{
+		Choices: []llm.Choice{{Message: llm.ChatMessage{Role: "assistant", Content: "sorry, I can't help with that"}}},
 	}}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
@@ -528,7 +589,7 @@ func TestVoiceWorker_ProcessNext_ClaudeNoToolCallFailsRecording(t *testing.T) {
 		t.Fatalf("ProcessNext() error = %v", err)
 	}
 	if !repo.failedCalled {
-		t.Fatal("expected recording to be marked failed when Claude never calls resolve_hive")
+		t.Fatal("expected recording to be marked failed when the model never calls resolve_hive")
 	}
 	if repo.completedCalled {
 		t.Error("expected recording NOT to be marked completed")
@@ -543,9 +604,7 @@ func TestVoiceWorker_ProcessNext_MalformedToolInputFailsRecording(t *testing.T) 
 		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
 	}}
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 1, Name: "Hive 1"}}}
-	resolver := &mockHiveResolver{resolveMessage: &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{{Type: "tool_use", Name: resolveHiveToolName, Input: []byte("{not valid json")}},
-	}}
+	resolver := &mockHiveResolver{resolveMessage: toolCallResponse([2]string{resolveHiveToolName, "{not valid json"})}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
 	if _, err := w.ProcessNext(context.Background()); err != nil {
@@ -751,6 +810,65 @@ func TestVoiceWorker_ProcessNext_UnrecognizedToolNameIgnored(t *testing.T) {
 	}
 }
 
+func TestVoiceWorker_ProcessNext_MixedRecognizedAndUnrecognizedToolCalls(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good and I gave them a litre of syrup",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good and I gave them a litre of syrup", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t,
+			[2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"good"}`},
+			[2]string{"update_hive_status", `{"queenless":true}`},
+			[2]string{model.VoiceActionToolCreateFeeding, `{"feed_type":"syrup","amount":"1L"}`},
+		),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 2 {
+		t.Fatalf("expected the unrecognized tool call to be skipped leaving 2 proposed actions, got %d: %+v", len(repo.createdActions), repo.createdActions)
+	}
+	if *repo.createdActions[0].ToolName != model.VoiceActionToolCreateInspection || repo.createdActions[0].Sequence != 1 {
+		t.Errorf("expected first action to be create_inspection with sequence 1, got %+v", repo.createdActions[0])
+	}
+	if *repo.createdActions[1].ToolName != model.VoiceActionToolCreateFeeding || repo.createdActions[1].Sequence != 2 {
+		t.Errorf("expected second action to be create_feeding with sequence 2 (sequence counts only recognized tools), got %+v", repo.createdActions[1])
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsEmptyChoicesProposesNothing(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: &llm.ChatCompletionResponse{Choices: []llm.Choice{}},
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if repo.createActionCalled {
+		t.Errorf("expected no proposed actions when the response has zero choices, got %+v", repo.createdActions)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to still be marked completed")
+	}
+}
+
 func TestVoiceWorker_ProcessNext_ProposeActionsClaudeErrorFailsRecording(t *testing.T) {
 	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
 	repo := &mockVoiceRepo{next: rec}
@@ -892,6 +1010,25 @@ func TestBuildHiveActionContext_PicksLatestInspection(t *testing.T) {
 	}
 }
 
+func TestChatToolCalls(t *testing.T) {
+	tests := []struct {
+		name string
+		resp *llm.ChatCompletionResponse
+		want int
+	}{
+		{"nil choices", &llm.ChatCompletionResponse{Choices: nil}, 0},
+		{"empty choices slice", &llm.ChatCompletionResponse{Choices: []llm.Choice{}}, 0},
+		{"one choice with tool calls", toolCallResponse([2]string{"a", "{}"}, [2]string{"b", "{}"}), 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := chatToolCalls(tt.resp); len(got) != tt.want {
+				t.Errorf("chatToolCalls() = %+v, want %d calls", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestContainsHiveID(t *testing.T) {
 	options := []hiveOption{{ID: 1, Name: "Hive 1"}, {ID: 2, Name: "Hive 2"}}
 	tests := []struct {
@@ -915,43 +1052,49 @@ func TestContainsHiveID(t *testing.T) {
 	}
 }
 
+func toolSchema(t *testing.T, tool llm.Tool) (map[string]any, []string) {
+	t.Helper()
+	var schema struct {
+		Properties map[string]any `json:"properties"`
+		Required   []string       `json:"required"`
+	}
+	if err := json.Unmarshal(tool.Function.Parameters, &schema); err != nil {
+		t.Fatalf("unmarshal tool parameters: %v", err)
+	}
+	return schema.Properties, schema.Required
+}
+
 func TestResolveHiveTool_Schema(t *testing.T) {
-	tool := resolveHiveTool().OfTool
-	if tool == nil {
-		t.Fatal("expected OfTool to be set")
+	tool := resolveHiveTool()
+	if tool.Function.Name != resolveHiveToolName {
+		t.Errorf("Name = %q, want %q", tool.Function.Name, resolveHiveToolName)
 	}
-	if tool.Name != resolveHiveToolName {
-		t.Errorf("Name = %q, want %q", tool.Name, resolveHiveToolName)
-	}
-	if len(tool.InputSchema.Required) != 1 || tool.InputSchema.Required[0] != "outcome" {
-		t.Errorf("Required = %+v, want [outcome]", tool.InputSchema.Required)
+	properties, required := toolSchema(t, tool)
+	if len(required) != 1 || required[0] != "outcome" {
+		t.Errorf("Required = %+v, want [outcome]", required)
 	}
 
-	properties, ok := tool.InputSchema.Properties.(map[string]any)
-	if !ok {
-		t.Fatalf("expected InputSchema.Properties to be a map[string]any, got %T", tool.InputSchema.Properties)
-	}
 	outcomeProp, ok := properties["outcome"].(map[string]any)
 	if !ok {
 		t.Fatal("expected outcome property to be a map")
 	}
-	enum, ok := outcomeProp["enum"].([]string)
+	enumRaw, ok := outcomeProp["enum"].([]any)
 	if !ok {
-		t.Fatal("expected outcome enum to be a []string")
+		t.Fatal("expected outcome enum to be a []any")
 	}
 	wantEnum := []string{resolveHiveOutcomeMatched, resolveHiveOutcomeNotIdentified, resolveHiveOutcomeMultiple}
-	if len(enum) != len(wantEnum) {
-		t.Fatalf("enum = %+v, want %+v", enum, wantEnum)
+	if len(enumRaw) != len(wantEnum) {
+		t.Fatalf("enum = %+v, want %+v", enumRaw, wantEnum)
 	}
 	for i, v := range wantEnum {
-		if enum[i] != v {
-			t.Errorf("enum[%d] = %q, want %q", i, enum[i], v)
+		if enumRaw[i] != v {
+			t.Errorf("enum[%d] = %q, want %q", i, enumRaw[i], v)
 		}
 	}
 
 	for _, key := range []string{"hive_id", "spoken_hive_name"} {
 		if _, ok := properties[key]; !ok {
-			t.Errorf("expected InputSchema.Properties to contain %q", key)
+			t.Errorf("expected properties to contain %q", key)
 		}
 	}
 }
@@ -959,7 +1102,7 @@ func TestResolveHiveTool_Schema(t *testing.T) {
 func TestActionProposalTools_RequiredFields(t *testing.T) {
 	tests := []struct {
 		name     string
-		tool     anthropic.ToolUnionParam
+		tool     llm.Tool
 		wantName string
 		wantReq  []string
 	}{
@@ -971,19 +1114,16 @@ func TestActionProposalTools_RequiredFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tool := tt.tool.OfTool
-			if tool == nil {
-				t.Fatal("expected OfTool to be set")
+			if tt.tool.Function.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", tt.tool.Function.Name, tt.wantName)
 			}
-			if tool.Name != tt.wantName {
-				t.Errorf("Name = %q, want %q", tool.Name, tt.wantName)
-			}
-			if len(tool.InputSchema.Required) != len(tt.wantReq) {
-				t.Fatalf("Required = %+v, want %+v", tool.InputSchema.Required, tt.wantReq)
+			_, required := toolSchema(t, tt.tool)
+			if len(required) != len(tt.wantReq) {
+				t.Fatalf("Required = %+v, want %+v", required, tt.wantReq)
 			}
 			for i, key := range tt.wantReq {
-				if tool.InputSchema.Required[i] != key {
-					t.Errorf("Required[%d] = %q, want %q", i, tool.InputSchema.Required[i], key)
+				if required[i] != key {
+					t.Errorf("Required[%d] = %q, want %q", i, required[i], key)
 				}
 			}
 		})
@@ -1002,13 +1142,10 @@ func TestActionProposalTools_ReturnsAllFour(t *testing.T) {
 		model.VoiceActionToolCreateFeeding:    false,
 	}
 	for _, tool := range tools {
-		if tool.OfTool == nil {
-			t.Fatal("expected OfTool to be set")
+		if _, ok := wantNames[tool.Function.Name]; !ok {
+			t.Errorf("unexpected tool name %q", tool.Function.Name)
 		}
-		if _, ok := wantNames[tool.OfTool.Name]; !ok {
-			t.Errorf("unexpected tool name %q", tool.OfTool.Name)
-		}
-		wantNames[tool.OfTool.Name] = true
+		wantNames[tool.Function.Name] = true
 	}
 	for name, seen := range wantNames {
 		if !seen {
