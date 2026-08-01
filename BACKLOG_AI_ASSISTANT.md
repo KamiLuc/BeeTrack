@@ -23,6 +23,7 @@
 1. [Voice-Logged Inspections](#1-voice-logged-inspections)
 2. [AI Apiary Assistant (Chat + MCP)](#2-ai-apiary-assistant-chat--mcp)
 3. [Shared Infrastructure](#3-shared-infrastructure)
+4. [Migrate to OpenRouter](#4-migrate-to-openrouter)
 
 ---
 
@@ -104,3 +105,34 @@
 | ------ | ----- | ------ | ------------------------------- | ------------------------------------------------------------------------------------------------ |
 | AI-01  | `BE`  | `[x]`  | New env vars                   | `internal/config/ai_config.go`'s `LoadAIConfig` covers `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` (Whisper is called via OpenAI's own API, so this is `OPENAI_API_KEY` rather than the originally-sketched `WHISPER_API_KEY`)/`AUDIO_STORAGE_PATH` via the existing `getEnv`-with-validation pattern. Not yet called from `main.go`'s startup config loading (§4). `ANTHROPIC_MODEL` added later (standalone `getEnv`, same style as `AnthropicAPIKey()`, not part of `LoadAIConfig`/`validate()`) — optional, defaults to `claude-haiku-4-5`; picks which Claude model `AssistantService`'s agent loop calls |
 | AI-02  | `BE`  | `[ ]`  | `docs/api.md` updates          | All new endpoints across Epics 1 and 2, regenerate `docs/openapi.yaml` after                     |
+
+---
+
+## 4. Migrate to OpenRouter
+
+> Both `AssistantService` (Epic 2, AST-09-BE) and the voice worker's Phase 1/2 calls (Epic 1,
+> VC-08/09-BE) are written directly against the Anthropic Go SDK's native Messages API types
+> (`anthropic.Message`, content blocks, `tool_use`/`tool_result`, SSE stream events) — not just
+> a base-URL-and-key config. OpenRouter speaks an OpenAI-compatible chat-completions schema, so
+> this is a schema migration through `internal/llm/`, both call sites, and their tests, not a
+> config toggle. Goal/motivation (cost, rate limits, provider fallback) to be confirmed — scope
+> below assumes "replace Anthropic direct API entirely," not "add as a fallback alongside it."
+>
+> Whisper transcription (`internal/llm/whisper.go`, VC-04-BE) moves too — user has both
+> Anthropic and OpenAI keys set up as BYOK on OpenRouter. Confirmed via OpenRouter's own docs
+> that `/api/v1/audio/transcriptions` is a real, OpenAI-compatible endpoint (multipart or
+> base64, routes to `openai/whisper-1` and others) — this is a much lighter change than the
+> chat migration since `whisper.go` already POSTs in the exact multipart shape that endpoint
+> expects; mostly a base-URL/model-slug/key swap, not a schema rewrite (OR-08-BE). End state:
+> a single `OPENROUTER_API_KEY` replaces both `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+
+| ID       | Layer | Status | Title                                              | Notes                                                                                                     |
+| -------- | ----- | ------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| OR-01-BE | `BE`  | `[ ]`  | Swap `internal/llm/client.go` to an OpenRouter client | Replace the embedded `anthropic.Client` with an OpenAI-compatible client (e.g. `openai-go`) pointed at OpenRouter's base URL (`https://openrouter.ai/api/v1`); `NewClient(apiKey, opts...)` keeps its shape where possible |
+| OR-02-BE | `BE`  | `[ ]`  | Config: `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` / `OPENROUTER_WHISPER_MODEL` | Replace `AnthropicAPIKey()`/`AnthropicModel()`/`ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` and `OpenAIAPIKey()`/`OPENAI_API_KEY` in `internal/config/ai_config.go` with a single `OPENROUTER_API_KEY`; chat model becomes an OpenRouter slug (e.g. `anthropic/claude-haiku-4.5`) and transcription model becomes `openai/whisper-1` (or another OpenRouter STT model), so the underlying models are unaffected |
+| OR-03-BE | `BE`  | `[ ]`  | Migrate `AssistantService` agent loop to OpenAI-compatible schema | `internal/service/assistant.go` + `stream_turn_runner.go`: rework message/tool construction (content blocks → `messages`/`tool_calls`), stop-reason handling (`StopReasonToolUse` equivalent), and SSE delta parsing for the streaming path (AST-09-BE) |
+| OR-04-BE | `BE`  | `[ ]`  | Migrate voice worker's Phase 1/2 Claude calls      | `internal/worker/voice_worker.go`'s hive-resolution (VC-08-BE) and action-proposal (VC-09-BE) calls onto the new client/schema, including the forced-tool-call pattern Phase 1 relies on |
+| OR-05-BE | `BE`  | `[ ]`  | Update tests across `llm`/`service`/`worker`       | `client_test.go`, `assistant_test.go`, `stream_turn_runner_test.go`, `voice_worker_test.go`, `ai_config_test.go` — mocks/fixtures currently assert against Anthropic SDK types |
+| OR-06-BE | `BE`  | `[ ]`  | Docs + env samples                                 | `.env.example`, `docs/api.md`/`AI_ASSISTANT.md` mentions of `ANTHROPIC_API_KEY`/model env vars; note `voice_llm_calls.request`/`response` (VC-27-BE) JSON shape changes going forward |
+| OR-08-BE | `BE`  | `[ ]`  | Migrate `whisper.go` to OpenRouter's transcription endpoint | `internal/llm/whisper.go`: `defaultWhisperBaseURL` → `https://openrouter.ai/api/v1`, `model` field → `openai/whisper-1` (or configurable via `OPENROUTER_WHISPER_MODEL`, OR-02-BE), auth header uses `OPENROUTER_API_KEY` instead of `OPENAI_API_KEY`. Multipart request shape (`file`/`model`/`response_format=verbose_json` fields) is unchanged — confirm per-segment `avg_logprob`/`no_speech_prob` (used by the audio-quality gate, VC-07-BE) still comes back the same way through OpenRouter's proxy before relying on it |
+| OR-07-BE | `BE`  | `[ ]`  | Verify Anthropic/OpenAI direct-API usage fully removed | `go.mod`/`go.sum` no longer reference `github.com/anthropics/anthropic-sdk-go`; grep the whole repo (source + tests) for `anthropic\.`/`"github.com/anthropics`/`api.openai.com` turns up nothing; `go build ./...`/`go vet ./...` clean. Last ticket in this epic — run only after OR-01 through OR-06 and OR-08-BE land |
