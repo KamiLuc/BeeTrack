@@ -3015,11 +3015,11 @@ Returns the caller's favorited listings, most recently favorited first. Hidden l
 
 ## AI Assistant
 
-Only registered when the API is started with `ANTHROPIC_API_KEY` set — if the key is missing, the API still starts normally, but this route is not registered at all (any request to it gets a plain 404, not a JSON error).
+Only registered when the API is started with `OPENROUTER_API_KEY` set — if the key is missing, the API still starts normally, but this route is not registered at all (any request to it gets a plain 404, not a JSON error).
 
 ### POST /assistant/messages 🔒
 
-Runs one turn of the AI apiary assistant's agent loop against the Claude Messages API. The server owns conversation history: pass `conversation_id` to continue an existing conversation, or omit it to start a new one — the server loads/persists the message trail (`assistant_conversations`/`assistant_message_logs`/`assistant_tool_calls`). Behind the scenes, Claude can call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's own `userID`, capped at 8 tool-call round trips per request.
+Runs one turn of the AI apiary assistant's agent loop against an OpenRouter chat-completions model (`OPENROUTER_MODEL`, default `anthropic/claude-haiku-4.5`). The server owns conversation history: pass `conversation_id` to continue an existing conversation, or omit it to start a new one — the server loads/persists the message trail (`assistant_conversations`/`assistant_message_logs`/`assistant_tool_calls`). Behind the scenes, the model can call the internal MCP tool registry (hive/apiary/marketplace read tools) scoped to the caller's own `userID`, capped at 8 tool-call round trips per request.
 
 **Request**
 ```json
@@ -3039,9 +3039,9 @@ Unlike other endpoints, this streams a Server-Sent Events body instead of a sing
 | Event | Payload | Description |
 |-------|---------|--------------|
 | `conversation` | `{ "conversation_id": 42 }` | Sent first, before any `delta`. Lets the client learn the id on a brand-new conversation so it can pass it on the next call. |
-| `delta` | `{ "text": "..." }` | A chunk of assistant text as Claude generates it. Zero or more per request. |
+| `delta` | `{ "text": "..." }` | A chunk of assistant text as the model generates it. Zero or more per request. |
 | `done` | `{ "done": true }` | Sent once, after the last `delta`, on success. |
-| `error` | `{ "message": "..." }` | Sent instead of `done` if the agent loop fails partway through (e.g. the Claude API errors out or a tool call fails). |
+| `error` | `{ "message": "..." }` | Sent instead of `done` if the agent loop fails partway through (e.g. the OpenRouter API errors out or a tool call fails). |
 
 **Errors** (returned as ordinary JSON before streaming begins — none of these occur once the SSE stream has started)
 | Code | Status | Description |
@@ -3141,7 +3141,7 @@ Deletes a conversation and its message/tool-call trail (cascades via FK).
 
 Uploads a voice recording to be transcribed and turned into a proposed inspection log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`, `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for the client's ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.
 
-The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs if both `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are set) polls for `pending` rows, transcribes the audio via Whisper, then resolves which hive (if any) of the apiary's hives the transcript is about. If no hive is clearly named, or more than one is, a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED` or `MULTIPLE_HIVES_MENTIONED`) and the recording moves straight to `completed`. If exactly one hive resolves, the worker makes a second Claude call with that hive's recent context and may propose zero or more actions — each recognized action (create inspection, treatment, harvest, or feeding) is stored as its own `voice_actions` row with `status = 'proposed'`, unvalidated arguments, tied to that hive; naming no actionable activity leaves the recording with zero `voice_actions` rows. Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues the recording; reviewing/accepting/rejecting proposed actions is not yet implemented.
+The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs if `OPENROUTER_API_KEY` is set) polls for `pending` rows, transcribes the audio via OpenRouter's Whisper-compatible transcription endpoint (`OPENROUTER_WHISPER_MODEL`, default `openai/whisper-1`), then resolves which hive (if any) of the apiary's hives the transcript is about. If no hive is clearly named, or more than one is, a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED` or `MULTIPLE_HIVES_MENTIONED`) and the recording moves straight to `completed`. If exactly one hive resolves, the worker makes a second OpenRouter chat-completions call with that hive's recent context and may propose zero or more actions — each recognized action (create inspection, treatment, harvest, or feeding) is stored as its own `voice_actions` row with `status = 'proposed'`, unvalidated arguments, tied to that hive; naming no actionable activity leaves the recording with zero `voice_actions` rows. Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues the recording; reviewing/accepting/rejecting proposed actions is not yet implemented.
 
 **Response** `202 Accepted`
 ```json

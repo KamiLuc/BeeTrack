@@ -342,13 +342,12 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain
 const voicePollInterval = 5 * time.Second
 
 func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, hives worker.HiveLister, audioStoragePath string) {
-	openaiKey := config.OpenAIAPIKey()
 	openRouterKey := config.OpenRouterAPIKey()
-	if openaiKey == "" || openRouterKey == "" {
-		slog.Warn("OPENAI_API_KEY or OPENROUTER_API_KEY not set, voice worker disabled")
+	if openRouterKey == "" {
+		slog.Warn("OPENROUTER_API_KEY not set, voice worker disabled")
 		return
 	}
-	whisperClient := llm.NewWhisperClient(openaiKey)
+	whisperClient := llm.NewWhisperClient(openRouterKey, llm.WithWhisperModel(config.OpenRouterWhisperModel()))
 	openRouterClient := llm.NewOpenRouterClient(openRouterKey)
 	audioStore := worker.NewFileAudioStore(audioStoragePath)
 	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, openRouterClient, config.OpenRouterModel())

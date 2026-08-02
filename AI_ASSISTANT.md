@@ -30,7 +30,7 @@ Two related but independently shippable features:
    calling read-only tools exposed over the user's own data via an MCP server — it
    never writes data.
 
-Both features share the same underlying Anthropic API client and its tool-use
+Both features share the same underlying OpenRouter API client and its tool-use
 (function-calling) mechanism, but they use it differently:
 
 - **Voice logging** needs Claude to (a) figure out *which hive, within the current
@@ -537,16 +537,23 @@ restarts the process), the recording is left `processing`; the worker's polling 
 picks up anything stuck in `processing` past a timeout and retries it from the top,
 the same recovery approach the blockchain worker already uses for stuck jobs.
 
-Every Phase 1/2 Claude call — not just the ones that end up producing a proposal or
+Every Phase 1/2 LLM call — not just the ones that end up producing a proposal or
 an error action — gets its own `voice_llm_calls` row: what was actually sent
-(transcript + hive list/context) and Claude's raw response, or the raw API error if
+(transcript + hive list/context) and the model's raw response, or the raw API error if
 the call itself failed. This is the same kind of audit trail
 `assistant_tool_calls` already provides for the chat assistant (§3), applied here
 because a bad `voice_actions` outcome is otherwise a dead end to debug — `tool_arguments`
-or `error_message` alone doesn't say *why* Claude picked those values or failed to
+or `error_message` alone doesn't say *why* the model picked those values or failed to
 respond the way Phase 1/2 expected. Writing this row is best-effort: a failure to
 persist it is logged and swallowed, never allowed to fail the recording itself, since
 it's a debugging aid, not part of the pipeline's actual outcome.
+
+> Since the OpenRouter migration (`BACKLOG_AI_ASSISTANT.md` Epic 4, OR-04-BE), `request`
+> and `response` hold OpenAI-compatible chat-completions shapes (flat `messages` array,
+> `tool_calls`) instead of Anthropic Messages API shapes (content blocks, `tool_use`).
+> Rows written before that migration landed still have the old shape — this table has no
+> version column, so anything reading historical rows needs to branch on shape, not just
+> deserialize one schema.
 
 ### 2.5 Recording popup: local playback & cancelling a pending recording
 
@@ -672,7 +679,7 @@ Flutter app (new Assistant chat screen)
         ▼
 Go backend — AssistantHandler → AssistantService
         │
-        │  runs a Claude agent loop (Anthropic Messages API, tool use),
+        │  runs a Claude agent loop (OpenRouter chat-completions API, tool use),
         │  scoped to the authenticated user's own userID
         ▼
    MCP server (in-process, same Go binary — no separate deployment)
@@ -773,14 +780,14 @@ already sends.
 
 | Component | New? | Notes |
 |---|---|---|
-| Anthropic API client (Go) | Yes | `internal/llm/` — thin wrapper around the Messages API with tool-use support; used by both the voice worker's intent parser and the assistant's agent loop |
-| Whisper (speech-to-text) | Yes | Called from the voice worker only; hosted API call (no local model — matches this project's "call external AI services from Go" pattern already used for blockchain RPC calls) |
+| OpenRouter API client (Go) | Yes | `internal/llm/` — thin wrapper around OpenRouter's OpenAI-compatible chat-completions endpoint (`OpenRouterClient`) with tool-use support; used by both the voice worker's intent parser and the assistant's agent loop. Migrated off a direct Anthropic Messages API client — see `BACKLOG_AI_ASSISTANT.md` Epic 4 (OR-01..OR-08-BE) |
+| Whisper (speech-to-text) | Yes | Called from the voice worker only, via OpenRouter's transcription endpoint (`OPENROUTER_WHISPER_MODEL`, default `openai/whisper-1`) rather than OpenAI directly; hosted API call (no local model — matches this project's "call external AI services from Go" pattern already used for blockchain RPC calls) |
 | `GET /medicines`, `/feed-types`, `/feed-amounts` | No | Already exist for the manual forms' autocomplete (§2.2) — the voice worker calls them as regular internal reads, no new endpoint |
 | `internal/mcp/` | Yes | Tool definitions + in-process registry; read-only repository calls only. `list_hives` is called directly (as a Go function, not over MCP transport) by the voice worker's hive-name resolution, so it's the one tool implementation shared by both features |
 | Voice worker | Yes | New job type polling `voice_recordings` for `pending` rows, following the *exact same shape* as `internal/worker`'s existing blockchain certification worker (poll interval, `pending → processing → completed/failed` status column, stuck-job recovery) — likely lives in `internal/worker/voice.go` alongside it rather than a new package, since it's the same pattern applied to a different job |
 | `AUDIO_STORAGE_PATH` / Docker volume | Yes | Server-side, transient audio storage between upload and transcription (§2.4) — same UUID-filename convention and Docker-volume approach as `IMAGE_STORAGE_PATH`, just for short-lived files the worker deletes once transcribed |
 | Local audio storage (Flutter, `path_provider`) | Yes | Client-side only, separate from the server-side path above — recordings are saved to the device before upload so the pending-list dialog can play them back locally (§2.5); deleted once the recording leaves `pending`/`processing` |
-| New env vars | Yes | `ANTHROPIC_API_KEY`, `WHISPER_API_KEY` (or one combined key if using Anthropic's own audio input once available), `AUDIO_STORAGE_PATH` — same `getEnv`-with-validation pattern as `LoadBlockchainConfig` |
+| New env vars | Yes | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_WHISPER_MODEL`, `AUDIO_STORAGE_PATH` — same `getEnv`-with-validation pattern as `LoadBlockchainConfig` |
 
 One new migration is required: `voice_recordings` + `voice_actions` (§2.4). The chat
 assistant needs none — it reads through existing tables only.

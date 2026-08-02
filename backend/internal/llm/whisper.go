@@ -10,7 +10,10 @@ import (
 	"net/http"
 )
 
-const defaultWhisperBaseURL = "https://api.openai.com/v1"
+const (
+	defaultWhisperBaseURL = "https://openrouter.ai/api/v1"
+	defaultWhisperModel   = "openai/whisper-1"
+)
 
 type WhisperAPIError struct {
 	StatusCode int
@@ -24,6 +27,7 @@ func (e *WhisperAPIError) Error() string {
 type WhisperClient struct {
 	apiKey     string
 	baseURL    string
+	model      string
 	httpClient *http.Client
 }
 
@@ -33,10 +37,15 @@ func WithWhisperBaseURL(url string) WhisperOption {
 	return func(c *WhisperClient) { c.baseURL = url }
 }
 
+func WithWhisperModel(model string) WhisperOption {
+	return func(c *WhisperClient) { c.model = model }
+}
+
 func NewWhisperClient(apiKey string, opts ...WhisperOption) *WhisperClient {
 	c := &WhisperClient{
 		apiKey:     apiKey,
 		baseURL:    defaultWhisperBaseURL,
+		model:      defaultWhisperModel,
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {
@@ -68,7 +77,7 @@ func (c *WhisperClient) Transcribe(ctx context.Context, audio io.Reader, filenam
 	if _, err := io.Copy(part, audio); err != nil {
 		return nil, fmt.Errorf("write audio to form: %w", err)
 	}
-	if err := writer.WriteField("model", "whisper-1"); err != nil {
+	if err := writer.WriteField("model", c.model); err != nil {
 		return nil, fmt.Errorf("write model field: %w", err)
 	}
 	if err := writer.WriteField("response_format", "verbose_json"); err != nil {

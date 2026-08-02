@@ -65,8 +65,8 @@ func TestWhisperClientTranscribeSendsRequestAndParsesResponse(t *testing.T) {
 	if gotAuth != "Bearer test-api-key" {
 		t.Errorf("expected Authorization header %q, got %q", "Bearer test-api-key", gotAuth)
 	}
-	if gotModel != "whisper-1" {
-		t.Errorf("expected model %q, got %q", "whisper-1", gotModel)
+	if gotModel != "openai/whisper-1" {
+		t.Errorf("expected model %q, got %q", "openai/whisper-1", gotModel)
 	}
 	if gotResponseFormat != "verbose_json" {
 		t.Errorf("expected response_format %q, got %q", "verbose_json", gotResponseFormat)
@@ -96,6 +96,38 @@ func TestWhisperClientTranscribeSendsRequestAndParsesResponse(t *testing.T) {
 	}
 	if seg.NoSpeechProb != 0.01 {
 		t.Errorf("expected no_speech_prob %v, got %v", 0.01, seg.NoSpeechProb)
+	}
+}
+
+func TestWhisperClientTranscribeWithCustomModelSendsOverriddenModel(t *testing.T) {
+	var gotModel string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mediaType, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+			t.Fatalf("expected multipart content type, got %q (err: %v)", mediaType, err)
+		}
+
+		mr := multipart.NewReader(r.Body, params["boundary"])
+		form, err := mr.ReadForm(1 << 20)
+		if err != nil {
+			t.Fatalf("read multipart form: %v", err)
+		}
+		gotModel = form.Value["model"][0]
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"text": "", "language": "english", "segments": []}`))
+	}))
+	defer server.Close()
+
+	client := NewWhisperClient("test-api-key", WithWhisperBaseURL(server.URL), WithWhisperModel("openai/whisper-large-v3"))
+
+	_, err := client.Transcribe(context.Background(), strings.NewReader("fake audio bytes"), "recording.m4a")
+	if err != nil {
+		t.Fatalf("Transcribe returned error: %v", err)
+	}
+
+	if gotModel != "openai/whisper-large-v3" {
+		t.Errorf("expected model %q, got %q", "openai/whisper-large-v3", gotModel)
 	}
 }
 
