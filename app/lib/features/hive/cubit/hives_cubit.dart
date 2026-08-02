@@ -44,13 +44,18 @@ class HivesCubit extends Cubit<HivesState> {
             name: h.name,
             type: h.type,
             active: h.active,
-            queenless: h.queenless,
+            queenNeedsReplacement: h.queenNeedsReplacement,
             readyForHarvest: h.readyForHarvest,
             needsFood: h.needsFood,
+            boxNeedsAdding: h.boxNeedsAdding,
             gridRow: row,
             gridCol: col,
             diseases: h.diseases,
             lastInspectedAt: h.lastInspectedAt,
+            readyForHarvestSince: h.readyForHarvestSince,
+            queenNeedsReplacementSince: h.queenNeedsReplacementSince,
+            needsFoodSince: h.needsFoodSince,
+            boxNeedsAddingSince: h.boxNeedsAddingSince,
           )
         : h).toList()));
 

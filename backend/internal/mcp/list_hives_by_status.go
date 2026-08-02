@@ -6,14 +6,16 @@ import (
 	"fmt"
 )
 
-var hiveStatuses = []string{"queenless", "needs_food", "sick", "ready_for_harvest"}
+var hiveStatuses = []string{"queen_needs_replacement", "needs_food", "box_needs_adding", "sick", "ready_for_harvest"}
 
 func matchesStatus(h HiveSummary, status string) bool {
 	switch status {
-	case "queenless":
-		return h.Queenless
+	case "queen_needs_replacement":
+		return h.QueenNeedsReplacement
 	case "needs_food":
 		return h.NeedsFood
+	case "box_needs_adding":
+		return h.BoxNeedsAdding
 	case "sick":
 		return len(h.Diseases) > 0
 	case "ready_for_harvest":
@@ -25,7 +27,7 @@ func matchesStatus(h HiveSummary, status string) bool {
 
 // ListHivesByStatus returns hives across userID's apiaries (or just
 // apiaryID's, if non-nil) matching any of statuses (all four if empty):
-// queenless, needs_food, sick (has an active disease), ready_for_harvest.
+// queen_needs_replacement, needs_food, sick (has an active disease), ready_for_harvest.
 func (t *HiveTools) ListHivesByStatus(ctx context.Context, userID int64, apiaryID *int64, statuses []string) ([]HiveSummary, error) {
 	types, err := validateAllowedValues(statuses, hiveStatuses, "status")
 	if err != nil {
@@ -60,7 +62,7 @@ type listHivesByStatusInput struct {
 func (t *HiveTools) ListHivesByStatusTool() Tool {
 	return Tool{
 		Name:        "list_hives_by_status",
-		Description: "List hives matching any of the given statuses (queenless, needs_food, sick, ready_for_harvest). Omit statuses to match hives with any of these flags set. Accepts an optional apiary_id to filter to one apiary.",
+		Description: "List hives matching any of the given statuses (queen_needs_replacement, needs_food, box_needs_adding, sick, ready_for_harvest). Omit statuses to match hives with any of these flags set. Accepts an optional apiary_id to filter to one apiary.",
 		InputSchema: InputSchema{
 			Properties: map[string]any{
 				"apiary_id": map[string]any{

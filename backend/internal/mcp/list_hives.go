@@ -22,16 +22,17 @@ type HiveLister interface {
 }
 
 type HiveSummary struct {
-	ID              int64    `json:"id"`
-	ApiaryID        int64    `json:"apiary_id"`
-	ApiaryName      string   `json:"apiary_name"`
-	Name            string   `json:"name"`
-	Type            string   `json:"type"`
-	Active          bool     `json:"active"`
-	Queenless       bool     `json:"queenless"`
-	NeedsFood       bool     `json:"needs_food"`
-	ReadyForHarvest bool     `json:"ready_for_harvest"`
-	Diseases        []string `json:"diseases"`
+	ID                    int64    `json:"id"`
+	ApiaryID              int64    `json:"apiary_id"`
+	ApiaryName            string   `json:"apiary_name"`
+	Name                  string   `json:"name"`
+	Type                  string   `json:"type"`
+	Active                bool     `json:"active"`
+	QueenNeedsReplacement bool     `json:"queen_needs_replacement"`
+	NeedsFood             bool     `json:"needs_food"`
+	BoxNeedsAdding        bool     `json:"box_needs_adding"`
+	ReadyForHarvest       bool     `json:"ready_for_harvest"`
+	Diseases              []string `json:"diseases"`
 }
 
 // HiveTools groups the read-only hive tools; list_hives is also called
@@ -125,16 +126,17 @@ func (t *HiveTools) hiveSummaries(ctx context.Context, hives []*model.Hive, apia
 	summaries := make([]HiveSummary, len(hives))
 	for i, h := range hives {
 		summaries[i] = HiveSummary{
-			ID:              h.ID,
-			ApiaryID:        h.ApiaryID,
-			ApiaryName:      apiaryNames[h.ApiaryID],
-			Name:            h.Name,
-			Type:            h.Type,
-			Active:          h.Active,
-			Queenless:       h.Queenless,
-			NeedsFood:       h.NeedsFood,
-			ReadyForHarvest: h.ReadyForHarvest,
-			Diseases:        diseasesByHiveID[h.ID],
+			ID:                    h.ID,
+			ApiaryID:              h.ApiaryID,
+			ApiaryName:            apiaryNames[h.ApiaryID],
+			Name:                  h.Name,
+			Type:                  h.Type,
+			Active:                h.Active,
+			QueenNeedsReplacement: h.QueenNeedsReplacement,
+			NeedsFood:             h.NeedsFood,
+			BoxNeedsAdding:        h.BoxNeedsAdding,
+			ReadyForHarvest:       h.ReadyForHarvest,
+			Diseases:              diseasesByHiveID[h.ID],
 		}
 	}
 	return summaries, nil
@@ -159,7 +161,7 @@ type listHivesInput struct {
 func (t *HiveTools) ListHivesTool() Tool {
 	return Tool{
 		Name:        "list_hives",
-		Description: "List active hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases. Accepts an optional apiary_id to filter to one apiary.",
+		Description: "List active hives across the caller's apiaries, with status flags (queen_needs_replacement, needs_food, box_needs_adding, ready_for_harvest) and active diseases. Accepts an optional apiary_id to filter to one apiary.",
 		InputSchema: InputSchema{
 			Properties: map[string]any{
 				"apiary_id": map[string]any{

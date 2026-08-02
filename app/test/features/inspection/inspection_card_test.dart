@@ -19,7 +19,9 @@ Inspection _insp({String? inspectedByName}) => Inspection(
       queenSeen: 'seen',
       broodPattern: '',
       aggressiveness: '',
+      colonyStrength: '',
       queenAdded: false,
+      boxAdded: false,
       notes: '',
       inspectedByName: inspectedByName,
     );

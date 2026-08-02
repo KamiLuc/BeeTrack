@@ -17,8 +17,10 @@ func TestGetDashboardSummaryAggregatesAcrossApiaries(t *testing.T) {
 	}}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {
-			{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true, Queenless: true},
+			{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true},
 			{ID: 11, ApiaryID: 1, Name: "Hive B", Active: true, NeedsFood: true},
+			{ID: 12, ApiaryID: 1, Name: "Hive D", Active: true, QueenNeedsReplacement: true},
+			{ID: 13, ApiaryID: 1, Name: "Hive E", Active: true, BoxNeedsAdding: true},
 		},
 		2: {
 			{ID: 20, ApiaryID: 2, Name: "Hive C", Active: true, ReadyForHarvest: true},
@@ -45,10 +47,10 @@ func TestGetDashboardSummaryAggregatesAcrossApiaries(t *testing.T) {
 	if result.ApiaryCount != 2 {
 		t.Errorf("expected apiary_count 2, got %d", result.ApiaryCount)
 	}
-	if result.HiveCount != 3 {
-		t.Errorf("expected hive_count 3, got %d", result.HiveCount)
+	if result.HiveCount != 5 {
+		t.Errorf("expected hive_count 5, got %d", result.HiveCount)
 	}
-	if result.Queenless != 1 || result.NeedsFood != 1 || result.Sick != 1 || result.ReadyForHarvest != 1 {
+	if result.QueenNeedsReplacement != 1 || result.NeedsFood != 1 || result.BoxNeedsAdding != 1 || result.Sick != 1 || result.ReadyForHarvest != 1 {
 		t.Errorf("unexpected status counts: %+v", result)
 	}
 	if result.Inspections != 1 || result.Treatments != 1 || result.Feedings != 1 || result.Harvests != 2 {
@@ -126,7 +128,7 @@ func TestGetDashboardSummaryNoHivesReturnsZeroCounts(t *testing.T) {
 	if result.ApiaryCount != 1 || result.HiveCount != 0 {
 		t.Errorf("expected apiary_count 1 and hive_count 0, got %+v", result)
 	}
-	if result.Queenless != 0 || result.NeedsFood != 0 || result.Sick != 0 || result.ReadyForHarvest != 0 {
+	if result.QueenNeedsReplacement != 0 || result.NeedsFood != 0 || result.BoxNeedsAdding != 0 || result.Sick != 0 || result.ReadyForHarvest != 0 {
 		t.Errorf("expected zero status counts, got %+v", result)
 	}
 	if result.Inspections != 0 || result.Treatments != 0 || result.Feedings != 0 || result.Harvests != 0 || result.HarvestKilograms != 0 {

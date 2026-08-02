@@ -43,8 +43,8 @@ func (r *ApiaryRepository) ListByUserID(ctx context.Context, userID int64) ([]mo
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("apiaries a").
-		Select("a.*, am.role AS user_role, " +
-			"(SELECT COUNT(*) FROM hives h WHERE h.apiary_id = a.id) AS hive_count, " +
+		Select("a.*, am.role AS user_role, "+
+			"(SELECT COUNT(*) FROM hives h WHERE h.apiary_id = a.id) AS hive_count, "+
 			"(SELECT MAX(i.inspected_at) FROM inspections i JOIN hives h ON h.id = i.hive_id WHERE h.apiary_id = a.id) AS last_inspected_at").
 		Joins("JOIN apiary_members am ON am.apiary_id = a.id").
 		Where("am.user_id = ?", userID).
@@ -174,14 +174,20 @@ func (r *ApiaryRepository) DeepCopy(ctx context.Context, sourceID, ownerID int64
 
 		for _, h := range hives {
 			newHive := &model.Hive{
-				ApiaryID:        newApiary.ID,
-				Name:            h.Name,
-				Type:            h.Type,
-				Active:          h.Active,
-				ReadyForHarvest: h.ReadyForHarvest,
-				Queenless:       h.Queenless,
-				GridRow:         h.GridRow,
-				GridCol:         h.GridCol,
+				ApiaryID:                   newApiary.ID,
+				Name:                       h.Name,
+				Type:                       h.Type,
+				Active:                     h.Active,
+				ReadyForHarvest:            h.ReadyForHarvest,
+				ReadyForHarvestSince:       h.ReadyForHarvestSince,
+				QueenNeedsReplacement:      h.QueenNeedsReplacement,
+				QueenNeedsReplacementSince: h.QueenNeedsReplacementSince,
+				NeedsFood:                  h.NeedsFood,
+				NeedsFoodSince:             h.NeedsFoodSince,
+				BoxNeedsAdding:             h.BoxNeedsAdding,
+				BoxNeedsAddingSince:        h.BoxNeedsAddingSince,
+				GridRow:                    h.GridRow,
+				GridCol:                    h.GridCol,
 			}
 			if err := tx.Create(newHive).Error; err != nil {
 				return err
@@ -203,11 +209,13 @@ func (r *ApiaryRepository) DeepCopy(ctx context.Context, sourceID, ownerID int64
 					FramesPollen:          insp.FramesPollen,
 					QueenCellsCount:       insp.QueenCellsCount,
 					Aggressiveness:        insp.Aggressiveness,
+					ColonyStrength:        insp.ColonyStrength,
 					FramesAddedFoundation: insp.FramesAddedFoundation,
 					FramesAddedDrawn:      insp.FramesAddedDrawn,
 					FramesAddedBrood:      insp.FramesAddedBrood,
 					FramesAddedFeed:       insp.FramesAddedFeed,
 					QueenAdded:            insp.QueenAdded,
+					BoxAdded:              insp.BoxAdded,
 					Notes:                 insp.Notes,
 				}
 				if err := tx.Create(newInsp).Error; err != nil {

@@ -66,7 +66,7 @@ func TestListHivesWithoutFilterReturnsHivesAcrossAllApiaries(t *testing.T) {
 	}
 	hives := &mockHiveLister{hivesByApiary: map[int64][]*model.Hive{
 		1: {{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}},
-		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Active: true, Queenless: true}},
+		2: {{ID: 20, ApiaryID: 2, Name: "Hive B", Active: true, QueenNeedsReplacement: true, BoxNeedsAdding: true}},
 	}}
 	tools := NewHiveTools(apiaries, hives, nil, nil, nil, nil)
 
@@ -77,7 +77,7 @@ func TestListHivesWithoutFilterReturnsHivesAcrossAllApiaries(t *testing.T) {
 	if len(result) != 2 {
 		t.Fatalf("expected 2 hives, got %d", len(result))
 	}
-	if result[0].Name != "Hive A" || result[1].Name != "Hive B" || !result[1].Queenless {
+	if result[0].Name != "Hive A" || result[1].Name != "Hive B" || !result[1].QueenNeedsReplacement || !result[1].BoxNeedsAdding {
 		t.Errorf("unexpected result: %+v", result)
 	}
 }

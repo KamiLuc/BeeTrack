@@ -237,19 +237,24 @@ type ApiaryMembership struct {
 
 // hive.go
 type Hive struct {
-    ID              int64
-    ApiaryID        int64
-    Name            string
-    Type            string   // dadant | langstroth | top_bar | wielkopolski
-    Active          bool
-    Queenless       bool
-    ReadyForHarvest bool
-    NeedsFood       bool
-    Frames          int      // total frame capacity; 0 means not set
-    GridRow         int
-    GridCol         int
-    CreatedAt       time.Time
-    UpdatedAt       time.Time
+    ID                         int64
+    ApiaryID                   int64
+    Name                       string
+    Type                       string   // dadant | langstroth | top_bar | wielkopolski
+    Active                     bool
+    ReadyForHarvest            bool
+    ReadyForHarvestSince       *time.Time
+    QueenNeedsReplacement      bool
+    QueenNeedsReplacementSince *time.Time
+    NeedsFood                  bool
+    NeedsFoodSince             *time.Time
+    BoxNeedsAdding             bool
+    BoxNeedsAddingSince        *time.Time
+    Frames                     int      // total frame capacity; 0 means not set
+    GridRow                    int
+    GridCol                    int
+    CreatedAt                  time.Time
+    UpdatedAt                  time.Time
 }
 type HiveDisease struct {
     ID        int64
@@ -359,7 +364,7 @@ type InspectionImage struct {
 ## Data Models (current fields)
 
 ```
-Hive             id, apiaryId, name, type, active, queenless, readyForHarvest, needsFood,
+Hive             id, apiaryId, name, type, active, queenNeedsReplacement, readyForHarvest, needsFood,
                  frames (int, 0 = not set), gridRow, gridCol,
                  diseases (List<HiveDisease>), lastInspectedAt?
 Apiary           id, name, lat?, lng?, gridRows, gridCols, hiveCount, userRole, lastInspectedAt?

@@ -25,10 +25,10 @@ func newCompareTestTools(hives ...*model.Hive) (*HiveTools, *mockInspectionListe
 
 func TestCompareHivesReturnsLatestInspectionPerHive(t *testing.T) {
 	hiveA := &model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true}
-	hiveB := &model.Hive{ID: 20, ApiaryID: 1, Name: "Hive B", Active: true, Queenless: true}
+	hiveB := &model.Hive{ID: 20, ApiaryID: 1, Name: "Hive B", Active: true, QueenNeedsReplacement: true}
 	tools, inspections, _, _, _ := newCompareTestTools(hiveA, hiveB)
-	inspections.byHiveID[10] = []*model.Inspection{{ID: 100, HiveID: 10, BroodPattern: "solid"}}
-	inspections.byHiveID[20] = []*model.Inspection{{ID: 200, HiveID: 20, BroodPattern: "spotty"}}
+	inspections.byHiveID[10] = []*model.Inspection{{ID: 100, HiveID: 10, BroodPattern: "solid", ColonyStrength: "strong"}}
+	inspections.byHiveID[20] = []*model.Inspection{{ID: 200, HiveID: 20, BroodPattern: "spotty", ColonyStrength: "weak"}}
 
 	result, err := tools.CompareHives(context.Background(), 99, []int64{10, 20})
 	if err != nil {
@@ -37,10 +37,10 @@ func TestCompareHivesReturnsLatestInspectionPerHive(t *testing.T) {
 	if len(result) != 2 {
 		t.Fatalf("expected 2 hives, got %d", len(result))
 	}
-	if result[0].Name != "Hive A" || result[0].BroodPattern != "solid" {
+	if result[0].Name != "Hive A" || result[0].BroodPattern != "solid" || result[0].ColonyStrength != "strong" {
 		t.Errorf("unexpected first hive: %+v", result[0])
 	}
-	if result[1].Name != "Hive B" || result[1].BroodPattern != "spotty" || !result[1].Queenless {
+	if result[1].Name != "Hive B" || result[1].BroodPattern != "spotty" || result[1].ColonyStrength != "weak" || !result[1].QueenNeedsReplacement {
 		t.Errorf("unexpected second hive: %+v", result[1])
 	}
 }
@@ -79,7 +79,7 @@ func TestCompareHivesWithNoInspectionsLeavesInspectionFieldsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompareHives returned error: %v", err)
 	}
-	if len(result) != 1 || result[0].LastInspectedAt != nil || result[0].BroodPattern != "" {
+	if len(result) != 1 || result[0].LastInspectedAt != nil || result[0].BroodPattern != "" || result[0].ColonyStrength != "" {
 		t.Errorf("expected no inspection data, got %+v", result[0])
 	}
 	if result[0].LastTreatment != nil || result[0].LastFeeding != nil || result[0].LastHarvest != nil {

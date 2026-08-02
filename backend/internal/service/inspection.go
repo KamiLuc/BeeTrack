@@ -26,6 +26,7 @@ var (
 	ErrInspectionNotesTooLong       = fmt.Errorf("notes must be at most %d characters", validation.ExtraLarge.MaxLength())
 	ErrInvalidAggressiveness        = errors.New("invalid aggressiveness value")
 	ErrInvalidBroodPattern          = errors.New("invalid brood_pattern value")
+	ErrInvalidColonyStrength        = errors.New("invalid colony_strength value")
 	ErrInvalidDisease               = errors.New("invalid disease value")
 	ErrInvalidQueenStatus           = errors.New("invalid queen_status value")
 )
@@ -35,6 +36,8 @@ var validDiseases = toSet(model.ValidDiseases)
 var validAggressiveness = toSet(model.ValidAggressiveness)
 
 var validBroodPattern = toSet(model.ValidBroodPatterns)
+
+var validColonyStrength = toSet(model.ValidColonyStrengths)
 
 var validQueenStatus = toSet(model.ValidQueenStatuses)
 
@@ -89,11 +92,13 @@ type InspectionParams struct {
 	FramesPollen          *int
 	QueenCellsCount       *int
 	Aggressiveness        string
+	ColonyStrength        string
 	FramesAddedFoundation *int
 	FramesAddedDrawn      *int
 	FramesAddedBrood      *int
 	FramesAddedFeed       *int
 	QueenAdded            bool
+	BoxAdded              bool
 	Notes                 string
 }
 
@@ -106,6 +111,9 @@ func validateInspectionParams(p InspectionParams) error {
 	}
 	if p.BroodPattern != "" && !validBroodPattern[p.BroodPattern] {
 		return ErrInvalidBroodPattern
+	}
+	if p.ColonyStrength != "" && !validColonyStrength[p.ColonyStrength] {
+		return ErrInvalidColonyStrength
 	}
 	if p.QueenStatus != "" && !validQueenStatus[p.QueenStatus] {
 		return ErrInvalidQueenStatus
@@ -169,11 +177,13 @@ func (s *InspectionService) Create(ctx context.Context, userID, apiaryID, hiveID
 		FramesPollen:          params.FramesPollen,
 		QueenCellsCount:       params.QueenCellsCount,
 		Aggressiveness:        params.Aggressiveness,
+		ColonyStrength:        params.ColonyStrength,
 		FramesAddedFoundation: params.FramesAddedFoundation,
 		FramesAddedDrawn:      params.FramesAddedDrawn,
 		FramesAddedBrood:      params.FramesAddedBrood,
 		FramesAddedFeed:       params.FramesAddedFeed,
 		QueenAdded:            params.QueenAdded,
+		BoxAdded:              params.BoxAdded,
 		Notes:                 params.Notes,
 	}
 	if err := s.inspections.Create(ctx, insp); err != nil {
@@ -237,11 +247,13 @@ func (s *InspectionService) Update(ctx context.Context, userID, apiaryID, hiveID
 	insp.FramesPollen = params.FramesPollen
 	insp.QueenCellsCount = params.QueenCellsCount
 	insp.Aggressiveness = params.Aggressiveness
+	insp.ColonyStrength = params.ColonyStrength
 	insp.FramesAddedFoundation = params.FramesAddedFoundation
 	insp.FramesAddedDrawn = params.FramesAddedDrawn
 	insp.FramesAddedBrood = params.FramesAddedBrood
 	insp.FramesAddedFeed = params.FramesAddedFeed
 	insp.QueenAdded = params.QueenAdded
+	insp.BoxAdded = params.BoxAdded
 	insp.Notes = params.Notes
 	if err := s.inspections.Update(ctx, insp); err != nil {
 		return nil, fmt.Errorf("update inspection: %w", err)

@@ -36,20 +36,22 @@ class HiveRepository {
     required String name,
     required String type,
     required bool active,
-    required bool queenless,
+    required bool queenNeedsReplacement,
     required bool readyForHarvest,
     required bool needsFood,
+    required bool boxNeedsAdding,
     required int gridRow,
     required int gridCol,
   }) async {
     try {
       await _api.dio.post('/api/v1/apiaries/$apiaryId/hives', data: {
         'active': active,
+        'box_needs_adding': boxNeedsAdding,
         'grid_col': gridCol,
         'grid_row': gridRow,
         'name': name,
         'needs_food': needsFood,
-        'queenless': queenless,
+        'queen_needs_replacement': queenNeedsReplacement,
         'ready_for_harvest': readyForHarvest,
         'type': type,
       });
@@ -58,25 +60,29 @@ class HiveRepository {
     }
   }
 
-  Future<void> updateHive({
+  Future<Hive> updateHive({
     required int apiaryId,
     required int hiveId,
     required String name,
     required String type,
     required bool active,
-    required bool queenless,
+    required bool queenNeedsReplacement,
     required bool readyForHarvest,
     required bool needsFood,
+    required bool boxNeedsAdding,
   }) async {
     try {
-      await _api.dio.patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
+      final response = await _api.dio
+          .patch('/api/v1/apiaries/$apiaryId/hives/$hiveId', data: {
         'active': active,
+        'box_needs_adding': boxNeedsAdding,
         'name': name,
         'needs_food': needsFood,
-        'queenless': queenless,
+        'queen_needs_replacement': queenNeedsReplacement,
         'ready_for_harvest': readyForHarvest,
         'type': type,
       });
+      return Hive.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

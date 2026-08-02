@@ -16,6 +16,7 @@ Inspection _insp({
   String queenSeen = '',
   String broodPattern = '',
   String aggressiveness = '',
+  String colonyStrength = '',
   int? framesBrood,
   int? framesFeed,
   int? framesPollen,
@@ -25,6 +26,7 @@ Inspection _insp({
   int? framesAddedFeed,
   int? queenCellsCount,
   bool queenAdded = false,
+  bool boxAdded = false,
   String notes = '',
 }) =>
     Inspection(
@@ -34,6 +36,7 @@ Inspection _insp({
       queenSeen: queenSeen,
       broodPattern: broodPattern,
       aggressiveness: aggressiveness,
+      colonyStrength: colonyStrength,
       framesBrood: framesBrood,
       framesFeed: framesFeed,
       framesPollen: framesPollen,
@@ -43,6 +46,7 @@ Inspection _insp({
       framesAddedFeed: framesAddedFeed,
       queenCellsCount: queenCellsCount,
       queenAdded: queenAdded,
+      boxAdded: boxAdded,
       notes: notes,
     );
 
@@ -163,6 +167,20 @@ void main() {
         InspectionSummary(inspection: _insp(queenAdded: true)),
       ));
       expect(find.text('Queen added'), findsOneWidget);
+    });
+
+    testWidgets('shows box added when true', (tester) async {
+      await tester.pumpWidget(_wrap(
+        InspectionSummary(inspection: _insp(boxAdded: true)),
+      ));
+      expect(find.text('Box added'), findsOneWidget);
+    });
+
+    testWidgets('shows colony strength in observations', (tester) async {
+      await tester.pumpWidget(_wrap(
+        InspectionSummary(inspection: _insp(colonyStrength: 'strong')),
+      ));
+      expect(find.textContaining('Colony strength'), findsOneWidget);
     });
 
     testWidgets('shows queen cells count', (tester) async {

@@ -61,9 +61,10 @@ const _hive = Hive(
   name: 'Alpha',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 0,
   gridCol: 0,
 );

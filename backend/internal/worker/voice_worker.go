@@ -396,21 +396,23 @@ type lastInspectionContext struct {
 }
 
 type hiveActionContext struct {
-	Type            string                 `json:"type"`
-	Queenless       bool                   `json:"queenless"`
-	NeedsFood       bool                   `json:"needs_food"`
-	ReadyForHarvest bool                   `json:"ready_for_harvest"`
-	Diseases        []string               `json:"diseases"`
-	LastInspection  *lastInspectionContext `json:"last_inspection,omitempty"`
+	Type                  string                 `json:"type"`
+	QueenNeedsReplacement bool                   `json:"queen_needs_replacement"`
+	NeedsFood             bool                   `json:"needs_food"`
+	BoxNeedsAdding        bool                   `json:"box_needs_adding"`
+	ReadyForHarvest       bool                   `json:"ready_for_harvest"`
+	Diseases              []string               `json:"diseases"`
+	LastInspection        *lastInspectionContext `json:"last_inspection,omitempty"`
 }
 
 func buildHiveActionContext(h *mcp.HiveHistory) hiveActionContext {
 	c := hiveActionContext{
-		Type:            h.Hive.Type,
-		Queenless:       h.Hive.Queenless,
-		NeedsFood:       h.Hive.NeedsFood,
-		ReadyForHarvest: h.Hive.ReadyForHarvest,
-		Diseases:        h.Hive.Diseases,
+		Type:                  h.Hive.Type,
+		QueenNeedsReplacement: h.Hive.QueenNeedsReplacement,
+		NeedsFood:             h.Hive.NeedsFood,
+		BoxNeedsAdding:        h.Hive.BoxNeedsAdding,
+		ReadyForHarvest:       h.Hive.ReadyForHarvest,
+		Diseases:              h.Hive.Diseases,
 	}
 	var latest *mcp.InspectionSummary
 	for i := range h.Inspections {
@@ -435,6 +437,7 @@ func createInspectionTool() llm.Tool {
 		"queen_status":            map[string]any{"type": "string", "enum": model.ValidQueenStatuses},
 		"brood_pattern":           map[string]any{"type": "string", "enum": model.ValidBroodPatterns},
 		"aggressiveness":          map[string]any{"type": "string", "enum": model.ValidAggressiveness},
+		"colony_strength":         map[string]any{"type": "string", "enum": model.ValidColonyStrengths},
 		"frames_brood":            map[string]any{"type": "integer", "description": "Absolute frame count with brood, 0-99."},
 		"frames_feed":             map[string]any{"type": "integer", "description": "Absolute frame count with feed, 0-99."},
 		"frames_pollen":           map[string]any{"type": "integer", "description": "Absolute frame count with pollen, 0-99."},
@@ -444,6 +447,7 @@ func createInspectionTool() llm.Tool {
 		"frames_added_brood":      map[string]any{"type": "integer", "description": "Signed delta of brood frames added."},
 		"frames_added_feed":       map[string]any{"type": "integer", "description": "Signed delta of feed frames added."},
 		"queen_added":             map[string]any{"type": "boolean", "description": "True if a new queen was introduced during this inspection."},
+		"box_added":               map[string]any{"type": "boolean", "description": "True if a box/super was added to the hive during this inspection."},
 		"diseases": map[string]any{
 			"type":        "array",
 			"description": "Diseases observed during this inspection, if any.",

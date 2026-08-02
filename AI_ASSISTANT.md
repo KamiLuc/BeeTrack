@@ -251,10 +251,10 @@ the sibling actions accepted alongside it.
   each call independently (§2.1, §2.4) and the Voice Activity screen (§2.6) shows one
   entry per action produced, once processing finishes.
 - **Hive state flags can be set by voice too, not just logged as notes.** The manual
-  hive edit screen lets a beekeeper flip `queenless` / `needs_food` /
+  hive edit screen lets a beekeeper flip `queen_needs_replacement` / `needs_food` /
   `ready_for_harvest` / `active` and add/remove diseases (`PATCH
   /apiaries/{id}/hives/{hiveId}`, plus the disease add/remove endpoints) — a beekeeper
-  saying "this one's queenless, mark it for feeding" should update the same flags,
+  saying "this one needs a new queen, mark it for feeding" should update the same flags,
   not just end up as free-text notes on an inspection Claude also happened to log. A
   fifth write tool, `update_hive_status`, wraps exactly those existing endpoints; it's
   independent of `create_inspection` (a recording can trigger one, the other, or
@@ -710,15 +710,15 @@ not over that transport.
 
 | Tool | Purpose |
 |---|---|
-| `list_hives` | All **active** hives across the caller's apiaries, with status flags (queenless, needs_food, ready_for_harvest) and active diseases; accepts an optional `apiary_id` filter — also the tool voice logging's Phase 1 calls directly, filtered to the current apiary, to resolve a spoken hive name to a hive_id (§2.1). Inactive hives are excluded here and from every other multi-hive tool below, matching the app's own convention of excluding inactive hives from anything actionable — a single hive looked up directly by ID (`get_hive_summary`, `list_hive_records`) is unaffected, since that's an explicit request for a known hive, not a "what needs attention" scan |
+| `list_hives` | All **active** hives across the caller's apiaries, with status flags (queen_needs_replacement, needs_food, ready_for_harvest) and active diseases; accepts an optional `apiary_id` filter — also the tool voice logging's Phase 1 calls directly, filtered to the current apiary, to resolve a spoken hive name to a hive_id (§2.1). Inactive hives are excluded here and from every other multi-hive tool below, matching the app's own convention of excluding inactive hives from anything actionable — a single hive looked up directly by ID (`get_hive_summary`, `list_hive_records`) is unaffected, since that's an explicit request for a known hive, not a "what needs attention" scan |
 | `list_hive_records` | One hive's inspections/treatments/harvests/feedings, filtered to a `(hive_id, record_types?, days?)` window — `record_types` selects a subset (e.g. `["inspection","feeding"]`) in one call instead of one tool call per type; omitting it returns all four. `Treatment` has no active/inactive concept in the schema, so this replaces a single "active treatments" notion with a recency window each caller controls |
 | `get_hive_summary` | Aggregates all four record types for one hive over the same optional day window, plus its status flags and diseases |
 | `list_hives_missing_records` | Hives across the caller's apiaries (or one, via `apiary_id`) missing at least one of `record_types` (inspection/treatment/feeding; all three if omitted) in the last `days` days, or that never had one at all if `days` is omitted. Each result lists which of the requested types it's actually missing and, if any, when it last happened |
-| `list_hives_by_status` | Hives across the caller's apiaries (or one, via `apiary_id`) matching any of `statuses` (queenless/needs_food/sick/ready_for_harvest; matches any of them if omitted) — `sick` means the hive has at least one active disease. Generalizes the original "just needs_food" idea into one filter tool for every status flag |
+| `list_hives_by_status` | Hives across the caller's apiaries (or one, via `apiary_id`) matching any of `statuses` (queen_needs_replacement/needs_food/sick/ready_for_harvest; matches any of them if omitted) — `sick` means the hive has at least one active disease. Generalizes the original "just needs_food" idea into one filter tool for every status flag |
 | `compare_hives` | Side-by-side of key metrics (brood pattern, frame counts, disease flags, last inspection date) for a set of hive IDs |
 | `search_listings` | Wraps the existing public `GET /api/v1/listings` search/filter — lets the assistant answer "find me X" marketplace questions |
 | `get_listing` | Single listing detail, for follow-up questions about a specific result |
-| `get_dashboard_summary` | Cross-apiary rollup: apiary count, active hive count, counts per status flag (queenless/needs_food/sick/ready_for_harvest), and recent inspection/treatment/feeding/harvest counts plus total kg harvested, over an optional day window. Accepts optional `apiary_id` (scope to one apiary) and `days` (all-time if omitted). Not a wrap of an existing endpoint — the app's own Dashboard screen is a per-apiary PDF report, not a stats aggregate |
+| `get_dashboard_summary` | Cross-apiary rollup: apiary count, active hive count, counts per status flag (queen_needs_replacement/needs_food/sick/ready_for_harvest), and recent inspection/treatment/feeding/harvest counts plus total kg harvested, over an optional day window. Accepts optional `apiary_id` (scope to one apiary) and `days` (all-time if omitted). Not a wrap of an existing endpoint — the app's own Dashboard screen is a per-apiary PDF report, not a stats aggregate |
 
 Each tool is a thin wrapper: it takes the caller's `userID` (never trusted from the
 model, always injected by the service before the agent loop starts) plus model-supplied

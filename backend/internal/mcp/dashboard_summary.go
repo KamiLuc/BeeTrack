@@ -8,17 +8,18 @@ import (
 
 // Inspections/Treatments/Feedings/Harvests are counted within GetDashboardSummary's day window, not all-time.
 type DashboardSummary struct {
-	ApiaryCount      int     `json:"apiary_count"`
-	HiveCount        int     `json:"hive_count"`
-	Queenless        int     `json:"queenless"`
-	NeedsFood        int     `json:"needs_food"`
-	Sick             int     `json:"sick"`
-	ReadyForHarvest  int     `json:"ready_for_harvest"`
-	Inspections      int     `json:"inspections"`
-	Treatments       int     `json:"treatments"`
-	Feedings         int     `json:"feedings"`
-	Harvests         int     `json:"harvests"`
-	HarvestKilograms float64 `json:"harvest_kilograms"`
+	ApiaryCount           int     `json:"apiary_count"`
+	HiveCount             int     `json:"hive_count"`
+	QueenNeedsReplacement int     `json:"queen_needs_replacement"`
+	NeedsFood             int     `json:"needs_food"`
+	BoxNeedsAdding        int     `json:"box_needs_adding"`
+	Sick                  int     `json:"sick"`
+	ReadyForHarvest       int     `json:"ready_for_harvest"`
+	Inspections           int     `json:"inspections"`
+	Treatments            int     `json:"treatments"`
+	Feedings              int     `json:"feedings"`
+	Harvests              int     `json:"harvests"`
+	HarvestKilograms      float64 `json:"harvest_kilograms"`
 }
 
 // apiaryID nil means every apiary userID belongs to; days nil means all-time.
@@ -44,11 +45,14 @@ func (t *HiveTools) GetDashboardSummary(ctx context.Context, userID int64, apiar
 
 	result := DashboardSummary{ApiaryCount: apiaryCount, HiveCount: len(hives)}
 	for _, s := range summaries {
-		if s.Queenless {
-			result.Queenless++
+		if s.QueenNeedsReplacement {
+			result.QueenNeedsReplacement++
 		}
 		if s.NeedsFood {
 			result.NeedsFood++
+		}
+		if s.BoxNeedsAdding {
+			result.BoxNeedsAdding++
 		}
 		if len(s.Diseases) > 0 {
 			result.Sick++
@@ -99,7 +103,7 @@ type dashboardSummaryInput struct {
 func (t *HiveTools) GetDashboardSummaryTool() Tool {
 	return Tool{
 		Name:        "get_dashboard_summary",
-		Description: "Cross-apiary overview: hive counts by status (queenless, needs_food, sick, ready_for_harvest) and recent inspection/treatment/feeding/harvest counts plus total kilograms harvested. Accepts an optional apiary_id to scope to one apiary and days to limit the recent-activity window (omit for all-time).",
+		Description: "Cross-apiary overview: hive counts by status (queen_needs_replacement, needs_food, box_needs_adding, sick, ready_for_harvest) and recent inspection/treatment/feeding/harvest counts plus total kilograms harvested. Accepts an optional apiary_id to scope to one apiary and days to limit the recent-activity window (omit for all-time).",
 		InputSchema: InputSchema{
 			Properties: map[string]any{
 				"apiary_id": map[string]any{

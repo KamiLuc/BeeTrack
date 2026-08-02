@@ -224,23 +224,43 @@ func seedApiaries(ctx context.Context, repo *repository.ApiaryRepository, ownerI
 
 var hiveTypes = []string{"Wielkopolski", "Dadant", "Warszawski zwykły", "Langstroth"}
 
+// statusSinceIfTrue returns now if set is true, else nil — seeded hives bypass
+// HiveService's statusSince tracking (they're inserted directly), so this fills in the
+// same "since" timestamp a real Update call would have produced for a newly-true flag.
+func statusSinceIfTrue(set bool, now time.Time) *time.Time {
+	if !set {
+		return nil
+	}
+	return &now
+}
+
 // seedHives creates count generically-named hives in apiary, filling grid positions
 // row-major starting at startIdx (so callers can reserve trailing positions for
 // seedSpecialHives without colliding).
 func seedHives(ctx context.Context, repo *repository.HiveRepository, apiary *model.Apiary, count, startIdx int) []*model.Hive {
 	var hives []*model.Hive
+	now := time.Now()
 	for i := 0; i < count; i++ {
 		idx := startIdx + i
+		queenNeedsReplacement := idx%7 == 6
+		readyForHarvest := idx%5 == 4
+		needsFood := idx%5 == 3
+		boxNeedsAdding := idx%6 == 5
 		h := &model.Hive{
-			ApiaryID:        apiary.ID,
-			Name:            fmt.Sprintf("Ul %d", idx+1),
-			Type:            hiveTypes[idx%len(hiveTypes)],
-			Active:          idx%5 != 2,
-			Queenless:       idx%5 == 2,
-			ReadyForHarvest: idx%5 == 4,
-			NeedsFood:       idx%5 == 3,
-			GridRow:         idx / apiary.GridCols,
-			GridCol:         idx % apiary.GridCols,
+			ApiaryID:                   apiary.ID,
+			Name:                       fmt.Sprintf("Ul %d", idx+1),
+			Type:                       hiveTypes[idx%len(hiveTypes)],
+			Active:                     idx%5 != 2,
+			QueenNeedsReplacement:      queenNeedsReplacement,
+			QueenNeedsReplacementSince: statusSinceIfTrue(queenNeedsReplacement, now),
+			ReadyForHarvest:            readyForHarvest,
+			ReadyForHarvestSince:       statusSinceIfTrue(readyForHarvest, now),
+			NeedsFood:                  needsFood,
+			NeedsFoodSince:             statusSinceIfTrue(needsFood, now),
+			BoxNeedsAdding:             boxNeedsAdding,
+			BoxNeedsAddingSince:        statusSinceIfTrue(boxNeedsAdding, now),
+			GridRow:                    idx / apiary.GridCols,
+			GridCol:                    idx % apiary.GridCols,
 		}
 		if err := repo.Create(ctx, h); err != nil {
 			log.Fatalf("create hive %q: %v", h.Name, err)
@@ -250,35 +270,44 @@ func seedHives(ctx context.Context, repo *repository.HiveRepository, apiary *mod
 	return hives
 }
 
-// seedSpecialHives creates three hives with fixed names for exercising specific
+// seedSpecialHives creates hives with fixed names for exercising specific
 // states in the app: one sick (flagged separately via a HiveDisease by the
-// caller), one ready for harvest, and one queenless.
+// caller), one ready for harvest, one needing food, and one whose queen
+// needs replacement.
 func seedSpecialHives(ctx context.Context, repo *repository.HiveRepository, apiary *model.Apiary, startIdx int) []*model.Hive {
 	specs := []struct {
-		name            string
-		active          bool
-		queenless       bool
-		readyForHarvest bool
-		needsFood       bool
+		name                  string
+		active                bool
+		queenNeedsReplacement bool
+		readyForHarvest       bool
+		needsFood             bool
+		boxNeedsAdding        bool
 	}{
-		{"Sick", true, false, false, false},
-		{"Ready", true, false, true, false},
-		{"Queenless", true, true, false, false},
-		{"Needs Food", true, false, false, true},
+		{"Sick", true, false, false, false, false},
+		{"Ready", true, false, true, false, false},
+		{"Needs Food", true, false, false, true, false},
+		{"Queen Needs Replacement", true, true, false, false, false},
+		{"Box Needs Adding", true, false, false, false, true},
 	}
 	var hives []*model.Hive
+	now := time.Now()
 	for i, s := range specs {
 		idx := startIdx + i
 		h := &model.Hive{
-			ApiaryID:        apiary.ID,
-			Name:            s.name,
-			Type:            hiveTypes[idx%len(hiveTypes)],
-			Active:          s.active,
-			Queenless:       s.queenless,
-			ReadyForHarvest: s.readyForHarvest,
-			NeedsFood:       s.needsFood,
-			GridRow:         idx / apiary.GridCols,
-			GridCol:         idx % apiary.GridCols,
+			ApiaryID:                   apiary.ID,
+			Name:                       s.name,
+			Type:                       hiveTypes[idx%len(hiveTypes)],
+			Active:                     s.active,
+			QueenNeedsReplacement:      s.queenNeedsReplacement,
+			QueenNeedsReplacementSince: statusSinceIfTrue(s.queenNeedsReplacement, now),
+			ReadyForHarvest:            s.readyForHarvest,
+			ReadyForHarvestSince:       statusSinceIfTrue(s.readyForHarvest, now),
+			NeedsFood:                  s.needsFood,
+			NeedsFoodSince:             statusSinceIfTrue(s.needsFood, now),
+			BoxNeedsAdding:             s.boxNeedsAdding,
+			BoxNeedsAddingSince:        statusSinceIfTrue(s.boxNeedsAdding, now),
+			GridRow:                    idx / apiary.GridCols,
+			GridCol:                    idx % apiary.GridCols,
 		}
 		if err := repo.Create(ctx, h); err != nil {
 			log.Fatalf("create hive %q: %v", h.Name, err)
@@ -339,10 +368,12 @@ func seedInspections(ctx context.Context, repo *repository.InspectionRepository,
 			InspectedAt:    time.Now().AddDate(0, 0, -daysAgo),
 			QueenStatus:    queenStatuses[idx%len(queenStatuses)],
 			BroodPattern:   broodPatterns[idx%len(broodPatterns)],
+			ColonyStrength: model.ValidColonyStrengths[idx%len(model.ValidColonyStrengths)],
 			FramesBrood:    &framesBrood,
 			FramesFeed:     &framesFeed,
 			FramesPollen:   &framesPollen,
 			Aggressiveness: aggressivenessLevels[idx%len(aggressivenessLevels)],
+			BoxAdded:       idx%4 == 0,
 			Notes:          inspectionNotes[idx%len(inspectionNotes)],
 		}
 		if err := repo.Create(ctx, insp); err != nil {
@@ -382,10 +413,12 @@ func seedManyInspections(ctx context.Context, repo *repository.InspectionReposit
 			InspectedAt:    time.Now().AddDate(0, 0, -j*intervalDays),
 			QueenStatus:    queenStatuses[j%len(queenStatuses)],
 			BroodPattern:   broodPatterns[j%len(broodPatterns)],
+			ColonyStrength: model.ValidColonyStrengths[j%len(model.ValidColonyStrengths)],
 			FramesBrood:    &framesBrood,
 			FramesFeed:     &framesFeed,
 			FramesPollen:   &framesPollen,
 			Aggressiveness: aggressivenessLevels[j%len(aggressivenessLevels)],
+			BoxAdded:       j%4 == 0,
 			Notes:          inspectionNotes[j%len(inspectionNotes)],
 		}
 		if err := repo.Create(ctx, insp); err != nil {

@@ -21,7 +21,13 @@ import 'add_hive_screen.dart';
 import 'bulk_hive_selection_dialog.dart';
 import 'hive_detail_screen.dart';
 
-enum _HiveFilter { readyForHarvest, queenless, needsFood, sick }
+enum _HiveFilter {
+  readyForHarvest,
+  queenNeedsReplacement,
+  needsFood,
+  boxNeedsAdding,
+  sick,
+}
 
 class ApiaryGridScreen extends StatelessWidget {
   final Apiary apiary;
@@ -74,10 +80,15 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
     if (_activeFilters.isEmpty) return true;
     if (_activeFilters.contains(_HiveFilter.readyForHarvest) &&
         hive.readyForHarvest) return true;
-    if (_activeFilters.contains(_HiveFilter.queenless) && hive.queenless) {
+    if (_activeFilters.contains(_HiveFilter.queenNeedsReplacement) &&
+        hive.queenNeedsReplacement) {
       return true;
     }
     if (_activeFilters.contains(_HiveFilter.needsFood) && hive.needsFood) {
+      return true;
+    }
+    if (_activeFilters.contains(_HiveFilter.boxNeedsAdding) &&
+        hive.boxNeedsAdding) {
       return true;
     }
     if (_activeFilters.contains(_HiveFilter.sick) && hive.diseases.isNotEmpty) {
@@ -347,8 +358,9 @@ class _FilterBar extends StatelessWidget {
     final localFilters = Set<_HiveFilter>.from(activeFilters);
     final chips = [
       (_HiveFilter.readyForHarvest, l10n.hiveReadyForHarvest),
-      (_HiveFilter.queenless, l10n.hiveQueenless),
+      (_HiveFilter.queenNeedsReplacement, l10n.hiveQueenNeedsReplacement),
       (_HiveFilter.needsFood, l10n.hiveNeedsFood),
+      (_HiveFilter.boxNeedsAdding, l10n.hiveBoxNeedsAdding),
       (_HiveFilter.sick, l10n.hiveSick),
     ];
     showDialog<void>(
@@ -700,9 +712,11 @@ class _HiveStatusIcons extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
     final icons = [
-      if (hive.queenless) (Icons.female_outlined, color),
+      if (hive.queenNeedsReplacement)
+        (Icons.published_with_changes_outlined, color),
       if (hive.readyForHarvest) (Icons.water_drop_outlined, Colors.amber.shade700),
       if (hive.needsFood) (Icons.restaurant_outlined, Colors.orange.shade700),
+      if (hive.boxNeedsAdding) (Icons.inventory_2_outlined, Colors.brown.shade400),
       if (hive.diseases.isNotEmpty) (Icons.coronavirus_outlined, Colors.red.shade400),
     ];
     if (icons.isEmpty) return const SizedBox.shrink();

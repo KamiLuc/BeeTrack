@@ -37,6 +37,21 @@ class _LabeledSwitch extends StatelessWidget {
   }
 }
 
+class HiveSectionTitle extends StatelessWidget {
+  final String text;
+  const HiveSectionTitle(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+}
+
 class HiveActiveToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -91,11 +106,11 @@ class HiveNameField extends StatelessWidget {
   }
 }
 
-class HiveQueenlessToggle extends StatelessWidget {
+class HiveQueenNeedsReplacementToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const HiveQueenlessToggle({
+  const HiveQueenNeedsReplacementToggle({
     super.key,
     required this.value,
     required this.onChanged,
@@ -105,7 +120,7 @@ class HiveQueenlessToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return _LabeledSwitch(
-      label: l10n.hiveQueenless,
+      label: l10n.hiveQueenNeedsReplacement,
       value: value,
       onChanged: onChanged,
     );
@@ -148,6 +163,27 @@ class HiveNeedsFoodToggle extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return _LabeledSwitch(
       label: l10n.hiveNeedsFood,
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class HiveBoxNeedsAddingToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const HiveBoxNeedsAddingToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _LabeledSwitch(
+      label: l10n.hiveBoxNeedsAdding,
       value: value,
       onChanged: onChanged,
     );

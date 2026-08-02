@@ -149,9 +149,10 @@ const _hive = Hive(
   name: 'Alpha',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 0,
   gridCol: 0,
 );
@@ -378,7 +379,9 @@ void main() {
           queenSeen: 'seen',
           broodPattern: '',
           aggressiveness: '',
+          colonyStrength: '',
           queenAdded: false,
+          boxAdded: false,
           notes: '',
         );
 
@@ -406,7 +409,8 @@ void main() {
 
   group('InspectionFormScreen queen status toggles', () {
     testWidgets(
-        'marking queen added clears an already-selected queenless toggle',
+        'marking queen added clears an already-selected queen needs '
+        'replacement toggle',
         (tester) async {
       final (apiClient, _) = await _fakeApiClient();
 
@@ -416,9 +420,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final queenlessSwitch = find.descendant(
+      final queenNeedsReplacementSwitch = find.descendant(
         of: find
-            .ancestor(of: find.text(l10n.hiveQueenless), matching: find.byType(Row))
+            .ancestor(
+                of: find.text(l10n.hiveQueenNeedsReplacement),
+                matching: find.byType(Row))
             .first,
         matching: find.byType(Switch),
       );
@@ -430,18 +436,18 @@ void main() {
         matching: find.byType(Switch),
       );
 
-      await tester.ensureVisible(queenlessSwitch);
-      await tester.tap(queenlessSwitch);
+      await tester.ensureVisible(queenNeedsReplacementSwitch);
+      await tester.tap(queenNeedsReplacementSwitch);
       await tester.pump();
-      expect(tester.widget<Switch>(queenlessSwitch).value, isTrue);
+      expect(tester.widget<Switch>(queenNeedsReplacementSwitch).value, isTrue);
 
       await tester.ensureVisible(queenAddedSwitch);
       await tester.tap(queenAddedSwitch);
       await tester.pump();
 
       expect(tester.widget<Switch>(queenAddedSwitch).value, isTrue);
-      expect(tester.widget<Switch>(queenlessSwitch).value, isFalse);
-      expect(tester.widget<Switch>(queenlessSwitch).onChanged, isNull);
+      expect(tester.widget<Switch>(queenNeedsReplacementSwitch).value, isFalse);
+      expect(tester.widget<Switch>(queenNeedsReplacementSwitch).onChanged, isNull);
     });
   });
 }

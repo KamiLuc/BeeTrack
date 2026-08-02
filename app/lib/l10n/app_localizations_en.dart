@@ -683,13 +683,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get hiveQueenless => 'Queenless';
+  String get hiveQueenNeedsReplacement => 'Queen needs replacement';
 
   @override
   String get hiveReadyForHarvest => 'Ready for harvest';
 
   @override
   String get hiveNeedsFood => 'Needs food';
+
+  @override
+  String get hiveBoxNeedsAdding => 'Needs a box added';
 
   @override
   String get hiveSick => 'Sick';
@@ -876,6 +879,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionAggressivenessVeryAggressive => 'Very aggressive';
 
   @override
+  String get inspectionColonyStrength => 'Colony strength';
+
+  @override
+  String get inspectionColonyStrengthVeryWeak => 'Very weak';
+
+  @override
+  String get inspectionColonyStrengthWeak => 'Weak';
+
+  @override
+  String get inspectionColonyStrengthMedium => 'Medium';
+
+  @override
+  String get inspectionColonyStrengthStrong => 'Strong';
+
+  @override
+  String get inspectionColonyStrengthVeryStrong => 'Very strong';
+
+  @override
   String get inspectionFramesBrood => 'Brood frames';
 
   @override
@@ -915,16 +936,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inspectionQueenAdded => 'Queen added';
 
   @override
+  String get inspectionBoxAdded => 'Box added';
+
+  @override
   String get inspectionSectionObservations => 'Observations';
 
   @override
   String get inspectionSectionFrames => 'Frames';
 
   @override
+  String get inspectionSectionActions => 'Actions';
+
+  @override
   String get inspectionSectionHealth => 'Health';
 
   @override
   String get inspectionSectionHiveState => 'Hive state';
+
+  @override
+  String get inspectionSectionTodo => 'To do';
 
   @override
   String get inspectionNotes => 'Notes';

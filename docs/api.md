@@ -466,9 +466,14 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
     "name": "Hive A",
     "type": "langstroth",
     "active": true,
-    "queenless": false,
+    "queen_needs_replacement": false,
+    "queen_needs_replacement_since": null,
     "ready_for_harvest": false,
+    "ready_for_harvest_since": null,
     "needs_food": false,
+    "needs_food_since": null,
+    "box_needs_adding": false,
+    "box_needs_adding_since": null,
     "frames": 10,
     "grid_row": 0,
     "grid_col": 0,
@@ -484,6 +489,7 @@ Returns all hives in an apiary ordered by grid position (`grid_row ASC, grid_col
 - `frames` — total frame capacity of the hive; `0` means not configured
 - `last_inspected_at` is `null` when no inspections exist
 - `diseases` is an array of `{ "id": 1, "disease": "varroa", "created_at": "..." }`
+- `queen_needs_replacement_since`, `ready_for_harvest_since`, `needs_food_since`, `box_needs_adding_since` are nullable ISO-8601 timestamps marking when each status flag most recently transitioned from `false` to `true`; `null` while the flag is `false`
 
 **Errors**
 | Code | Status | Description |
@@ -513,7 +519,7 @@ Adds a hive to an apiary. Both owners and members can add hives.
 
 - `type` is optional — defaults to `"langstroth"`
 - `frames` is optional — defaults to `0` (not configured)
-- `active`, `queenless`, `ready_for_harvest`, `needs_food` default to `false` if omitted
+- `active`, `queen_needs_replacement`, `ready_for_harvest`, `needs_food`, `box_needs_adding` default to `false` if omitted
 - `grid_row` and `grid_col` are 0-indexed and must fall within the apiary's `grid_rows` × `grid_cols` bounds
 - Each position within an apiary must be unique
 - `name` must be unique within the apiary, case-insensitive
@@ -526,9 +532,14 @@ Adds a hive to an apiary. Both owners and members can add hives.
   "name": "Hive A",
   "type": "langstroth",
   "active": true,
-  "queenless": false,
+  "queen_needs_replacement": false,
+  "queen_needs_replacement_since": null,
   "ready_for_harvest": false,
+  "ready_for_harvest_since": null,
   "needs_food": false,
+  "needs_food_since": null,
+  "box_needs_adding": false,
+  "box_needs_adding_since": null,
   "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
@@ -569,9 +580,14 @@ Returns a single hive. Caller must be a member of the apiary.
   "name": "Hive A",
   "type": "langstroth",
   "active": true,
-  "queenless": false,
+  "queen_needs_replacement": false,
+  "queen_needs_replacement_since": null,
   "ready_for_harvest": false,
+  "ready_for_harvest_since": null,
   "needs_food": false,
+  "needs_food_since": null,
+  "box_needs_adding": false,
+  "box_needs_adding_since": null,
   "frames": 10,
   "grid_row": 0,
   "grid_col": 0,
@@ -596,7 +612,7 @@ Returns a single hive. Caller must be a member of the apiary.
 
 ### PATCH /apiaries/{id}/hives/{hiveId} 🔒
 
-Updates a hive's name, type, and status flags (`active`, `queenless`, `ready_for_harvest`, `needs_food`). Both owners and members can edit hives.
+Updates a hive's name, type, and status flags (`active`, `queen_needs_replacement`, `ready_for_harvest`, `needs_food`, `box_needs_adding`). Both owners and members can edit hives.
 
 **Request**
 ```json
@@ -604,9 +620,10 @@ Updates a hive's name, type, and status flags (`active`, `queenless`, `ready_for
   "name": "Renamed Hive",
   "type": "top_bar",
   "active": false,
-  "queenless": true,
+  "queen_needs_replacement": false,
   "ready_for_harvest": false,
   "needs_food": true,
+  "box_needs_adding": false,
   "frames": 12
 }
 ```
@@ -621,9 +638,14 @@ Updates a hive's name, type, and status flags (`active`, `queenless`, `ready_for
   "name": "Renamed Hive",
   "type": "top_bar",
   "active": false,
-  "queenless": true,
+  "queen_needs_replacement": false,
+  "queen_needs_replacement_since": null,
   "ready_for_harvest": false,
+  "ready_for_harvest_since": null,
   "needs_food": true,
+  "needs_food_since": "2026-06-01T13:00:00Z",
+  "box_needs_adding": false,
+  "box_needs_adding_since": null,
   "frames": 12,
   "grid_row": 0,
   "grid_col": 0,
@@ -674,9 +696,14 @@ Moves a hive to a new grid position. Both owners and members can move hives. Mov
   "name": "Hive A",
   "type": "langstroth",
   "active": true,
-  "queenless": false,
+  "queen_needs_replacement": false,
+  "queen_needs_replacement_since": null,
   "ready_for_harvest": false,
+  "ready_for_harvest_since": null,
   "needs_food": false,
+  "needs_food_since": null,
+  "box_needs_adding": false,
+  "box_needs_adding_since": null,
   "frames": 10,
   "grid_row": 2,
   "grid_col": 3,
@@ -875,6 +902,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
   "inspected_at": "2026-06-04T10:00:00Z",
   "queen_status": "seen",
   "brood_pattern": "good",
+  "colony_strength": "medium",
   "frames_brood": 5,
   "frames_feed": 4,
   "frames_pollen": 2,
@@ -885,6 +913,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
   "frames_added_brood": null,
   "frames_added_feed": null,
   "queen_added": false,
+  "box_added": false,
   "notes": "Colony looks healthy.",
   "photo_count": 2,
   "diseases": [],
@@ -896,6 +925,7 @@ All inspection endpoints are nested under a hive: `/apiaries/{id}/hives/{hiveId}
 - All observation fields are optional — omit or send `null` to leave unrecorded
 - `queen_status` valid values: `seen`, `not_seen`
 - `brood_pattern` valid values: `excellent`, `good`, `poor`, `none`
+- `colony_strength` valid values: `very_weak`, `weak`, `medium`, `strong`, `very_strong`
 - `aggressiveness` valid values: `calm`, `mild`, `aggressive`, `very_aggressive`
 - `frames_brood` — nullable int, frames of brood observed
 - `frames_added_foundation`, `frames_added_drawn`, `frames_added_brood`, `frames_added_feed` — signed frame-delta counts for this inspection; positive means frames were added to the hive, negative means frames were taken/removed
@@ -914,6 +944,7 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
   "inspected_at": "2026-06-04T10:00:00Z",
   "queen_status": "seen",
   "brood_pattern": "good",
+  "colony_strength": "medium",
   "frames_brood": 5,
   "frames_feed": 4,
   "frames_pollen": 2,
@@ -924,6 +955,7 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
   "frames_added_brood": null,
   "frames_added_feed": null,
   "queen_added": false,
+  "box_added": false,
   "notes": "Colony looks healthy."
 }
 ```
@@ -940,6 +972,7 @@ Creates a new inspection for the hive. Caller must be a member of the apiary.
 | `INSPECTED_AT_REQUIRED` | 400 | `inspected_at` missing or zero |
 | `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
 | `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
+| `INVALID_COLONY_STRENGTH` | 400 | Value not in allowed set |
 | `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
 | `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
@@ -1016,6 +1049,7 @@ Overwrites all mutable fields of an inspection. Send the complete desired state.
 | `INSPECTED_AT_REQUIRED` | 400 | `inspected_at` missing or zero |
 | `INVALID_QUEEN_STATUS` | 400 | Value not in allowed set |
 | `INVALID_BROOD_PATTERN` | 400 | Value not in allowed set |
+| `INVALID_COLONY_STRENGTH` | 400 | Value not in allowed set |
 | `INVALID_AGGRESSIVENESS` | 400 | Value not in allowed set |
 | `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |

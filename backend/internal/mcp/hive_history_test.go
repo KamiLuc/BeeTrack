@@ -186,9 +186,9 @@ func TestDaysToRangeWithDaysLooksBackThatFar(t *testing.T) {
 }
 
 func TestGetHiveSummaryAggregatesAllRecordTypes(t *testing.T) {
-	hive := &model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", Queenless: true}
+	hive := &model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", QueenNeedsReplacement: true, BoxNeedsAdding: true}
 	tools, inspections, treatments, harvests, feedings := newTestHiveTools(hive)
-	inspections.byHiveID[10] = []*model.Inspection{{ID: 100, HiveID: 10}}
+	inspections.byHiveID[10] = []*model.Inspection{{ID: 100, HiveID: 10, ColonyStrength: "strong"}}
 	treatments.byHiveID[10] = []*model.Treatment{{ID: 200, HiveID: 10, MedicineName: "Apiwarol"}}
 	harvests.byHiveID[10] = []*model.Harvest{{ID: 300, HiveID: 10, Kilograms: 12.5}}
 	feedings.byHiveID[10] = []*model.Feeding{{ID: 400, HiveID: 10, FeedType: "sugar syrup"}}
@@ -197,10 +197,10 @@ func TestGetHiveSummaryAggregatesAllRecordTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetHiveSummary returned error: %v", err)
 	}
-	if result.Hive.Name != "Hive A" || !result.Hive.Queenless {
+	if result.Hive.Name != "Hive A" || !result.Hive.QueenNeedsReplacement || !result.Hive.BoxNeedsAdding {
 		t.Errorf("unexpected hive summary: %+v", result.Hive)
 	}
-	if len(result.Inspections) != 1 || len(result.Treatments) != 1 || len(result.Harvests) != 1 || len(result.Feedings) != 1 {
+	if len(result.Inspections) != 1 || result.Inspections[0].ColonyStrength != "strong" || len(result.Treatments) != 1 || len(result.Harvests) != 1 || len(result.Feedings) != 1 {
 		t.Errorf("expected one of each record type, got %+v", result)
 	}
 	if result.Treatments[0].MedicineName != "Apiwarol" {

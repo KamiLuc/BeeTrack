@@ -29,7 +29,9 @@ func NewInspectionHandler(inspections *service.InspectionService, images *servic
 // to (positive) or removed from (negative) the hive during the inspection.
 type inspectionRequest struct {
 	Aggressiveness        string     `json:"aggressiveness"`
+	BoxAdded              bool       `json:"box_added"`
 	BroodPattern          string     `json:"brood_pattern"`
+	ColonyStrength        string     `json:"colony_strength"`
 	FramesAddedBrood      *int       `json:"frames_added_brood"`
 	FramesAddedDrawn      *int       `json:"frames_added_drawn"`
 	FramesAddedFeed       *int       `json:"frames_added_feed"`
@@ -51,7 +53,9 @@ func (req inspectionRequest) toParams() service.InspectionParams {
 	}
 	return service.InspectionParams{
 		Aggressiveness:        req.Aggressiveness,
+		BoxAdded:              req.BoxAdded,
 		BroodPattern:          req.BroodPattern,
+		ColonyStrength:        req.ColonyStrength,
 		FramesAddedBrood:      req.FramesAddedBrood,
 		FramesAddedDrawn:      req.FramesAddedDrawn,
 		FramesAddedFeed:       req.FramesAddedFeed,
@@ -94,11 +98,13 @@ func inspectionJSON(insp *model.Inspection, diseases []*model.InspectionDisease,
 		"frames_pollen":           insp.FramesPollen,
 		"queen_cells_count":       insp.QueenCellsCount,
 		"aggressiveness":          insp.Aggressiveness,
+		"colony_strength":         insp.ColonyStrength,
 		"frames_added_foundation": insp.FramesAddedFoundation,
 		"frames_added_drawn":      insp.FramesAddedDrawn,
 		"frames_added_brood":      insp.FramesAddedBrood,
 		"frames_added_feed":       insp.FramesAddedFeed,
 		"queen_added":             insp.QueenAdded,
+		"box_added":               insp.BoxAdded,
 		"notes":                   insp.Notes,
 		"diseases":                dd,
 		"photo_count":             photoCount,
@@ -139,6 +145,8 @@ func inspectionError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusBadRequest, "INVALID_AGGRESSIVENESS", err.Error())
 	case errors.Is(err, service.ErrInvalidBroodPattern):
 		respond.Error(w, http.StatusBadRequest, "INVALID_BROOD_PATTERN", err.Error())
+	case errors.Is(err, service.ErrInvalidColonyStrength):
+		respond.Error(w, http.StatusBadRequest, "INVALID_COLONY_STRENGTH", err.Error())
 	case errors.Is(err, service.ErrInvalidQueenStatus):
 		respond.Error(w, http.StatusBadRequest, "INVALID_QUEEN_STATUS", err.Error())
 	case errors.Is(err, service.ErrInvalidDisease):

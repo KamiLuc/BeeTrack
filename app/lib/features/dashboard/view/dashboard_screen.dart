@@ -725,9 +725,10 @@ class _HiveStatusIcons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icons = [
-      if (hive.queenless) Icons.female_outlined,
+      if (hive.queenNeedsReplacement) Icons.published_with_changes_outlined,
       if (hive.readyForHarvest) Icons.water_drop_outlined,
       if (hive.needsFood) Icons.restaurant_outlined,
+      if (hive.boxNeedsAdding) Icons.inventory_2_outlined,
       if (hive.diseases.isNotEmpty) Icons.coronavirus_outlined,
     ];
     if (icons.isEmpty) return const SizedBox.shrink();

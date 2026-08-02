@@ -242,7 +242,7 @@ func TestVoiceWorker_ProcessNext_HappyPath(t *testing.T) {
 	hives := &mockHiveLister{
 		hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}},
 		summary: &mcp.HiveHistory{
-			Hive: mcp.HiveSummary{Type: "langstroth", Queenless: true, Diseases: []string{"varroa"}},
+			Hive: mcp.HiveSummary{Type: "langstroth", QueenNeedsReplacement: true, Diseases: []string{"varroa"}},
 		},
 	}
 	hiveID := int64(42)
@@ -293,7 +293,7 @@ func TestVoiceWorker_ProcessNext_HappyPath(t *testing.T) {
 	if err := json.Unmarshal(repo.createdLLMCalls[1].Request, &proposeReq); err != nil {
 		t.Fatalf("unmarshal propose_actions request: %v", err)
 	}
-	if proposeReq.Transcript != "hive three looked good" || proposeReq.HiveContext.Type != "langstroth" || !proposeReq.HiveContext.Queenless || len(proposeReq.HiveContext.Diseases) != 1 || proposeReq.HiveContext.Diseases[0] != "varroa" {
+	if proposeReq.Transcript != "hive three looked good" || proposeReq.HiveContext.Type != "langstroth" || !proposeReq.HiveContext.QueenNeedsReplacement || len(proposeReq.HiveContext.Diseases) != 1 || proposeReq.HiveContext.Diseases[0] != "varroa" {
 		t.Errorf("expected propose_actions request to contain the transcript and hive context actually sent, got %+v", proposeReq)
 	}
 }
@@ -828,7 +828,7 @@ func TestVoiceWorker_ProcessNext_UnrecognizedToolNameIgnored(t *testing.T) {
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
 	resolver := &mockHiveResolver{
 		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
-		proposeMessage: toolUseMessage(t, [2]string{"update_hive_status", `{"queenless":true}`}),
+		proposeMessage: toolUseMessage(t, [2]string{"update_hive_status", `{"queen_needs_replacement":true}`}),
 	}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
@@ -856,7 +856,7 @@ func TestVoiceWorker_ProcessNext_MixedRecognizedAndUnrecognizedToolCalls(t *test
 		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
 		proposeMessage: toolUseMessage(t,
 			[2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"good"}`},
-			[2]string{"update_hive_status", `{"queenless":true}`},
+			[2]string{"update_hive_status", `{"queen_needs_replacement":true}`},
 			[2]string{model.VoiceActionToolCreateFeeding, `{"feed_type":"syrup","amount":"1L"}`},
 		),
 	}
@@ -1153,7 +1153,7 @@ func TestBuildHiveActionContext_PicksLatestInspection(t *testing.T) {
 	newer := time.Now()
 	framesBrood := 5
 	h := &mcp.HiveHistory{
-		Hive: mcp.HiveSummary{Type: "langstroth", Queenless: true, Diseases: []string{"varroa"}},
+		Hive: mcp.HiveSummary{Type: "langstroth", QueenNeedsReplacement: true, Diseases: []string{"varroa"}},
 		Inspections: []mcp.InspectionSummary{
 			{InspectedAt: older, FramesBrood: nil},
 			{InspectedAt: newer, FramesBrood: &framesBrood},
@@ -1162,7 +1162,7 @@ func TestBuildHiveActionContext_PicksLatestInspection(t *testing.T) {
 
 	got := buildHiveActionContext(h)
 
-	if got.Type != "langstroth" || !got.Queenless || len(got.Diseases) != 1 || got.Diseases[0] != "varroa" {
+	if got.Type != "langstroth" || !got.QueenNeedsReplacement || len(got.Diseases) != 1 || got.Diseases[0] != "varroa" {
 		t.Errorf("expected hive flags to carry through, got %+v", got)
 	}
 	if got.LastInspection == nil || got.LastInspection.FramesBrood == nil || *got.LastInspection.FramesBrood != 5 {

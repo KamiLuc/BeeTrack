@@ -11,9 +11,10 @@ const _active = Hive(
   name: 'Alpha',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 0,
   gridCol: 0,
 );
@@ -24,24 +25,12 @@ const _inactive = Hive(
   name: 'Beta',
   type: 'dadant',
   active: false,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 0,
   gridCol: 1,
-);
-
-const _queenless = Hive(
-  id: 4,
-  apiaryId: 1,
-  name: 'Delta',
-  type: 'langstroth',
-  active: true,
-  queenless: true,
-  readyForHarvest: false,
-  needsFood: false,
-  gridRow: 1,
-  gridCol: 0,
 );
 
 const _readyForHarvest = Hive(
@@ -50,9 +39,10 @@ const _readyForHarvest = Hive(
   name: 'Epsilon',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: true,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 1,
   gridCol: 1,
 );
@@ -63,9 +53,10 @@ const _needsFood = Hive(
   name: 'Eta',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: true,
+  boxNeedsAdding: false,
   gridRow: 1,
   gridCol: 3,
 );
@@ -76,11 +67,27 @@ const _inactiveWithStatuses = Hive(
   name: 'Theta',
   type: 'langstroth',
   active: false,
-  queenless: true,
+  queenNeedsReplacement: true,
   readyForHarvest: true,
   needsFood: true,
+  boxNeedsAdding: false,
   gridRow: 1,
   gridCol: 4,
+);
+
+const _queenNeedsReplacement = Hive(
+  id: 9,
+  apiaryId: 1,
+  name: 'Iota',
+  type: 'langstroth',
+  active: true,
+  queenNeedsReplacement: true,
+  readyForHarvest: false,
+  needsFood: false,
+  boxNeedsAdding: false,
+  gridRow: 1,
+  gridCol: 5,
+  queenNeedsReplacementSince: null,
 );
 
 final _withDiseases = Hive(
@@ -89,12 +96,13 @@ final _withDiseases = Hive(
   name: 'Zeta',
   type: 'langstroth',
   active: true,
-  queenless: false,
+  queenNeedsReplacement: false,
   readyForHarvest: false,
   needsFood: false,
+  boxNeedsAdding: false,
   gridRow: 1,
   gridCol: 2,
-  diseases: const [HiveDisease(id: 1, disease: 'varroa')],
+  diseases: [HiveDisease(id: 1, disease: 'varroa', createdAt: DateTime(2026, 3, 5))],
 );
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -184,18 +192,45 @@ void main() {
       expect(find.text('View all', skipOffstage: false), findsNothing);
     });
 
-    testWidgets('shows Queenless chip only when queenless is true', (tester) async {
+    testWidgets(
+        'shows Queen needs replacement chip only when queenNeedsReplacement is true',
+        (tester) async {
       await tester.pumpWidget(_wrap(
-        const HiveDetailScreen(hive: _queenless, apiaryId: 1),
+        const HiveDetailScreen(hive: _queenNeedsReplacement, apiaryId: 1),
       ));
-      expect(find.text('Queenless'), findsOneWidget);
+      expect(find.text('Queen needs replacement'), findsOneWidget);
     });
 
-    testWidgets('hides Queenless chip when queenless is false', (tester) async {
+    testWidgets(
+        'hides Queen needs replacement chip when queenNeedsReplacement is false',
+        (tester) async {
       await tester.pumpWidget(_wrap(
         const HiveDetailScreen(hive: _active, apiaryId: 1),
       ));
-      expect(find.text('Queenless'), findsNothing);
+      expect(find.text('Queen needs replacement'), findsNothing);
+    });
+
+    testWidgets(
+        'appends the since-date to the Queen needs replacement chip when set',
+        (tester) async {
+      final hiveWithSince = Hive(
+        id: 9,
+        apiaryId: 1,
+        name: 'Iota',
+        type: 'langstroth',
+        active: true,
+        queenNeedsReplacement: true,
+        readyForHarvest: false,
+        needsFood: false,
+        boxNeedsAdding: false,
+        gridRow: 1,
+        gridCol: 5,
+        queenNeedsReplacementSince: DateTime.utc(2026, 3, 5),
+      );
+      await tester.pumpWidget(_wrap(
+        HiveDetailScreen(hive: hiveWithSince, apiaryId: 1),
+      ));
+      expect(find.text('Queen needs replacement (5.03)'), findsOneWidget);
     });
 
     testWidgets('shows Ready for harvest chip only when readyForHarvest is true', (tester) async {
@@ -216,7 +251,7 @@ void main() {
       await tester.pumpWidget(_wrap(
         const HiveDetailScreen(hive: _needsFood, apiaryId: 1),
       ));
-      expect(find.text('Needs food'), findsOneWidget);
+      expect(find.widgetWithText(Chip, 'Needs food'), findsOneWidget);
     });
 
     testWidgets('hides Needs food chip when needsFood is false', (tester) async {
@@ -231,7 +266,7 @@ void main() {
         HiveDetailScreen(hive: _withDiseases, apiaryId: 1),
       ));
       expect(find.text('Diseases', skipOffstage: false), findsOneWidget);
-      expect(find.text('Varroa', skipOffstage: false), findsOneWidget);
+      expect(find.text('Varroa (5.03)', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('hides Diseases section when no diseases', (tester) async {
@@ -246,7 +281,7 @@ void main() {
       await tester.pumpWidget(_wrap(
         const HiveDetailScreen(hive: _inactiveWithStatuses, apiaryId: 1),
       ));
-      expect(find.text('Queenless'), findsNothing);
+      expect(find.text('Queen needs replacement'), findsNothing);
       expect(find.text('Ready for harvest'), findsNothing);
       expect(find.text('Needs food'), findsNothing);
     });

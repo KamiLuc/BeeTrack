@@ -35,9 +35,10 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
   late final TextEditingController _nameController;
   String _type = _lastHiveType;
   bool _active = true;
-  bool _queenless = false;
+  bool _queenNeedsReplacement = false;
   bool _readyForHarvest = false;
   bool _needsFood = false;
+  bool _boxNeedsAdding = false;
   bool _loading = false;
 
   @override
@@ -61,9 +62,10 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
         name: _nameController.text.trim(),
         type: _type,
         active: _active,
-        queenless: _queenless,
+        queenNeedsReplacement: _queenNeedsReplacement,
         readyForHarvest: _readyForHarvest,
         needsFood: _needsFood,
+        boxNeedsAdding: _boxNeedsAdding,
         gridRow: widget.gridRow,
         gridCol: widget.gridCol,
       );
@@ -110,17 +112,9 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
                         _lastHiveType = _type;
                       }),
                     ),
-                    const SizedBox(height: 16),
-                    HiveActiveToggle(
-                      value: _active,
-                      onChanged: (v) => setState(() => _active = v),
-                    ),
-                    const SizedBox(height: 16),
-                    HiveQueenlessToggle(
-                      value: _queenless,
-                      onChanged: (v) => setState(() => _queenless = v),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    HiveSectionTitle(l10n.inspectionSectionTodo),
+                    const SizedBox(height: 12),
                     HiveReadyForHarvestToggle(
                       value: _readyForHarvest,
                       onChanged: (v) => setState(() => _readyForHarvest = v),
@@ -129,6 +123,24 @@ class _AddHiveScreenState extends State<AddHiveScreen> {
                     HiveNeedsFoodToggle(
                       value: _needsFood,
                       onChanged: (v) => setState(() => _needsFood = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveQueenNeedsReplacementToggle(
+                      value: _queenNeedsReplacement,
+                      onChanged: (v) =>
+                          setState(() => _queenNeedsReplacement = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveBoxNeedsAddingToggle(
+                      value: _boxNeedsAdding,
+                      onChanged: (v) => setState(() => _boxNeedsAdding = v),
+                    ),
+                    const SizedBox(height: 20),
+                    HiveSectionTitle(l10n.inspectionSectionHiveState),
+                    const SizedBox(height: 12),
+                    HiveActiveToggle(
+                      value: _active,
+                      onChanged: (v) => setState(() => _active = v),
                     ),
                     const SizedBox(height: 24),
                     Center(

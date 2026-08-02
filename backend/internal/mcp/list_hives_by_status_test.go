@@ -14,29 +14,44 @@ func newStatusTestTools(hives ...*model.Hive) *HiveTools {
 	return NewHiveTools(apiaries, &mockHiveLister{hivesByApiary: byApiary}, nil, nil, nil, nil)
 }
 
-func TestListHivesByStatusFiltersToOneStatus(t *testing.T) {
+func TestListHivesByStatusFiltersToQueenNeedsReplacement(t *testing.T) {
 	tools := newStatusTestTools(
-		&model.Hive{ID: 10, ApiaryID: 1, Name: "Queenless", Active: true, Queenless: true},
+		&model.Hive{ID: 10, ApiaryID: 1, Name: "Queen Needs Replacement", Active: true, QueenNeedsReplacement: true},
 		&model.Hive{ID: 11, ApiaryID: 1, Name: "Fine", Active: true},
 	)
 
-	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queenless"})
+	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queen_needs_replacement"})
 	if err != nil {
 		t.Fatalf("ListHivesByStatus returned error: %v", err)
 	}
-	if len(result) != 1 || result[0].Name != "Queenless" {
-		t.Errorf("expected only the queenless hive, got %+v", result)
+	if len(result) != 1 || result[0].Name != "Queen Needs Replacement" {
+		t.Errorf("expected only the queen_needs_replacement hive, got %+v", result)
+	}
+}
+
+func TestListHivesByStatusFiltersToBoxNeedsAdding(t *testing.T) {
+	tools := newStatusTestTools(
+		&model.Hive{ID: 10, ApiaryID: 1, Name: "Box Needs Adding", Active: true, BoxNeedsAdding: true},
+		&model.Hive{ID: 11, ApiaryID: 1, Name: "Fine", Active: true},
+	)
+
+	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"box_needs_adding"})
+	if err != nil {
+		t.Fatalf("ListHivesByStatus returned error: %v", err)
+	}
+	if len(result) != 1 || result[0].Name != "Box Needs Adding" {
+		t.Errorf("expected only the box_needs_adding hive, got %+v", result)
 	}
 }
 
 func TestListHivesByStatusMatchesAnyOfMultipleStatuses(t *testing.T) {
 	tools := newStatusTestTools(
-		&model.Hive{ID: 10, ApiaryID: 1, Name: "Queenless", Active: true, Queenless: true},
+		&model.Hive{ID: 10, ApiaryID: 1, Name: "Queen Needs Replacement", Active: true, QueenNeedsReplacement: true},
 		&model.Hive{ID: 11, ApiaryID: 1, Name: "Needs Food", Active: true, NeedsFood: true},
 		&model.Hive{ID: 12, ApiaryID: 1, Name: "Fine", Active: true},
 	)
 
-	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queenless", "needs_food"})
+	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queen_needs_replacement", "needs_food"})
 	if err != nil {
 		t.Fatalf("ListHivesByStatus returned error: %v", err)
 	}
@@ -44,8 +59,8 @@ func TestListHivesByStatusMatchesAnyOfMultipleStatuses(t *testing.T) {
 	for _, r := range result {
 		names[r.Name] = true
 	}
-	if len(result) != 2 || !names["Queenless"] || !names["Needs Food"] {
-		t.Errorf("expected Queenless + Needs Food, got %+v", result)
+	if len(result) != 2 || !names["Queen Needs Replacement"] || !names["Needs Food"] {
+		t.Errorf("expected Queen Needs Replacement + Needs Food, got %+v", result)
 	}
 }
 
@@ -88,10 +103,10 @@ func TestListHivesByStatusWithNoStatusesMatchesAnyFlag(t *testing.T) {
 
 func TestListHivesByStatusExcludesInactiveHives(t *testing.T) {
 	tools := newStatusTestTools(
-		&model.Hive{ID: 10, ApiaryID: 1, Name: "Inactive Queenless", Active: false, Queenless: true},
+		&model.Hive{ID: 10, ApiaryID: 1, Name: "Inactive Queen Needs Replacement", Active: false, QueenNeedsReplacement: true},
 	)
 
-	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queenless"})
+	result, err := tools.ListHivesByStatus(context.Background(), 99, nil, []string{"queen_needs_replacement"})
 	if err != nil {
 		t.Fatalf("ListHivesByStatus returned error: %v", err)
 	}
@@ -110,12 +125,12 @@ func TestListHivesByStatusInvalidStatusReturnsError(t *testing.T) {
 }
 
 func TestListHivesByStatusToolDispatchesThroughRegistry(t *testing.T) {
-	tools := newStatusTestTools(&model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true, Queenless: true})
+	tools := newStatusTestTools(&model.Hive{ID: 10, ApiaryID: 1, Name: "Hive A", Active: true, QueenNeedsReplacement: true})
 
 	r := NewRegistry()
 	r.Register(tools.ListHivesByStatusTool())
 
-	result, err := r.Call(context.Background(), 99, "list_hives_by_status", json.RawMessage(`{"statuses":["queenless"]}`))
+	result, err := r.Call(context.Background(), 99, "list_hives_by_status", json.RawMessage(`{"statuses":["queen_needs_replacement"]}`))
 	if err != nil {
 		t.Fatalf("Call returned error: %v", err)
 	}

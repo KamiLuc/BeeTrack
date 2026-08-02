@@ -1358,11 +1358,11 @@ abstract class AppLocalizations {
   /// **'Ul {index}'**
   String hiveDefaultName(int index);
 
-  /// No description provided for @hiveQueenless.
+  /// No description provided for @hiveQueenNeedsReplacement.
   ///
   /// In pl, this message translates to:
-  /// **'Bezmateczny'**
-  String get hiveQueenless;
+  /// **'Wymaga poddania matki'**
+  String get hiveQueenNeedsReplacement;
 
   /// No description provided for @hiveReadyForHarvest.
   ///
@@ -1375,6 +1375,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Wymaga dokarmiania'**
   String get hiveNeedsFood;
+
+  /// No description provided for @hiveBoxNeedsAdding.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wymaga dodania korpusu'**
+  String get hiveBoxNeedsAdding;
 
   /// No description provided for @hiveSick.
   ///
@@ -1724,6 +1730,42 @@ abstract class AppLocalizations {
   /// **'Bardzo agresywne'**
   String get inspectionAggressivenessVeryAggressive;
 
+  /// No description provided for @inspectionColonyStrength.
+  ///
+  /// In pl, this message translates to:
+  /// **'Siła rodziny'**
+  String get inspectionColonyStrength;
+
+  /// No description provided for @inspectionColonyStrengthVeryWeak.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bardzo słaba'**
+  String get inspectionColonyStrengthVeryWeak;
+
+  /// No description provided for @inspectionColonyStrengthWeak.
+  ///
+  /// In pl, this message translates to:
+  /// **'Słaba'**
+  String get inspectionColonyStrengthWeak;
+
+  /// No description provided for @inspectionColonyStrengthMedium.
+  ///
+  /// In pl, this message translates to:
+  /// **'Średnia'**
+  String get inspectionColonyStrengthMedium;
+
+  /// No description provided for @inspectionColonyStrengthStrong.
+  ///
+  /// In pl, this message translates to:
+  /// **'Silna'**
+  String get inspectionColonyStrengthStrong;
+
+  /// No description provided for @inspectionColonyStrengthVeryStrong.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bardzo silna'**
+  String get inspectionColonyStrengthVeryStrong;
+
   /// No description provided for @inspectionFramesBrood.
   ///
   /// In pl, this message translates to:
@@ -1802,6 +1844,12 @@ abstract class AppLocalizations {
   /// **'Poddano matkę'**
   String get inspectionQueenAdded;
 
+  /// No description provided for @inspectionBoxAdded.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dołożono korpus'**
+  String get inspectionBoxAdded;
+
   /// No description provided for @inspectionSectionObservations.
   ///
   /// In pl, this message translates to:
@@ -1814,6 +1862,12 @@ abstract class AppLocalizations {
   /// **'Ramki'**
   String get inspectionSectionFrames;
 
+  /// No description provided for @inspectionSectionActions.
+  ///
+  /// In pl, this message translates to:
+  /// **'Akcje'**
+  String get inspectionSectionActions;
+
   /// No description provided for @inspectionSectionHealth.
   ///
   /// In pl, this message translates to:
@@ -1825,6 +1879,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Stan ula'**
   String get inspectionSectionHiveState;
+
+  /// No description provided for @inspectionSectionTodo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Do zrobienia'**
+  String get inspectionSectionTodo;
 
   /// No description provided for @inspectionNotes.
   ///

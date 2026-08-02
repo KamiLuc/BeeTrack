@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/validation"
@@ -22,6 +23,19 @@ var (
 )
 
 var validHiveDiseases = toSet(model.ValidDiseases)
+
+// statusSince returns the timestamp a boolean hive-status flag should carry given its previous
+// and new value: newly true gets now, still-true keeps its existing timestamp (so it reflects
+// when the status first became true, not the last time the hive was saved), and false clears it.
+func statusSince(wasTrue, isTrue bool, existing *time.Time, now time.Time) *time.Time {
+	if !isTrue {
+		return nil
+	}
+	if wasTrue {
+		return existing
+	}
+	return &now
+}
 
 type ApiaryMembershipReader interface {
 	GetMembership(ctx context.Context, apiaryID, userID int64) (*model.Apiary, string, error)
@@ -71,7 +85,7 @@ func (s *HiveService) List(ctx context.Context, userID, apiaryID int64) ([]*mode
 }
 
 // Update modifies a hive's name, type, and status fields. The caller must be an apiary member.
-func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenless, needsFood bool) (*model.Hive, error) {
+func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenNeedsReplacement, needsFood, boxNeedsAdding bool) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -105,12 +119,19 @@ func (s *HiveService) Update(ctx context.Context, userID, apiaryID, hiveID int64
 		return nil, ErrDuplicateHiveName
 	}
 
+	now := time.Now()
+	hive.ReadyForHarvestSince = statusSince(hive.ReadyForHarvest, readyForHarvest, hive.ReadyForHarvestSince, now)
+	hive.QueenNeedsReplacementSince = statusSince(hive.QueenNeedsReplacement, queenNeedsReplacement, hive.QueenNeedsReplacementSince, now)
+	hive.NeedsFoodSince = statusSince(hive.NeedsFood, needsFood, hive.NeedsFoodSince, now)
+	hive.BoxNeedsAddingSince = statusSince(hive.BoxNeedsAdding, boxNeedsAdding, hive.BoxNeedsAddingSince, now)
+
 	hive.Name = name
 	hive.Type = hiveType
 	hive.Active = active
 	hive.ReadyForHarvest = readyForHarvest
-	hive.Queenless = queenless
+	hive.QueenNeedsReplacement = queenNeedsReplacement
 	hive.NeedsFood = needsFood
+	hive.BoxNeedsAdding = boxNeedsAdding
 
 	if err := s.hives.Update(ctx, hive); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -346,7 +367,7 @@ func (s *HiveService) ChangeApiary(ctx context.Context, userID, srcApiaryID, hiv
 }
 
 // Add creates a hive at the given grid position within an apiary. The caller must be an apiary member.
-func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenless, readyForHarvest, needsFood bool, gridRow, gridCol int) (*model.Hive, error) {
+func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiveType string, active, queenNeedsReplacement, readyForHarvest, needsFood, boxNeedsAdding bool, gridRow, gridCol int) (*model.Hive, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -385,16 +406,22 @@ func (s *HiveService) Add(ctx context.Context, userID, apiaryID int64, name, hiv
 		return nil, ErrDuplicateHiveName
 	}
 
+	now := time.Now()
 	h := &model.Hive{
-		ApiaryID:        apiaryID,
-		Name:            name,
-		Type:            hiveType,
-		Active:          active,
-		Queenless:       queenless,
-		ReadyForHarvest: readyForHarvest,
-		NeedsFood:       needsFood,
-		GridRow:         gridRow,
-		GridCol:         gridCol,
+		ApiaryID:                   apiaryID,
+		Name:                       name,
+		Type:                       hiveType,
+		Active:                     active,
+		QueenNeedsReplacement:      queenNeedsReplacement,
+		QueenNeedsReplacementSince: statusSince(false, queenNeedsReplacement, nil, now),
+		ReadyForHarvest:            readyForHarvest,
+		ReadyForHarvestSince:       statusSince(false, readyForHarvest, nil, now),
+		NeedsFood:                  needsFood,
+		NeedsFoodSince:             statusSince(false, needsFood, nil, now),
+		BoxNeedsAdding:             boxNeedsAdding,
+		BoxNeedsAddingSince:        statusSince(false, boxNeedsAdding, nil, now),
+		GridRow:                    gridRow,
+		GridCol:                    gridCol,
 	}
 
 	if err := s.hives.Create(ctx, h); err != nil {

@@ -86,21 +86,23 @@ func (r *InspectionRepository) Update(ctx context.Context, insp *model.Inspectio
 	return r.db.WithContext(ctx).
 		Model(insp).
 		Updates(map[string]any{
-			"inspected_at":             insp.InspectedAt,
-			"queen_status":             insp.QueenStatus,
-			"brood_pattern":            insp.BroodPattern,
-			"frames_brood":             insp.FramesBrood,
-			"frames_feed":              insp.FramesFeed,
-			"frames_pollen":            insp.FramesPollen,
-			"queen_cells_count":        insp.QueenCellsCount,
-			"aggressiveness":           insp.Aggressiveness,
-			"frames_added_foundation":  insp.FramesAddedFoundation,
-			"frames_added_drawn":       insp.FramesAddedDrawn,
-			"frames_added_brood":       insp.FramesAddedBrood,
-			"frames_added_feed":        insp.FramesAddedFeed,
-			"queen_added":              insp.QueenAdded,
-			"notes":                    insp.Notes,
-			"updated_at":               gorm.Expr("NOW()"),
+			"inspected_at":            insp.InspectedAt,
+			"queen_status":            insp.QueenStatus,
+			"brood_pattern":           insp.BroodPattern,
+			"frames_brood":            insp.FramesBrood,
+			"frames_feed":             insp.FramesFeed,
+			"frames_pollen":           insp.FramesPollen,
+			"queen_cells_count":       insp.QueenCellsCount,
+			"aggressiveness":          insp.Aggressiveness,
+			"colony_strength":         insp.ColonyStrength,
+			"frames_added_foundation": insp.FramesAddedFoundation,
+			"frames_added_drawn":      insp.FramesAddedDrawn,
+			"frames_added_brood":      insp.FramesAddedBrood,
+			"frames_added_feed":       insp.FramesAddedFeed,
+			"queen_added":             insp.QueenAdded,
+			"box_added":               insp.BoxAdded,
+			"notes":                   insp.Notes,
+			"updated_at":              gorm.Expr("NOW()"),
 		}).Error
 }
 

@@ -46,7 +46,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   late bool _queenSeen;
   late String _broodPattern;
   late String _aggressiveness;
+  late String _colonyStrength;
   late bool _queenAdded;
+  late bool _boxAdded;
   late final TextEditingController _framesBroodController;
   late final TextEditingController _framesFeedController;
   late final TextEditingController _framesPollenController;
@@ -58,9 +60,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   late final TextEditingController _notesController;
 
   late bool _hiveActive;
-  late bool _hiveQueenless;
+  late bool _hiveQueenNeedsReplacement;
   late bool _hiveReadyForHarvest;
   late bool _hiveNeedsFood;
+  late bool _hiveBoxNeedsAdding;
   late Set<String> _hiveDiseases;
 
   List<InspectionImage> _existingImages = [];
@@ -79,7 +82,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _queenSeen = insp != null ? insp.queenSeen == 'seen' : false;
     _broodPattern = insp?.broodPattern ?? '';
     _aggressiveness = insp?.aggressiveness ?? '';
+    _colonyStrength = insp?.colonyStrength ?? '';
     _queenAdded = insp?.queenAdded ?? false;
+    _boxAdded = insp?.boxAdded ?? false;
 
     _framesBroodController = _initFrameCtrl(
       insp?.framesBrood,
@@ -109,9 +114,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     if (widget.isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadImages());
     }
-    _hiveQueenless = widget.hive.queenless;
+    _hiveQueenNeedsReplacement = widget.hive.queenNeedsReplacement;
     _hiveReadyForHarvest = widget.hive.readyForHarvest;
     _hiveNeedsFood = widget.hive.needsFood;
+    _hiveBoxNeedsAdding = widget.hive.boxNeedsAdding;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
   }
 
@@ -212,7 +218,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           queenSeen: _queenSeen ? 'seen' : 'not_seen',
           broodPattern: _broodPattern,
           aggressiveness: _aggressiveness,
+          colonyStrength: _colonyStrength,
           queenAdded: _queenAdded,
+          boxAdded: _boxAdded,
           notes: _notesController.text.trim(),
           framesBrood: _parseOptionalInt(_framesBroodController.text),
           framesFeed: _parseOptionalInt(_framesFeedController.text),
@@ -231,7 +239,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           queenSeen: _queenSeen ? 'seen' : 'not_seen',
           broodPattern: _broodPattern,
           aggressiveness: _aggressiveness,
+          colonyStrength: _colonyStrength,
           queenAdded: _queenAdded,
+          boxAdded: _boxAdded,
           notes: _notesController.text.trim(),
           framesBrood: _parseOptionalInt(_framesBroodController.text),
           framesFeed: _parseOptionalInt(_framesFeedController.text),
@@ -279,18 +289,20 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   Future<void> _syncHiveState(BuildContext ctx, HiveRepository hiveRepo) async {
     if (_hiveActive != widget.hive.active ||
-        _hiveQueenless != widget.hive.queenless ||
+        _hiveQueenNeedsReplacement != widget.hive.queenNeedsReplacement ||
         _hiveReadyForHarvest != widget.hive.readyForHarvest ||
-        _hiveNeedsFood != widget.hive.needsFood) {
+        _hiveNeedsFood != widget.hive.needsFood ||
+        _hiveBoxNeedsAdding != widget.hive.boxNeedsAdding) {
       await hiveRepo.updateHive(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
         name: widget.hive.name,
         type: widget.hive.type,
         active: _hiveActive,
-        queenless: _hiveQueenless,
+        queenNeedsReplacement: _hiveQueenNeedsReplacement,
         readyForHarvest: _hiveReadyForHarvest,
         needsFood: _hiveNeedsFood,
+        boxNeedsAdding: _hiveBoxNeedsAdding,
       );
     }
 
@@ -380,6 +392,19 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                                 setState(() => _aggressiveness = v ?? ''),
                           ),
                           const SizedBox(height: 16),
+                          _EnumDropdown(
+                            label: l10n.inspectionColonyStrength,
+                            value: colonyStrengthValues.contains(
+                              _colonyStrength,
+                            )
+                                ? _colonyStrength
+                                : null,
+                            items: colonyStrengthValues,
+                            labelFor: (v) => _colonyStrengthLabel(l10n, v),
+                            onChanged: (v) =>
+                                setState(() => _colonyStrength = v ?? ''),
+                          ),
+                          const SizedBox(height: 16),
                           _NumericField(
                             controller: _queenCellsCountController,
                             label: l10n.inspectionQueenCellsCount,
@@ -401,7 +426,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             controller: _framesPollenController,
                             label: l10n.inspectionFramesPollen,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
+                          _SectionTitle(l10n.inspectionSectionActions),
+                          const SizedBox(height: 12),
                           _SignedFrameField(
                             value: _framesAddedDrawn,
                             onChanged: (v) =>
@@ -434,6 +461,28 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             removedLabel: l10n.inspectionFramesTakenFeed,
                           ),
                           const SizedBox(height: 16),
+                          _BoolRow(
+                            label: l10n.inspectionQueenAdded,
+                            value: _queenAdded,
+                            onChanged: (v) => setState(() {
+                              _queenAdded = v;
+                              if (v) {
+                                _hiveQueenNeedsReplacement = false;
+                              }
+                            }),
+                          ),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.inspectionBoxAdded,
+                            value: _boxAdded,
+                            onChanged: (v) => setState(() {
+                              _boxAdded = v;
+                              if (v) {
+                                _hiveBoxNeedsAdding = false;
+                              }
+                            }),
+                          ),
+                          const SizedBox(height: 16),
                           TextFormField(
                             controller: _notesController,
                             decoration: InputDecoration(
@@ -452,21 +501,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _SectionTitle(l10n.inspectionSectionHiveState),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveActive,
-                            value: _hiveActive,
-                            onChanged: (v) => setState(() => _hiveActive = v),
-                          ),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveQueenless,
-                            value: _hiveQueenless,
-                            onChanged: (v) =>
-                                setState(() => _hiveQueenless = v),
-                            enabled: !_queenAdded,
-                          ),
+                          _SectionTitle(l10n.inspectionSectionTodo),
                           const SizedBox(height: 12),
                           _BoolRow(
                             label: l10n.hiveReadyForHarvest,
@@ -483,14 +518,29 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                           ),
                           const SizedBox(height: 12),
                           _BoolRow(
-                            label: l10n.inspectionQueenAdded,
-                            value: _queenAdded,
-                            onChanged: (v) => setState(() {
-                              _queenAdded = v;
-                              if (v) _hiveQueenless = false;
-                            }),
+                            label: l10n.hiveQueenNeedsReplacement,
+                            value: _hiveQueenNeedsReplacement,
+                            onChanged: (v) =>
+                                setState(() => _hiveQueenNeedsReplacement = v),
+                            enabled: !_queenAdded,
                           ),
                           const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveBoxNeedsAdding,
+                            value: _hiveBoxNeedsAdding,
+                            onChanged: (v) =>
+                                setState(() => _hiveBoxNeedsAdding = v),
+                            enabled: !_boxAdded,
+                          ),
+                          const SizedBox(height: 20),
+                          _SectionTitle(l10n.inspectionSectionHiveState),
+                          const SizedBox(height: 12),
+                          _BoolRow(
+                            label: l10n.hiveActive,
+                            value: _hiveActive,
+                            onChanged: (v) => setState(() => _hiveActive = v),
+                          ),
+                          const SizedBox(height: 20),
                           HiveDiseasesSection(
                             label: l10n.inspectionDiseases,
                             selected: _hiveDiseases,
@@ -1016,6 +1066,15 @@ String _aggressivenessLabel(AppLocalizations l10n, String v) => switch (v) {
   'mild' => l10n.inspectionAggressivenessMild,
   'aggressive' => l10n.inspectionAggressivenessAggressive,
   'very_aggressive' => l10n.inspectionAggressivenessVeryAggressive,
+  _ => v,
+};
+
+String _colonyStrengthLabel(AppLocalizations l10n, String v) => switch (v) {
+  'very_weak' => l10n.inspectionColonyStrengthVeryWeak,
+  'weak' => l10n.inspectionColonyStrengthWeak,
+  'medium' => l10n.inspectionColonyStrengthMedium,
+  'strong' => l10n.inspectionColonyStrengthStrong,
+  'very_strong' => l10n.inspectionColonyStrengthVeryStrong,
   _ => v,
 };
 

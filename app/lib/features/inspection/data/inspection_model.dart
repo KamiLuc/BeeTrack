@@ -5,6 +5,7 @@ class Inspection {
   final String queenSeen;
   final String broodPattern;
   final String aggressiveness;
+  final String colonyStrength;
   final int? framesBrood;
   final int? framesFeed;
   final int? framesPollen;
@@ -16,6 +17,7 @@ class Inspection {
   final int? framesAddedFeed;
   final int? queenCellsCount;
   final bool queenAdded;
+  final bool boxAdded;
   final String notes;
   final int photoCount;
   final String? inspectedByName;
@@ -27,6 +29,7 @@ class Inspection {
     required this.queenSeen,
     required this.broodPattern,
     required this.aggressiveness,
+    required this.colonyStrength,
     this.framesBrood,
     this.framesFeed,
     this.framesPollen,
@@ -36,6 +39,7 @@ class Inspection {
     this.framesAddedFeed,
     this.queenCellsCount,
     required this.queenAdded,
+    required this.boxAdded,
     required this.notes,
     this.photoCount = 0,
     this.inspectedByName,
@@ -49,6 +53,7 @@ class Inspection {
       queenSeen: json['queen_status'] as String? ?? '',
       broodPattern: json['brood_pattern'] as String? ?? '',
       aggressiveness: json['aggressiveness'] as String? ?? '',
+      colonyStrength: json['colony_strength'] as String? ?? '',
       framesBrood: json['frames_brood'] as int?,
       framesFeed: json['frames_feed'] as int?,
       framesPollen: json['frames_pollen'] as int?,
@@ -58,6 +63,7 @@ class Inspection {
       framesAddedFeed: json['frames_added_feed'] as int?,
       queenCellsCount: json['queen_cells_count'] as int?,
       queenAdded: json['queen_added'] as bool? ?? false,
+      boxAdded: json['box_added'] as bool? ?? false,
       notes: json['notes'] as String? ?? '',
       photoCount: json['photo_count'] as int? ?? 0,
       inspectedByName: json['inspected_by_name'] as String?,
@@ -67,3 +73,10 @@ class Inspection {
 
 const broodPatternValues = ['none', 'poor', 'good', 'excellent'];
 const aggressivenessValues = ['calm', 'mild', 'aggressive', 'very_aggressive'];
+const colonyStrengthValues = [
+  'very_weak',
+  'weak',
+  'medium',
+  'strong',
+  'very_strong',
+];

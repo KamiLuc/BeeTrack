@@ -194,6 +194,23 @@ func aggressivenessLabel(s string) string {
 	}
 }
 
+func colonyStrengthLabel(s string) string {
+	switch s {
+	case "very_weak":
+		return "Siła rodziny: Bardzo słaba"
+	case "weak":
+		return "Siła rodziny: Słaba"
+	case "medium":
+		return "Siła rodziny: Średnia"
+	case "strong":
+		return "Siła rodziny: Silna"
+	case "very_strong":
+		return "Siła rodziny: Bardzo silna"
+	default:
+		return ""
+	}
+}
+
 func nowFormatted() string {
 	return time.Now().Format("02.01.2006 15:04")
 }
@@ -209,6 +226,9 @@ func inspectionLines(i *model.Inspection) []string {
 		obs = append(obs, s)
 	}
 	if s := aggressivenessLabel(i.Aggressiveness); s != "" {
+		obs = append(obs, s)
+	}
+	if s := colonyStrengthLabel(i.ColonyStrength); s != "" {
 		obs = append(obs, s)
 	}
 	if len(obs) > 0 {
@@ -234,6 +254,9 @@ func inspectionLines(i *model.Inspection) []string {
 	}
 	if i.QueenAdded {
 		lines = append(lines, "Poddano matkę")
+	}
+	if i.BoxAdded {
+		lines = append(lines, "Dołożono korpus")
 	}
 	if i.Notes != "" {
 		lines = append(lines, "Notatka: "+i.Notes)

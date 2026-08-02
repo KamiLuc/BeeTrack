@@ -27,7 +27,6 @@ void main() {
         'name': 'Ul 1',
         'type': 'langstroth',
         'active': true,
-        'queenless': true,
         'ready_for_harvest': true,
         'grid_row': 0,
         'grid_col': 1,
@@ -41,12 +40,12 @@ void main() {
       expect(hive.name, 'Ul 1');
       expect(hive.type, 'langstroth');
       expect(hive.active, true);
-      expect(hive.queenless, true);
       expect(hive.readyForHarvest, true);
       expect(hive.gridRow, 0);
       expect(hive.gridCol, 1);
       expect(hive.diseases.length, 1);
       expect(hive.diseases.first.disease, 'varroa');
+      expect(hive.diseases.first.createdAt, DateTime.utc(2026, 6, 1));
       expect(hive.lastInspectedAt, DateTime.utc(2026, 6, 1, 10));
     });
 
@@ -62,10 +61,45 @@ void main() {
       });
       expect(hive.active, false);
       expect(hive.type, 'dadant');
-      expect(hive.queenless, false);
       expect(hive.readyForHarvest, false);
       expect(hive.diseases, isEmpty);
       expect(hive.lastInspectedAt, isNull);
+    });
+
+    test('parses status since-dates when present', () {
+      final hive = Hive.fromJson({
+        'id': 1,
+        'apiary_id': 1,
+        'name': 'Ul 1',
+        'type': 'langstroth',
+        'active': true,
+        'grid_row': 0,
+        'grid_col': 0,
+        'ready_for_harvest_since': '2026-06-01T00:00:00Z',
+        'queen_needs_replacement_since': '2026-06-02T00:00:00Z',
+        'needs_food_since': '2026-06-03T00:00:00Z',
+        'box_needs_adding_since': '2026-06-04T00:00:00Z',
+      });
+      expect(hive.readyForHarvestSince, DateTime.utc(2026, 6, 1));
+      expect(hive.queenNeedsReplacementSince, DateTime.utc(2026, 6, 2));
+      expect(hive.needsFoodSince, DateTime.utc(2026, 6, 3));
+      expect(hive.boxNeedsAddingSince, DateTime.utc(2026, 6, 4));
+    });
+
+    test('leaves since-dates null when absent', () {
+      final hive = Hive.fromJson({
+        'id': 1,
+        'apiary_id': 1,
+        'name': 'Ul 1',
+        'type': 'langstroth',
+        'active': true,
+        'grid_row': 0,
+        'grid_col': 0,
+      });
+      expect(hive.readyForHarvestSince, isNull);
+      expect(hive.queenNeedsReplacementSince, isNull);
+      expect(hive.needsFoodSince, isNull);
+      expect(hive.boxNeedsAddingSince, isNull);
     });
   });
 
@@ -77,9 +111,10 @@ void main() {
         name: 'Ul 1',
         type: 'langstroth',
         active: true,
-        queenless: false,
+        queenNeedsReplacement: false,
         readyForHarvest: false,
         needsFood: false,
+        boxNeedsAdding: false,
         gridRow: 0,
         gridCol: 0,
       ),
@@ -157,9 +192,10 @@ void main() {
       name: 'Ul 1',
       type: 'langstroth',
       active: true,
-      queenless: false,
+      queenNeedsReplacement: false,
       readyForHarvest: false,
       needsFood: false,
+      boxNeedsAdding: false,
       gridRow: 0,
       gridCol: 0,
     );
@@ -231,9 +267,10 @@ void main() {
           name: 'Ul $id',
           type: 'langstroth',
           active: true,
-          queenless: false,
+          queenNeedsReplacement: false,
           readyForHarvest: false,
           needsFood: false,
+          boxNeedsAdding: false,
           gridRow: 0,
           gridCol: id,
           lastInspectedAt: date,

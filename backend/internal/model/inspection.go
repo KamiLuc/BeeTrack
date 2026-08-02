@@ -3,9 +3,10 @@ package model
 import "time"
 
 var (
-	ValidQueenStatuses  = []string{"not_seen", "seen"}
-	ValidBroodPatterns  = []string{"excellent", "good", "none", "poor", "few", "medium", "many"}
-	ValidAggressiveness = []string{"calm", "mild", "aggressive", "very_aggressive"}
+	ValidQueenStatuses   = []string{"not_seen", "seen"}
+	ValidBroodPatterns   = []string{"excellent", "good", "none", "poor", "few", "medium", "many"}
+	ValidAggressiveness  = []string{"calm", "mild", "aggressive", "very_aggressive"}
+	ValidColonyStrengths = []string{"very_weak", "weak", "medium", "strong", "very_strong"}
 )
 
 type Inspection struct {
@@ -21,11 +22,13 @@ type Inspection struct {
 	FramesPollen          *int
 	QueenCellsCount       *int
 	Aggressiveness        string
+	ColonyStrength        string
 	FramesAddedFoundation *int
 	FramesAddedDrawn      *int
 	FramesAddedBrood      *int
 	FramesAddedFeed       *int
 	QueenAdded            bool
+	BoxAdded              bool
 	Notes                 string
 	CreatedAt             time.Time
 	UpdatedAt             time.Time

@@ -253,6 +253,78 @@ func TestCreateInspection_InvalidBroodPattern(t *testing.T) {
 	}
 }
 
+func TestCreateInspection_InvalidColonyStrength(t *testing.T) {
+	svc, _, _, _ := newTestInspectionService()
+
+	_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt:    time.Now(),
+		ColonyStrength: "bad_value",
+	})
+	if !errors.Is(err, ErrInvalidColonyStrength) {
+		t.Errorf("expected ErrInvalidColonyStrength, got %v", err)
+	}
+}
+
+func TestCreateInspection_ValidColonyStrength(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	for _, strength := range model.ValidColonyStrengths {
+		_, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+			InspectedAt:    time.Now(),
+			ColonyStrength: strength,
+		})
+		if err != nil {
+			t.Errorf("expected no error for colony_strength %q, got %v", strength, err)
+		}
+		if inspMock.created.ColonyStrength != strength {
+			t.Errorf("expected created inspection colony_strength %q, got %q", strength, inspMock.created.ColonyStrength)
+		}
+	}
+}
+
+func TestCreateInspection_BoxAdded(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+
+	insp, err := svc.Create(context.Background(), 1, 1, 10, InspectionParams{
+		InspectedAt: time.Now(),
+		BoxAdded:    true,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !insp.BoxAdded {
+		t.Error("expected inspection to have box_added")
+	}
+	if !inspMock.created.BoxAdded {
+		t.Error("expected created inspection to have box_added")
+	}
+}
+
+func TestUpdateInspection_BoxAdded(t *testing.T) {
+	svc, apiaryMock, hiveMock, inspMock := newTestInspectionService()
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	hiveMock.hive = &model.Hive{ID: 10, ApiaryID: 1}
+	inspMock.inspection = &model.Inspection{ID: 5, HiveID: 10, InspectedAt: time.Now()}
+
+	insp, err := svc.Update(context.Background(), 1, 1, 10, 5, InspectionParams{
+		InspectedAt: time.Now(),
+		BoxAdded:    true,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !insp.BoxAdded {
+		t.Error("expected updated inspection to have box_added")
+	}
+	if !inspMock.updated.BoxAdded {
+		t.Error("expected repo-updated inspection to have box_added")
+	}
+}
+
 func TestCreateInspection_InvalidAggressiveness(t *testing.T) {
 	svc, _, _, _ := newTestInspectionService()
 

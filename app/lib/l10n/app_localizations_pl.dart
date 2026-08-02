@@ -692,13 +692,16 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get hiveQueenless => 'Bezmateczny';
+  String get hiveQueenNeedsReplacement => 'Wymaga poddania matki';
 
   @override
   String get hiveReadyForHarvest => 'Gotowy do zbioru';
 
   @override
   String get hiveNeedsFood => 'Wymaga dokarmiania';
+
+  @override
+  String get hiveBoxNeedsAdding => 'Wymaga dodania korpusu';
 
   @override
   String get hiveSick => 'Chory';
@@ -884,6 +887,24 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionAggressivenessVeryAggressive => 'Bardzo agresywne';
 
   @override
+  String get inspectionColonyStrength => 'Siła rodziny';
+
+  @override
+  String get inspectionColonyStrengthVeryWeak => 'Bardzo słaba';
+
+  @override
+  String get inspectionColonyStrengthWeak => 'Słaba';
+
+  @override
+  String get inspectionColonyStrengthMedium => 'Średnia';
+
+  @override
+  String get inspectionColonyStrengthStrong => 'Silna';
+
+  @override
+  String get inspectionColonyStrengthVeryStrong => 'Bardzo silna';
+
+  @override
   String get inspectionFramesBrood => 'Ramki z czerwiem';
 
   @override
@@ -923,16 +944,25 @@ class AppLocalizationsPl extends AppLocalizations {
   String get inspectionQueenAdded => 'Poddano matkę';
 
   @override
+  String get inspectionBoxAdded => 'Dołożono korpus';
+
+  @override
   String get inspectionSectionObservations => 'Obserwacje';
 
   @override
   String get inspectionSectionFrames => 'Ramki';
 
   @override
+  String get inspectionSectionActions => 'Akcje';
+
+  @override
   String get inspectionSectionHealth => 'Zdrowie';
 
   @override
   String get inspectionSectionHiveState => 'Stan ula';
+
+  @override
+  String get inspectionSectionTodo => 'Do zrobienia';
 
   @override
   String get inspectionNotes => 'Notatki';

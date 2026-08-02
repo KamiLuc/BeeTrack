@@ -29,14 +29,15 @@ type FeedingLister interface {
 }
 
 type InspectionSummary struct {
-	ID           int64     `json:"id"`
-	InspectedAt  time.Time `json:"inspected_at"`
-	QueenStatus  string    `json:"queen_status"`
-	BroodPattern string    `json:"brood_pattern"`
-	FramesBrood  *int      `json:"frames_brood"`
-	FramesFeed   *int      `json:"frames_feed"`
-	FramesPollen *int      `json:"frames_pollen"`
-	Notes        string    `json:"notes"`
+	ID             int64     `json:"id"`
+	InspectedAt    time.Time `json:"inspected_at"`
+	QueenStatus    string    `json:"queen_status"`
+	BroodPattern   string    `json:"brood_pattern"`
+	ColonyStrength string    `json:"colony_strength"`
+	FramesBrood    *int      `json:"frames_brood"`
+	FramesFeed     *int      `json:"frames_feed"`
+	FramesPollen   *int      `json:"frames_pollen"`
+	Notes          string    `json:"notes"`
 }
 
 type TreatmentSummary struct {
@@ -90,14 +91,15 @@ func (t *HiveTools) listInspections(ctx context.Context, hiveID int64, from, to 
 	summaries := make([]InspectionSummary, len(inspections))
 	for i, insp := range inspections {
 		summaries[i] = InspectionSummary{
-			ID:           insp.ID,
-			InspectedAt:  insp.InspectedAt,
-			QueenStatus:  insp.QueenStatus,
-			BroodPattern: insp.BroodPattern,
-			FramesBrood:  insp.FramesBrood,
-			FramesFeed:   insp.FramesFeed,
-			FramesPollen: insp.FramesPollen,
-			Notes:        insp.Notes,
+			ID:             insp.ID,
+			InspectedAt:    insp.InspectedAt,
+			QueenStatus:    insp.QueenStatus,
+			BroodPattern:   insp.BroodPattern,
+			ColonyStrength: insp.ColonyStrength,
+			FramesBrood:    insp.FramesBrood,
+			FramesFeed:     insp.FramesFeed,
+			FramesPollen:   insp.FramesPollen,
+			Notes:          insp.Notes,
 		}
 	}
 	return summaries, nil
@@ -195,16 +197,17 @@ func (t *HiveTools) GetHiveSummary(ctx context.Context, userID, hiveID int64, da
 
 	return &HiveHistory{
 		Hive: HiveSummary{
-			ID:              hive.ID,
-			ApiaryID:        hive.ApiaryID,
-			ApiaryName:      apiaryName,
-			Name:            hive.Name,
-			Type:            hive.Type,
-			Active:          hive.Active,
-			Queenless:       hive.Queenless,
-			NeedsFood:       hive.NeedsFood,
-			ReadyForHarvest: hive.ReadyForHarvest,
-			Diseases:        diseaseNames,
+			ID:                    hive.ID,
+			ApiaryID:              hive.ApiaryID,
+			ApiaryName:            apiaryName,
+			Name:                  hive.Name,
+			Type:                  hive.Type,
+			Active:                hive.Active,
+			QueenNeedsReplacement: hive.QueenNeedsReplacement,
+			NeedsFood:             hive.NeedsFood,
+			BoxNeedsAdding:        hive.BoxNeedsAdding,
+			ReadyForHarvest:       hive.ReadyForHarvest,
+			Diseases:              diseaseNames,
 		},
 		Inspections: inspections,
 		Treatments:  treatments,

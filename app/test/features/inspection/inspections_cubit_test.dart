@@ -16,7 +16,9 @@ Inspection _fakeInspection({int id = 1}) => Inspection(
   queenSeen: 'seen',
   broodPattern: 'good',
   aggressiveness: 'calm',
+  colonyStrength: 'medium',
   queenAdded: false,
+  boxAdded: false,
   notes: '',
 );
 

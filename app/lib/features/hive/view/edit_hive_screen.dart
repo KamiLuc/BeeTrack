@@ -29,9 +29,10 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
   late final TextEditingController _nameController;
   late String _type;
   late bool _active;
-  late bool _queenless;
+  late bool _queenNeedsReplacement;
   late bool _readyForHarvest;
   late bool _needsFood;
+  late bool _boxNeedsAdding;
   late Set<String> _hiveDiseases;
   Set<String> _existingNames = {};
   bool _loading = false;
@@ -42,9 +43,10 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     _nameController = TextEditingController(text: widget.hive.name);
     _type = widget.hive.type;
     _active = widget.hive.active;
-    _queenless = widget.hive.queenless;
+    _queenNeedsReplacement = widget.hive.queenNeedsReplacement;
     _readyForHarvest = widget.hive.readyForHarvest;
     _needsFood = widget.hive.needsFood;
+    _boxNeedsAdding = widget.hive.boxNeedsAdding;
     _hiveDiseases = widget.hive.diseases.map((d) => d.disease).toSet();
     _loadExistingNames();
   }
@@ -75,15 +77,16 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
     setState(() => _loading = true);
     final repo = HiveRepository(api: context.read<ApiClient>());
     try {
-      await repo.updateHive(
+      final updated = await repo.updateHive(
         apiaryId: widget.apiaryId,
         hiveId: widget.hive.id,
         name: _nameController.text.trim(),
         type: _type,
         active: _active,
-        queenless: _queenless,
+        queenNeedsReplacement: _queenNeedsReplacement,
         readyForHarvest: _readyForHarvest,
         needsFood: _needsFood,
+        boxNeedsAdding: _boxNeedsAdding,
       );
 
       final existing = widget.hive.diseases.map((d) => d.disease).toSet();
@@ -112,20 +115,9 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
       }
 
       if (context.mounted) {
-        Navigator.of(context).pop(Hive(
-          id: widget.hive.id,
-          apiaryId: widget.hive.apiaryId,
-          name: _nameController.text.trim(),
-          type: _type,
-          active: _active,
-          queenless: _queenless,
-          readyForHarvest: _readyForHarvest,
-          needsFood: _needsFood,
-          gridRow: widget.hive.gridRow,
-          gridCol: widget.hive.gridCol,
-          diseases: [...keptDiseases, ...addedDiseases],
-          lastInspectedAt: widget.hive.lastInspectedAt,
-        ));
+        Navigator.of(context).pop(
+          updated.copyWith(diseases: [...keptDiseases, ...addedDiseases]),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -166,17 +158,9 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                       value: _type,
                       onChanged: (v) => setState(() => _type = v ?? _type),
                     ),
-                    const SizedBox(height: 16),
-                    HiveActiveToggle(
-                      value: _active,
-                      onChanged: (v) => setState(() => _active = v),
-                    ),
-                    const SizedBox(height: 16),
-                    HiveQueenlessToggle(
-                      value: _queenless,
-                      onChanged: (v) => setState(() => _queenless = v),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    HiveSectionTitle(l10n.inspectionSectionTodo),
+                    const SizedBox(height: 12),
                     HiveReadyForHarvestToggle(
                       value: _readyForHarvest,
                       onChanged: (v) => setState(() => _readyForHarvest = v),
@@ -185,6 +169,24 @@ class _EditHiveScreenState extends State<EditHiveScreen> {
                     HiveNeedsFoodToggle(
                       value: _needsFood,
                       onChanged: (v) => setState(() => _needsFood = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveQueenNeedsReplacementToggle(
+                      value: _queenNeedsReplacement,
+                      onChanged: (v) =>
+                          setState(() => _queenNeedsReplacement = v),
+                    ),
+                    const SizedBox(height: 16),
+                    HiveBoxNeedsAddingToggle(
+                      value: _boxNeedsAdding,
+                      onChanged: (v) => setState(() => _boxNeedsAdding = v),
+                    ),
+                    const SizedBox(height: 20),
+                    HiveSectionTitle(l10n.inspectionSectionHiveState),
+                    const SizedBox(height: 12),
+                    HiveActiveToggle(
+                      value: _active,
+                      onChanged: (v) => setState(() => _active = v),
                     ),
                     const SizedBox(height: 16),
                     HiveDiseasesSection(

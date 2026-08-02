@@ -34,20 +34,25 @@ func hiveJSON(hive *model.Hive, diseases []*model.HiveDisease, lastInspectedAt *
 		dd[i] = hiveDiseaseJSON(d)
 	}
 	return map[string]any{
-		"id":                hive.ID,
-		"apiary_id":         hive.ApiaryID,
-		"name":              hive.Name,
-		"type":              hive.Type,
-		"active":            hive.Active,
-		"queenless":         hive.Queenless,
-		"ready_for_harvest": hive.ReadyForHarvest,
-		"needs_food":        hive.NeedsFood,
-		"grid_row":          hive.GridRow,
-		"grid_col":          hive.GridCol,
-		"diseases":          dd,
-		"last_inspected_at": lastInspectedAt,
-		"created_at":        hive.CreatedAt,
-		"updated_at":        hive.UpdatedAt,
+		"id":                            hive.ID,
+		"apiary_id":                     hive.ApiaryID,
+		"name":                          hive.Name,
+		"type":                          hive.Type,
+		"active":                        hive.Active,
+		"queen_needs_replacement":       hive.QueenNeedsReplacement,
+		"queen_needs_replacement_since": hive.QueenNeedsReplacementSince,
+		"ready_for_harvest":             hive.ReadyForHarvest,
+		"ready_for_harvest_since":       hive.ReadyForHarvestSince,
+		"needs_food":                    hive.NeedsFood,
+		"needs_food_since":              hive.NeedsFoodSince,
+		"box_needs_adding":              hive.BoxNeedsAdding,
+		"box_needs_adding_since":        hive.BoxNeedsAddingSince,
+		"grid_row":                      hive.GridRow,
+		"grid_col":                      hive.GridCol,
+		"diseases":                      dd,
+		"last_inspected_at":             lastInspectedAt,
+		"created_at":                    hive.CreatedAt,
+		"updated_at":                    hive.UpdatedAt,
 	}
 }
 
@@ -174,18 +179,19 @@ func (h *HiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Active          bool   `json:"active"`
-		Name            string `json:"name"`
-		NeedsFood       bool   `json:"needs_food"`
-		Queenless       bool   `json:"queenless"`
-		ReadyForHarvest bool   `json:"ready_for_harvest"`
-		Type            string `json:"type"`
+		Active                bool   `json:"active"`
+		BoxNeedsAdding        bool   `json:"box_needs_adding"`
+		Name                  string `json:"name"`
+		NeedsFood             bool   `json:"needs_food"`
+		QueenNeedsReplacement bool   `json:"queen_needs_replacement"`
+		ReadyForHarvest       bool   `json:"ready_for_harvest"`
+		Type                  string `json:"type"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 
-	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.Queenless, req.NeedsFood)
+	hive, err := h.hives.Update(r.Context(), userID, apiaryID, hiveID, req.Name, req.Type, req.Active, req.ReadyForHarvest, req.QueenNeedsReplacement, req.NeedsFood, req.BoxNeedsAdding)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):
@@ -294,14 +300,15 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Active          *bool  `json:"active"`
-		GridCol         int    `json:"grid_col"`
-		GridRow         int    `json:"grid_row"`
-		Name            string `json:"name"`
-		NeedsFood       bool   `json:"needs_food"`
-		Queenless       bool   `json:"queenless"`
-		ReadyForHarvest bool   `json:"ready_for_harvest"`
-		Type            string `json:"type"`
+		Active                *bool  `json:"active"`
+		BoxNeedsAdding        bool   `json:"box_needs_adding"`
+		GridCol               int    `json:"grid_col"`
+		GridRow               int    `json:"grid_row"`
+		Name                  string `json:"name"`
+		NeedsFood             bool   `json:"needs_food"`
+		QueenNeedsReplacement bool   `json:"queen_needs_replacement"`
+		ReadyForHarvest       bool   `json:"ready_for_harvest"`
+		Type                  string `json:"type"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -317,7 +324,7 @@ func (h *HiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.Queenless, req.ReadyForHarvest, req.NeedsFood, req.GridRow, req.GridCol)
+	hive, err := h.hives.Add(r.Context(), userID, apiaryID, req.Name, hiveType, active, req.QueenNeedsReplacement, req.ReadyForHarvest, req.NeedsFood, req.BoxNeedsAdding, req.GridRow, req.GridCol)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNameRequired):

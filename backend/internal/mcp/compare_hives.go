@@ -15,6 +15,7 @@ type HiveComparison struct {
 	HiveSummary
 	LastInspectedAt *time.Time        `json:"last_inspected_at"`
 	BroodPattern    string            `json:"brood_pattern"`
+	ColonyStrength  string            `json:"colony_strength"`
 	FramesBrood     *int              `json:"frames_brood"`
 	FramesFeed      *int              `json:"frames_feed"`
 	FramesPollen    *int              `json:"frames_pollen"`
@@ -73,6 +74,7 @@ func (t *HiveTools) CompareHives(ctx context.Context, userID int64, hiveIDs []in
 			latest := inspections[0]
 			result[i].LastInspectedAt = &latest.InspectedAt
 			result[i].BroodPattern = latest.BroodPattern
+			result[i].ColonyStrength = latest.ColonyStrength
 			result[i].FramesBrood = latest.FramesBrood
 			result[i].FramesFeed = latest.FramesFeed
 			result[i].FramesPollen = latest.FramesPollen

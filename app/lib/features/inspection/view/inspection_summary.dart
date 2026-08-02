@@ -45,6 +45,14 @@ class InspectionSummary extends StatelessWidget {
     if (inspection.aggressiveness.isNotEmpty) {
       obs.add(_aggressivenessLabel(l10n, inspection.aggressiveness));
     }
+    if (inspection.colonyStrength.isNotEmpty) {
+      obs.add(
+        '${l10n.inspectionColonyStrength}: ${_colonyStrengthLabel(l10n, inspection.colonyStrength)}',
+      );
+    }
+    if ((inspection.queenCellsCount ?? 0) > 0) {
+      obs.add('${l10n.inspectionQueenCellsCount}: ${inspection.queenCellsCount}');
+    }
 
     // Current frame counts
     final frames = <String>[];
@@ -89,13 +97,13 @@ class InspectionSummary extends StatelessWidget {
       l10n.inspectionFramesTakenFeed,
     );
 
-    // Queen cells + queen added
-    final queen = <String>[];
-    if ((inspection.queenCellsCount ?? 0) > 0) {
-      queen.add('${l10n.inspectionQueenCellsCount}: ${inspection.queenCellsCount}');
-    }
+    // Actions taken during the inspection
+    final actions = <String>[];
     if (inspection.queenAdded) {
-      queen.add(l10n.inspectionQueenAdded);
+      actions.add(l10n.inspectionQueenAdded);
+    }
+    if (inspection.boxAdded) {
+      actions.add(l10n.inspectionBoxAdded);
     }
 
     final otherInspector = currentUserName != null &&
@@ -109,7 +117,7 @@ class InspectionSummary extends StatelessWidget {
         obs.isNotEmpty ||
         frames.isNotEmpty ||
         added.isNotEmpty ||
-        queen.isNotEmpty ||
+        actions.isNotEmpty ||
         inspection.notes.isNotEmpty;
     if (!hasContent) return const SizedBox.shrink();
 
@@ -139,16 +147,19 @@ class InspectionSummary extends StatelessWidget {
           Text(obs.join(' · '), style: bodyStyle),
           const SizedBox(height: 8),
         ],
-        if (frames.isNotEmpty || added.isNotEmpty) ...[
+        if (frames.isNotEmpty) ...[
           Text(l10n.inspectionSectionFrames, style: labelStyle),
           const SizedBox(height: 2),
-          if (frames.isNotEmpty) Text(frames.join(' · '), style: bodyStyle),
-          if (frames.isNotEmpty && added.isNotEmpty) const SizedBox(height: 2),
-          if (added.isNotEmpty) Text(added.join(' · '), style: bodyStyle),
+          Text(frames.join(' · '), style: bodyStyle),
           const SizedBox(height: 8),
         ],
-        if (queen.isNotEmpty) ...[
-          Text(queen.join(' · '), style: bodyStyle),
+        if (added.isNotEmpty || actions.isNotEmpty) ...[
+          Text(l10n.inspectionSectionActions, style: labelStyle),
+          const SizedBox(height: 2),
+          if (added.isNotEmpty) Text(added.join(' · '), style: bodyStyle),
+          if (added.isNotEmpty && actions.isNotEmpty)
+            const SizedBox(height: 2),
+          if (actions.isNotEmpty) Text(actions.join(' · '), style: bodyStyle),
           const SizedBox(height: 8),
         ],
         if (inspection.notes.isNotEmpty) ...[
@@ -179,5 +190,14 @@ String _aggressivenessLabel(AppLocalizations l10n, String v) => switch (v) {
       'mild' => l10n.inspectionAggressivenessMild,
       'aggressive' => l10n.inspectionAggressivenessAggressive,
       'very_aggressive' => l10n.inspectionAggressivenessVeryAggressive,
+      _ => v,
+    };
+
+String _colonyStrengthLabel(AppLocalizations l10n, String v) => switch (v) {
+      'very_weak' => l10n.inspectionColonyStrengthVeryWeak,
+      'weak' => l10n.inspectionColonyStrengthWeak,
+      'medium' => l10n.inspectionColonyStrengthMedium,
+      'strong' => l10n.inspectionColonyStrengthStrong,
+      'very_strong' => l10n.inspectionColonyStrengthVeryStrong,
       _ => v,
     };

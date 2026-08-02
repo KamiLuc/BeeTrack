@@ -410,23 +410,30 @@ class _InfoCard extends StatelessWidget {
             ? Colors.green.shade800
             : colorScheme.onErrorContainer,
       ),
-      if (hive.active && hive.queenless)
+      if (hive.active && hive.queenNeedsReplacement)
         _StatusChip(
-          label: l10n.hiveQueenless,
+          label: _withSince(
+              l10n.hiveQueenNeedsReplacement, hive.queenNeedsReplacementSince),
           background: colorScheme.errorContainer,
           foreground: colorScheme.onErrorContainer,
         ),
       if (hive.active && hive.readyForHarvest)
         _StatusChip(
-          label: l10n.hiveReadyForHarvest,
+          label: _withSince(l10n.hiveReadyForHarvest, hive.readyForHarvestSince),
           background: Colors.amber.shade100,
           foreground: Colors.amber.shade900,
         ),
       if (hive.active && hive.needsFood)
         _StatusChip(
-          label: l10n.hiveNeedsFood,
+          label: _withSince(l10n.hiveNeedsFood, hive.needsFoodSince),
           background: Colors.orange.shade100,
           foreground: Colors.orange.shade900,
+        ),
+      if (hive.active && hive.boxNeedsAdding)
+        _StatusChip(
+          label: _withSince(l10n.hiveBoxNeedsAdding, hive.boxNeedsAddingSince),
+          background: Colors.brown.shade100,
+          foreground: Colors.brown.shade900,
         ),
     ];
 
@@ -529,7 +536,8 @@ class _InfoCard extends StatelessWidget {
                 runSpacing: 6,
                 children: hive.diseases
                     .map((d) => _StatusChip(
-                          label: hiveDiseaseLabel(l10n, d.disease),
+                          label: _withSince(
+                              hiveDiseaseLabel(l10n, d.disease), d.createdAt),
                           background: colorScheme.errorContainer,
                           foreground: colorScheme.onErrorContainer,
                         ))
@@ -543,6 +551,11 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+
+String _withSince(String label, DateTime? since) {
+  if (since == null) return label;
+  return '$label (${DateFormat('d.MM').format(since)})';
+}
 
 class _StatusChip extends StatelessWidget {
   final String label;
