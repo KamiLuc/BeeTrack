@@ -8,6 +8,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +138,33 @@ func (m *mockHiveLister) GetHiveSummary(ctx context.Context, userID, hiveID int6
 	return m.summary, m.summaryErr
 }
 
+type mockSuggestionProvider struct {
+	medicineNames    []string
+	medicineNamesErr error
+	doses            []string
+	dosesErr         error
+	feedTypes        []string
+	feedTypesErr     error
+	amounts          []string
+	amountsErr       error
+}
+
+func (m *mockSuggestionProvider) MedicineSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return m.medicineNames, m.medicineNamesErr
+}
+
+func (m *mockSuggestionProvider) DoseSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return m.doses, m.dosesErr
+}
+
+func (m *mockSuggestionProvider) FeedTypeSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return m.feedTypes, m.feedTypesErr
+}
+
+func (m *mockSuggestionProvider) AmountSuggestions(ctx context.Context, userID int64) ([]string, error) {
+	return m.amounts, m.amountsErr
+}
+
 type mockHiveResolver struct {
 	resolveMessage *llm.ChatCompletionResponse
 	resolveErr     error
@@ -182,7 +211,11 @@ func clearAudioPath(rec *model.VoiceRecording, path string) *model.VoiceRecordin
 }
 
 func newTranscribedWorker(repo *mockVoiceRepo, transcriber *mockTranscriber, audio *mockAudioStore, hives *mockHiveLister, resolver *mockHiveResolver) *VoiceWorker {
-	return NewVoiceWorker(repo, transcriber, audio, hives, resolver, "")
+	return NewVoiceWorker(repo, transcriber, audio, hives, nil, resolver, "")
+}
+
+func newTranscribedWorkerWithSuggestions(repo *mockVoiceRepo, transcriber *mockTranscriber, audio *mockAudioStore, hives *mockHiveLister, suggestions *mockSuggestionProvider, resolver *mockHiveResolver) *VoiceWorker {
+	return NewVoiceWorker(repo, transcriber, audio, hives, suggestions, resolver, "")
 }
 
 func TestVoiceWorker_ProcessNext_NoRecordingAvailable(t *testing.T) {
@@ -926,6 +959,133 @@ func TestVoiceWorker_ProcessNext_HiveSummaryErrorFailsRecording(t *testing.T) {
 	}
 	if resolver.callCount != 1 {
 		t.Errorf("expected Claude not to be called for action proposal when the hive summary lookup fails, got %d calls", resolver.callCount)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsIncludesKnownValues(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	suggestions := &mockSuggestionProvider{
+		medicineNames: []string{"Apiguard"},
+		doses:         []string{"1 strip"},
+		feedTypes:     []string{"sugar syrup"},
+		amounts:       []string{"1L"},
+	}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorkerWithSuggestions(repo, transcriber, &mockAudioStore{}, hives, suggestions, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(resolver.requests) != 2 {
+		t.Fatalf("expected 2 llm requests (resolve_hive + propose_actions), got %d", len(resolver.requests))
+	}
+
+	proposeReq := resolver.requests[1]
+	if len(proposeReq.Messages) != 2 {
+		t.Fatalf("expected 2 messages in propose_actions request, got %d", len(proposeReq.Messages))
+	}
+	userContent := proposeReq.Messages[1].Content
+	var content struct {
+		HiveContext hiveActionContext `json:"hive_context"`
+		KnownValues knownValues       `json:"known_values"`
+	}
+	if idx := strings.Index(userContent, "Context:\n"); idx >= 0 {
+		if err := json.Unmarshal([]byte(userContent[idx+len("Context:\n"):]), &content); err != nil {
+			t.Fatalf("unmarshal user message context: %v", err)
+		}
+	} else {
+		t.Fatalf("expected user message to contain a Context: section, got %q", userContent)
+	}
+	want := knownValues{MedicineNames: []string{"Apiguard"}, Doses: []string{"1 strip"}, FeedTypes: []string{"sugar syrup"}, Amounts: []string{"1L"}}
+	if !reflect.DeepEqual(content.KnownValues, want) {
+		t.Errorf("expected known_values in the LLM request to be %+v, got %+v", want, content.KnownValues)
+	}
+
+	var proposeReqLogged proposeActionsRequest
+	if err := json.Unmarshal(repo.createdLLMCalls[1].Request, &proposeReqLogged); err != nil {
+		t.Fatalf("unmarshal propose_actions request: %v", err)
+	}
+	if !reflect.DeepEqual(proposeReqLogged.KnownValues, want) {
+		t.Errorf("expected logged known_values to be %+v, got %+v", want, proposeReqLogged.KnownValues)
+	}
+}
+
+func TestVoiceWorker_FetchKnownValues_NilSuggestionProviderReturnsEmpty(t *testing.T) {
+	w := newTranscribedWorker(&mockVoiceRepo{}, &mockTranscriber{}, &mockAudioStore{}, &mockHiveLister{}, &mockHiveResolver{})
+
+	got := w.fetchKnownValues(context.Background(), 7)
+
+	if !reflect.DeepEqual(got, knownValues{}) {
+		t.Errorf("expected an empty knownValues when suggestions is nil, got %+v", got)
+	}
+}
+
+func TestVoiceWorker_FetchKnownValues_PartialErrorsReturnRemainingLists(t *testing.T) {
+	suggestions := &mockSuggestionProvider{
+		medicineNames: []string{"Apiguard"},
+		dosesErr:      errors.New("db unavailable"),
+		feedTypes:     []string{"sugar syrup"},
+		amounts:       []string{"1L"},
+	}
+	w := newTranscribedWorkerWithSuggestions(&mockVoiceRepo{}, &mockTranscriber{}, &mockAudioStore{}, &mockHiveLister{}, suggestions, &mockHiveResolver{})
+
+	got := w.fetchKnownValues(context.Background(), 7)
+
+	want := knownValues{MedicineNames: []string{"Apiguard"}, Doses: nil, FeedTypes: []string{"sugar syrup"}, Amounts: []string{"1L"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected the three successful lists despite one error, got %+v, want %+v", got, want)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsNilSuggestionsOmitsKnownValues(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	var content struct {
+		KnownValues knownValues `json:"known_values"`
+	}
+	userContent := resolver.requests[1].Messages[1].Content
+	if idx := strings.Index(userContent, "Context:\n"); idx >= 0 {
+		if err := json.Unmarshal([]byte(userContent[idx+len("Context:\n"):]), &content); err != nil {
+			t.Fatalf("unmarshal user message context: %v", err)
+		}
+	} else {
+		t.Fatalf("expected user message to contain a Context: section, got %q", userContent)
+	}
+	if !reflect.DeepEqual(content.KnownValues, knownValues{}) {
+		t.Errorf("expected known_values to be empty when suggestions is nil, got %+v", content.KnownValues)
+	}
+
+	var proposeReqLogged proposeActionsRequest
+	if err := json.Unmarshal(repo.createdLLMCalls[1].Request, &proposeReqLogged); err != nil {
+		t.Fatalf("unmarshal propose_actions request: %v", err)
+	}
+	if !reflect.DeepEqual(proposeReqLogged.KnownValues, knownValues{}) {
+		t.Errorf("expected logged known_values to be empty when suggestions is nil, got %+v", proposeReqLogged.KnownValues)
 	}
 }
 

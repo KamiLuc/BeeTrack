@@ -108,7 +108,7 @@ func main() {
 
 	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
 
-	startVoiceWorker(ctx, voiceRepo, hiveTools, cfg.AudioStoragePath)
+	startVoiceWorker(ctx, voiceRepo, hiveTools, voiceSuggestions{treatmentSvc, feedingSvc}, cfg.AudioStoragePath)
 
 	listingTools := mcp.NewListingTools(listingSvc)
 	assistantRegistry := mcp.NewRegistry()
@@ -341,7 +341,15 @@ func startHoneyCertificationWorker(ctx context.Context, db *gorm.DB) *blockchain
 
 const voicePollInterval = 5 * time.Second
 
-func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, hives worker.HiveLister, audioStoragePath string) {
+// voiceSuggestions composes TreatmentService's and FeedingService's autocomplete-suggestion
+// methods (disjoint method sets, no promotion ambiguity) to satisfy worker.SuggestionProvider
+// without a new service of its own.
+type voiceSuggestions struct {
+	*service.TreatmentService
+	*service.FeedingService
+}
+
+func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository, hives worker.HiveLister, suggestions worker.SuggestionProvider, audioStoragePath string) {
 	openRouterKey := config.OpenRouterAPIKey()
 	if openRouterKey == "" {
 		slog.Warn("OPENROUTER_API_KEY not set, voice worker disabled")
@@ -350,7 +358,7 @@ func startVoiceWorker(ctx context.Context, voiceRepo *repository.VoiceRepository
 	whisperClient := llm.NewWhisperClient(openRouterKey, llm.WithWhisperModel(config.OpenRouterWhisperModel()))
 	openRouterClient := llm.NewOpenRouterClient(openRouterKey)
 	audioStore := worker.NewFileAudioStore(audioStoragePath)
-	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, openRouterClient, config.OpenRouterModel())
+	voiceWorker := worker.NewVoiceWorker(voiceRepo, whisperClient, audioStore, hives, suggestions, openRouterClient, config.OpenRouterModel())
 	go voiceWorker.Run(ctx, voicePollInterval)
 	slog.Info("voice worker started")
 }

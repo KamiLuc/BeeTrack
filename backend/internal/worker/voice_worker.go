@@ -43,7 +43,7 @@ const (
 	actionProposalMaxTokens = 1024
 	hiveContextDays         = 90
 
-	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. If the transcript doesn't describe any loggable action at all, don't call any tool."
+	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. If the transcript doesn't describe any loggable action at all, don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean."
 )
 
 type VoiceRecordingRepository interface {
@@ -67,6 +67,13 @@ type HiveLister interface {
 
 type ChatCompleter interface {
 	CreateChatCompletion(ctx context.Context, req llm.ChatCompletionRequest) (*llm.ChatCompletionResponse, error)
+}
+
+type SuggestionProvider interface {
+	MedicineSuggestions(ctx context.Context, userID int64) ([]string, error)
+	DoseSuggestions(ctx context.Context, userID int64) ([]string, error)
+	FeedTypeSuggestions(ctx context.Context, userID int64) ([]string, error)
+	AmountSuggestions(ctx context.Context, userID int64) ([]string, error)
 }
 
 type AudioStore interface {
@@ -95,17 +102,18 @@ type VoiceWorker struct {
 	transcriber Transcriber
 	audio       AudioStore
 	hives       HiveLister
+	suggestions SuggestionProvider
 	llmClient   ChatCompleter
 	model       string
 }
 
 // model selects the model used for hive-name resolution and action proposal; pass "" to use
 // defaultHiveResolutionModel.
-func NewVoiceWorker(recordings VoiceRecordingRepository, transcriber Transcriber, audio AudioStore, hives HiveLister, llmClient ChatCompleter, model string) *VoiceWorker {
+func NewVoiceWorker(recordings VoiceRecordingRepository, transcriber Transcriber, audio AudioStore, hives HiveLister, suggestions SuggestionProvider, llmClient ChatCompleter, model string) *VoiceWorker {
 	if model == "" {
 		model = defaultHiveResolutionModel
 	}
-	return &VoiceWorker{recordings: recordings, transcriber: transcriber, audio: audio, hives: hives, llmClient: llmClient, model: model}
+	return &VoiceWorker{recordings: recordings, transcriber: transcriber, audio: audio, hives: hives, suggestions: suggestions, llmClient: llmClient, model: model}
 }
 
 func (w *VoiceWorker) Run(ctx context.Context, pollInterval time.Duration) {
@@ -477,9 +485,38 @@ func actionProposalTools() []llm.Tool {
 	return []llm.Tool{createInspectionTool(), createTreatmentTool(), createHarvestTool(), createFeedingTool()}
 }
 
+type knownValues struct {
+	MedicineNames []string `json:"medicine_names,omitempty"`
+	Doses         []string `json:"doses,omitempty"`
+	FeedTypes     []string `json:"feed_types,omitempty"`
+	Amounts       []string `json:"amounts,omitempty"`
+}
+
 type proposeActionsRequest struct {
 	Transcript  string            `json:"transcript"`
 	HiveContext hiveActionContext `json:"hive_context"`
+	KnownValues knownValues       `json:"known_values,omitempty"`
+}
+
+func (w *VoiceWorker) fetchKnownValues(ctx context.Context, userID int64) knownValues {
+	if w.suggestions == nil {
+		return knownValues{}
+	}
+	var kv knownValues
+	var err error
+	if kv.MedicineNames, err = w.suggestions.MedicineSuggestions(ctx, userID); err != nil {
+		slog.Warn("fetch medicine suggestions failed", "component", "voice_worker", "error", err)
+	}
+	if kv.Doses, err = w.suggestions.DoseSuggestions(ctx, userID); err != nil {
+		slog.Warn("fetch dose suggestions failed", "component", "voice_worker", "error", err)
+	}
+	if kv.FeedTypes, err = w.suggestions.FeedTypeSuggestions(ctx, userID); err != nil {
+		slog.Warn("fetch feed type suggestions failed", "component", "voice_worker", "error", err)
+	}
+	if kv.Amounts, err = w.suggestions.AmountSuggestions(ctx, userID); err != nil {
+		slog.Warn("fetch amount suggestions failed", "component", "voice_worker", "error", err)
+	}
+	return kv
 }
 
 func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecording, hiveID int64, transcript string) error {
@@ -488,7 +525,11 @@ func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecord
 		return fmt.Errorf("get hive summary: %w", err)
 	}
 	hiveContext := buildHiveActionContext(summary)
-	contextJSON, err := json.Marshal(hiveContext)
+	known := w.fetchKnownValues(ctx, rec.UserID)
+	promptContext, err := json.Marshal(struct {
+		HiveContext hiveActionContext `json:"hive_context"`
+		KnownValues knownValues       `json:"known_values,omitempty"`
+	}{hiveContext, known})
 	if err != nil {
 		return fmt.Errorf("marshal hive context: %w", err)
 	}
@@ -498,11 +539,11 @@ func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecord
 		MaxTokens: actionProposalMaxTokens,
 		Messages: []llm.ChatMessage{
 			{Role: "system", Content: actionProposalSystemPrompt},
-			{Role: "user", Content: fmt.Sprintf("Transcript: %q\n\nHive context:\n%s", transcript, contextJSON)},
+			{Role: "user", Content: fmt.Sprintf("Transcript: %q\n\nContext:\n%s", transcript, promptContext)},
 		},
 		Tools: actionProposalTools(),
 	})
-	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext}, resp, err)
+	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext, KnownValues: known}, resp, err)
 	if err != nil {
 		return fmt.Errorf("propose actions: %w", err)
 	}
