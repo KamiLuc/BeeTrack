@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/beetrack/backend/internal/model"
 	"gorm.io/datatypes"
@@ -294,6 +295,18 @@ func newTestVoiceAcceptService(t *testing.T) (*VoiceService, *voiceAcceptDeps) {
 	return svc, deps
 }
 
+func assertVoiceClaimDelaySet(t *testing.T, rec *model.VoiceRecording) {
+	t.Helper()
+	if rec.NextAttemptAt == nil {
+		t.Fatal("expected NextAttemptAt to be set on newly created recording")
+	}
+	wantAfter := time.Now().Add(voiceClaimDelay)
+	diff := wantAfter.Sub(*rec.NextAttemptAt)
+	if diff < -2*time.Second || diff > 2*time.Second {
+		t.Errorf("expected NextAttemptAt ~%s from now, got %s (diff %s)", voiceClaimDelay, rec.NextAttemptAt, diff)
+	}
+}
+
 func TestVoiceUpload_Success(t *testing.T) {
 	svc, apiaryMock, voiceMock, dir := newTestVoiceService(t)
 	apiaryMock.apiary = &model.Apiary{ID: 1}
@@ -315,6 +328,7 @@ func TestVoiceUpload_Success(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, *rec.AudioPath)); err != nil {
 		t.Errorf("expected audio file to be written: %v", err)
 	}
+	assertVoiceClaimDelaySet(t, voiceMock.created)
 }
 
 func TestVoiceUpload_ApiaryNotFound(t *testing.T) {
@@ -397,6 +411,7 @@ func TestVoiceUploadForHive_Success(t *testing.T) {
 	if rec.HiveID == nil || *rec.HiveID != 9 {
 		t.Errorf("expected returned recording HiveID=9, got %v", rec.HiveID)
 	}
+	assertVoiceClaimDelaySet(t, deps.voice.created)
 }
 
 func TestVoiceUploadForHive_HiveNotFound(t *testing.T) {

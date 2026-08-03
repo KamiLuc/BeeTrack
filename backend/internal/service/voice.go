@@ -31,6 +31,12 @@ const MaxAudioBytes = 15 * 1024 * 1024
 
 const maxRecordingsPerUser = 10
 
+// voiceClaimDelay holds a freshly uploaded recording back from the worker for a
+// window after upload, giving the beekeeper a real chance to Cancel it (VC-14-BE)
+// before it flips to processing — otherwise a fast worker poll cycle could claim
+// it before the client even finishes rendering the pending row.
+const voiceClaimDelay = 10 * time.Second
+
 var allowedAudioMIME = map[string]string{
 	"audio/webm":  ".webm",
 	"audio/mp4":   ".m4a",
@@ -149,12 +155,14 @@ func (s *VoiceService) upload(ctx context.Context, userID, apiaryID int64, hiveI
 	if err := os.WriteFile(filepath.Join(s.storagePath, filename), data, 0o644); err != nil {
 		return nil, fmt.Errorf("write audio: %w", err)
 	}
+	claimAfter := time.Now().Add(voiceClaimDelay)
 	rec := &model.VoiceRecording{
-		UserID:    userID,
-		ApiaryID:  apiaryID,
-		HiveID:    hiveID,
-		Status:    model.VoiceRecordingStatusPending,
-		AudioPath: &filename,
+		UserID:        userID,
+		ApiaryID:      apiaryID,
+		HiveID:        hiveID,
+		Status:        model.VoiceRecordingStatusPending,
+		AudioPath:     &filename,
+		NextAttemptAt: &claimAfter,
 	}
 	if err := s.recordings.CreateRecording(ctx, rec); err != nil {
 		_ = os.Remove(filepath.Join(s.storagePath, filename))
