@@ -828,20 +828,43 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     _playbackCompleteSub = _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playingPath = null);
     });
-    _loadReadyForReview();
+    _refreshFromServer();
   }
 
-  Future<void> _loadReadyForReview() async {
+  /// Reconciles the locally-cached [_pending] list against the server's
+  /// current state and (re)loads [_readyForReview] from the same fetch, so
+  /// a recording can never show as both — e.g. a recording that finished
+  /// (or failed) while the dialog was closed no longer lingers as "still
+  /// pending" from the stale session cache once this returns.
+  Future<void> _refreshFromServer() async {
     try {
       final repo = VoiceRepository(api: context.read<ApiClient>());
       final result = await repo.listRecordings(widget.apiaryId);
+      final byId = {for (final r in result.items) r.recordingId: r};
+      final stillPending = <VoiceRecording>[];
+      for (final rec in _pending) {
+        final status = byId[rec.recordingId]?.status;
+        if (status == voiceRecordingStatusPending ||
+            status == voiceRecordingStatusProcessing) {
+          stillPending.add(rec.copyWith(status: status));
+        } else {
+          await _discardLocalFile(rec.localPath);
+          if (rec.localPath != null) {
+            await _stopPlaybackIfPlaying(rec.localPath!);
+          }
+        }
+      }
       final ready = result.items
           .where((r) => r.status == voiceRecordingStatusCompleted)
           .toList();
       if (!mounted) return;
-      setState(() => _readyForReview = ready);
+      setState(() {
+        _pending = stillPending;
+        _readyForReview = ready;
+      });
+      _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
     } catch (_) {
-      // Best-effort — the section just stays at its last known value.
+      // Best-effort — both sections just stay at their last known value.
     }
   }
 
