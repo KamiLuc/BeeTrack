@@ -281,7 +281,10 @@
     }
   },
   "voiceRecordingPermissionDenied": "Wymagane jest uprawnienie do mikrofonu, aby nagrywać",
-  "voiceRecordingCaptured": "Nagranie zarejestrowane",
+  "voiceRecordingUploadFailed": "Nie udało się przesłać nagrania",
+  "voiceRecordingStatusPending": "W kolejce",
+  "voiceRecordingStatusProcessing": "Przetwarzanie...",
+  "voiceRecordingPlayTooltip": "Odtwórz",
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
   "hiveStatus": "Status",

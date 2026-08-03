@@ -1430,11 +1430,29 @@ abstract class AppLocalizations {
   /// **'Wymagane jest uprawnienie do mikrofonu, aby nagrywać'**
   String get voiceRecordingPermissionDenied;
 
-  /// No description provided for @voiceRecordingCaptured.
+  /// No description provided for @voiceRecordingUploadFailed.
   ///
   /// In pl, this message translates to:
-  /// **'Nagranie zarejestrowane'**
-  String get voiceRecordingCaptured;
+  /// **'Nie udało się przesłać nagrania'**
+  String get voiceRecordingUploadFailed;
+
+  /// No description provided for @voiceRecordingStatusPending.
+  ///
+  /// In pl, this message translates to:
+  /// **'W kolejce'**
+  String get voiceRecordingStatusPending;
+
+  /// No description provided for @voiceRecordingStatusProcessing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przetwarzanie...'**
+  String get voiceRecordingStatusProcessing;
+
+  /// No description provided for @voiceRecordingPlayTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odtwórz'**
+  String get voiceRecordingPlayTooltip;
 
   /// No description provided for @apiaryCenterView.
   ///

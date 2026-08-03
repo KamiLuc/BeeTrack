@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io' show File;
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,6 +20,8 @@ import '../../apiary/data/apiary_model.dart';
 import '../../dashboard/view/dashboard_screen.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../inspection/data/inspection_repository.dart';
+import '../../voice/data/voice_recording_model.dart';
+import '../../voice/data/voice_repository.dart';
 import '../cubit/hives_cubit.dart';
 import '../data/hive_model.dart';
 import '../data/hive_repository.dart';
@@ -455,7 +459,7 @@ class _FilterBar extends StatelessWidget {
   void _showVoiceRecordingSheet(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (_) => const _VoiceRecordingDialog(),
+      builder: (_) => _VoiceRecordingDialog(apiaryId: apiaryId),
     );
   }
 
@@ -729,8 +733,26 @@ const _voiceSilenceAutoStopDuration = Duration(milliseconds: 2500);
 const _voiceSilenceThresholdDb = -35.0;
 const _voiceAmplitudePollInterval = Duration(milliseconds: 300);
 
+/// In-memory cache of this session's locally-recorded pending/processing
+/// voice recordings, keyed by apiary id. Survives the recording dialog
+/// being closed and reopened (but not an app restart) — audio is only ever
+/// playable from this device's local copy, so there's no server-side
+/// source of truth to refetch it from once the dialog widget is disposed.
+class _VoicePendingCache {
+  static final Map<int, List<VoiceRecording>> _byApiary = {};
+
+  static List<VoiceRecording> forApiary(int apiaryId) =>
+      List.unmodifiable(_byApiary[apiaryId] ?? const []);
+
+  static void setForApiary(int apiaryId, List<VoiceRecording> recordings) {
+    _byApiary[apiaryId] = recordings;
+  }
+}
+
 class _VoiceRecordingDialog extends StatefulWidget {
-  const _VoiceRecordingDialog();
+  final int apiaryId;
+
+  const _VoiceRecordingDialog({required this.apiaryId});
 
   @override
   State<_VoiceRecordingDialog> createState() => _VoiceRecordingDialogState();
@@ -738,13 +760,24 @@ class _VoiceRecordingDialog extends StatefulWidget {
 
 class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _player = AudioPlayer();
   bool _isRecording = false;
   bool _hasDetectedSpeech = false;
   bool _hardCapWarning = false;
+  bool _uploading = false;
   Duration _elapsed = Duration.zero;
   DateTime? _lastSpeechAt;
   StreamSubscription<Amplitude>? _ampSub;
   Timer? _tickTimer;
+  Timer? _pollTimer;
+  late List<VoiceRecording> _pending;
+
+  @override
+  void initState() {
+    super.initState();
+    _pending = _VoicePendingCache.forApiary(widget.apiaryId);
+    if (_pending.isNotEmpty) _startPolling();
+  }
 
   Future<void> _toggleRecording() async {
     if (_isRecording) {
@@ -832,16 +865,95 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
       _elapsed = Duration.zero;
     });
 
-    // Persisting the recording and uploading it are a separate ticket
-    // (VC-19-FE) — discard the temp file for now.
-    if (path != null && !kIsWeb) {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
-    }
+    if (path != null) await _uploadRecording(path);
+  }
 
-    if (mounted) {
-      showBigSnackBar(context, AppLocalizations.of(context)!.voiceRecordingCaptured);
+  Future<List<int>> _fetchBlobBytes(String blobUrl) async {
+    final response = await Dio().get<List<int>>(
+      blobUrl,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data!;
+  }
+
+  Future<void> _uploadRecording(String path) async {
+    final repo = VoiceRepository(api: context.read<ApiClient>());
+    setState(() => _uploading = true);
+    try {
+      final bytes = kIsWeb
+          ? await _fetchBlobBytes(path)
+          : await File(path).readAsBytes();
+      final uploaded = await repo.uploadRecording(
+        widget.apiaryId,
+        bytes,
+        filename: kIsWeb ? 'voice.webm' : 'voice.m4a',
+        mimeType: kIsWeb ? 'audio/webm' : 'audio/mp4',
+      );
+      if (!mounted) return;
+      _pending = [uploaded.copyWith(localPath: path), ..._pending];
+      _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
+      setState(() {});
+      _startPolling();
+    } catch (_) {
+      await _discardLocalFile(path);
+      if (mounted) {
+        showBigSnackBar(
+            context, AppLocalizations.of(context)!.voiceRecordingUploadFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 4), (_) => _pollPending());
+  }
+
+  Future<void> _pollPending() async {
+    if (_pending.isEmpty) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      final result = await repo.listRecordings(widget.apiaryId);
+      final byId = {for (final r in result.items) r.recordingId: r};
+      final stillPending = <VoiceRecording>[];
+      for (final rec in _pending) {
+        final status = byId[rec.recordingId]?.status;
+        if (status == voiceRecordingStatusPending ||
+            status == voiceRecordingStatusProcessing) {
+          stillPending.add(rec.copyWith(status: status));
+        } else {
+          await _discardLocalFile(rec.localPath);
+        }
+      }
+      if (!mounted) return;
+      setState(() => _pending = stillPending);
+      _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
+      if (_pending.isEmpty) {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+      }
+    } catch (_) {
+      // Best-effort — try again on the next tick.
+    }
+  }
+
+  Future<void> _discardLocalFile(String? path) async {
+    if (path == null || kIsWeb) return;
+    final file = File(path);
+    if (await file.exists()) await file.delete();
+  }
+
+  Future<void> _playRecording(VoiceRecording recording) async {
+    final path = recording.localPath;
+    if (path == null) return;
+    await _player.stop();
+    await _player.play(kIsWeb ? UrlSource(path) : DeviceFileSource(path));
   }
 
   String _formatElapsed(Duration d) {
@@ -854,10 +966,12 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   void dispose() {
     _ampSub?.cancel();
     _tickTimer?.cancel();
+    _pollTimer?.cancel();
     if (_isRecording) {
       _recorder.stop();
     }
     _recorder.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -930,6 +1044,46 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                     ),
                 textAlign: TextAlign.center,
               ),
+              if (_uploading) ...[
+                const SizedBox(height: 16),
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+              if (_pending.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Divider(height: 1),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 160),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _pending.length,
+                    itemBuilder: (_, i) {
+                      final recording = _pending[i];
+                      final isProcessing =
+                          recording.status == voiceRecordingStatusProcessing;
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.graphic_eq),
+                        title: Text(
+                          isProcessing
+                              ? l10n.voiceRecordingStatusProcessing
+                              : l10n.voiceRecordingStatusPending,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          tooltip: l10n.voiceRecordingPlayTooltip,
+                          onPressed: recording.localPath != null
+                              ? () => _playRecording(recording)
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -731,7 +731,16 @@ class AppLocalizationsPl extends AppLocalizations {
       'Wymagane jest uprawnienie do mikrofonu, aby nagrywać';
 
   @override
-  String get voiceRecordingCaptured => 'Nagranie zarejestrowane';
+  String get voiceRecordingUploadFailed => 'Nie udało się przesłać nagrania';
+
+  @override
+  String get voiceRecordingStatusPending => 'W kolejce';
+
+  @override
+  String get voiceRecordingStatusProcessing => 'Przetwarzanie...';
+
+  @override
+  String get voiceRecordingPlayTooltip => 'Odtwórz';
 
   @override
   String get apiaryCenterView => 'Wyśrodkuj widok';

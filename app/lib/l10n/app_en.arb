@@ -281,7 +281,10 @@
     }
   },
   "voiceRecordingPermissionDenied": "Microphone permission is required to record",
-  "voiceRecordingCaptured": "Recording captured",
+  "voiceRecordingUploadFailed": "Failed to upload recording",
+  "voiceRecordingStatusPending": "Queued",
+  "voiceRecordingStatusProcessing": "Processing...",
+  "voiceRecordingPlayTooltip": "Play",
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
   "hiveStatus": "Status",

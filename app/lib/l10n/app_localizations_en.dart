@@ -722,7 +722,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Microphone permission is required to record';
 
   @override
-  String get voiceRecordingCaptured => 'Recording captured';
+  String get voiceRecordingUploadFailed => 'Failed to upload recording';
+
+  @override
+  String get voiceRecordingStatusPending => 'Queued';
+
+  @override
+  String get voiceRecordingStatusProcessing => 'Processing...';
+
+  @override
+  String get voiceRecordingPlayTooltip => 'Play';
 
   @override
   String get apiaryCenterView => 'Center view';
