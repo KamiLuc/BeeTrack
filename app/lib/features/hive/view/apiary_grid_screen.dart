@@ -807,6 +807,8 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   String? _playingPath;
   late List<VoiceRecording> _pending;
   List<VoiceRecording> _readyForReview = [];
+  final ScrollController _pendingScrollController = ScrollController();
+  final ScrollController _readyForReviewScrollController = ScrollController();
 
   bool get _atPendingLimit => _pending.length >= _maxClientPendingRecordings;
 
@@ -1001,7 +1003,12 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
       setState(() {
         _pending = stillPending;
         if (newlyReady.isNotEmpty) {
-          _readyForReview = [...newlyReady, ..._readyForReview];
+          final existingIds =
+              _readyForReview.map((r) => r.recordingId).toSet();
+          final trulyNew = newlyReady
+              .where((r) => !existingIds.contains(r.recordingId))
+              .toList();
+          _readyForReview = [...trulyNew, ..._readyForReview];
         }
       });
       _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
@@ -1098,6 +1105,8 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     _tickTimer?.cancel();
     _pollTimer?.cancel();
     _playbackCompleteSub?.cancel();
+    _pendingScrollController.dispose();
+    _readyForReviewScrollController.dispose();
     if (_isRecording) {
       _recorder.stop();
     }
@@ -1110,14 +1119,16 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
-    final isWide = MediaQuery.sizeOf(context).width >= 600;
+    final screenSize = MediaQuery.sizeOf(context);
+    final isWide = screenSize.width >= 600;
     final remainingSeconds =
         (_voiceHardCapDuration - _elapsed).inSeconds.clamp(0, 999);
+    final listMaxHeight = (screenSize.height * 0.3).clamp(200.0, 340.0);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: isWide ? 480 : 380),
+        constraints: BoxConstraints(maxWidth: isWide ? 560 : 440),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
           child: Column(
@@ -1194,10 +1205,12 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                 const SizedBox(height: 20),
                 const Divider(height: 1),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 160),
+                  constraints: BoxConstraints(maxHeight: listMaxHeight),
                   child: Scrollbar(
+                    controller: _pendingScrollController,
                     thumbVisibility: true,
                     child: ListView(
+                      controller: _pendingScrollController,
                       shrinkWrap: true,
                       children: [
                         for (final recording in _pending)
@@ -1230,10 +1243,12 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                   ),
                 ),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 160),
+                  constraints: BoxConstraints(maxHeight: listMaxHeight),
                   child: Scrollbar(
+                    controller: _readyForReviewScrollController,
                     thumbVisibility: true,
                     child: ListView(
+                      controller: _readyForReviewScrollController,
                       shrinkWrap: true,
                       children: [
                         for (final recording in _readyForReview)
