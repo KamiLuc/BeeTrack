@@ -1556,6 +1556,18 @@ abstract class AppLocalizations {
   /// **'Odrzuć'**
   String get voiceReviewRejectAction;
 
+  /// No description provided for @voiceReviewRejectConfirmTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzucić nagranie?'**
+  String get voiceReviewRejectConfirmTitle;
+
+  /// No description provided for @voiceReviewRejectConfirmWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'To nagranie rozpoznało ul i zaproponowało czynność. Odrzucenie go usunie wszystko, co znalazło.'**
+  String get voiceReviewRejectConfirmWarning;
+
   /// No description provided for @voiceReviewDetailTitle.
   ///
   /// In pl, this message translates to:

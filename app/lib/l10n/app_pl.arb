@@ -307,6 +307,8 @@
   "voiceReviewAcceptFailed": "Nie udało się zaakceptować nagrania",
   "voiceReviewAcceptAction": "Akceptuj",
   "voiceReviewRejectAction": "Odrzuć",
+  "voiceReviewRejectConfirmTitle": "Odrzucić nagranie?",
+  "voiceReviewRejectConfirmWarning": "To nagranie rozpoznało ul i zaproponowało czynność. Odrzucenie go usunie wszystko, co znalazło.",
   "voiceReviewDetailTitle": "Szczegóły nagrania",
   "voiceReviewDetailActionsLabel": "Proponowane czynności",
   "voiceToolCreateInspection": "Dodaj przegląd",

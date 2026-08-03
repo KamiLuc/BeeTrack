@@ -788,6 +788,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceReviewRejectAction => 'Reject';
 
   @override
+  String get voiceReviewRejectConfirmTitle => 'Reject recording?';
+
+  @override
+  String get voiceReviewRejectConfirmWarning =>
+      'This recording identified a hive and proposed an action. Rejecting it will discard everything it found.';
+
+  @override
   String get voiceReviewDetailTitle => 'Recording details';
 
   @override

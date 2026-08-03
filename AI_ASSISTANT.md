@@ -614,7 +614,10 @@ place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings
   sub-dialog with the full transcript and each proposed action's tool name and
   arguments, plus working Accept/Reject buttons; on success the recording drops out of
   the "Ready for review" list and the mic icon's badge count updates immediately. The
-  icon carries that badge with the count of recordings awaiting review.
+  icon carries that badge with the count of recordings awaiting review. Rejecting a
+  recording that resolved a hive (i.e. a real proposal, not an error/no-action row —
+  those never carry a hive_id) requires solving a math-addition puzzle first, the same
+  confirmation the app already uses for other consequential deletes.
 - **Original plan (not built as such)** — a history-icon button opening a paginated
   full-screen list of past voice recordings, styled like a message list with status
   chips ("Queued" / "Processing…" / "Awaiting review" / "Accepted" / "Rejected" / an

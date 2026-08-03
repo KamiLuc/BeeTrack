@@ -93,6 +93,17 @@ Future<(ApiClient, _RoutingAdapter)> _fakeApiClient({
   return (apiClient, adapter);
 }
 
+Future<void> _solvePuzzleAndConfirm(WidgetTester tester, String confirmLabel) async {
+  final promptFinder = find.byWidgetPredicate((w) =>
+      w is Text && w.data != null && RegExp(r'^\d+ \+ \d+ = $').hasMatch(w.data!));
+  final promptText = tester.widget<Text>(promptFinder).data!;
+  final match = RegExp(r'(\d+) \+ (\d+)').firstMatch(promptText)!;
+  final sum = int.parse(match.group(1)!) + int.parse(match.group(2)!);
+  await tester.enterText(find.byType(TextField), '$sum');
+  await tester.tap(find.widgetWithText(TextButton, confirmLabel).last);
+  await tester.pumpAndSettle();
+}
+
 Widget _wrap(ApiClient apiClient, Widget child) => RepositoryProvider<ApiClient>.value(
       value: apiClient,
       child: MaterialApp(
@@ -400,11 +411,68 @@ void main() {
 
     await tester.tap(find.text('Reject'));
     await tester.pumpAndSettle();
+    await _solvePuzzleAndConfirm(tester, 'Reject');
 
     expect(adapter.rejectedPaths,
         contains('/api/v1/apiaries/1/voice-recordings/7/reject'));
     expect(find.text('Recording details'), findsNothing);
     expect(find.text('inspected hive alpha'), findsNothing);
+  });
+
+  testWidgets(
+      'rejecting a normal-proposal recording requires solving a math puzzle',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reject'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reject recording?'), findsOneWidget);
+    expect(adapter.rejectedPaths, isEmpty);
+
+    // Enter a wrong answer first — should not reject.
+    await tester.enterText(find.byType(TextField), '-1');
+    await tester.tap(find.widgetWithText(TextButton, 'Reject').last);
+    await tester.pumpAndSettle();
+    expect(adapter.rejectedPaths, isEmpty);
+    expect(find.text('Wrong answer'), findsOneWidget);
+  });
+
+  testWidgets(
+      'dismissing an error/no-action recording does not require a math puzzle',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_noActionRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('just chatting, nothing to log'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reject'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reject recording?'), findsNothing);
+    expect(adapter.rejectedPaths,
+        contains('/api/v1/apiaries/1/voice-recordings/8/reject'));
   });
 
   testWidgets(
@@ -500,6 +568,7 @@ void main() {
 
     await tester.tap(find.text('Reject'));
     await tester.pumpAndSettle();
+    await _solvePuzzleAndConfirm(tester, 'Reject');
 
     expect(find.text('Recording details'), findsOneWidget);
     expect(find.text('Failed to dismiss recording'), findsOneWidget);

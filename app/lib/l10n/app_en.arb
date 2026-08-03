@@ -307,6 +307,8 @@
   "voiceReviewAcceptFailed": "Failed to accept recording",
   "voiceReviewAcceptAction": "Accept",
   "voiceReviewRejectAction": "Reject",
+  "voiceReviewRejectConfirmTitle": "Reject recording?",
+  "voiceReviewRejectConfirmWarning": "This recording identified a hive and proposed an action. Rejecting it will discard everything it found.",
   "voiceReviewDetailTitle": "Recording details",
   "voiceReviewDetailActionsLabel": "Proposed actions",
   "voiceToolCreateInspection": "Create inspection",

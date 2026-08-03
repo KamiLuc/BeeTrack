@@ -13,6 +13,7 @@ import 'package:record/record.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/delete_dialog.dart';
 import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -1095,7 +1096,22 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     widget.onRecordingResolved();
   }
 
+  bool _hasResolvedHive(VoiceRecording recording) =>
+      recording.voiceActions.any((a) => a.hiveId != null);
+
   Future<bool> _rejectRecording(VoiceRecording recording) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (_hasResolvedHive(recording)) {
+      final confirmed = await showDeleteDialog(
+        context,
+        title: l10n.voiceReviewRejectConfirmTitle,
+        warning: l10n.voiceReviewRejectConfirmWarning,
+        l10n: l10n,
+        withPuzzle: true,
+        confirmLabel: l10n.voiceReviewRejectAction,
+      );
+      if (!confirmed || !mounted) return false;
+    }
     try {
       final repo = VoiceRepository(api: context.read<ApiClient>());
       await repo.rejectRecording(widget.apiaryId, recording.recordingId);

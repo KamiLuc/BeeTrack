@@ -796,6 +796,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceReviewRejectAction => 'Odrzuć';
 
   @override
+  String get voiceReviewRejectConfirmTitle => 'Odrzucić nagranie?';
+
+  @override
+  String get voiceReviewRejectConfirmWarning =>
+      'To nagranie rozpoznało ul i zaproponowało czynność. Odrzucenie go usunie wszystko, co znalazło.';
+
+  @override
   String get voiceReviewDetailTitle => 'Szczegóły nagrania';
 
   @override
