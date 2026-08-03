@@ -1546,7 +1546,9 @@ class _VoiceRecordingDetailDialogState
 
     return AlertDialog(
       title: Text(l10n.voiceReviewDetailTitle),
-      content: SingleChildScrollView(
+      content: SizedBox(
+        width: AppLayout.dialogWidth(context),
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -1595,6 +1597,7 @@ class _VoiceRecordingDetailDialogState
                         ),
                 ),
           ],
+        ),
         ),
       ),
       actions: [

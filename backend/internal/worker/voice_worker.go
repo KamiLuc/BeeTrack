@@ -44,6 +44,8 @@ const (
 	hiveContextDays         = 90
 
 	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. If the transcript doesn't describe any loggable action at all, don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean."
+
+	notesFieldDescription = "Freeform notes covering anything the beekeeper said that isn't already captured by this tool's other fields — don't restate what a structured field already holds. Write it as clean, grammatically correct prose in the beekeeper's own language, fixing the disfluencies and run-ons typical of dictated speech, not a verbatim transcript fragment. Omit entirely if there's nothing left to add."
 )
 
 type VoiceRecordingRepository interface {
@@ -461,7 +463,7 @@ func createInspectionTool() llm.Tool {
 				"enum": model.ValidDiseases,
 			},
 		},
-		"notes": map[string]any{"type": "string", "description": "Freeform notes, close to what the beekeeper said."},
+		"notes": map[string]any{"type": "string", "description": notesFieldDescription},
 	}, nil)
 }
 
@@ -469,7 +471,7 @@ func createTreatmentTool() llm.Tool {
 	return functionTool(model.VoiceActionToolCreateTreatment, "Propose logging a treatment applied to the hive.", map[string]any{
 		"medicine_name": map[string]any{"type": "string", "description": "Name of the medicine/treatment used."},
 		"dose":          map[string]any{"type": "string", "description": `Dose given, e.g. "1 strip". Defaults to "1" if not mentioned.`},
-		"notes":         map[string]any{"type": "string"},
+		"notes":         map[string]any{"type": "string", "description": notesFieldDescription},
 	}, []string{"medicine_name"})
 }
 
@@ -478,7 +480,7 @@ func createHarvestTool() llm.Tool {
 		"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99."},
 		"half_frames": map[string]any{"type": "integer", "description": "Half frames harvested, 0-99."},
 		"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0."},
-		"notes":       map[string]any{"type": "string"},
+		"notes":       map[string]any{"type": "string", "description": notesFieldDescription},
 	}, []string{"kilograms"})
 }
 
@@ -486,7 +488,7 @@ func createFeedingTool() llm.Tool {
 	return functionTool(model.VoiceActionToolCreateFeeding, "Propose logging feed given to the hive.", map[string]any{
 		"feed_type": map[string]any{"type": "string", "description": "Type of feed given, e.g. sugar syrup, fondant."},
 		"amount":    map[string]any{"type": "string", "description": `Amount fed, e.g. "1L", "500g".`},
-		"notes":     map[string]any{"type": "string"},
+		"notes":     map[string]any{"type": "string", "description": notesFieldDescription},
 	}, []string{"feed_type"})
 }
 

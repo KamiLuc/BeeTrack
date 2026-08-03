@@ -323,6 +323,41 @@ void main() {
   });
 
   testWidgets(
+      'detail dialog content is width-capped even on a wide viewport',
+      (tester) async {
+    final originalSize = tester.view.physicalSize;
+    final originalRatio = tester.view.devicePixelRatio;
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.physicalSize = originalSize;
+      tester.view.devicePixelRatio = originalRatio;
+    });
+
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    final sizedBoxFinder = find.ancestor(
+      of: find.text('Create inspection'),
+      matching: find.byType(SizedBox),
+    );
+    final sizedBox = tester.widget<SizedBox>(sizedBoxFinder.first);
+    expect(sizedBox.width, lessThan(1600));
+    expect(sizedBox.width, 560.0);
+  });
+
+  testWidgets(
       'tapping a ready-for-review tile with no tool arguments shows the tool label with no argument lines',
       (tester) async {
     final (apiClient, _) = await _fakeApiClient(
