@@ -376,6 +376,119 @@ func TestVoiceUpload_CreateFailsRollsBackFile(t *testing.T) {
 	}
 }
 
+func TestVoiceCancel_Success(t *testing.T) {
+	svc, apiaryMock, voiceMock, dir := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	if err := os.WriteFile(filepath.Join(dir, "audio.webm"), []byte{1, 2, 3}, 0o644); err != nil {
+		t.Fatalf("write audio file: %v", err)
+	}
+	audioPath := "audio.webm"
+	voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending, AudioPath: &audioPath}
+
+	rec, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rec.Status != model.VoiceRecordingStatusCancelled {
+		t.Errorf("expected cancelled, got %s", rec.Status)
+	}
+	if rec.AudioPath != nil {
+		t.Errorf("expected AudioPath cleared, got %v", *rec.AudioPath)
+	}
+	if voiceMock.updatedRecording == nil || voiceMock.updatedRecording.Status != model.VoiceRecordingStatusCancelled {
+		t.Error("expected UpdateRecording to persist cancelled status")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "audio.webm")); !os.IsNotExist(err) {
+		t.Errorf("expected audio file to be removed, stat err: %v", err)
+	}
+}
+
+func TestVoiceCancel_NoAudioPath(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending, AudioPath: nil}
+
+	rec, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rec.Status != model.VoiceRecordingStatusCancelled {
+		t.Errorf("expected cancelled, got %s", rec.Status)
+	}
+	if rec.AudioPath != nil {
+		t.Errorf("expected AudioPath to remain nil, got %v", *rec.AudioPath)
+	}
+}
+
+func TestVoiceCancel_NotCancelable(t *testing.T) {
+	statuses := []string{
+		model.VoiceRecordingStatusProcessing,
+		model.VoiceRecordingStatusCompleted,
+		model.VoiceRecordingStatusAccepted,
+		model.VoiceRecordingStatusRejected,
+		model.VoiceRecordingStatusCancelled,
+	}
+	for _, status := range statuses {
+		t.Run(status, func(t *testing.T) {
+			svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+			apiaryMock.apiary = &model.Apiary{ID: 1}
+			voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: status}
+
+			_, err := svc.Cancel(context.Background(), 1, 1, 1)
+			if !errors.Is(err, ErrRecordingNotCancelable) {
+				t.Errorf("expected ErrRecordingNotCancelable, got %v", err)
+			}
+			if voiceMock.updatedRecording != nil {
+				t.Error("expected UpdateRecording not to be called")
+			}
+		})
+	}
+}
+
+func TestVoiceCancel_RecordingWrongApiary(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 2, Status: model.VoiceRecordingStatusPending}
+
+	_, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if !errors.Is(err, ErrRecordingNotFound) {
+		t.Errorf("expected ErrRecordingNotFound, got %v", err)
+	}
+}
+
+func TestVoiceCancel_RecordingNotFound(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recording = nil
+
+	_, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if !errors.Is(err, ErrRecordingNotFound) {
+		t.Errorf("expected ErrRecordingNotFound, got %v", err)
+	}
+}
+
+func TestVoiceCancel_ApiaryNotFound(t *testing.T) {
+	svc, _, voiceMock, _ := newTestVoiceService(t)
+	voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending}
+
+	_, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceCancel_UpdateRecordingFails(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending}
+	voiceMock.updateRecErr = errors.New("db error")
+
+	_, err := svc.Cancel(context.Background(), 1, 1, 1)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func completedRecording() *model.VoiceRecording {
 	return &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted}
 }

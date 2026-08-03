@@ -3250,6 +3250,24 @@ Returns a paginated list of voice recordings for the apiary ordered by `created_
 
 ---
 
+### DELETE /apiaries/{id}/voice-recordings/{recordingId} 🔒
+
+Cancels a recording. Only valid while the recording's status is `pending` (not yet claimed by the background worker). This is a soft cancel: the recording row is kept with its status flipped to `cancelled`; only the server-side audio file is deleted and `audio_path` is cleared to null.
+
+**Response** `204 No Content`
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path `{id}` or `{recordingId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `RECORDING_NOT_FOUND` | 404 | `recordingId` doesn't exist, or belongs to a different apiary than `{id}` |
+| `RECORDING_NOT_CANCELABLE` | 409 | Recording's status isn't `pending` (already processing/completed/accepted/rejected/failed/cancelled) |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### POST /apiaries/{id}/voice-recordings/{recordingId}/accept 🔒
 
 Accepts a recording's proposed actions. Only valid while the recording's status is `completed` (the "awaiting review" state reached once transcription and action proposal have finished). Runs every proposed `voice_actions` row's real service call (`create_inspection`/`create_treatment`/`create_harvest`/`create_feeding`) independently — one action failing doesn't block the others or fail the request. Each action's own `status` becomes `applied` or `error`; the recording itself always moves to `accepted` regardless of individual action outcomes.

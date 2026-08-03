@@ -5727,20 +5727,21 @@ paths:
       description: 'Uploads a voice recording to be transcribed and turned into a proposed inspection
         log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`,
         `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for
-        the client''s ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.  The
-        uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted
-        with status `pending`. A background worker (only runs if `OPENROUTER_API_KEY` is set) polls for
-        `pending` rows, transcribes the audio via OpenRouter''s Whisper-compatible transcription endpoint
-        (`OPENROUTER_WHISPER_MODEL`, default `openai/whisper-1`), then resolves which hive (if any) of
-        the apiary''s hives the transcript is about. If no hive is clearly named, or more than one is,
-        a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED` or `MULTIPLE_HIVES_MENTIONED`)
-        and the recording moves straight to `completed`. If exactly one hive resolves, the worker makes
-        a second OpenRouter chat-completions call with that hive''s recent context and may propose zero
-        or more actions — each recognized action (create inspection, treatment, harvest, or feeding) is
-        stored as its own `voice_actions` row with `status = ''proposed''`, unvalidated arguments, tied
-        to that hive; naming no actionable activity leaves the recording with zero `voice_actions` rows.
-        Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues the
-        recording; reviewing/accepting/rejecting proposed actions is not yet implemented.'
+        the client''s ~3-minute recording cap). Each user may have at most 10 recordings awaiting review
+        (`pending`/`processing`/`completed`) at a time — accepted, rejected, failed, or cancelled recordings
+        don''t count against this limit.  The uploaded file is saved to disk under `AUDIO_STORAGE_PATH`
+        and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs
+        if `OPENROUTER_API_KEY` is set) polls for `pending` rows, transcribes the audio via OpenRouter''s
+        Whisper-compatible transcription endpoint (`OPENROUTER_WHISPER_MODEL`, default `openai/whisper-1`),
+        then resolves which hive (if any) of the apiary''s hives the transcript is about. If no hive is
+        clearly named, or more than one is, a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED`
+        or `MULTIPLE_HIVES_MENTIONED`) and the recording moves straight to `completed`. If exactly one
+        hive resolves, the worker makes a second OpenRouter chat-completions call with that hive''s recent
+        context and may propose zero or more actions — each recognized action (create inspection, treatment,
+        harvest, or feeding) is stored as its own `voice_actions` row with `status = ''proposed''`, unvalidated
+        arguments, tied to that hive; naming no actionable activity leaves the recording with zero `voice_actions`
+        rows. Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues
+        the recording; reviewing/accepting/rejecting proposed actions is not yet implemented.'
       parameters:
       - name: id
         in: path
@@ -5807,7 +5808,7 @@ paths:
                     code: APIARY_NOT_FOUND
                     message: Apiary does not exist or user is not a member
         '422':
-          description: Caller already has 20 stored recordings
+          description: Caller already has 10 recordings awaiting review
           content:
             application/json:
               schema: *id001
@@ -5815,7 +5816,7 @@ paths:
                 MAX_RECORDINGS_REACHED:
                   value:
                     code: MAX_RECORDINGS_REACHED
-                    message: Caller already has 20 stored recordings
+                    message: Caller already has 10 recordings awaiting review
         '500':
           description: Unexpected server error
           content:
@@ -5957,6 +5958,86 @@ paths:
                   value:
                     code: APIARY_NOT_FOUND
                     message: Apiary does not exist or user is not a member
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
+  /api/v1/apiaries/{id}/voice-recordings/{recordingId}:
+    delete:
+      tags:
+      - Voice Logging
+      summary: Cancels a recording.
+      description: 'Cancels a recording. Only valid while the recording''s status is `pending` (not yet
+        claimed by the background worker). This is a soft cancel: the recording row is kept with its status
+        flipped to `cancelled`; only the server-side audio file is deleted and `audio_path` is cleared
+        to null.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: recordingId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Success
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path `{id}` or `{recordingId}` is not a valid integer
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}` or `{recordingId}` is not a valid integer
+        '404':
+          description: Apiary does not exist or user is not a member; `recordingId` doesn't exist, or
+            belongs to a different apiary than `{id}`
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+                RECORDING_NOT_FOUND:
+                  value:
+                    code: RECORDING_NOT_FOUND
+                    message: '`recordingId` doesn''t exist, or belongs to a different apiary than `{id}`'
+        '409':
+          description: Recording's status isn't `pending` (already processing/completed/accepted/rejected/failed/cancelled)
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_NOT_CANCELABLE:
+                  value:
+                    code: RECORDING_NOT_CANCELABLE
+                    message: Recording's status isn't `pending` (already processing/completed/accepted/rejected/failed/cancelled)
         '500':
           description: Unexpected server error
           content:

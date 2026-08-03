@@ -329,6 +329,114 @@ func TestVoiceList_Handler_Empty(t *testing.T) {
 	}
 }
 
+func newCancelRequest(apiaryID, recordingID string) *http.Request {
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/apiaries/"+apiaryID+"/voice-recordings/"+recordingID, nil)
+	req.SetPathValue("id", apiaryID)
+	req.SetPathValue("recordingId", recordingID)
+	return req
+}
+
+func TestVoiceCancel_Handler_Success(t *testing.T) {
+	audioPath := "audio.webm"
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending, AudioPath: &audioPath},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Cancel))
+
+	req := authedRequest(t, newCancelRequest("1", "1"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec.Body.Len() != 0 {
+		t.Errorf("expected empty body, got %q", rec.Body.String())
+	}
+}
+
+func TestVoiceCancel_Handler_NotCancelable(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Cancel))
+
+	req := authedRequest(t, newCancelRequest("1", "1"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := decodeErrorCode(t, rec); code != "RECORDING_NOT_CANCELABLE" {
+		t.Errorf("expected code RECORDING_NOT_CANCELABLE, got %q", code)
+	}
+}
+
+func TestVoiceCancel_Handler_RecordingNotFound(t *testing.T) {
+	repo := &fakeVoiceRepo{recording: nil}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Cancel))
+
+	req := authedRequest(t, newCancelRequest("1", "1"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := decodeErrorCode(t, rec); code != "RECORDING_NOT_FOUND" {
+		t.Errorf("expected code RECORDING_NOT_FOUND, got %q", code)
+	}
+}
+
+func TestVoiceCancel_Handler_MissingAuth(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Cancel))
+
+	req := newCancelRequest("1", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVoiceCancel_Handler_InvalidPathIDs(t *testing.T) {
+	tests := []struct {
+		name        string
+		apiaryID    string
+		recordingID string
+	}{
+		{"invalid apiary id", "not-a-number", "1"},
+		{"invalid recording id", "1", "not-a-number"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &fakeVoiceRepo{
+				recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending},
+			}
+			h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+			handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Cancel))
+
+			req := authedRequest(t, newCancelRequest(tt.apiaryID, tt.recordingID), 1)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestVoiceAccept_Handler_Success(t *testing.T) {
 	repo := &fakeVoiceRepo{
 		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},

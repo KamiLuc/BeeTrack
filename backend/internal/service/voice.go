@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	ErrInvalidAudioType      = errors.New("unsupported audio type; allowed: audio/webm, audio/mp4, audio/wav")
-	ErrRecordingTooLong      = errors.New("recording exceeds 15 MB limit")
-	ErrMaxRecordingsReached  = errors.New("you already have the maximum of 10 recordings awaiting review")
-	ErrRecordingNotFound     = errors.New("voice recording not found")
-	ErrRecordingNotCompleted = errors.New("voice recording is not awaiting review")
+	ErrInvalidAudioType       = errors.New("unsupported audio type; allowed: audio/webm, audio/mp4, audio/wav")
+	ErrRecordingTooLong       = errors.New("recording exceeds 15 MB limit")
+	ErrMaxRecordingsReached   = errors.New("you already have the maximum of 10 recordings awaiting review")
+	ErrRecordingNotFound      = errors.New("voice recording not found")
+	ErrRecordingNotCompleted  = errors.New("voice recording is not awaiting review")
+	ErrRecordingNotCancelable = errors.New("voice recording can only be cancelled while pending")
 )
 
 // MaxAudioBytes bounds an uploaded recording's size as a proxy for the client's 3-minute duration
@@ -182,6 +183,35 @@ func (s *VoiceService) List(ctx context.Context, userID, apiaryID int64, limit, 
 	}
 
 	return recs, grouped, total, nil
+}
+
+func (s *VoiceService) Cancel(ctx context.Context, userID, apiaryID, recordingID int64) (*model.VoiceRecording, error) {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrApiaryNotFound
+		}
+		return nil, fmt.Errorf("get apiary: %w", err)
+	}
+	rec, err := s.recordings.GetRecordingByID(ctx, recordingID)
+	if err != nil {
+		return nil, fmt.Errorf("get recording: %w", err)
+	}
+	if rec == nil || rec.ApiaryID != apiaryID {
+		return nil, ErrRecordingNotFound
+	}
+	if rec.Status != model.VoiceRecordingStatusPending {
+		return nil, ErrRecordingNotCancelable
+	}
+
+	if rec.AudioPath != nil {
+		_ = os.Remove(filepath.Join(s.storagePath, *rec.AudioPath))
+	}
+	rec.Status = model.VoiceRecordingStatusCancelled
+	rec.AudioPath = nil
+	if err := s.recordings.UpdateRecording(ctx, rec); err != nil {
+		return nil, fmt.Errorf("update recording: %w", err)
+	}
+	return rec, nil
 }
 
 func (s *VoiceService) getOwnedCompletedRecording(ctx context.Context, userID, apiaryID, recordingID int64) (*model.VoiceRecording, error) {

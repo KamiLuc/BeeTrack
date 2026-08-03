@@ -68,6 +68,8 @@ func voiceError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusNotFound, "RECORDING_NOT_FOUND", err.Error())
 	case errors.Is(err, service.ErrRecordingNotCompleted):
 		respond.Error(w, http.StatusConflict, "RECORDING_NOT_COMPLETED", err.Error())
+	case errors.Is(err, service.ErrRecordingNotCancelable):
+		respond.Error(w, http.StatusConflict, "RECORDING_NOT_CANCELABLE", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -133,6 +135,29 @@ func (h *VoiceHandler) List(w http.ResponseWriter, r *http.Request) {
 		items[i] = recordingListJSON(rec, actionsByRecording[rec.ID])
 	}
 	respond.JSON(w, http.StatusOK, map[string]any{"items": items, "total": total})
+}
+
+func (h *VoiceHandler) Cancel(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
+		return
+	}
+	recordingID, ok := parsePathID(w, r, "recordingId", "invalid recording id")
+	if !ok {
+		return
+	}
+
+	if _, err := h.voice.Cancel(r.Context(), userID, apiaryID, recordingID); err != nil {
+		voiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *VoiceHandler) Accept(w http.ResponseWriter, r *http.Request) {
