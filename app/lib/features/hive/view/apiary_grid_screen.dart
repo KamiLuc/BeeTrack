@@ -485,7 +485,10 @@ class _FilterBar extends StatelessWidget {
   Future<void> _showVoiceRecordingSheet(BuildContext context) async {
     await showDialog<void>(
       context: context,
-      builder: (_) => _VoiceRecordingDialog(apiaryId: apiaryId),
+      builder: (_) => _VoiceRecordingDialog(
+        apiaryId: apiaryId,
+        onRecordingResolved: onVoiceDialogClosed,
+      ),
     );
     onVoiceDialogClosed();
   }
@@ -784,8 +787,12 @@ class _VoicePendingCache {
 
 class _VoiceRecordingDialog extends StatefulWidget {
   final int apiaryId;
+  final VoidCallback onRecordingResolved;
 
-  const _VoiceRecordingDialog({required this.apiaryId});
+  const _VoiceRecordingDialog({
+    required this.apiaryId,
+    required this.onRecordingResolved,
+  });
 
   @override
   State<_VoiceRecordingDialog> createState() => _VoiceRecordingDialogState();
@@ -1071,25 +1078,52 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   void _showRecordingDetail(VoiceRecording recording) {
     showDialog<void>(
       context: context,
-      builder: (_) => _VoiceRecordingDetailDialog(recording: recording),
+      builder: (_) => _VoiceRecordingDetailDialog(
+        recording: recording,
+        onAccept: () => _acceptRecording(recording),
+        onReject: () => _rejectRecording(recording),
+      ),
     );
   }
 
-  Future<void> _rejectRecording(VoiceRecording recording) async {
+  void _removeFromReadyForReview(VoiceRecording recording) {
+    setState(() {
+      _readyForReview = _readyForReview
+          .where((r) => r.recordingId != recording.recordingId)
+          .toList();
+    });
+    widget.onRecordingResolved();
+  }
+
+  Future<bool> _rejectRecording(VoiceRecording recording) async {
     try {
       final repo = VoiceRepository(api: context.read<ApiClient>());
       await repo.rejectRecording(widget.apiaryId, recording.recordingId);
-      if (!mounted) return;
-      setState(() {
-        _readyForReview = _readyForReview
-            .where((r) => r.recordingId != recording.recordingId)
-            .toList();
-      });
+      if (!mounted) return false;
+      _removeFromReadyForReview(recording);
+      return true;
     } catch (_) {
       if (mounted) {
         showBigSnackBar(
             context, AppLocalizations.of(context)!.voiceReviewRejectFailed);
       }
+      return false;
+    }
+  }
+
+  Future<bool> _acceptRecording(VoiceRecording recording) async {
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      await repo.acceptRecording(widget.apiaryId, recording.recordingId);
+      if (!mounted) return false;
+      _removeFromReadyForReview(recording);
+      return true;
+    } catch (_) {
+      if (mounted) {
+        showBigSnackBar(
+            context, AppLocalizations.of(context)!.voiceReviewAcceptFailed);
+      }
+      return false;
     }
   }
 
@@ -1410,10 +1444,38 @@ class _ReadyForReviewTile extends StatelessWidget {
   }
 }
 
-class _VoiceRecordingDetailDialog extends StatelessWidget {
+class _VoiceRecordingDetailDialog extends StatefulWidget {
   final VoiceRecording recording;
+  final Future<bool> Function() onAccept;
+  final Future<bool> Function() onReject;
 
-  const _VoiceRecordingDetailDialog({required this.recording});
+  const _VoiceRecordingDetailDialog({
+    required this.recording,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  @override
+  State<_VoiceRecordingDetailDialog> createState() =>
+      _VoiceRecordingDetailDialogState();
+}
+
+class _VoiceRecordingDetailDialogState
+    extends State<_VoiceRecordingDetailDialog> {
+  bool _submitting = false;
+
+  VoiceRecording get recording => widget.recording;
+
+  Future<void> _handle(Future<bool> Function() action) async {
+    setState(() => _submitting = true);
+    final success = await action();
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _submitting = false);
+    }
+  }
 
   String _toolLabel(AppLocalizations l10n, String? toolName) {
     switch (toolName) {
@@ -1463,6 +1525,8 @@ class _VoiceRecordingDetailDialog extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final transcript = recording.transcript?.trim();
+    final hasProposedAction =
+        recording.voiceActions.any((a) => a.status == 'proposed');
 
     return AlertDialog(
       title: Text(l10n.voiceReviewDetailTitle),
@@ -1519,9 +1583,19 @@ class _VoiceRecordingDetailDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
           child: Text(l10n.generalClose),
         ),
+        TextButton(
+          onPressed: _submitting ? null : () => _handle(widget.onReject),
+          style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+          child: Text(l10n.voiceReviewRejectAction),
+        ),
+        if (hasProposedAction)
+          FilledButton(
+            onPressed: _submitting ? null : () => _handle(widget.onAccept),
+            child: Text(l10n.voiceReviewAcceptAction),
+          ),
       ],
     );
   }

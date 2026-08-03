@@ -779,6 +779,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceReviewRejectFailed => 'Failed to dismiss recording';
 
   @override
+  String get voiceReviewAcceptFailed => 'Failed to accept recording';
+
+  @override
+  String get voiceReviewAcceptAction => 'Accept';
+
+  @override
+  String get voiceReviewRejectAction => 'Reject';
+
+  @override
   String get voiceReviewDetailTitle => 'Recording details';
 
   @override

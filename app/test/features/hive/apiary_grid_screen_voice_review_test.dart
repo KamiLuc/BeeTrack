@@ -15,11 +15,15 @@ import 'package:app/features/hive/view/apiary_grid_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
 class _RoutingAdapter implements HttpClientAdapter {
-  _RoutingAdapter({required this.hivesJson, required this.recordingsJson});
+  _RoutingAdapter({required this.hivesJson, required List<Map<String, dynamic>> recordingsJson})
+      : recordingsJson = List.of(recordingsJson);
 
   final List<Map<String, dynamic>> hivesJson;
   final List<Map<String, dynamic>> recordingsJson;
   final List<String> rejectedPaths = [];
+  final List<String> acceptedPaths = [];
+  bool failAccept = false;
+  bool failReject = false;
 
   @override
   Future<ResponseBody> fetch(
@@ -28,7 +32,25 @@ class _RoutingAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     if (options.path.endsWith('/reject')) {
+      if (failReject) {
+        return ResponseBody.fromString('{}', 500, headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        });
+      }
       rejectedPaths.add(options.path);
+      _removeResolvedRecording(options.path);
+      return ResponseBody.fromString('{}', 200, headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      });
+    }
+    if (options.path.endsWith('/accept')) {
+      if (failAccept) {
+        return ResponseBody.fromString('{}', 500, headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        });
+      }
+      acceptedPaths.add(options.path);
+      _removeResolvedRecording(options.path);
       return ResponseBody.fromString('{}', 200, headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
       });
@@ -46,6 +68,12 @@ class _RoutingAdapter implements HttpClientAdapter {
         Headers.contentTypeHeader: [Headers.jsonContentType],
       },
     );
+  }
+
+  void _removeResolvedRecording(String path) {
+    final segments = path.split('/');
+    final recordingId = int.parse(segments[segments.length - 2]);
+    recordingsJson.removeWhere((r) => r['recording_id'] == recordingId);
   }
 
   @override
@@ -324,5 +352,156 @@ void main() {
 
     expect(find.text('Recording details'), findsOneWidget);
     expect(find.text("Couldn't identify the hive"), findsNWidgets(2));
+  });
+
+  testWidgets(
+      'accepting a normal-proposal recording from the detail dialog calls accept and removes it from the list',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Accept'), findsOneWidget);
+    await tester.tap(find.text('Accept'));
+    await tester.pumpAndSettle();
+
+    expect(adapter.acceptedPaths,
+        contains('/api/v1/apiaries/1/voice-recordings/7/accept'));
+    expect(find.text('Recording details'), findsNothing);
+    expect(find.text('inspected hive alpha'), findsNothing);
+  });
+
+  testWidgets(
+      'rejecting a normal-proposal recording from the detail dialog calls reject and removes it from the list',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reject'));
+    await tester.pumpAndSettle();
+
+    expect(adapter.rejectedPaths,
+        contains('/api/v1/apiaries/1/voice-recordings/7/reject'));
+    expect(find.text('Recording details'), findsNothing);
+    expect(find.text('inspected hive alpha'), findsNothing);
+  });
+
+  testWidgets(
+      'a failed accept keeps the recording and shows an error toast',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+    adapter.failAccept = true;
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Accept'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Failed to accept recording'), findsOneWidget);
+  });
+
+  testWidgets('no Accept button is shown for an error/no-action recording',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_hiveNotIdentifiedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('the bees looked fine'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Accept'), findsNothing);
+    expect(find.text('Reject'), findsOneWidget);
+  });
+
+  testWidgets(
+      'the mic badge count drops immediately after accepting from the detail dialog, without closing the voice dialog',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson(), _noActionRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Accept'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsNothing);
+    expect(find.text('Ready for review'), findsWidgets);
+    expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a failed reject keeps the recording and shows an error toast',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+    adapter.failReject = true;
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reject'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Failed to dismiss recording'), findsOneWidget);
   });
 }

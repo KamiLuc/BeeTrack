@@ -611,9 +611,10 @@ place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings
   shows a truncated transcript preview and a status-derived subtitle (normal proposal /
   no action recognized / an action's error), with a dismiss button on the error/no-action
   rows that calls Reject directly from the row. Tapping a normal-proposal row opens a
-  read-only sub-dialog with the full transcript and each proposed action's tool name and
-  arguments. Accept/Reject-from-detail is not wired up yet (still to come); the mic
-  icon carries a badge with the count of recordings awaiting review.
+  sub-dialog with the full transcript and each proposed action's tool name and
+  arguments, plus working Accept/Reject buttons; on success the recording drops out of
+  the "Ready for review" list and the mic icon's badge count updates immediately. The
+  icon carries that badge with the count of recordings awaiting review.
 - **Original plan (not built as such)** — a history-icon button opening a paginated
   full-screen list of past voice recordings, styled like a message list with status
   chips ("Queued" / "Processing…" / "Awaiting review" / "Accepted" / "Rejected" / an

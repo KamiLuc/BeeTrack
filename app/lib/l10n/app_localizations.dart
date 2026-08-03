@@ -1538,6 +1538,24 @@ abstract class AppLocalizations {
   /// **'Nie udało się odrzucić nagrania'**
   String get voiceReviewRejectFailed;
 
+  /// No description provided for @voiceReviewAcceptFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się zaakceptować nagrania'**
+  String get voiceReviewAcceptFailed;
+
+  /// No description provided for @voiceReviewAcceptAction.
+  ///
+  /// In pl, this message translates to:
+  /// **'Akceptuj'**
+  String get voiceReviewAcceptAction;
+
+  /// No description provided for @voiceReviewRejectAction.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzuć'**
+  String get voiceReviewRejectAction;
+
   /// No description provided for @voiceReviewDetailTitle.
   ///
   /// In pl, this message translates to:

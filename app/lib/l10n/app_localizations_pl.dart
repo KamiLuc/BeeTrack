@@ -787,6 +787,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceReviewRejectFailed => 'Nie udało się odrzucić nagrania';
 
   @override
+  String get voiceReviewAcceptFailed => 'Nie udało się zaakceptować nagrania';
+
+  @override
+  String get voiceReviewAcceptAction => 'Akceptuj';
+
+  @override
+  String get voiceReviewRejectAction => 'Odrzuć';
+
+  @override
   String get voiceReviewDetailTitle => 'Szczegóły nagrania';
 
   @override
