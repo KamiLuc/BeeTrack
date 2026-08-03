@@ -150,6 +150,10 @@ func (r *VoiceRepository) UpdateAction(ctx context.Context, action *model.VoiceA
 	return r.db.WithContext(ctx).Save(action).Error
 }
 
+func (r *VoiceRepository) DeleteActionsByRecordingID(ctx context.Context, recordingID int64) error {
+	return r.db.WithContext(ctx).Where("voice_recording_id = ?", recordingID).Delete(&model.VoiceAction{}).Error
+}
+
 func (r *VoiceRepository) CreateLLMCall(ctx context.Context, call *model.VoiceLLMCall) error {
 	return r.db.WithContext(ctx).Create(call).Error
 }

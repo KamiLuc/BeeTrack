@@ -18,8 +18,11 @@ import (
 
 // fakeVoiceRepo is a minimal service.VoiceRepository for handler tests.
 type fakeVoiceRepo struct {
-	count     int64
-	createErr error
+	count        int64
+	createErr    error
+	recording    *model.VoiceRecording
+	actions      []*model.VoiceAction
+	deleteCalled bool
 }
 
 func (f *fakeVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRecording) error {
@@ -33,6 +36,239 @@ func (f *fakeVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRec
 func (f *fakeVoiceRepo) CountRecordingsByUserID(ctx context.Context, userID int64) (int64, error) {
 	return f.count, nil
 }
+
+func (f *fakeVoiceRepo) GetRecordingByID(ctx context.Context, id int64) (*model.VoiceRecording, error) {
+	return f.recording, nil
+}
+
+func (f *fakeVoiceRepo) UpdateRecording(ctx context.Context, rec *model.VoiceRecording) error {
+	return nil
+}
+
+func (f *fakeVoiceRepo) ListActionsByRecordingID(ctx context.Context, recordingID int64) ([]*model.VoiceAction, error) {
+	return f.actions, nil
+}
+
+func (f *fakeVoiceRepo) UpdateAction(ctx context.Context, action *model.VoiceAction) error {
+	return nil
+}
+
+func (f *fakeVoiceRepo) DeleteActionsByRecordingID(ctx context.Context, recordingID int64) error {
+	f.deleteCalled = true
+	return nil
+}
+
+// fakeInspectionCreator is a minimal service.InspectionCreator for handler tests.
+type fakeInspectionCreator struct{ createErr error }
+
+func (f *fakeInspectionCreator) Create(ctx context.Context, userID, apiaryID, hiveID int64, params service.InspectionParams) (*model.Inspection, error) {
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	return &model.Inspection{ID: 1}, nil
+}
+
+func (f *fakeInspectionCreator) AddDisease(ctx context.Context, userID, apiaryID, hiveID, inspectionID int64, disease, notes string) (*model.InspectionDisease, error) {
+	return &model.InspectionDisease{ID: 1}, nil
+}
+
+// fakeTreatmentCreator is a minimal service.TreatmentCreator for handler tests.
+type fakeTreatmentCreator struct{}
+
+func (f *fakeTreatmentCreator) Create(ctx context.Context, userID, apiaryID, hiveID int64, params service.TreatmentParams) (*model.Treatment, error) {
+	return &model.Treatment{ID: 1}, nil
+}
+
+// fakeHarvestCreator is a minimal service.HarvestCreator for handler tests.
+type fakeHarvestCreator struct{}
+
+func (f *fakeHarvestCreator) Create(ctx context.Context, userID, apiaryID, hiveID int64, params service.HarvestParams) (*model.Harvest, error) {
+	return &model.Harvest{ID: 1}, nil
+}
+
+// fakeFeedingCreator is a minimal service.FeedingCreator for handler tests.
+type fakeFeedingCreator struct{}
+
+func (f *fakeFeedingCreator) Create(ctx context.Context, userID, apiaryID, hiveID int64, params service.FeedingParams) (*model.Feeding, error) {
+	return &model.Feeding{ID: 1}, nil
+}
+
+// fakeVoiceHiveReader is a minimal service.VoiceHiveReader for handler tests.
+type fakeVoiceHiveReader struct{}
+
+func (f *fakeVoiceHiveReader) Get(ctx context.Context, userID, apiaryID, hiveID int64) (*model.Hive, error) {
+	return &model.Hive{ID: hiveID}, nil
+}
+
+func (f *fakeVoiceHiveReader) DiseasesByHive(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error) {
+	return nil, nil
+}
+
+func newAcceptRejectHandler(t *testing.T, apiary *model.Apiary, repo *fakeVoiceRepo) *VoiceHandler {
+	t.Helper()
+	svc := service.NewVoiceService(
+		&fakeApiaryMembershipReader{apiary: apiary},
+		repo,
+		&fakeInspectionCreator{},
+		&fakeTreatmentCreator{},
+		&fakeHarvestCreator{},
+		&fakeFeedingCreator{},
+		&fakeVoiceHiveReader{},
+		t.TempDir(),
+	)
+	return NewVoiceHandler(svc)
+}
+
+func newAcceptRejectRequest(method, apiaryID, recordingID string) *http.Request {
+	req := httptest.NewRequest(method, "/api/v1/apiaries/"+apiaryID+"/voice-recordings/"+recordingID+"/accept", nil)
+	req.SetPathValue("id", apiaryID)
+	req.SetPathValue("recordingId", recordingID)
+	return req
+}
+
+func TestVoiceAccept_Handler_Success(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+		actions: []*model.VoiceAction{
+			{
+				ID:            1,
+				HiveID:        int64Ptr(5),
+				ToolName:      strPtr(model.VoiceActionToolCreateInspection),
+				Status:        model.VoiceActionStatusProposed,
+				ToolArguments: []byte(`{"queen_status":"seen"}`),
+			},
+		},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Accept))
+
+	req := authedRequest(t, newAcceptRejectRequest(http.MethodPost, "1", "1"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		RecordingID int64            `json:"recording_id"`
+		Status      string           `json:"status"`
+		Actions     []map[string]any `json:"actions"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.RecordingID != 1 {
+		t.Errorf("expected recording_id 1, got %d", body.RecordingID)
+	}
+	if body.Status != model.VoiceRecordingStatusAccepted {
+		t.Errorf("expected status %q, got %q", model.VoiceRecordingStatusAccepted, body.Status)
+	}
+	if len(body.Actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(body.Actions))
+	}
+	if body.Actions[0]["status"] != model.VoiceActionStatusApplied {
+		t.Errorf("expected action applied, got %v", body.Actions[0]["status"])
+	}
+}
+
+func TestVoiceReject_Handler_Success(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Reject))
+
+	req := authedRequest(t, newAcceptRejectRequest(http.MethodPost, "1", "1"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	recordingID, status := decodeVoiceUploadResponse(t, rec)
+	if recordingID != 1 {
+		t.Errorf("expected recording_id 1, got %d", recordingID)
+	}
+	if status != model.VoiceRecordingStatusRejected {
+		t.Errorf("expected status %q, got %q", model.VoiceRecordingStatusRejected, status)
+	}
+	if !repo.deleteCalled {
+		t.Error("expected DeleteActionsByRecordingID to be called")
+	}
+}
+
+func TestVoiceAcceptReject_ErrorMapping(t *testing.T) {
+	tests := []struct {
+		name       string
+		apiary     *model.Apiary
+		recording  *model.VoiceRecording
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name:       "recording not found",
+			apiary:     &model.Apiary{ID: 1},
+			recording:  nil,
+			wantStatus: http.StatusNotFound,
+			wantCode:   "RECORDING_NOT_FOUND",
+		},
+		{
+			name:       "recording not completed",
+			apiary:     &model.Apiary{ID: 1},
+			recording:  &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending},
+			wantStatus: http.StatusConflict,
+			wantCode:   "RECORDING_NOT_COMPLETED",
+		},
+		{
+			name:       "apiary not found",
+			apiary:     nil,
+			recording:  &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+			wantStatus: http.StatusNotFound,
+			wantCode:   "APIARY_NOT_FOUND",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+"/accept", func(t *testing.T) {
+			repo := &fakeVoiceRepo{recording: tt.recording}
+			h := newAcceptRejectHandler(t, tt.apiary, repo)
+			handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Accept))
+
+			req := authedRequest(t, newAcceptRejectRequest(http.MethodPost, "1", "1"), 1)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("expected %d, got %d: %s", tt.wantStatus, rec.Code, rec.Body.String())
+			}
+			if code := decodeErrorCode(t, rec); code != tt.wantCode {
+				t.Errorf("expected code %q, got %q", tt.wantCode, code)
+			}
+		})
+
+		t.Run(tt.name+"/reject", func(t *testing.T) {
+			repo := &fakeVoiceRepo{recording: tt.recording}
+			h := newAcceptRejectHandler(t, tt.apiary, repo)
+			handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.Reject))
+
+			req := authedRequest(t, newAcceptRejectRequest(http.MethodPost, "1", "1"), 1)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("expected %d, got %d: %s", tt.wantStatus, rec.Code, rec.Body.String())
+			}
+			if code := decodeErrorCode(t, rec); code != tt.wantCode {
+				t.Errorf("expected code %q, got %q", tt.wantCode, code)
+			}
+		})
+	}
+}
+
+func strPtr(s string) *string { return &s }
+func int64Ptr(i int64) *int64 { return &i }
 
 func newVoiceUploadRequest(t *testing.T, apiaryID, contentType string, size int) *http.Request {
 	t.Helper()
@@ -75,6 +311,7 @@ func TestVoiceUpload_Success_Handler(t *testing.T) {
 	svc := service.NewVoiceService(
 		&fakeApiaryMembershipReader{apiary: &model.Apiary{ID: 1}},
 		&fakeVoiceRepo{},
+		nil, nil, nil, nil, nil,
 		t.TempDir(),
 	)
 	h := NewVoiceHandler(svc)
@@ -103,6 +340,7 @@ func TestVoiceUpload_MissingAuth(t *testing.T) {
 	svc := service.NewVoiceService(
 		&fakeApiaryMembershipReader{apiary: &model.Apiary{ID: 1}},
 		&fakeVoiceRepo{},
+		nil, nil, nil, nil, nil,
 		t.TempDir(),
 	)
 	h := NewVoiceHandler(svc)
@@ -122,6 +360,7 @@ func TestVoiceUpload_InvalidApiaryID(t *testing.T) {
 	svc := service.NewVoiceService(
 		&fakeApiaryMembershipReader{apiary: &model.Apiary{ID: 1}},
 		&fakeVoiceRepo{},
+		nil, nil, nil, nil, nil,
 		t.TempDir(),
 	)
 	h := NewVoiceHandler(svc)
@@ -142,6 +381,7 @@ func TestVoiceUpload_MissingAudioField(t *testing.T) {
 	svc := service.NewVoiceService(
 		&fakeApiaryMembershipReader{apiary: &model.Apiary{ID: 1}},
 		&fakeVoiceRepo{},
+		nil, nil, nil, nil, nil,
 		t.TempDir(),
 	)
 	h := NewVoiceHandler(svc)
@@ -214,6 +454,7 @@ func TestVoiceUpload_ErrorMapping(t *testing.T) {
 			svc := service.NewVoiceService(
 				&fakeApiaryMembershipReader{apiary: tt.apiary},
 				&fakeVoiceRepo{count: tt.count},
+				nil, nil, nil, nil, nil,
 				t.TempDir(),
 			)
 			h := NewVoiceHandler(svc)
@@ -239,6 +480,7 @@ func TestVoiceUpload_RecordingTooLarge(t *testing.T) {
 	svc := service.NewVoiceService(
 		&fakeApiaryMembershipReader{apiary: &model.Apiary{ID: 1}},
 		&fakeVoiceRepo{},
+		nil, nil, nil, nil, nil,
 		t.TempDir(),
 	)
 	h := NewVoiceHandler(svc)

@@ -5817,7 +5817,226 @@ paths:
                     code: MAX_RECORDINGS_REACHED
                     message: Caller already has 20 stored recordings
         '500':
-          description: Unexpected server error; Unexpected server error
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
+  /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept:
+    post:
+      tags:
+      - Voice Logging
+      summary: Accepts a recording's proposed actions.
+      description: Accepts a recording's proposed actions. Only valid while the recording's status is
+        `completed` (the "awaiting review" state reached once transcription and action proposal have finished).
+        Runs every proposed `voice_actions` row's real service call (`create_inspection`/`create_treatment`/`create_harvest`/`create_feeding`)
+        independently — one action failing doesn't block the others or fail the request. Each action's
+        own `status` becomes `applied` or `error`; the recording itself always moves to `accepted` regardless
+        of individual action outcomes.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: recordingId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recording_id:
+                    type: integer
+                  status:
+                    type: string
+                  actions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        sequence:
+                          type: integer
+                        hive_id:
+                          type: integer
+                        tool_name:
+                          type: string
+                        status:
+                          type: string
+                        result_type:
+                          type: string
+                        result_record_id:
+                          type: integer
+                        error_message:
+                          type: string
+                          nullable: true
+              example:
+                recording_id: 7
+                status: accepted
+                actions:
+                - id: 12
+                  sequence: 1
+                  hive_id: 3
+                  tool_name: create_inspection
+                  status: applied
+                  result_type: inspection
+                  result_record_id: 45
+                  error_message: null
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path `{id}` or `{recordingId}` is not a valid integer
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}` or `{recordingId}` is not a valid integer
+        '404':
+          description: Apiary does not exist or user is not a member; `recordingId` doesn't exist, or
+            belongs to a different apiary than `{id}`
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+                RECORDING_NOT_FOUND:
+                  value:
+                    code: RECORDING_NOT_FOUND
+                    message: '`recordingId` doesn''t exist, or belongs to a different apiary than `{id}`'
+        '409':
+          description: Recording's status isn't `completed` (still pending/processing, or already accepted/rejected/failed/cancelled)
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_NOT_COMPLETED:
+                  value:
+                    code: RECORDING_NOT_COMPLETED
+                    message: Recording's status isn't `completed` (still pending/processing, or already
+                      accepted/rejected/failed/cancelled)
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
+  /api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject:
+    post:
+      tags:
+      - Voice Logging
+      summary: Rejects a recording's proposed actions.
+      description: Rejects a recording's proposed actions. Only valid while the recording's status is
+        `completed`. Hard-deletes the recording's `voice_actions` rows (nothing was ever written to inspections/treatments/harvests/feedings
+        before Accept, so there is nothing to undo) and moves the recording to `rejected`. The recording
+        row itself is kept.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: recordingId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recording_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                recording_id: 7
+                status: rejected
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path `{id}` or `{recordingId}` is not a valid integer
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}` or `{recordingId}` is not a valid integer
+        '404':
+          description: Apiary does not exist or user is not a member; `recordingId` doesn't exist, or
+            belongs to a different apiary than `{id}`
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+                RECORDING_NOT_FOUND:
+                  value:
+                    code: RECORDING_NOT_FOUND
+                    message: '`recordingId` doesn''t exist, or belongs to a different apiary than `{id}`'
+        '409':
+          description: Recording's status isn't `completed` (still pending/processing, or already accepted/rejected/failed/cancelled)
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_NOT_COMPLETED:
+                  value:
+                    code: RECORDING_NOT_COMPLETED
+                    message: Recording's status isn't `completed` (still pending/processing, or already
+                      accepted/rejected/failed/cancelled)
+        '500':
+          description: Unexpected server error
           content:
             application/json:
               schema: *id001

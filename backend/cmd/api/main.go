@@ -104,7 +104,7 @@ func main() {
 	listingModerationSvc := service.NewListingModerationService(listingRepo, honeyBatchCertificationRequestRepo)
 	certificationReviewSvc := service.NewCertificationReviewService(honeyBatchCertificationRequestRepo)
 	certificationGasEstimateSvc := service.NewCertificationGasEstimateService(honeyBatchCertificationRequestRepo, honeyBatchRepo, gasReader)
-	voiceSvc := service.NewVoiceService(apiaryRepo, voiceRepo, cfg.AudioStoragePath)
+	voiceSvc := service.NewVoiceService(apiaryRepo, voiceRepo, inspectionSvc, treatmentSvc, harvestSvc, feedingSvc, hiveSvc, cfg.AudioStoragePath)
 
 	hiveTools := mcp.NewHiveTools(apiaryRepo, hiveRepo, inspectionRepo, treatmentRepo, harvestRepo, feedingRepo)
 
@@ -241,6 +241,8 @@ func main() {
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file", auth(http.HandlerFunc(inspectionImageHandler.ServeFile)))
 
 	mux.Handle("POST /api/v1/apiaries/{id}/voice", auth(http.HandlerFunc(voiceHandler.Upload)))
+	mux.Handle("POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept", auth(http.HandlerFunc(voiceHandler.Accept)))
+	mux.Handle("POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject", auth(http.HandlerFunc(voiceHandler.Reject)))
 
 	mux.Handle("POST /api/v1/listings", auth(http.HandlerFunc(listingHandler.Create)))
 	mux.Handle("GET /api/v1/listings", optionalAuth(http.HandlerFunc(listingHandler.Search)))

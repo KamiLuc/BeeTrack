@@ -3195,4 +3195,63 @@ The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recor
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `MAX_RECORDINGS_REACHED` | 422 | Caller already has 20 stored recordings |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/voice-recordings/{recordingId}/accept 🔒
+
+Accepts a recording's proposed actions. Only valid while the recording's status is `completed` (the "awaiting review" state reached once transcription and action proposal have finished). Runs every proposed `voice_actions` row's real service call (`create_inspection`/`create_treatment`/`create_harvest`/`create_feeding`) independently — one action failing doesn't block the others or fail the request. Each action's own `status` becomes `applied` or `error`; the recording itself always moves to `accepted` regardless of individual action outcomes.
+
+**Response** `200 OK`
+```json
+{
+  "recording_id": 7,
+  "status": "accepted",
+  "actions": [
+    {
+      "id": 12,
+      "sequence": 1,
+      "hive_id": 3,
+      "tool_name": "create_inspection",
+      "status": "applied",
+      "result_type": "inspection",
+      "result_record_id": 45,
+      "error_message": null
+    }
+  ]
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path `{id}` or `{recordingId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `RECORDING_NOT_FOUND` | 404 | `recordingId` doesn't exist, or belongs to a different apiary than `{id}` |
+| `RECORDING_NOT_COMPLETED` | 409 | Recording's status isn't `completed` (still pending/processing, or already accepted/rejected/failed/cancelled) |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### POST /apiaries/{id}/voice-recordings/{recordingId}/reject 🔒
+
+Rejects a recording's proposed actions. Only valid while the recording's status is `completed`. Hard-deletes the recording's `voice_actions` rows (nothing was ever written to inspections/treatments/harvests/feedings before Accept, so there is nothing to undo) and moves the recording to `rejected`. The recording row itself is kept.
+
+**Response** `200 OK`
+```json
+{
+  "recording_id": 7,
+  "status": "rejected"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path `{id}` or `{recordingId}` is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `RECORDING_NOT_FOUND` | 404 | `recordingId` doesn't exist, or belongs to a different apiary than `{id}` |
+| `RECORDING_NOT_COMPLETED` | 409 | Recording's status isn't `completed` (still pending/processing, or already accepted/rejected/failed/cancelled) |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
