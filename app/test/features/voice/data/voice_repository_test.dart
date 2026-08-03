@@ -137,4 +137,33 @@ void main() {
       );
     });
   });
+
+  group('cancelRecording', () {
+    test('sends DELETE to the recording path', () async {
+      adapter.statusCode = 204;
+      adapter.responseData = null;
+
+      await repository.cancelRecording(3, 42);
+
+      expect(adapter.lastOptions!.method, 'DELETE');
+      expect(adapter.lastOptions!.path, '/api/v1/apiaries/3/voice-recordings/42');
+    });
+
+    test('translates DioException into ApiException', () async {
+      adapter.statusCode = 409;
+      adapter.responseData = {
+        'code': 'RECORDING_NOT_CANCELABLE',
+        'message': 'recording is no longer cancelable',
+      };
+
+      await expectLater(
+        () => repository.cancelRecording(3, 42),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'RECORDING_NOT_CANCELABLE')
+              .having((e) => e.message, 'message', 'recording is no longer cancelable'),
+        ),
+      );
+    });
+  });
 }

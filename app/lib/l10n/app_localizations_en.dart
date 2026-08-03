@@ -704,7 +704,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveListTooltip => 'Hive list';
 
   @override
-  String get voiceRecordingTooltip => 'Record voice note';
+  String get voiceRecordingTooltip => 'Voice notes';
 
   @override
   String get voiceRecordingHintIdle => 'Tap to start recording';
@@ -732,6 +732,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceRecordingPlayTooltip => 'Play';
+
+  @override
+  String get voiceRecordingStopTooltip => 'Stop';
+
+  @override
+  String get voiceRecordingCancelTooltip => 'Cancel';
+
+  @override
+  String get voiceRecordingCancelFailed => 'Failed to cancel recording';
+
+  @override
+  String voiceRecordingPendingLimitReached(int max) {
+    return 'Maximum of $max pending recordings reached';
+  }
 
   @override
   String get apiaryCenterView => 'Center view';

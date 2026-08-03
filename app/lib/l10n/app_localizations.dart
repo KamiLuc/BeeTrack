@@ -1403,7 +1403,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceRecordingTooltip.
   ///
   /// In pl, this message translates to:
-  /// **'Nagraj notatkę głosową'**
+  /// **'Notatki głosowe'**
   String get voiceRecordingTooltip;
 
   /// No description provided for @voiceRecordingHintIdle.
@@ -1453,6 +1453,30 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Odtwórz'**
   String get voiceRecordingPlayTooltip;
+
+  /// No description provided for @voiceRecordingStopTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zatrzymaj'**
+  String get voiceRecordingStopTooltip;
+
+  /// No description provided for @voiceRecordingCancelTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Anuluj'**
+  String get voiceRecordingCancelTooltip;
+
+  /// No description provided for @voiceRecordingCancelFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się anulować nagrania'**
+  String get voiceRecordingCancelFailed;
+
+  /// No description provided for @voiceRecordingPendingLimitReached.
+  ///
+  /// In pl, this message translates to:
+  /// **'Osiągnięto limit {max} oczekujących nagrań'**
+  String voiceRecordingPendingLimitReached(int max);
 
   /// No description provided for @apiaryCenterView.
   ///

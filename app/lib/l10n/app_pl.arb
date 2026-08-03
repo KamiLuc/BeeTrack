@@ -271,7 +271,7 @@
   "hiveSick": "Chory",
   "hiveFilterTooltip": "Filtruj ule",
   "hiveListTooltip": "Lista uli",
-  "voiceRecordingTooltip": "Nagraj notatkę głosową",
+  "voiceRecordingTooltip": "Notatki głosowe",
   "voiceRecordingHintIdle": "Stuknij, aby rozpocząć nagrywanie",
   "voiceRecordingHintActive": "Nagrywanie...",
   "voiceRecordingHardCapWarning": "Zatrzymanie za {seconds}s...",
@@ -285,6 +285,15 @@
   "voiceRecordingStatusPending": "W kolejce",
   "voiceRecordingStatusProcessing": "Przetwarzanie...",
   "voiceRecordingPlayTooltip": "Odtwórz",
+  "voiceRecordingStopTooltip": "Zatrzymaj",
+  "voiceRecordingCancelTooltip": "Anuluj",
+  "voiceRecordingCancelFailed": "Nie udało się anulować nagrania",
+  "voiceRecordingPendingLimitReached": "Osiągnięto limit {max} oczekujących nagrań",
+  "@voiceRecordingPendingLimitReached": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
   "hiveStatus": "Status",

@@ -488,6 +488,12 @@ Display labels live in `hiveTypeLabels` map in `hive_form_widgets.dart`.
 | GET | `/api/v1/assistant/conversations` | Caller's conversations, newest first, for the chat history sidebar (id, preview of the first message, message count) |
 | GET | `/api/v1/assistant/conversations/{id}/messages` | Full message trail for one conversation, so the client can resume it |
 | DELETE | `/api/v1/assistant/conversations/{id}` | Delete a conversation and its message/tool-call trail |
+| POST | `/api/v1/apiaries/{id}/voice` | Enqueue a voice recording for transcription (multipart, field `audio`); worker resolves which hive it's about |
+| POST | `/api/v1/apiaries/{id}/hives/{hiveId}/voice` | Same, but hive-scoped — skips the worker's hive-resolution step entirely |
+| GET | `/api/v1/apiaries/{id}/voice-recordings` | Paginated list of the apiary's voice recordings, newest first, with nested proposed actions |
+| DELETE | `/api/v1/apiaries/{id}/voice-recordings/{recordingId}` | Cancel a still-`pending` recording (soft — status flips to `cancelled`, row kept) |
+| POST | `/api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept` | Apply every proposed action from a `completed` recording (each independently — one failing doesn't block the rest) |
+| POST | `/api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject` | Discard a `completed` recording's proposed actions without applying them |
 
 ---
 
@@ -566,9 +572,9 @@ ApiariesScreen (shown once logged in)
       │     (green 1.5 km, orange 3 km, red 5 km, drawn outermost-first)
       └── ApiaryGridScreen (tap apiary card)
           │   Grid is zoomable/pannable via InteractiveViewer (pinch or trackpad scroll).
-          │   Bottom amber banner has up to four icon buttons; Filter, Hive list, and Dashboard
-          │   are hidden entirely (not just disabled) when the apiary has no hives — only Center
-          │   view always shows:
+          │   Bottom amber banner has up to five icon buttons; Filter, Hive list, Voice notes,
+          │   and Dashboard are hidden entirely (not just disabled) when the apiary has no
+          │   hives — only Center view always shows:
           │     • Filter (Icons.tune) — dialog with FilterChip toggles; badge shows active count;
           │       × close button in header
           │     • Hive list (Icons.format_list_bulleted) — dialog listing
@@ -576,6 +582,11 @@ ApiariesScreen (shown once logged in)
           │       × close button in header; "Treat all hives" OutlinedButton.icon at 60% width
           │       shown at bottom when apiary has > 1 hive — closes dialog then opens
           │       BulkTreatmentFormScreen; on return shows "Treatment logged for N hives" snackbar
+          │     • Voice notes (Icons.mic_none) — opens the voice-recording dialog (see below);
+          │       a red Badge shows the count of `completed` recordings awaiting review (fetched
+          │       via `GET /voice-recordings`, refreshed on screen load and whenever the dialog
+          │       closes) — a placeholder signal ahead of the still-to-build Voice Activity screen
+          │       (VC-21-FE) that will let you actually review/accept/reject them
           │     • Center view (Icons.center_focus_strong_outlined) — resets TransformationController
           │       to Matrix4.identity(), snapping pan/zoom back to initial position
           │     • Dashboard/"Raport" (Icons.assessment_outlined) — opens DashboardScreen, a
@@ -711,6 +722,19 @@ Opened via the list icon in the bottom banner. Shows all hives sorted by last in
 - Most recently inspected → bottom
 
 Each row subtitle: `"d MMM yyyy · <note>"` (note truncated with ellipsis) or `"d MMM yyyy · Queen seen · Brood: good"` if note is empty. Diseases are shown as icons only (🦠) — never in the subtitle text. Inspection data is lazy-loaded concurrently (one `GET inspections?limit=1` per hive that has `lastInspectedAt`) when the dialog opens; rows update as responses arrive.
+
+#### Voice recording dialog (`_VoiceRecordingDialog`)
+Opened via the mic icon in the bottom banner (also reused on `HiveDetailScreen`, VC-26-FE, still to do). Same `_HiveListDialog`-style shell (rounded `Dialog`, × close button in header) — header title/tooltip is the shared l10n key `voiceRecordingTooltip` ("Voice notes"/"Notatki głosowe").
+
+A round record button (mic ↔ stop icon, red while recording, deep-orange in the last 10s before the 3-minute hard cap) is front and center:
+- Tap to start/stop. Auto-stops on ~2.5s of silence *after* speech is first detected (never before — a beekeeper pausing to think doesn't cut the recording short), or at the 3-minute hard cap, whichever comes first.
+- Uses the `record` package (mic permission requested via `AudioRecorder.hasPermission()`, no separate `permission_handler` dependency); `path_provider`'s temp directory on native, a `blob:` object URL on web (`record`'s web implementation returns one from `stop()`).
+- On stop, uploads immediately (`POST /apiaries/{id}/voice`) via the new `features/voice/data/` `VoiceRepository`/`VoiceRecording` (mirrors `InspectionImageRepository`'s multipart pattern). The button is disabled (dimmed, with an explanatory hint) once 3 recordings are already pending client-side — `_maxClientPendingRecordings`.
+- The backend holds a freshly uploaded recording back from the worker for 10s (`voiceClaimDelay` in `internal/service/voice.go`, reusing the same `next_attempt_at` column/query the Whisper-retry backoff already uses) — giving a real window to tap Cancel before it flips to `processing` and Cancel stops being offered.
+
+Below the button, a list of this session's pending/processing recordings (in-memory only, `_VoicePendingCache` — survives the dialog closing/reopening but not an app restart, since a recording's local audio can't be recovered from the server once that's gone): each row shows a status label ("Queued"/"Processing…"), a Play/Stop toggle (plays the local file only — the backend never re-serves audio — tints primary color while that row is playing), and (while still `pending`) a Cancel button (`DELETE /voice-recordings/{id}`). A row drops off (and its local file is deleted) once its status leaves `pending`/`processing`, discovered via a 4s poll.
+
+The banner's mic icon itself carries a red `Badge` — count of `completed` recordings awaiting review, refreshed on screen load and whenever this dialog closes. There's no way to review/accept/reject them yet from the app (that's VC-21-FE, the still-to-build Voice Activity screen).
 ```
 
 #### InspectionFormScreen — bottom amber banner

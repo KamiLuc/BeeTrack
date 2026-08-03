@@ -713,7 +713,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveListTooltip => 'Lista uli';
 
   @override
-  String get voiceRecordingTooltip => 'Nagraj notatkę głosową';
+  String get voiceRecordingTooltip => 'Notatki głosowe';
 
   @override
   String get voiceRecordingHintIdle => 'Stuknij, aby rozpocząć nagrywanie';
@@ -741,6 +741,20 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get voiceRecordingPlayTooltip => 'Odtwórz';
+
+  @override
+  String get voiceRecordingStopTooltip => 'Zatrzymaj';
+
+  @override
+  String get voiceRecordingCancelTooltip => 'Anuluj';
+
+  @override
+  String get voiceRecordingCancelFailed => 'Nie udało się anulować nagrania';
+
+  @override
+  String voiceRecordingPendingLimitReached(int max) {
+    return 'Osiągnięto limit $max oczekujących nagrań';
+  }
 
   @override
   String get apiaryCenterView => 'Wyśrodkuj widok';

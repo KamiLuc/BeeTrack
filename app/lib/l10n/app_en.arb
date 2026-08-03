@@ -271,7 +271,7 @@
   "hiveSick": "Sick",
   "hiveFilterTooltip": "Filter hives",
   "hiveListTooltip": "Hive list",
-  "voiceRecordingTooltip": "Record voice note",
+  "voiceRecordingTooltip": "Voice notes",
   "voiceRecordingHintIdle": "Tap to start recording",
   "voiceRecordingHintActive": "Recording...",
   "voiceRecordingHardCapWarning": "Stopping in {seconds}s...",
@@ -285,6 +285,15 @@
   "voiceRecordingStatusPending": "Queued",
   "voiceRecordingStatusProcessing": "Processing...",
   "voiceRecordingPlayTooltip": "Play",
+  "voiceRecordingStopTooltip": "Stop",
+  "voiceRecordingCancelTooltip": "Cancel",
+  "voiceRecordingCancelFailed": "Failed to cancel recording",
+  "voiceRecordingPendingLimitReached": "Maximum of {max} pending recordings reached",
+  "@voiceRecordingPendingLimitReached": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
   "hiveStatus": "Status",

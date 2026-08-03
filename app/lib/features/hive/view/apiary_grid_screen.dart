@@ -69,11 +69,31 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
   final Set<_HiveFilter> _activeFilters = {};
   final TransformationController _transformController =
       TransformationController();
+  int _pendingReviewCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingReviewCount();
+  }
 
   @override
   void dispose() {
     _transformController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPendingReviewCount() async {
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      final result = await repo.listRecordings(widget.apiary.id);
+      final count = result.items
+          .where((r) => r.status == voiceRecordingStatusCompleted)
+          .length;
+      if (mounted) setState(() => _pendingReviewCount = count);
+    } catch (_) {
+      // Best-effort — the badge just stays at its last known value.
+    }
   }
 
   void _toggleFilter(_HiveFilter filter) {
@@ -306,6 +326,8 @@ class _ApiaryGridViewState extends State<_ApiaryGridView> {
                       _transformController.value = Matrix4.identity(),
                   onTreatAll: () => _openBulkTreatment(context, state.hives),
                   onFeedAll: () => _openBulkFeeding(context, state.hives),
+                  pendingReviewCount: _pendingReviewCount,
+                  onVoiceDialogClosed: _loadPendingReviewCount,
                   onDashboard: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => DashboardScreen(
@@ -350,6 +372,8 @@ class _FilterBar extends StatelessWidget {
   final int apiaryId;
   final List<Hive> hives;
   final void Function(Hive) onHiveTap;
+  final int pendingReviewCount;
+  final VoidCallback onVoiceDialogClosed;
 
   const _FilterBar({
     required this.activeFilters,
@@ -362,6 +386,8 @@ class _FilterBar extends StatelessWidget {
     required this.apiaryId,
     required this.hives,
     required this.onHiveTap,
+    required this.pendingReviewCount,
+    required this.onVoiceDialogClosed,
   });
 
   void _showFilterSheet(BuildContext context) {
@@ -456,11 +482,12 @@ class _FilterBar extends StatelessWidget {
     );
   }
 
-  void _showVoiceRecordingSheet(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showVoiceRecordingSheet(BuildContext context) async {
+    await showDialog<void>(
       context: context,
       builder: (_) => _VoiceRecordingDialog(apiaryId: apiaryId),
     );
+    onVoiceDialogClosed();
   }
 
   @override
@@ -511,11 +538,16 @@ class _FilterBar extends StatelessWidget {
                       onPressed: () => _showHiveSheet(context),
                     ),
                   if (hives.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.mic_none),
-                      iconSize: 28,
-                      tooltip: l10n.voiceRecordingTooltip,
-                      onPressed: () => _showVoiceRecordingSheet(context),
+                    Badge(
+                      backgroundColor: Colors.red,
+                      isLabelVisible: pendingReviewCount > 0,
+                      label: Text('$pendingReviewCount'),
+                      child: IconButton(
+                        icon: const Icon(Icons.mic_none),
+                        iconSize: 28,
+                        tooltip: l10n.voiceRecordingTooltip,
+                        onPressed: () => _showVoiceRecordingSheet(context),
+                      ),
                     ),
                   IconButton(
                     icon: const Icon(Icons.center_focus_strong_outlined),
@@ -732,6 +764,7 @@ const _voiceHardCapWarningThreshold = Duration(seconds: 10);
 const _voiceSilenceAutoStopDuration = Duration(milliseconds: 2500);
 const _voiceSilenceThresholdDb = -35.0;
 const _voiceAmplitudePollInterval = Duration(milliseconds: 300);
+const _maxClientPendingRecordings = 3;
 
 /// In-memory cache of this session's locally-recorded pending/processing
 /// voice recordings, keyed by apiary id. Survives the recording dialog
@@ -770,13 +803,20 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   StreamSubscription<Amplitude>? _ampSub;
   Timer? _tickTimer;
   Timer? _pollTimer;
+  StreamSubscription<void>? _playbackCompleteSub;
+  String? _playingPath;
   late List<VoiceRecording> _pending;
+
+  bool get _atPendingLimit => _pending.length >= _maxClientPendingRecordings;
 
   @override
   void initState() {
     super.initState();
     _pending = _VoicePendingCache.forApiary(widget.apiaryId);
     if (_pending.isNotEmpty) _startPolling();
+    _playbackCompleteSub = _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingPath = null);
+    });
   }
 
   Future<void> _toggleRecording() async {
@@ -796,6 +836,8 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   }
 
   Future<void> _startRecording() async {
+    if (_atPendingLimit) return;
+
     final hasPermission = await _recorder.hasPermission();
     if (!mounted) return;
     if (!hasPermission) {
@@ -929,6 +971,9 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
           stillPending.add(rec.copyWith(status: status));
         } else {
           await _discardLocalFile(rec.localPath);
+          if (rec.localPath != null) {
+            await _stopPlaybackIfPlaying(rec.localPath!);
+          }
         }
       }
       if (!mounted) return;
@@ -949,11 +994,45 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     if (await file.exists()) await file.delete();
   }
 
-  Future<void> _playRecording(VoiceRecording recording) async {
-    final path = recording.localPath;
-    if (path == null) return;
+  Future<void> _playRecording(String path) async {
+    if (_playingPath == path) {
+      await _player.stop();
+      if (mounted) setState(() => _playingPath = null);
+      return;
+    }
+
     await _player.stop();
+    setState(() => _playingPath = path);
     await _player.play(kIsWeb ? UrlSource(path) : DeviceFileSource(path));
+  }
+
+  Future<void> _stopPlaybackIfPlaying(String path) async {
+    if (_playingPath != path) return;
+    await _player.stop();
+    if (mounted) setState(() => _playingPath = null);
+  }
+
+  Future<void> _cancelRecording(VoiceRecording recording) async {
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      await repo.cancelRecording(widget.apiaryId, recording.recordingId);
+      await _discardLocalFile(recording.localPath);
+      if (recording.localPath != null) {
+        await _stopPlaybackIfPlaying(recording.localPath!);
+      }
+      if (!mounted) return;
+      setState(() {
+        _pending = _pending
+            .where((r) => r.recordingId != recording.recordingId)
+            .toList();
+      });
+      _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
+    } catch (_) {
+      if (mounted) {
+        showBigSnackBar(
+            context, AppLocalizations.of(context)!.voiceRecordingCancelFailed);
+      }
+    }
   }
 
   String _formatElapsed(Duration d) {
@@ -967,6 +1046,7 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     _ampSub?.cancel();
     _tickTimer?.cancel();
     _pollTimer?.cancel();
+    _playbackCompleteSub?.cancel();
     if (_isRecording) {
       _recorder.stop();
     }
@@ -1010,12 +1090,16 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
               const Divider(height: 1),
               const SizedBox(height: 24),
               GestureDetector(
-                onTap: _toggleRecording,
+                onTap: _atPendingLimit && !_isRecording
+                    ? null
+                    : _toggleRecording,
                 child: CircleAvatar(
                   radius: 40,
                   backgroundColor: _isRecording
                       ? (_hardCapWarning ? Colors.deepOrange : Colors.red)
-                      : colorScheme.primary,
+                      : _atPendingLimit
+                          ? colorScheme.primary.withAlpha(90)
+                          : colorScheme.primary,
                   child: Icon(
                     _isRecording ? Icons.stop : Icons.mic,
                     size: 36,
@@ -1033,7 +1117,10 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
               ],
               Text(
                 !_isRecording
-                    ? l10n.voiceRecordingHintIdle
+                    ? (_atPendingLimit
+                        ? l10n.voiceRecordingPendingLimitReached(
+                            _maxClientPendingRecordings)
+                        : l10n.voiceRecordingHintIdle)
                     : _hardCapWarning
                         ? l10n.voiceRecordingHardCapWarning(remainingSeconds)
                         : l10n.voiceRecordingHintActive,
@@ -1057,36 +1144,81 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                 const Divider(height: 1),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 160),
-                  child: ListView.builder(
+                  child: ListView(
                     shrinkWrap: true,
-                    itemCount: _pending.length,
-                    itemBuilder: (_, i) {
-                      final recording = _pending[i];
-                      final isProcessing =
-                          recording.status == voiceRecordingStatusProcessing;
-                      return ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.graphic_eq),
-                        title: Text(
-                          isProcessing
-                              ? l10n.voiceRecordingStatusProcessing
-                              : l10n.voiceRecordingStatusPending,
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.play_arrow),
-                          tooltip: l10n.voiceRecordingPlayTooltip,
-                          onPressed: recording.localPath != null
-                              ? () => _playRecording(recording)
+                    children: [
+                      for (final recording in _pending)
+                        _PendingRecordingTile(
+                          recording: recording,
+                          isPlaying: _playingPath == recording.localPath,
+                          colorScheme: colorScheme,
+                          l10n: l10n,
+                          onPlay: recording.localPath != null
+                              ? () => _playRecording(recording.localPath!)
                               : null,
+                          onCancel: () => _cancelRecording(recording),
                         ),
-                      );
-                    },
+                    ],
                   ),
                 ),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PendingRecordingTile extends StatelessWidget {
+  final VoiceRecording recording;
+  final bool isPlaying;
+  final ColorScheme colorScheme;
+  final AppLocalizations l10n;
+  final VoidCallback? onPlay;
+  final VoidCallback onCancel;
+
+  const _PendingRecordingTile({
+    required this.recording,
+    required this.isPlaying,
+    required this.colorScheme,
+    required this.l10n,
+    required this.onPlay,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isProcessing =
+        recording.status == voiceRecordingStatusProcessing;
+    return ListTile(
+      dense: true,
+      leading: Icon(Icons.graphic_eq,
+          color: isPlaying ? colorScheme.primary : null),
+      title: Text(
+        isProcessing
+            ? l10n.voiceRecordingStatusProcessing
+            : l10n.voiceRecordingStatusPending,
+        style: isPlaying ? TextStyle(color: colorScheme.primary) : null,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow,
+                color: isPlaying ? colorScheme.primary : null),
+            tooltip: isPlaying
+                ? l10n.voiceRecordingStopTooltip
+                : l10n.voiceRecordingPlayTooltip,
+            onPressed: onPlay,
+          ),
+          if (!isProcessing)
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.voiceRecordingCancelTooltip,
+              onPressed: onCancel,
+            ),
+        ],
       ),
     );
   }
