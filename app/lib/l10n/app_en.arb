@@ -274,6 +274,14 @@
   "voiceRecordingTooltip": "Record voice note",
   "voiceRecordingHintIdle": "Tap to start recording",
   "voiceRecordingHintActive": "Recording...",
+  "voiceRecordingHardCapWarning": "Stopping in {seconds}s...",
+  "@voiceRecordingHardCapWarning": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "voiceRecordingPermissionDenied": "Microphone permission is required to record",
+  "voiceRecordingCaptured": "Recording captured",
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
   "hiveStatus": "Status",

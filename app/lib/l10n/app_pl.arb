@@ -274,6 +274,14 @@
   "voiceRecordingTooltip": "Nagraj notatkę głosową",
   "voiceRecordingHintIdle": "Stuknij, aby rozpocząć nagrywanie",
   "voiceRecordingHintActive": "Nagrywanie...",
+  "voiceRecordingHardCapWarning": "Zatrzymanie za {seconds}s...",
+  "@voiceRecordingHardCapWarning": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "voiceRecordingPermissionDenied": "Wymagane jest uprawnienie do mikrofonu, aby nagrywać",
+  "voiceRecordingCaptured": "Nagranie zarejestrowane",
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
   "hiveStatus": "Status",

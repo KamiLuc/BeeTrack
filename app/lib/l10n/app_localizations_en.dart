@@ -713,6 +713,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceRecordingHintActive => 'Recording...';
 
   @override
+  String voiceRecordingHardCapWarning(int seconds) {
+    return 'Stopping in ${seconds}s...';
+  }
+
+  @override
+  String get voiceRecordingPermissionDenied =>
+      'Microphone permission is required to record';
+
+  @override
+  String get voiceRecordingCaptured => 'Recording captured';
+
+  @override
   String get apiaryCenterView => 'Center view';
 
   @override

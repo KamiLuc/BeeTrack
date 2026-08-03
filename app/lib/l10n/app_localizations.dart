@@ -1418,6 +1418,24 @@ abstract class AppLocalizations {
   /// **'Nagrywanie...'**
   String get voiceRecordingHintActive;
 
+  /// No description provided for @voiceRecordingHardCapWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zatrzymanie za {seconds}s...'**
+  String voiceRecordingHardCapWarning(int seconds);
+
+  /// No description provided for @voiceRecordingPermissionDenied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wymagane jest uprawnienie do mikrofonu, aby nagrywać'**
+  String get voiceRecordingPermissionDenied;
+
+  /// No description provided for @voiceRecordingCaptured.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nagranie zarejestrowane'**
+  String get voiceRecordingCaptured;
+
   /// No description provided for @apiaryCenterView.
   ///
   /// In pl, this message translates to:

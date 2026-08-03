@@ -1,11 +1,17 @@
+import 'dart:async';
+import 'dart:io' show File;
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_layout.dart';
+import '../../../core/widgets/photo_size_snackbar.dart';
 import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
@@ -717,6 +723,12 @@ class _HiveListDialogState extends State<_HiveListDialog> {
   }
 }
 
+const _voiceHardCapDuration = Duration(minutes: 3);
+const _voiceHardCapWarningThreshold = Duration(seconds: 10);
+const _voiceSilenceAutoStopDuration = Duration(milliseconds: 2500);
+const _voiceSilenceThresholdDb = -35.0;
+const _voiceAmplitudePollInterval = Duration(milliseconds: 300);
+
 class _VoiceRecordingDialog extends StatefulWidget {
   const _VoiceRecordingDialog();
 
@@ -725,10 +737,128 @@ class _VoiceRecordingDialog extends StatefulWidget {
 }
 
 class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
+  final AudioRecorder _recorder = AudioRecorder();
   bool _isRecording = false;
+  bool _hasDetectedSpeech = false;
+  bool _hardCapWarning = false;
+  Duration _elapsed = Duration.zero;
+  DateTime? _lastSpeechAt;
+  StreamSubscription<Amplitude>? _ampSub;
+  Timer? _tickTimer;
 
-  void _toggleRecording() {
-    setState(() => _isRecording = !_isRecording);
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      await _stopRecording();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<String> _recordingPath() async {
+    final ext = kIsWeb ? 'webm' : 'm4a';
+    final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    if (kIsWeb) return filename;
+    final dir = await getTemporaryDirectory();
+    return '${dir.path}/$filename';
+  }
+
+  Future<void> _startRecording() async {
+    final hasPermission = await _recorder.hasPermission();
+    if (!mounted) return;
+    if (!hasPermission) {
+      showBigSnackBar(
+          context, AppLocalizations.of(context)!.voiceRecordingPermissionDenied);
+      return;
+    }
+
+    final path = await _recordingPath();
+    final encoder = kIsWeb ? AudioEncoder.opus : AudioEncoder.aacLc;
+    await _recorder.start(RecordConfig(encoder: encoder), path: path);
+    if (!mounted) return;
+
+    setState(() {
+      _isRecording = true;
+      _hasDetectedSpeech = false;
+      _hardCapWarning = false;
+      _elapsed = Duration.zero;
+      _lastSpeechAt = null;
+    });
+
+    _ampSub = _recorder
+        .onAmplitudeChanged(_voiceAmplitudePollInterval)
+        .listen(_onAmplitude);
+    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+  }
+
+  void _onAmplitude(Amplitude amp) {
+    if (amp.current > _voiceSilenceThresholdDb) {
+      _hasDetectedSpeech = true;
+      _lastSpeechAt = DateTime.now();
+      return;
+    }
+    if (!_hasDetectedSpeech || _lastSpeechAt == null) return;
+    if (DateTime.now().difference(_lastSpeechAt!) >=
+        _voiceSilenceAutoStopDuration) {
+      _stopRecording();
+    }
+  }
+
+  void _onTick() {
+    if (!_isRecording) return;
+    setState(() {
+      _elapsed += const Duration(seconds: 1);
+      _hardCapWarning =
+          _voiceHardCapDuration - _elapsed <= _voiceHardCapWarningThreshold;
+    });
+    if (_elapsed >= _voiceHardCapDuration) {
+      _stopRecording();
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_isRecording) return;
+    await _ampSub?.cancel();
+    _ampSub = null;
+    _tickTimer?.cancel();
+    _tickTimer = null;
+
+    final path = await _recorder.stop();
+
+    if (!mounted) return;
+    setState(() {
+      _isRecording = false;
+      _hasDetectedSpeech = false;
+      _hardCapWarning = false;
+      _elapsed = Duration.zero;
+    });
+
+    // Persisting the recording and uploading it are a separate ticket
+    // (VC-19-FE) — discard the temp file for now.
+    if (path != null && !kIsWeb) {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    }
+
+    if (mounted) {
+      showBigSnackBar(context, AppLocalizations.of(context)!.voiceRecordingCaptured);
+    }
+  }
+
+  String _formatElapsed(Duration d) {
+    final minutes = d.inMinutes.toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  void dispose() {
+    _ampSub?.cancel();
+    _tickTimer?.cancel();
+    if (_isRecording) {
+      _recorder.stop();
+    }
+    _recorder.dispose();
+    super.dispose();
   }
 
   @override
@@ -736,6 +866,8 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final isWide = MediaQuery.sizeOf(context).width >= 600;
+    final remainingSeconds =
+        (_voiceHardCapDuration - _elapsed).inSeconds.clamp(0, 999);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -767,8 +899,9 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                 onTap: _toggleRecording,
                 child: CircleAvatar(
                   radius: 40,
-                  backgroundColor:
-                      _isRecording ? Colors.red : colorScheme.primary,
+                  backgroundColor: _isRecording
+                      ? (_hardCapWarning ? Colors.deepOrange : Colors.red)
+                      : colorScheme.primary,
                   child: Icon(
                     _isRecording ? Icons.stop : Icons.mic,
                     size: 36,
@@ -777,12 +910,23 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (_isRecording) ...[
+                Text(
+                  _formatElapsed(_elapsed),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+              ],
               Text(
-                _isRecording
-                    ? l10n.voiceRecordingHintActive
-                    : l10n.voiceRecordingHintIdle,
+                !_isRecording
+                    ? l10n.voiceRecordingHintIdle
+                    : _hardCapWarning
+                        ? l10n.voiceRecordingHardCapWarning(remainingSeconds)
+                        : l10n.voiceRecordingHintActive,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: _hardCapWarning
+                          ? Colors.deepOrange
+                          : colorScheme.onSurfaceVariant,
                     ),
                 textAlign: TextAlign.center,
               ),

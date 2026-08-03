@@ -722,6 +722,18 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceRecordingHintActive => 'Nagrywanie...';
 
   @override
+  String voiceRecordingHardCapWarning(int seconds) {
+    return 'Zatrzymanie za ${seconds}s...';
+  }
+
+  @override
+  String get voiceRecordingPermissionDenied =>
+      'Wymagane jest uprawnienie do mikrofonu, aby nagrywać';
+
+  @override
+  String get voiceRecordingCaptured => 'Nagranie zarejestrowane';
+
+  @override
   String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override
