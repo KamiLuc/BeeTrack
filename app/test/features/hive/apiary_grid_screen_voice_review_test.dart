@@ -109,6 +109,7 @@ Map<String, dynamic> _completedRecordingJson() => {
           'sequence': 1,
           'hive_id': 1,
           'tool_name': 'create_inspection',
+          'tool_arguments': {'colony_strength': 'strong', 'box_added': true},
           'status': 'proposed',
         },
       ],
@@ -122,6 +123,25 @@ Map<String, dynamic> _noActionRecordingJson() => {
       'created_at': '2026-08-01T12:30:00Z',
       'processed_at': '2026-08-01T12:31:00Z',
       'voice_actions': [],
+    };
+
+Map<String, dynamic> _noArgumentsRecordingJson() => {
+      'recording_id': 10,
+      'status': 'completed',
+      'transcript': 'marked hive as inactive',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 3,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': 'update_hive_status',
+          'tool_arguments': null,
+          'status': 'proposed',
+        },
+      ],
     };
 
 Map<String, dynamic> _hiveNotIdentifiedRecordingJson() => {
@@ -238,5 +258,71 @@ void main() {
     expect(adapter.rejectedPaths,
         contains('/api/v1/apiaries/1/voice-recordings/9/reject'));
     expect(find.text('the bees looked fine'), findsNothing);
+  });
+
+  testWidgets(
+      'tapping a ready-for-review tile shows transcript and proposed action arguments',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Create inspection'), findsOneWidget);
+    expect(find.text('Colony Strength: strong'), findsOneWidget);
+    expect(find.text('Box Added: Yes'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a ready-for-review tile with no tool arguments shows the tool label with no argument lines',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_noArgumentsRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('marked hive as inactive'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Update hive status'), findsOneWidget);
+    expect(find.text('Colony Strength: strong'), findsNothing);
+  });
+
+  testWidgets(
+      'tapping a ready-for-review tile with an error action shows the friendly error message in the dialog',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_hiveNotIdentifiedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('the bees looked fine'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text("Couldn't identify the hive"), findsNWidgets(2));
   });
 }

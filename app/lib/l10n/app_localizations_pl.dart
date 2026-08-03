@@ -51,6 +51,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get generalLoading => 'Ładowanie...';
 
   @override
+  String get generalYes => 'Tak';
+
+  @override
+  String get generalNo => 'Nie';
+
+  @override
   String get deletePuzzlePrompt => 'Aby potwierdzić, rozwiąż:';
 
   @override
@@ -779,6 +785,27 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get voiceReviewRejectFailed => 'Nie udało się odrzucić nagrania';
+
+  @override
+  String get voiceReviewDetailTitle => 'Szczegóły nagrania';
+
+  @override
+  String get voiceReviewDetailActionsLabel => 'Proponowane czynności';
+
+  @override
+  String get voiceToolCreateInspection => 'Dodaj przegląd';
+
+  @override
+  String get voiceToolCreateTreatment => 'Dodaj leczenie';
+
+  @override
+  String get voiceToolCreateHarvest => 'Dodaj zbiór miodu';
+
+  @override
+  String get voiceToolCreateFeeding => 'Dodaj podkarmianie';
+
+  @override
+  String get voiceToolUpdateHiveStatus => 'Aktualizacja statusu ula';
 
   @override
   String get apiaryCenterView => 'Wyśrodkuj widok';

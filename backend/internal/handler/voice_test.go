@@ -14,6 +14,7 @@ import (
 	"github.com/beetrack/backend/internal/middleware"
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
+	"gorm.io/datatypes"
 )
 
 // fakeVoiceRepo is a minimal service.VoiceRepository for handler tests.
@@ -230,6 +231,51 @@ func TestVoiceList_Handler_Success(t *testing.T) {
 	}
 	if repo.lastListLimit != 20 || repo.lastListOffset != 0 {
 		t.Errorf("expected default limit=20 offset=0, got limit=%d offset=%d", repo.lastListLimit, repo.lastListOffset)
+	}
+}
+
+func TestVoiceList_Handler_IncludesToolArguments(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recordings: []*model.VoiceRecording{
+			{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+		},
+		recordingsTotal: 1,
+		actionsByIDs: []*model.VoiceAction{
+			{
+				ID:               10,
+				VoiceRecordingID: 1,
+				Sequence:         1,
+				Status:           model.VoiceActionStatusProposed,
+				ToolName:         strPtr(model.VoiceActionToolCreateInspection),
+				ToolArguments:    datatypes.JSON(`{"colony_strength":"strong","box_added":true}`),
+			},
+		},
+	}
+	h := newListHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+	req := authedRequest(t, newListRequest("1", ""), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	actions := body.Items[0]["voice_actions"].([]any)
+	action := actions[0].(map[string]any)
+	args, ok := action["tool_arguments"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected tool_arguments object, got %v", action["tool_arguments"])
+	}
+	if args["colony_strength"] != "strong" || args["box_added"] != true {
+		t.Errorf("unexpected tool_arguments: %v", args)
 	}
 }
 

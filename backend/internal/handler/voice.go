@@ -47,6 +47,7 @@ func actionJSON(a *model.VoiceAction) map[string]any {
 		"sequence":         a.Sequence,
 		"hive_id":          a.HiveID,
 		"tool_name":        a.ToolName,
+		"tool_arguments":   a.ToolArguments,
 		"status":           a.Status,
 		"result_type":      a.ResultType,
 		"result_record_id": a.ResultRecordID,

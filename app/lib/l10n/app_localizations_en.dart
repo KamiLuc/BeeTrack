@@ -51,6 +51,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalLoading => 'Loading...';
 
   @override
+  String get generalYes => 'Yes';
+
+  @override
+  String get generalNo => 'No';
+
+  @override
   String get deletePuzzlePrompt => 'To confirm, solve:';
 
   @override
@@ -771,6 +777,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceReviewRejectFailed => 'Failed to dismiss recording';
+
+  @override
+  String get voiceReviewDetailTitle => 'Recording details';
+
+  @override
+  String get voiceReviewDetailActionsLabel => 'Proposed actions';
+
+  @override
+  String get voiceToolCreateInspection => 'Create inspection';
+
+  @override
+  String get voiceToolCreateTreatment => 'Create treatment';
+
+  @override
+  String get voiceToolCreateHarvest => 'Create harvest';
+
+  @override
+  String get voiceToolCreateFeeding => 'Create feeding';
+
+  @override
+  String get voiceToolUpdateHiveStatus => 'Update hive status';
 
   @override
   String get apiaryCenterView => 'Center view';

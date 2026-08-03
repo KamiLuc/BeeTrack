@@ -182,6 +182,18 @@ abstract class AppLocalizations {
   /// **'Ładowanie...'**
   String get generalLoading;
 
+  /// No description provided for @generalYes.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tak'**
+  String get generalYes;
+
+  /// No description provided for @generalNo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie'**
+  String get generalNo;
+
   /// No description provided for @deletePuzzlePrompt.
   ///
   /// In pl, this message translates to:
@@ -1525,6 +1537,48 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Nie udało się odrzucić nagrania'**
   String get voiceReviewRejectFailed;
+
+  /// No description provided for @voiceReviewDetailTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szczegóły nagrania'**
+  String get voiceReviewDetailTitle;
+
+  /// No description provided for @voiceReviewDetailActionsLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Proponowane czynności'**
+  String get voiceReviewDetailActionsLabel;
+
+  /// No description provided for @voiceToolCreateInspection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj przegląd'**
+  String get voiceToolCreateInspection;
+
+  /// No description provided for @voiceToolCreateTreatment.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj leczenie'**
+  String get voiceToolCreateTreatment;
+
+  /// No description provided for @voiceToolCreateHarvest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj zbiór miodu'**
+  String get voiceToolCreateHarvest;
+
+  /// No description provided for @voiceToolCreateFeeding.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj podkarmianie'**
+  String get voiceToolCreateFeeding;
+
+  /// No description provided for @voiceToolUpdateHiveStatus.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aktualizacja statusu ula'**
+  String get voiceToolUpdateHiveStatus;
 
   /// No description provided for @apiaryCenterView.
   ///

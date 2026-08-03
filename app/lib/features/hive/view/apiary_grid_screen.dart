@@ -1061,6 +1061,13 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     }
   }
 
+  void _showRecordingDetail(VoiceRecording recording) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _VoiceRecordingDetailDialog(recording: recording),
+    );
+  }
+
   Future<void> _rejectRecording(VoiceRecording recording) async {
     try {
       final repo = VoiceRepository(api: context.read<ApiClient>());
@@ -1235,6 +1242,7 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                             colorScheme: colorScheme,
                             l10n: l10n,
                             onDismiss: () => _rejectRecording(recording),
+                            onTap: () => _showRecordingDetail(recording),
                           ),
                       ],
                     ),
@@ -1311,12 +1319,14 @@ class _ReadyForReviewTile extends StatelessWidget {
   final AppLocalizations l10n;
 
   final VoidCallback onDismiss;
+  final VoidCallback onTap;
 
   const _ReadyForReviewTile({
     required this.recording,
     required this.colorScheme,
     required this.l10n,
     required this.onDismiss,
+    required this.onTap,
   });
 
   VoiceAction? get _errorAction {
@@ -1360,6 +1370,7 @@ class _ReadyForReviewTile extends StatelessWidget {
 
     return ListTile(
       dense: true,
+      onTap: onTap,
       leading: Icon(
         isError ? Icons.error_outline : Icons.fact_check_outlined,
         color: isError ? colorScheme.error : colorScheme.primary,
@@ -1380,6 +1391,123 @@ class _ReadyForReviewTile extends StatelessWidget {
               onPressed: onDismiss,
             )
           : null,
+    );
+  }
+}
+
+class _VoiceRecordingDetailDialog extends StatelessWidget {
+  final VoiceRecording recording;
+
+  const _VoiceRecordingDetailDialog({required this.recording});
+
+  String _toolLabel(AppLocalizations l10n, String? toolName) {
+    switch (toolName) {
+      case 'create_inspection':
+        return l10n.voiceToolCreateInspection;
+      case 'create_treatment':
+        return l10n.voiceToolCreateTreatment;
+      case 'create_harvest':
+        return l10n.voiceToolCreateHarvest;
+      case 'create_feeding':
+        return l10n.voiceToolCreateFeeding;
+      case 'update_hive_status':
+        return l10n.voiceToolUpdateHiveStatus;
+      default:
+        return toolName ?? '';
+    }
+  }
+
+  String _prettyKey(String key) {
+    return key
+        .split('_')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
+  String _prettyValue(AppLocalizations l10n, dynamic value) {
+    if (value == null) return '';
+    if (value is bool) return value ? l10n.generalYes : l10n.generalNo;
+    if (value is List) return value.join(', ');
+    return value.toString();
+  }
+
+  String _errorLabel(AppLocalizations l10n, String? code) {
+    switch (code) {
+      case 'HIVE_NOT_IDENTIFIED':
+        return l10n.voiceReviewErrorHiveNotIdentified;
+      case 'MULTIPLE_HIVES_MENTIONED':
+        return l10n.voiceReviewErrorMultipleHives;
+      default:
+        return l10n.voiceReviewErrorGeneric;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final transcript = recording.transcript?.trim();
+
+    return AlertDialog(
+      title: Text(l10n.voiceReviewDetailTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (transcript != null && transcript.isNotEmpty)
+              SelectableText(transcript)
+            else
+              Text(l10n.voiceRecordingStatusCompleted),
+            const SizedBox(height: 16),
+            Text(l10n.voiceReviewDetailActionsLabel,
+                style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            if (recording.voiceActions.isEmpty)
+              Text(
+                l10n.voiceReviewNoActionRecognized,
+                style: TextStyle(color: colorScheme.error),
+              )
+            else
+              for (final action in recording.voiceActions)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: action.status == 'error'
+                      ? Text(
+                          _errorLabel(l10n, action.errorMessage),
+                          style: TextStyle(color: colorScheme.error),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _toolLabel(l10n, action.toolName),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            for (final entry
+                                in (action.toolArguments ?? {}).entries)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  '${_prettyKey(entry.key)}: ${_prettyValue(l10n, entry.value)}',
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.generalClose),
+        ),
+      ],
     );
   }
 }

@@ -7,6 +7,7 @@ class VoiceAction {
   final int sequence;
   final int? hiveId;
   final String? toolName;
+  final Map<String, dynamic>? toolArguments;
   final String status;
   final String? resultType;
   final int? resultRecordId;
@@ -17,6 +18,7 @@ class VoiceAction {
     required this.sequence,
     this.hiveId,
     this.toolName,
+    this.toolArguments,
     required this.status,
     this.resultType,
     this.resultRecordId,
@@ -29,6 +31,7 @@ class VoiceAction {
       sequence: json['sequence'] as int,
       hiveId: json['hive_id'] as int?,
       toolName: json['tool_name'] as String?,
+      toolArguments: json['tool_arguments'] as Map<String, dynamic>?,
       status: json['status'] as String,
       resultType: json['result_type'] as String?,
       resultRecordId: json['result_record_id'] as int?,

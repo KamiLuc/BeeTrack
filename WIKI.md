@@ -741,7 +741,7 @@ Below the pending list, a "Ready for review" section lists this apiary's `comple
 - No action was recognized (the recording has no proposed actions at all) — subtitle shows a "no action recognized" message, error-colored.
 - One of the recording's proposed actions failed (e.g. the hive mentioned couldn't be identified, or several were) — subtitle shows a friendly message for that error instead of the raw backend code.
 
-Both the error and no-action rows get a dismiss (×) button that calls the reject endpoint (`POST /voice-recordings/{id}/reject`) and removes the row from the list on success. Normal proposal rows have no action yet — reviewing/accepting a proposal still has no UI.
+Both the error and no-action rows get a dismiss (×) button that calls the reject endpoint (`POST /voice-recordings/{id}/reject`) and removes the row from the list on success. Tapping a normal proposal row opens a read-only detail dialog showing the full transcript and each proposed action with a friendly tool-name label and its proposed arguments as plain key/value lines — no Accept/Reject in this dialog yet, that's still to come.
 ```
 
 #### InspectionFormScreen — bottom amber banner

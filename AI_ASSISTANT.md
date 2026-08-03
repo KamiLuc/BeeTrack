@@ -604,24 +604,28 @@ screen is the whole review step, not just a convenience — it's where the beeke
 finds out what a queued recording heard, decides whether to trust it, and is the only
 place any of it actually reaches `inspections`/`treatments`/`harvests`/`feedings`/`hives`.
 
-- **Voice Activity screen** — a new history-icon button in the apiary grid's bottom
-  amber banner (next to the mic button) opens a paginated list of past voice
-  recordings for *this apiary*, newest first (same page-based pagination pattern as
-  `InspectionHistoryScreen`), styled like a message list: each row is one recording
-  with a status chip — "Queued" / "Processing…" / "Awaiting review" (`completed` with
-  actionable proposals) / "Accepted" / "Rejected" / an error reason (`failed`,
-  `NO_ACTION_RECOGNIZED`, `HIVE_NOT_IDENTIFIED`, `MULTIPLE_HIVES_MENTIONED`) /
-  "Cancelled". The screen refreshes on
-  open and via pull-to-refresh — same lightweight polling-on-demand approach already
-  used for the honey batch certification badge's in-progress state, no push
-  notifications or websockets needed for v1.
-- **Tapping a recording** opens its detail view: the transcript text, then the list of
-  proposed actions (hive, action type, the fields Claude filled in — e.g. "Hive 3 —
-  Inspection: brood pattern good" / "Hive 3 — Feeding: 1L syrup"). While the recording
-  is `completed` (awaiting review) and has at least one non-error proposal, the detail
-  view ends with two buttons: **Accept** and **Reject**. This is a whole-recording
-  decision, not per-action — a beekeeper reviews and decides on everything one
-  recording produced together, matching how they experienced it as one message.
+- **Shipped design** (v1, revised mid-implementation from the original plan below): no
+  separate screen. The existing voice recording dialog (opened via the mic icon in the
+  apiary grid's bottom amber banner) gained a "Ready for review" section listing this
+  apiary's `completed` recordings inline, below the pending/processing list. Each row
+  shows a truncated transcript preview and a status-derived subtitle (normal proposal /
+  no action recognized / an action's error), with a dismiss button on the error/no-action
+  rows that calls Reject directly from the row. Tapping a normal-proposal row opens a
+  read-only sub-dialog with the full transcript and each proposed action's tool name and
+  arguments. Accept/Reject-from-detail is not wired up yet (still to come); the mic
+  icon carries a badge with the count of recordings awaiting review.
+- **Original plan (not built as such)** — a history-icon button opening a paginated
+  full-screen list of past voice recordings, styled like a message list with status
+  chips ("Queued" / "Processing…" / "Awaiting review" / "Accepted" / "Rejected" / an
+  error reason / "Cancelled"), refreshing via pull-to-refresh. Tapping a recording would
+  open its detail view: the transcript text, then the list of proposed actions (hive,
+  action type, the fields Claude filled in — e.g. "Hive 3 — Inspection: brood pattern
+  good" / "Hive 3 — Feeding: 1L syrup"). While the recording is `completed` (awaiting
+  review) and has at least one non-error proposal, the detail view would end with two
+  buttons: **Accept** and **Reject** — still the intended UX, just not yet attached to
+  the inline detail dialog above. This is a whole-recording decision, not per-action —
+  a beekeeper reviews and decides on everything one recording produced together,
+  matching how they experienced it as one message.
 - **Accept** calls the backend, which runs each proposed action's real service call in
   turn (`InspectionService.Create`, `TreatmentService.Create`, ..., or the
   `PATCH .../hives/{hiveId}` flow for `update_hive_status`) — independently per action,

@@ -3250,6 +3250,7 @@ Returns a paginated list of voice recordings for the apiary ordered by `created_
           "sequence": 1,
           "hive_id": 3,
           "tool_name": "create_inspection",
+          "tool_arguments": {"colony_strength": "strong", "box_added": true},
           "status": "proposed",
           "result_type": null,
           "result_record_id": null,
@@ -3262,6 +3263,7 @@ Returns a paginated list of voice recordings for the apiary ordered by `created_
 }
 ```
 - `total` — total number of voice recordings for the apiary (used for pagination)
+- `tool_arguments` — the raw, unvalidated JSON object of arguments Claude proposed for `tool_name` (§2.2 of AI_ASSISTANT.md); `null` when `status` is `error` (no tool call was made) or when the tool call had no arguments
 - see `POST .../accept` below for the full `voice_actions` field reference
 
 **Errors**
@@ -3308,6 +3310,7 @@ Accepts a recording's proposed actions. Only valid while the recording's status 
       "sequence": 1,
       "hive_id": 3,
       "tool_name": "create_inspection",
+      "tool_arguments": {"colony_strength": "strong", "box_added": true},
       "status": "applied",
       "result_type": "inspection",
       "result_record_id": 45,
