@@ -64,9 +64,12 @@ type FeedingCreator interface {
 	Create(ctx context.Context, userID, apiaryID, hiveID int64, params FeedingParams) (*model.Feeding, error)
 }
 
-type VoiceHiveReader interface {
+type VoiceHiveService interface {
 	Get(ctx context.Context, userID, apiaryID, hiveID int64) (*model.Hive, error)
+	Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenNeedsReplacement, needsFood, boxNeedsAdding bool) (*model.Hive, error)
 	DiseasesByHive(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error)
+	AddDisease(ctx context.Context, userID, apiaryID, hiveID int64, disease string) (*model.HiveDisease, error)
+	RemoveDisease(ctx context.Context, userID, apiaryID, hiveID, diseaseID int64) error
 }
 
 type VoiceService struct {
@@ -76,7 +79,7 @@ type VoiceService struct {
 	treatments  TreatmentCreator
 	harvests    HarvestCreator
 	feedings    FeedingCreator
-	hives       VoiceHiveReader
+	hives       VoiceHiveService
 	storagePath string
 }
 
@@ -87,7 +90,7 @@ func NewVoiceService(
 	treatments TreatmentCreator,
 	harvests HarvestCreator,
 	feedings FeedingCreator,
-	hives VoiceHiveReader,
+	hives VoiceHiveService,
 	storagePath string,
 ) *VoiceService {
 	return &VoiceService{
@@ -231,6 +234,8 @@ func (s *VoiceService) applyAction(ctx context.Context, userID, apiaryID int64, 
 		resultType, resultID, err = s.applyCreateHarvest(ctx, userID, apiaryID, hiveID, action.ToolArguments)
 	case model.VoiceActionToolCreateFeeding:
 		resultType, resultID, err = s.applyCreateFeeding(ctx, userID, apiaryID, hiveID, action.ToolArguments)
+	case model.VoiceActionToolUpdateHiveStatus:
+		resultType, resultID, err = s.applyUpdateHiveStatus(ctx, userID, apiaryID, hiveID, action.ToolArguments)
 	default:
 		err = fmt.Errorf("unsupported tool: %s", *action.ToolName)
 	}
@@ -412,4 +417,80 @@ func (s *VoiceService) applyCreateFeeding(ctx context.Context, userID, apiaryID,
 		return "", 0, err
 	}
 	return model.VoiceActionResultTypeFeeding, f.ID, nil
+}
+
+type updateHiveStatusArgs struct {
+	ReadyForHarvest       *bool     `json:"ready_for_harvest"`
+	QueenNeedsReplacement *bool     `json:"queen_needs_replacement"`
+	NeedsFood             *bool     `json:"needs_food"`
+	BoxNeedsAdding        *bool     `json:"box_needs_adding"`
+	Diseases              *[]string `json:"diseases"`
+}
+
+func (s *VoiceService) applyUpdateHiveStatus(ctx context.Context, userID, apiaryID, hiveID int64, raw datatypes.JSON) (string, int64, error) {
+	var args updateHiveStatusArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return "", 0, fmt.Errorf("parse tool arguments: %w", err)
+	}
+	hive, err := s.hives.Get(ctx, userID, apiaryID, hiveID)
+	if err != nil {
+		return "", 0, err
+	}
+
+	readyForHarvest := hive.ReadyForHarvest
+	if args.ReadyForHarvest != nil {
+		readyForHarvest = *args.ReadyForHarvest
+	}
+	queenNeedsReplacement := hive.QueenNeedsReplacement
+	if args.QueenNeedsReplacement != nil {
+		queenNeedsReplacement = *args.QueenNeedsReplacement
+	}
+	needsFood := hive.NeedsFood
+	if args.NeedsFood != nil {
+		needsFood = *args.NeedsFood
+	}
+	boxNeedsAdding := hive.BoxNeedsAdding
+	if args.BoxNeedsAdding != nil {
+		boxNeedsAdding = *args.BoxNeedsAdding
+	}
+
+	updated, err := s.hives.Update(ctx, userID, apiaryID, hiveID, hive.Name, hive.Type, hive.Active, readyForHarvest, queenNeedsReplacement, needsFood, boxNeedsAdding)
+	if err != nil {
+		return "", 0, err
+	}
+
+	if args.Diseases != nil {
+		if err := s.syncHiveDiseases(ctx, userID, apiaryID, hiveID, *args.Diseases); err != nil {
+			return "", 0, err
+		}
+	}
+
+	return model.VoiceActionResultTypeHiveStatus, updated.ID, nil
+}
+
+func (s *VoiceService) syncHiveDiseases(ctx context.Context, userID, apiaryID, hiveID int64, desired []string) error {
+	current, err := s.hives.DiseasesByHive(ctx, hiveID)
+	if err != nil {
+		return err
+	}
+	want := toSet(desired)
+	have := make(map[string]int64, len(current))
+	for _, d := range current {
+		have[d.Disease] = d.ID
+	}
+	for name := range want {
+		if _, ok := have[name]; !ok {
+			if _, err := s.hives.AddDisease(ctx, userID, apiaryID, hiveID, name); err != nil {
+				return fmt.Errorf("add disease %q: %w", name, err)
+			}
+		}
+	}
+	for name, id := range have {
+		if !want[name] {
+			if err := s.hives.RemoveDisease(ctx, userID, apiaryID, hiveID, id); err != nil {
+				return fmt.Errorf("remove disease %q: %w", name, err)
+			}
+		}
+	}
+	return nil
 }

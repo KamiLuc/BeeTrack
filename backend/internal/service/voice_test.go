@@ -161,10 +161,17 @@ func (m *mockFeedingCreator) Create(ctx context.Context, userID, apiaryID, hiveI
 }
 
 type mockVoiceHiveReader struct {
-	hive         *model.Hive
-	hiveErr      error
-	diseases     []*model.HiveDisease
-	diseasesErr  error
+	hive        *model.Hive
+	hiveErr     error
+	diseases    []*model.HiveDisease
+	diseasesErr error
+
+	updateErr        error
+	updatedHive      *model.Hive
+	addedDiseases    []string
+	addDiseaseErr    error
+	removedDiseases  []int64
+	removeDiseaseErr error
 }
 
 func (m *mockVoiceHiveReader) Get(ctx context.Context, userID, apiaryID, hiveID int64) (*model.Hive, error) {
@@ -177,11 +184,36 @@ func (m *mockVoiceHiveReader) Get(ctx context.Context, userID, apiaryID, hiveID 
 	return &model.Hive{ID: hiveID}, nil
 }
 
+func (m *mockVoiceHiveReader) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenNeedsReplacement, needsFood, boxNeedsAdding bool) (*model.Hive, error) {
+	if m.updateErr != nil {
+		return nil, m.updateErr
+	}
+	m.updatedHive = &model.Hive{
+		ID: hiveID, Name: name, Type: hiveType, Active: active,
+		ReadyForHarvest: readyForHarvest, QueenNeedsReplacement: queenNeedsReplacement,
+		NeedsFood: needsFood, BoxNeedsAdding: boxNeedsAdding,
+	}
+	return m.updatedHive, nil
+}
+
 func (m *mockVoiceHiveReader) DiseasesByHive(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error) {
 	if m.diseasesErr != nil {
 		return nil, m.diseasesErr
 	}
 	return m.diseases, nil
+}
+
+func (m *mockVoiceHiveReader) AddDisease(ctx context.Context, userID, apiaryID, hiveID int64, disease string) (*model.HiveDisease, error) {
+	m.addedDiseases = append(m.addedDiseases, disease)
+	if m.addDiseaseErr != nil {
+		return nil, m.addDiseaseErr
+	}
+	return &model.HiveDisease{ID: int64(len(m.addedDiseases)), HiveID: hiveID, Disease: disease}, nil
+}
+
+func (m *mockVoiceHiveReader) RemoveDisease(ctx context.Context, userID, apiaryID, hiveID, diseaseID int64) error {
+	m.removedDiseases = append(m.removedDiseases, diseaseID)
+	return m.removeDiseaseErr
 }
 
 func mustMarshalJSON(t *testing.T, v any) datatypes.JSON {
@@ -193,8 +225,8 @@ func mustMarshalJSON(t *testing.T, v any) datatypes.JSON {
 	return datatypes.JSON(b)
 }
 
-func strPtr(s string) *string   { return &s }
-func int64Ptr(i int64) *int64   { return &i }
+func strPtr(s string) *string { return &s }
+func int64Ptr(i int64) *int64 { return &i }
 
 func newTestVoiceService(t *testing.T) (*VoiceService, *mockApiaryMembershipReader, *mockVoiceRepo, string) {
 	t.Helper()
@@ -527,6 +559,273 @@ func TestVoiceAccept_ApiaryNotFound(t *testing.T) {
 	_, _, err := svc.Accept(context.Background(), 1, 1, 1)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_PartialFlagsMergeWithCurrent(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{
+		ID: 5, Name: "Hive 5", Type: "langstroth", Active: true,
+		ReadyForHarvest: false, QueenNeedsReplacement: true, NeedsFood: true, BoxNeedsAdding: false,
+	}
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            40,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"ready_for_harvest": true}),
+		},
+	}
+
+	rec, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rec.Status != model.VoiceRecordingStatusAccepted {
+		t.Errorf("expected recording accepted, got %s", rec.Status)
+	}
+	a := actions[0]
+	if a.Status != model.VoiceActionStatusApplied {
+		t.Errorf("expected applied, got %s (%v)", a.Status, a.ErrorMessage)
+	}
+	if a.ResultType == nil || *a.ResultType != model.VoiceActionResultTypeHiveStatus {
+		t.Errorf("expected result type hive_status, got %v", a.ResultType)
+	}
+	if a.ResultRecordID == nil || *a.ResultRecordID != 5 {
+		t.Errorf("expected result record id 5, got %v", a.ResultRecordID)
+	}
+	updated := deps.hives.updatedHive
+	if updated == nil {
+		t.Fatal("expected hives.Update to be called")
+	}
+	if !updated.ReadyForHarvest {
+		t.Error("expected ready_for_harvest to be set true")
+	}
+	if !updated.QueenNeedsReplacement {
+		t.Error("expected queen_needs_replacement to be carried through unchanged (true)")
+	}
+	if !updated.NeedsFood {
+		t.Error("expected needs_food to be carried through unchanged (true)")
+	}
+	if updated.BoxNeedsAdding {
+		t.Error("expected box_needs_adding to be carried through unchanged (false)")
+	}
+	if updated.Name != "Hive 5" || updated.Type != "langstroth" || !updated.Active {
+		t.Errorf("expected name/type/active passed through unchanged, got %+v", updated)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_AllFlagsSet(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{ID: 5, Name: "Hive 5", Type: "langstroth", Active: true}
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:       41,
+			HiveID:   int64Ptr(5),
+			ToolName: strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:   model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{
+				"ready_for_harvest":       true,
+				"queen_needs_replacement": true,
+				"needs_food":              true,
+				"box_needs_adding":        true,
+			}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusApplied {
+		t.Errorf("expected applied, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+	updated := deps.hives.updatedHive
+	if updated == nil {
+		t.Fatal("expected hives.Update to be called")
+	}
+	if !updated.ReadyForHarvest || !updated.QueenNeedsReplacement || !updated.NeedsFood || !updated.BoxNeedsAdding {
+		t.Errorf("expected all flags set true, got %+v", updated)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_SyncsDiseases(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{ID: 5}
+	deps.hives.diseases = []*model.HiveDisease{
+		{ID: 100, HiveID: 5, Disease: "varroa"},
+		{ID: 101, HiveID: 5, Disease: "nosema"},
+	}
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            42,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"diseases": []string{"varroa", "chalkbrood"}}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusApplied {
+		t.Errorf("expected applied, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+	if len(deps.hives.addedDiseases) != 1 || deps.hives.addedDiseases[0] != "chalkbrood" {
+		t.Errorf("expected AddDisease called only with chalkbrood, got %v", deps.hives.addedDiseases)
+	}
+	if len(deps.hives.removedDiseases) != 1 || deps.hives.removedDiseases[0] != 101 {
+		t.Errorf("expected RemoveDisease called only with id 101 (nosema), got %v", deps.hives.removedDiseases)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_NoDiseasesFieldSkipsSync(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{ID: 5}
+	deps.hives.diseases = []*model.HiveDisease{{ID: 100, HiveID: 5, Disease: "varroa"}}
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            43,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"ready_for_harvest": true}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusApplied {
+		t.Errorf("expected applied, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+	if len(deps.hives.addedDiseases) != 0 {
+		t.Errorf("expected no AddDisease calls, got %v", deps.hives.addedDiseases)
+	}
+	if len(deps.hives.removedDiseases) != 0 {
+		t.Errorf("expected no RemoveDisease calls, got %v", deps.hives.removedDiseases)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_GetHiveFails(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hiveErr = errors.New("hive not found")
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            44,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"ready_for_harvest": true}),
+		},
+		{
+			ID:            45,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolCreateTreatment),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"medicine_name": "oxalic acid"}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusError || actions[0].ErrorMessage == nil {
+		t.Errorf("expected first action error, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+	if actions[1].Status != model.VoiceActionStatusApplied {
+		t.Errorf("expected second action still applied, got %s (%v)", actions[1].Status, actions[1].ErrorMessage)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_UpdateHiveFails(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{ID: 5}
+	deps.hives.updateErr = errors.New("db error")
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            46,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"ready_for_harvest": true}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusError || actions[0].ErrorMessage == nil {
+		t.Errorf("expected error, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_DiseaseSyncFailureStillErrorsAction(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.hives.hive = &model.Hive{ID: 5}
+	deps.hives.addDiseaseErr = errors.New("db error")
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            47,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: mustMarshalJSON(t, map[string]any{"diseases": []string{"varroa"}}),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusError || actions[0].ErrorMessage == nil {
+		t.Errorf("expected error, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
+	}
+	if deps.hives.updatedHive == nil {
+		t.Error("expected hives.Update to have already persisted before the disease sync failure")
+	}
+}
+
+func TestVoiceAccept_UpdateHiveStatus_MalformedJSON(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.actions = []*model.VoiceAction{
+		{
+			ID:            48,
+			HiveID:        int64Ptr(5),
+			ToolName:      strPtr(model.VoiceActionToolUpdateHiveStatus),
+			Status:        model.VoiceActionStatusProposed,
+			ToolArguments: datatypes.JSON(`{"ready_for_harvest": "not-a-bool"}`),
+		},
+	}
+
+	_, actions, err := svc.Accept(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if actions[0].Status != model.VoiceActionStatusError || actions[0].ErrorMessage == nil {
+		t.Errorf("expected error, got %s (%v)", actions[0].Status, actions[0].ErrorMessage)
 	}
 }
 

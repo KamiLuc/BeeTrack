@@ -93,15 +93,27 @@ func (f *fakeFeedingCreator) Create(ctx context.Context, userID, apiaryID, hiveI
 	return &model.Feeding{ID: 1}, nil
 }
 
-// fakeVoiceHiveReader is a minimal service.VoiceHiveReader for handler tests.
+// fakeVoiceHiveReader is a minimal service.VoiceHiveService for handler tests.
 type fakeVoiceHiveReader struct{}
 
 func (f *fakeVoiceHiveReader) Get(ctx context.Context, userID, apiaryID, hiveID int64) (*model.Hive, error) {
 	return &model.Hive{ID: hiveID}, nil
 }
 
+func (f *fakeVoiceHiveReader) Update(ctx context.Context, userID, apiaryID, hiveID int64, name, hiveType string, active, readyForHarvest, queenNeedsReplacement, needsFood, boxNeedsAdding bool) (*model.Hive, error) {
+	return &model.Hive{ID: hiveID, Name: name, Type: hiveType, Active: active, ReadyForHarvest: readyForHarvest, QueenNeedsReplacement: queenNeedsReplacement, NeedsFood: needsFood, BoxNeedsAdding: boxNeedsAdding}, nil
+}
+
 func (f *fakeVoiceHiveReader) DiseasesByHive(ctx context.Context, hiveID int64) ([]*model.HiveDisease, error) {
 	return nil, nil
+}
+
+func (f *fakeVoiceHiveReader) AddDisease(ctx context.Context, userID, apiaryID, hiveID int64, disease string) (*model.HiveDisease, error) {
+	return &model.HiveDisease{ID: 1, HiveID: hiveID, Disease: disease}, nil
+}
+
+func (f *fakeVoiceHiveReader) RemoveDisease(ctx context.Context, userID, apiaryID, hiveID, diseaseID int64) error {
+	return nil
 }
 
 func newAcceptRejectHandler(t *testing.T, apiary *model.Apiary, repo *fakeVoiceRepo) *VoiceHandler {

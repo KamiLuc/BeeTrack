@@ -828,7 +828,7 @@ func TestVoiceWorker_ProcessNext_UnrecognizedToolNameIgnored(t *testing.T) {
 	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
 	resolver := &mockHiveResolver{
 		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
-		proposeMessage: toolUseMessage(t, [2]string{"update_hive_status", `{"queen_needs_replacement":true}`}),
+		proposeMessage: toolUseMessage(t, [2]string{"delete_hive", `{}`}),
 	}
 	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
 
@@ -856,7 +856,7 @@ func TestVoiceWorker_ProcessNext_MixedRecognizedAndUnrecognizedToolCalls(t *test
 		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
 		proposeMessage: toolUseMessage(t,
 			[2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"good"}`},
-			[2]string{"update_hive_status", `{"queen_needs_replacement":true}`},
+			[2]string{"delete_hive", `{}`},
 			[2]string{model.VoiceActionToolCreateFeeding, `{"feed_type":"syrup","amount":"1L"}`},
 		),
 	}
@@ -1290,16 +1290,17 @@ func TestActionProposalTools_RequiredFields(t *testing.T) {
 	}
 }
 
-func TestActionProposalTools_ReturnsAllFour(t *testing.T) {
+func TestActionProposalTools_ReturnsAllFive(t *testing.T) {
 	tools := actionProposalTools()
-	if len(tools) != 4 {
-		t.Fatalf("expected 4 tools, got %d", len(tools))
+	if len(tools) != 5 {
+		t.Fatalf("expected 5 tools, got %d", len(tools))
 	}
 	wantNames := map[string]bool{
 		model.VoiceActionToolCreateInspection: false,
 		model.VoiceActionToolCreateTreatment:  false,
 		model.VoiceActionToolCreateHarvest:    false,
 		model.VoiceActionToolCreateFeeding:    false,
+		model.VoiceActionToolUpdateHiveStatus: false,
 	}
 	for _, tool := range tools {
 		if _, ok := wantNames[tool.Function.Name]; !ok {

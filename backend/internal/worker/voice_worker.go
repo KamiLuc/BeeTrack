@@ -386,6 +386,7 @@ var proposableTools = map[string]bool{
 	model.VoiceActionToolCreateTreatment:  true,
 	model.VoiceActionToolCreateHarvest:    true,
 	model.VoiceActionToolCreateFeeding:    true,
+	model.VoiceActionToolUpdateHiveStatus: true,
 }
 
 type lastInspectionContext struct {
@@ -485,8 +486,25 @@ func createFeedingTool() llm.Tool {
 	}, []string{"feed_type"})
 }
 
+func createUpdateHiveStatusTool() llm.Tool {
+	return functionTool(model.VoiceActionToolUpdateHiveStatus, "Propose updating the hive's status flags and/or active diseases.", map[string]any{
+		"ready_for_harvest":       map[string]any{"type": "boolean", "description": "True if the hive is ready for honey harvest."},
+		"queen_needs_replacement": map[string]any{"type": "boolean", "description": "True if the queen needs replacing."},
+		"needs_food":              map[string]any{"type": "boolean", "description": "True if the hive needs feeding."},
+		"box_needs_adding":        map[string]any{"type": "boolean", "description": "True if a box/super needs to be added."},
+		"diseases": map[string]any{
+			"type":        "array",
+			"description": "The hive's full set of currently active diseases, if the transcript describes a change to them.",
+			"items": map[string]any{
+				"type": "string",
+				"enum": model.ValidDiseases,
+			},
+		},
+	}, nil)
+}
+
 func actionProposalTools() []llm.Tool {
-	return []llm.Tool{createInspectionTool(), createTreatmentTool(), createHarvestTool(), createFeedingTool()}
+	return []llm.Tool{createInspectionTool(), createTreatmentTool(), createHarvestTool(), createFeedingTool(), createUpdateHiveStatusTool()}
 }
 
 type knownValues struct {
