@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/beetrack/backend/internal/model"
 	"github.com/beetrack/backend/internal/service"
@@ -21,6 +22,22 @@ func recordingJSON(rec *model.VoiceRecording) map[string]any {
 	return map[string]any{
 		"recording_id": rec.ID,
 		"status":       rec.Status,
+	}
+}
+
+func recordingListJSON(rec *model.VoiceRecording, actions []*model.VoiceAction) map[string]any {
+	items := make([]map[string]any, len(actions))
+	for i, a := range actions {
+		items[i] = actionJSON(a)
+	}
+	return map[string]any{
+		"recording_id":  rec.ID,
+		"status":        rec.Status,
+		"transcript":    rec.Transcript,
+		"error_message": rec.ErrorMessage,
+		"created_at":    rec.CreatedAt,
+		"processed_at":  rec.ProcessedAt,
+		"voice_actions": items,
 	}
 }
 
@@ -79,6 +96,43 @@ func (h *VoiceHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusAccepted, recordingJSON(rec))
+}
+
+func (h *VoiceHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
+		return
+	}
+
+	limit := 20
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	recs, actionsByRecording, total, err := h.voice.List(r.Context(), userID, apiaryID, limit, offset)
+	if err != nil {
+		voiceError(w, err)
+		return
+	}
+
+	items := make([]map[string]any, len(recs))
+	for i, rec := range recs {
+		items[i] = recordingListJSON(rec, actionsByRecording[rec.ID])
+	}
+	respond.JSON(w, http.StatusOK, map[string]any{"items": items, "total": total})
 }
 
 func (h *VoiceHandler) Accept(w http.ResponseWriter, r *http.Request) {

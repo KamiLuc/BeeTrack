@@ -5828,6 +5828,147 @@ paths:
                     message: Unexpected server error
       security:
       - bearerAuth: []
+  /api/v1/apiaries/{id}/voice-recordings:
+    get:
+      tags:
+      - Voice Logging
+      summary: Returns a paginated list of voice recordings for the apiary ordered by `created_at` descending.
+      description: Returns a paginated list of voice recordings for the apiary ordered by `created_at`
+        descending. Each item includes its nested `voice_actions` (empty array if none).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Maximum number of records to return
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Number of records to skip
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        recording_id:
+                          type: integer
+                        status:
+                          type: string
+                        transcript:
+                          type: string
+                        error_message:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                        processed_at:
+                          type: string
+                        voice_actions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              sequence:
+                                type: integer
+                              hive_id:
+                                type: integer
+                              tool_name:
+                                type: string
+                              status:
+                                type: string
+                              result_type:
+                                type: string
+                                nullable: true
+                              result_record_id:
+                                type: string
+                                nullable: true
+                              error_message:
+                                type: string
+                                nullable: true
+                  total:
+                    type: integer
+              example:
+                items:
+                - recording_id: 7
+                  status: completed
+                  transcript: Checked hive 3, six frames of brood, queen looked good
+                  error_message: null
+                  created_at: '2026-08-01T10:00:00Z'
+                  processed_at: '2026-08-01T10:00:15Z'
+                  voice_actions:
+                  - id: 12
+                    sequence: 1
+                    hive_id: 3
+                    tool_name: create_inspection
+                    status: proposed
+                    result_type: null
+                    result_record_id: null
+                    error_message: null
+                total: 42
+        '401':
+          description: No Bearer token; Token invalid or expired
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+                INVALID_TOKEN:
+                  value:
+                    code: INVALID_TOKEN
+                    message: Token invalid or expired
+        '400':
+          description: Path id is not a valid integer
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path id is not a valid integer
+        '404':
+          description: Apiary does not exist or user is not a member
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
   /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept:
     post:
       tags:

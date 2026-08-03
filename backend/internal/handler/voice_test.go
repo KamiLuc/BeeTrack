@@ -18,11 +18,16 @@ import (
 
 // fakeVoiceRepo is a minimal service.VoiceRepository for handler tests.
 type fakeVoiceRepo struct {
-	count        int64
-	createErr    error
-	recording    *model.VoiceRecording
-	actions      []*model.VoiceAction
-	deleteCalled bool
+	count           int64
+	createErr       error
+	recording       *model.VoiceRecording
+	actions         []*model.VoiceAction
+	deleteCalled    bool
+	recordings      []*model.VoiceRecording
+	recordingsTotal int64
+	actionsByIDs    []*model.VoiceAction
+	lastListLimit   int
+	lastListOffset  int
 }
 
 func (f *fakeVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRecording) error {
@@ -43,6 +48,20 @@ func (f *fakeVoiceRepo) GetRecordingByID(ctx context.Context, id int64) (*model.
 
 func (f *fakeVoiceRepo) UpdateRecording(ctx context.Context, rec *model.VoiceRecording) error {
 	return nil
+}
+
+func (f *fakeVoiceRepo) ListRecordingsByApiaryID(ctx context.Context, apiaryID int64, limit, offset int) ([]*model.VoiceRecording, error) {
+	f.lastListLimit = limit
+	f.lastListOffset = offset
+	return f.recordings, nil
+}
+
+func (f *fakeVoiceRepo) CountRecordingsByApiaryID(ctx context.Context, apiaryID int64) (int64, error) {
+	return f.recordingsTotal, nil
+}
+
+func (f *fakeVoiceRepo) ListActionsByRecordingIDs(ctx context.Context, recordingIDs []int64) ([]*model.VoiceAction, error) {
+	return f.actionsByIDs, nil
 }
 
 func (f *fakeVoiceRepo) ListActionsByRecordingID(ctx context.Context, recordingID int64) ([]*model.VoiceAction, error) {
@@ -136,6 +155,178 @@ func newAcceptRejectRequest(method, apiaryID, recordingID string) *http.Request 
 	req.SetPathValue("id", apiaryID)
 	req.SetPathValue("recordingId", recordingID)
 	return req
+}
+
+func newListHandler(t *testing.T, apiary *model.Apiary, repo *fakeVoiceRepo) *VoiceHandler {
+	t.Helper()
+	svc := service.NewVoiceService(
+		&fakeApiaryMembershipReader{apiary: apiary},
+		repo,
+		&fakeInspectionCreator{},
+		&fakeTreatmentCreator{},
+		&fakeHarvestCreator{},
+		&fakeFeedingCreator{},
+		&fakeVoiceHiveReader{},
+		t.TempDir(),
+	)
+	return NewVoiceHandler(svc)
+}
+
+func newListRequest(apiaryID, query string) *http.Request {
+	url := "/api/v1/apiaries/" + apiaryID + "/voice-recordings"
+	if query != "" {
+		url += "?" + query
+	}
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.SetPathValue("id", apiaryID)
+	return req
+}
+
+func TestVoiceList_Handler_Success(t *testing.T) {
+	transcript := "some transcript"
+	repo := &fakeVoiceRepo{
+		recordings: []*model.VoiceRecording{
+			{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted, Transcript: &transcript},
+		},
+		recordingsTotal: 1,
+		actionsByIDs: []*model.VoiceAction{
+			{ID: 10, VoiceRecordingID: 1, Sequence: 1, Status: model.VoiceActionStatusProposed},
+		},
+	}
+	h := newListHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+	req := authedRequest(t, newListRequest("1", ""), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Items []map[string]any `json:"items"`
+		Total int64            `json:"total"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Total != 1 {
+		t.Errorf("expected total 1, got %d", body.Total)
+	}
+	if len(body.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(body.Items))
+	}
+	item := body.Items[0]
+	if item["recording_id"] != float64(1) {
+		t.Errorf("expected recording_id 1, got %v", item["recording_id"])
+	}
+	if item["transcript"] != transcript {
+		t.Errorf("expected transcript %q, got %v", transcript, item["transcript"])
+	}
+	actions, ok := item["voice_actions"].([]any)
+	if !ok || len(actions) != 1 {
+		t.Fatalf("expected 1 voice_action, got %v", item["voice_actions"])
+	}
+	if repo.lastListLimit != 20 || repo.lastListOffset != 0 {
+		t.Errorf("expected default limit=20 offset=0, got limit=%d offset=%d", repo.lastListLimit, repo.lastListOffset)
+	}
+}
+
+func TestVoiceList_Handler_CustomLimitOffset(t *testing.T) {
+	repo := &fakeVoiceRepo{}
+	h := newListHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+	req := authedRequest(t, newListRequest("1", "limit=5&offset=10"), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if repo.lastListLimit != 5 || repo.lastListOffset != 10 {
+		t.Errorf("expected limit=5 offset=10, got limit=%d offset=%d", repo.lastListLimit, repo.lastListOffset)
+	}
+}
+
+func TestVoiceList_Handler_InvalidLimitOffsetFallsBackToDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{"non-numeric limit", "limit=abc"},
+		{"negative limit", "limit=-1"},
+		{"zero limit", "limit=0"},
+		{"negative offset", "offset=-5"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &fakeVoiceRepo{}
+			h := newListHandler(t, &model.Apiary{ID: 1}, repo)
+			handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+			req := authedRequest(t, newListRequest("1", tt.query), 1)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+			}
+			if repo.lastListLimit != 20 || repo.lastListOffset != 0 {
+				t.Errorf("expected fallback to default limit=20 offset=0, got limit=%d offset=%d", repo.lastListLimit, repo.lastListOffset)
+			}
+		})
+	}
+}
+
+func TestVoiceList_Handler_ApiaryNotFound(t *testing.T) {
+	repo := &fakeVoiceRepo{}
+	h := newListHandler(t, nil, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+	req := authedRequest(t, newListRequest("1", ""), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := decodeErrorCode(t, rec); code != "APIARY_NOT_FOUND" {
+		t.Errorf("expected code APIARY_NOT_FOUND, got %q", code)
+	}
+}
+
+func TestVoiceList_Handler_Empty(t *testing.T) {
+	repo := &fakeVoiceRepo{recordings: nil, recordingsTotal: 0}
+	h := newListHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.List))
+
+	req := authedRequest(t, newListRequest("1", ""), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Items []map[string]any `json:"items"`
+		Total int64            `json:"total"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Items == nil {
+		t.Error("expected items to be an empty array, not null")
+	}
+	if len(body.Items) != 0 {
+		t.Errorf("expected 0 items, got %d", len(body.Items))
+	}
+	if body.Total != 0 {
+		t.Errorf("expected total 0, got %d", body.Total)
+	}
 }
 
 func TestVoiceAccept_Handler_Success(t *testing.T) {
@@ -455,7 +646,7 @@ func TestVoiceUpload_ErrorMapping(t *testing.T) {
 			apiary:     &model.Apiary{ID: 1},
 			mimeType:   "audio/webm",
 			size:       1024,
-			count:      20,
+			count:      10,
 			wantStatus: http.StatusUnprocessableEntity,
 			wantCode:   "MAX_RECORDINGS_REACHED",
 		},

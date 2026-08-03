@@ -57,8 +57,9 @@ func TestVoiceRepository_CreateRecording(t *testing.T) {
 func TestVoiceRepository_CountRecordingsByUserID(t *testing.T) {
 	repo, mock := newVoiceTestRepo(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "voice_recordings" WHERE user_id = $1`)).
-		WithArgs(int64(7)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "voice_recordings" WHERE user_id = $1 AND status IN ($2,$3,$4)`)).
+		WithArgs(int64(7),
+			model.VoiceRecordingStatusPending, model.VoiceRecordingStatusProcessing, model.VoiceRecordingStatusCompleted).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
 
 	count, err := repo.CountRecordingsByUserID(context.Background(), 7)
@@ -111,13 +112,13 @@ func TestVoiceRepository_ListRecordingsByApiaryID(t *testing.T) {
 	repo, mock := newVoiceTestRepo(t)
 
 	now := time.Now()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_recordings" WHERE apiary_id = $1 ORDER BY created_at DESC`)).
-		WithArgs(int64(3)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_recordings" WHERE apiary_id = $1 ORDER BY created_at DESC LIMIT $2`)).
+		WithArgs(int64(3), 20).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "apiary_id", "status", "created_at"}).
 			AddRow(2, 7, 3, model.VoiceRecordingStatusProcessing, now).
 			AddRow(1, 7, 3, model.VoiceRecordingStatusCompleted, now.Add(-time.Hour)))
 
-	recs, err := repo.ListRecordingsByApiaryID(context.Background(), 3)
+	recs, err := repo.ListRecordingsByApiaryID(context.Background(), 3, 20, 0)
 	if err != nil {
 		t.Fatalf("ListRecordingsByApiaryID returned error: %v", err)
 	}
@@ -126,6 +127,56 @@ func TestVoiceRepository_ListRecordingsByApiaryID(t *testing.T) {
 	}
 	if recs[0].ID != 2 || recs[1].ID != 1 {
 		t.Fatalf("recordings not returned in expected order: %+v", recs)
+	}
+}
+
+func TestVoiceRepository_CountRecordingsByApiaryID(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "voice_recordings" WHERE apiary_id = $1`)).
+		WithArgs(int64(3)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+	count, err := repo.CountRecordingsByApiaryID(context.Background(), 3)
+	if err != nil {
+		t.Fatalf("CountRecordingsByApiaryID returned error: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected count 2, got %d", count)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_ListActionsByRecordingIDs(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	now := time.Now()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_actions" WHERE voice_recording_id IN ($1,$2) ORDER BY voice_recording_id ASC, sequence ASC`)).
+		WithArgs(int64(1), int64(2)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "voice_recording_id", "sequence", "status", "created_at"}).
+			AddRow(1, 1, 1, model.VoiceActionStatusApplied, now).
+			AddRow(2, 2, 1, model.VoiceActionStatusProposed, now))
+
+	actions, err := repo.ListActionsByRecordingIDs(context.Background(), []int64{1, 2})
+	if err != nil {
+		t.Fatalf("ListActionsByRecordingIDs returned error: %v", err)
+	}
+	if len(actions) != 2 {
+		t.Fatalf("expected 2 actions, got %d", len(actions))
+	}
+}
+
+func TestVoiceRepository_ListActionsByRecordingIDs_Empty(t *testing.T) {
+	repo, _ := newVoiceTestRepo(t)
+
+	actions, err := repo.ListActionsByRecordingIDs(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListActionsByRecordingIDs returned error: %v", err)
+	}
+	if len(actions) != 0 {
+		t.Fatalf("expected 0 actions, got %d", len(actions))
 	}
 }
 

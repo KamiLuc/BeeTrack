@@ -18,7 +18,7 @@ import (
 var (
 	ErrInvalidAudioType      = errors.New("unsupported audio type; allowed: audio/webm, audio/mp4, audio/wav")
 	ErrRecordingTooLong      = errors.New("recording exceeds 15 MB limit")
-	ErrMaxRecordingsReached  = errors.New("you already have the maximum of 20 stored recordings")
+	ErrMaxRecordingsReached  = errors.New("you already have the maximum of 10 recordings awaiting review")
 	ErrRecordingNotFound     = errors.New("voice recording not found")
 	ErrRecordingNotCompleted = errors.New("voice recording is not awaiting review")
 )
@@ -28,7 +28,7 @@ var (
 // of the accepted formats — avoids needing to parse webm/m4a/wav headers for an exact duration.
 const MaxAudioBytes = 15 * 1024 * 1024
 
-const maxRecordingsPerUser = 20
+const maxRecordingsPerUser = 10
 
 var allowedAudioMIME = map[string]string{
 	"audio/webm":  ".webm",
@@ -42,7 +42,10 @@ type VoiceRepository interface {
 	CountRecordingsByUserID(ctx context.Context, userID int64) (int64, error)
 	GetRecordingByID(ctx context.Context, id int64) (*model.VoiceRecording, error)
 	UpdateRecording(ctx context.Context, rec *model.VoiceRecording) error
+	ListRecordingsByApiaryID(ctx context.Context, apiaryID int64, limit, offset int) ([]*model.VoiceRecording, error)
+	CountRecordingsByApiaryID(ctx context.Context, apiaryID int64) (int64, error)
 	ListActionsByRecordingID(ctx context.Context, recordingID int64) ([]*model.VoiceAction, error)
+	ListActionsByRecordingIDs(ctx context.Context, recordingIDs []int64) ([]*model.VoiceAction, error)
 	UpdateAction(ctx context.Context, action *model.VoiceAction) error
 	DeleteActionsByRecordingID(ctx context.Context, recordingID int64) error
 }
@@ -144,6 +147,41 @@ func (s *VoiceService) Upload(ctx context.Context, userID, apiaryID int64, mimeT
 		return nil, fmt.Errorf("create recording: %w", err)
 	}
 	return rec, nil
+}
+
+func (s *VoiceService) List(ctx context.Context, userID, apiaryID int64, limit, offset int) ([]*model.VoiceRecording, map[int64][]*model.VoiceAction, int64, error) {
+	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, 0, ErrApiaryNotFound
+		}
+		return nil, nil, 0, fmt.Errorf("get apiary: %w", err)
+	}
+	total, err := s.recordings.CountRecordingsByApiaryID(ctx, apiaryID)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("count recordings: %w", err)
+	}
+	recs, err := s.recordings.ListRecordingsByApiaryID(ctx, apiaryID, limit, offset)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("list recordings: %w", err)
+	}
+
+	ids := make([]int64, len(recs))
+	for i, rec := range recs {
+		ids[i] = rec.ID
+	}
+	actions, err := s.recordings.ListActionsByRecordingIDs(ctx, ids)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("list actions: %w", err)
+	}
+	grouped := make(map[int64][]*model.VoiceAction, len(ids))
+	for _, id := range ids {
+		grouped[id] = []*model.VoiceAction{}
+	}
+	for _, a := range actions {
+		grouped[a.VoiceRecordingID] = append(grouped[a.VoiceRecordingID], a)
+	}
+
+	return recs, grouped, total, nil
 }
 
 func (s *VoiceService) getOwnedCompletedRecording(ctx context.Context, userID, apiaryID, recordingID int64) (*model.VoiceRecording, error) {

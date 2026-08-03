@@ -28,6 +28,15 @@ type mockVoiceRepo struct {
 	deletedRecID     int64
 	deleteCalled     bool
 	deleteActionsErr error
+
+	recordings          []*model.VoiceRecording
+	listRecordingsErr   error
+	recordingsTotal     int64
+	countByApiaryErr    error
+	actionsByIDs        []*model.VoiceAction
+	listActionsByIDsErr error
+	lastListLimit       int
+	lastListOffset      int
 }
 
 func (m *mockVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRecording) error {
@@ -56,6 +65,29 @@ func (m *mockVoiceRepo) UpdateRecording(ctx context.Context, rec *model.VoiceRec
 	}
 	m.updatedRecording = rec
 	return nil
+}
+
+func (m *mockVoiceRepo) ListRecordingsByApiaryID(ctx context.Context, apiaryID int64, limit, offset int) ([]*model.VoiceRecording, error) {
+	m.lastListLimit = limit
+	m.lastListOffset = offset
+	if m.listRecordingsErr != nil {
+		return nil, m.listRecordingsErr
+	}
+	return m.recordings, nil
+}
+
+func (m *mockVoiceRepo) CountRecordingsByApiaryID(ctx context.Context, apiaryID int64) (int64, error) {
+	if m.countByApiaryErr != nil {
+		return 0, m.countByApiaryErr
+	}
+	return m.recordingsTotal, nil
+}
+
+func (m *mockVoiceRepo) ListActionsByRecordingIDs(ctx context.Context, recordingIDs []int64) ([]*model.VoiceAction, error) {
+	if m.listActionsByIDsErr != nil {
+		return nil, m.listActionsByIDsErr
+	}
+	return m.actionsByIDs, nil
 }
 
 func (m *mockVoiceRepo) ListActionsByRecordingID(ctx context.Context, recordingID int64) ([]*model.VoiceAction, error) {
@@ -878,5 +910,119 @@ func TestVoiceReject_ApiaryNotFound(t *testing.T) {
 	_, err := svc.Reject(context.Background(), 1, 1, 1)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceList_Success(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recordings = []*model.VoiceRecording{
+		{ID: 1, ApiaryID: 1},
+		{ID: 2, ApiaryID: 1},
+	}
+	voiceMock.recordingsTotal = 50
+	voiceMock.actionsByIDs = []*model.VoiceAction{
+		{ID: 100, VoiceRecordingID: 1, Sequence: 1},
+		{ID: 101, VoiceRecordingID: 1, Sequence: 2},
+	}
+
+	recs, grouped, total, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(recs) != 2 {
+		t.Fatalf("expected 2 recordings, got %d", len(recs))
+	}
+	if total != 50 {
+		t.Errorf("expected total 50, got %d", total)
+	}
+	if len(grouped) != 2 {
+		t.Fatalf("expected grouped map with 2 keys, got %d", len(grouped))
+	}
+	if len(grouped[1]) != 2 {
+		t.Errorf("expected 2 actions for recording 1, got %d", len(grouped[1]))
+	}
+	actionsForRec2, ok := grouped[2]
+	if !ok {
+		t.Fatal("expected recording 2 to have a key in the grouped map")
+	}
+	if actionsForRec2 == nil || len(actionsForRec2) != 0 {
+		t.Errorf("expected empty non-nil slice for recording 2, got %v", actionsForRec2)
+	}
+}
+
+func TestVoiceList_Empty(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recordings = nil
+	voiceMock.recordingsTotal = 0
+
+	recs, grouped, total, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(recs) != 0 {
+		t.Errorf("expected no recordings, got %d", len(recs))
+	}
+	if len(grouped) != 0 {
+		t.Errorf("expected empty grouped map, got %d entries", len(grouped))
+	}
+	if total != 0 {
+		t.Errorf("expected total 0, got %d", total)
+	}
+}
+
+func TestVoiceList_ApiaryNotFound(t *testing.T) {
+	svc, _, _, _ := newTestVoiceService(t)
+
+	_, _, _, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceList_CountFails(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.countByApiaryErr = errors.New("db error")
+
+	_, _, _, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestVoiceList_ListRecordingsFails(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.listRecordingsErr = errors.New("db error")
+
+	_, _, _, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestVoiceList_ListActionsFails(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+	voiceMock.recordings = []*model.VoiceRecording{{ID: 1, ApiaryID: 1}}
+	voiceMock.listActionsByIDsErr = errors.New("db error")
+
+	_, _, _, err := svc.List(context.Background(), 1, 1, 20, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestVoiceList_PassesLimitOffsetToRepository(t *testing.T) {
+	svc, apiaryMock, voiceMock, _ := newTestVoiceService(t)
+	apiaryMock.apiary = &model.Apiary{ID: 1}
+
+	if _, _, _, err := svc.List(context.Background(), 1, 1, 5, 10); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if voiceMock.lastListLimit != 5 || voiceMock.lastListOffset != 10 {
+		t.Errorf("expected limit=5 offset=10 to reach repository, got limit=%d offset=%d", voiceMock.lastListLimit, voiceMock.lastListOffset)
 	}
 }

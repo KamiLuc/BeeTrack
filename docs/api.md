@@ -3173,7 +3173,7 @@ Deletes a conversation and its message/tool-call trail (cascades via FK).
 
 ### POST /apiaries/{id}/voice 🔒
 
-Uploads a voice recording to be transcribed and turned into a proposed inspection log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`, `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for the client's ~3-minute recording cap). Each user may have at most 20 stored recordings at a time.
+Uploads a voice recording to be transcribed and turned into a proposed inspection log entry. Send as `multipart/form-data` with field name `audio`. Accepted MIME types: `audio/webm`, `audio/mp4`, `audio/wav`, `audio/x-wav`. Maximum file size: **15 MB** (a server-side proxy for the client's ~3-minute recording cap). Each user may have at most 10 recordings awaiting review (`pending`/`processing`/`completed`) at a time — accepted, rejected, failed, or cancelled recordings don't count against this limit.
 
 The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recordings` row is inserted with status `pending`. A background worker (only runs if `OPENROUTER_API_KEY` is set) polls for `pending` rows, transcribes the audio via OpenRouter's Whisper-compatible transcription endpoint (`OPENROUTER_WHISPER_MODEL`, default `openai/whisper-1`), then resolves which hive (if any) of the apiary's hives the transcript is about. If no hive is clearly named, or more than one is, a single `voice_actions` error row is attached (`HIVE_NOT_IDENTIFIED` or `MULTIPLE_HIVES_MENTIONED`) and the recording moves straight to `completed`. If exactly one hive resolves, the worker makes a second OpenRouter chat-completions call with that hive's recent context and may propose zero or more actions — each recognized action (create inspection, treatment, harvest, or feeding) is stored as its own `voice_actions` row with `status = 'proposed'`, unvalidated arguments, tied to that hive; naming no actionable activity leaves the recording with zero `voice_actions` rows. Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues the recording; reviewing/accepting/rejecting proposed actions is not yet implemented.
 
@@ -3193,7 +3193,59 @@ The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recor
 | `INVALID_AUDIO_TYPE` | 400 | MIME type not allowed |
 | `RECORDING_TOO_LONG` | 413 | File exceeds 15 MB |
 | `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
-| `MAX_RECORDINGS_REACHED` | 422 | Caller already has 20 stored recordings |
+| `MAX_RECORDINGS_REACHED` | 422 | Caller already has 10 recordings awaiting review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+### GET /apiaries/{id}/voice-recordings 🔒
+
+Returns a paginated list of voice recordings for the apiary ordered by `created_at` descending. Each item includes its nested `voice_actions` (empty array if none).
+
+**Query parameters**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `limit` | 20 | Maximum number of records to return |
+| `offset` | 0 | Number of records to skip |
+
+**Response** `200 OK`
+```json
+{
+  "items": [
+    {
+      "recording_id": 7,
+      "status": "completed",
+      "transcript": "Checked hive 3, six frames of brood, queen looked good",
+      "error_message": null,
+      "created_at": "2026-08-01T10:00:00Z",
+      "processed_at": "2026-08-01T10:00:15Z",
+      "voice_actions": [
+        {
+          "id": 12,
+          "sequence": 1,
+          "hive_id": 3,
+          "tool_name": "create_inspection",
+          "status": "proposed",
+          "result_type": null,
+          "result_record_id": null,
+          "error_message": null
+        }
+      ]
+    }
+  ],
+  "total": 42
+}
+```
+- `total` — total number of voice recordings for the apiary (used for pagination)
+- see `POST .../accept` below for the full `voice_actions` field reference
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_TOKEN` | 401 | Token invalid or expired |
+| `INVALID_ID` | 400 | Path id is not a valid integer |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ---
