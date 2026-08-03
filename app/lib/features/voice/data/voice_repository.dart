@@ -66,4 +66,14 @@ class VoiceRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<void> rejectRecording(int apiaryId, int recordingId) async {
+    try {
+      await _api.dio.post(
+        '/api/v1/apiaries/$apiaryId/voice-recordings/$recordingId/reject',
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

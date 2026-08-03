@@ -757,6 +757,30 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get voiceRecordingStatusCompleted => 'Gotowe do sprawdzenia';
+
+  @override
+  String get voiceReviewSectionTitle => 'Gotowe do sprawdzenia';
+
+  @override
+  String get voiceReviewNoActionRecognized => 'Nie rozpoznano żadnej czynności';
+
+  @override
+  String get voiceReviewErrorHiveNotIdentified => 'Nie udało się rozpoznać ula';
+
+  @override
+  String get voiceReviewErrorMultipleHives => 'Wspomniano więcej niż jeden ul';
+
+  @override
+  String get voiceReviewErrorGeneric => 'Coś poszło nie tak';
+
+  @override
+  String get voiceReviewDismissTooltip => 'Odrzuć';
+
+  @override
+  String get voiceReviewRejectFailed => 'Nie udało się odrzucić nagrania';
+
+  @override
   String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override

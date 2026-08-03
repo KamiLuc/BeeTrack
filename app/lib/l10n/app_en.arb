@@ -294,6 +294,14 @@
       "max": { "type": "int" }
     }
   },
+  "voiceRecordingStatusCompleted": "Ready for review",
+  "voiceReviewSectionTitle": "Ready for review",
+  "voiceReviewNoActionRecognized": "No action recognized",
+  "voiceReviewErrorHiveNotIdentified": "Couldn't identify the hive",
+  "voiceReviewErrorMultipleHives": "More than one hive was mentioned",
+  "voiceReviewErrorGeneric": "Something went wrong",
+  "voiceReviewDismissTooltip": "Dismiss",
+  "voiceReviewRejectFailed": "Failed to dismiss recording",
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
   "hiveStatus": "Status",

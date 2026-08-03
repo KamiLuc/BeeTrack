@@ -1478,6 +1478,54 @@ abstract class AppLocalizations {
   /// **'Osiągnięto limit {max} oczekujących nagrań'**
   String voiceRecordingPendingLimitReached(int max);
 
+  /// No description provided for @voiceRecordingStatusCompleted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Gotowe do sprawdzenia'**
+  String get voiceRecordingStatusCompleted;
+
+  /// No description provided for @voiceReviewSectionTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Gotowe do sprawdzenia'**
+  String get voiceReviewSectionTitle;
+
+  /// No description provided for @voiceReviewNoActionRecognized.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie rozpoznano żadnej czynności'**
+  String get voiceReviewNoActionRecognized;
+
+  /// No description provided for @voiceReviewErrorHiveNotIdentified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się rozpoznać ula'**
+  String get voiceReviewErrorHiveNotIdentified;
+
+  /// No description provided for @voiceReviewErrorMultipleHives.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wspomniano więcej niż jeden ul'**
+  String get voiceReviewErrorMultipleHives;
+
+  /// No description provided for @voiceReviewErrorGeneric.
+  ///
+  /// In pl, this message translates to:
+  /// **'Coś poszło nie tak'**
+  String get voiceReviewErrorGeneric;
+
+  /// No description provided for @voiceReviewDismissTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzuć'**
+  String get voiceReviewDismissTooltip;
+
+  /// No description provided for @voiceReviewRejectFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się odrzucić nagrania'**
+  String get voiceReviewRejectFailed;
+
   /// No description provided for @apiaryCenterView.
   ///
   /// In pl, this message translates to:

@@ -748,6 +748,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get voiceRecordingStatusCompleted => 'Ready for review';
+
+  @override
+  String get voiceReviewSectionTitle => 'Ready for review';
+
+  @override
+  String get voiceReviewNoActionRecognized => 'No action recognized';
+
+  @override
+  String get voiceReviewErrorHiveNotIdentified => 'Couldn\'t identify the hive';
+
+  @override
+  String get voiceReviewErrorMultipleHives =>
+      'More than one hive was mentioned';
+
+  @override
+  String get voiceReviewErrorGeneric => 'Something went wrong';
+
+  @override
+  String get voiceReviewDismissTooltip => 'Dismiss';
+
+  @override
+  String get voiceReviewRejectFailed => 'Failed to dismiss recording';
+
+  @override
   String get apiaryCenterView => 'Center view';
 
   @override

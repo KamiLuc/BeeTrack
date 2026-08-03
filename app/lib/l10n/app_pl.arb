@@ -294,6 +294,14 @@
       "max": { "type": "int" }
     }
   },
+  "voiceRecordingStatusCompleted": "Gotowe do sprawdzenia",
+  "voiceReviewSectionTitle": "Gotowe do sprawdzenia",
+  "voiceReviewNoActionRecognized": "Nie rozpoznano żadnej czynności",
+  "voiceReviewErrorHiveNotIdentified": "Nie udało się rozpoznać ula",
+  "voiceReviewErrorMultipleHives": "Wspomniano więcej niż jeden ul",
+  "voiceReviewErrorGeneric": "Coś poszło nie tak",
+  "voiceReviewDismissTooltip": "Odrzuć",
+  "voiceReviewRejectFailed": "Nie udało się odrzucić nagrania",
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
   "hiveStatus": "Status",

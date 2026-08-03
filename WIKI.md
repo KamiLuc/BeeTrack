@@ -585,8 +585,8 @@ ApiariesScreen (shown once logged in)
           │     • Voice notes (Icons.mic_none) — opens the voice-recording dialog (see below);
           │       a red Badge shows the count of `completed` recordings awaiting review (fetched
           │       via `GET /voice-recordings`, refreshed on screen load and whenever the dialog
-          │       closes) — a placeholder signal ahead of the still-to-build Voice Activity screen
-          │       (VC-21-FE) that will let you actually review/accept/reject them
+          │       closes) — the dialog itself now has a "Ready for review" section listing those
+          │       same recordings (see below); a full detail view with Accept/Reject is still to come
           │     • Center view (Icons.center_focus_strong_outlined) — resets TransformationController
           │       to Matrix4.identity(), snapping pan/zoom back to initial position
           │     • Dashboard/"Raport" (Icons.assessment_outlined) — opens DashboardScreen, a
@@ -734,7 +734,14 @@ A round record button (mic ↔ stop icon, red while recording, deep-orange in th
 
 Below the button, a list of this session's pending/processing recordings (in-memory only, `_VoicePendingCache` — survives the dialog closing/reopening but not an app restart, since a recording's local audio can't be recovered from the server once that's gone): each row shows a status label ("Queued"/"Processing…"), a Play/Stop toggle (plays the local file only — the backend never re-serves audio — tints primary color while that row is playing), and (while still `pending`) a Cancel button (`DELETE /voice-recordings/{id}`). A row drops off (and its local file is deleted) once its status leaves `pending`/`processing`, discovered via a 4s poll.
 
-The banner's mic icon itself carries a red `Badge` — count of `completed` recordings awaiting review, refreshed on screen load and whenever this dialog closes. There's no way to review/accept/reject them yet from the app (that's VC-21-FE, the still-to-build Voice Activity screen).
+The banner's mic icon itself carries a red `Badge` — count of `completed` recordings awaiting review, refreshed on screen load and whenever this dialog closes.
+
+Below the pending list, a "Ready for review" section lists this apiary's `completed` recordings (fetched on dialog open, and a pending recording moves straight into this list the moment its poll picks up a `completed` status instead of just dropping off). Each row's title is a truncated preview of the recording's transcript (falls back to the "Completed" status label if there's no transcript); the subtitle/icon distinguish three cases:
+- A normal proposal — subtitle shows the recording's date.
+- No action was recognized (the recording has no proposed actions at all) — subtitle shows a "no action recognized" message, error-colored.
+- One of the recording's proposed actions failed (e.g. the hive mentioned couldn't be identified, or several were) — subtitle shows a friendly message for that error instead of the raw backend code.
+
+Both the error and no-action rows get a dismiss (×) button that calls the reject endpoint (`POST /voice-recordings/{id}/reject`) and removes the row from the list on success. Normal proposal rows have no action yet — reviewing/accepting a proposal still has no UI.
 ```
 
 #### InspectionFormScreen — bottom amber banner

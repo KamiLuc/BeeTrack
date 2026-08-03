@@ -806,6 +806,7 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
   StreamSubscription<void>? _playbackCompleteSub;
   String? _playingPath;
   late List<VoiceRecording> _pending;
+  List<VoiceRecording> _readyForReview = [];
 
   bool get _atPendingLimit => _pending.length >= _maxClientPendingRecordings;
 
@@ -817,6 +818,21 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     _playbackCompleteSub = _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playingPath = null);
     });
+    _loadReadyForReview();
+  }
+
+  Future<void> _loadReadyForReview() async {
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      final result = await repo.listRecordings(widget.apiaryId);
+      final ready = result.items
+          .where((r) => r.status == voiceRecordingStatusCompleted)
+          .toList();
+      if (!mounted) return;
+      setState(() => _readyForReview = ready);
+    } catch (_) {
+      // Best-effort — the section just stays at its last known value.
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -964,8 +980,10 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
       final result = await repo.listRecordings(widget.apiaryId);
       final byId = {for (final r in result.items) r.recordingId: r};
       final stillPending = <VoiceRecording>[];
+      final newlyReady = <VoiceRecording>[];
       for (final rec in _pending) {
-        final status = byId[rec.recordingId]?.status;
+        final updated = byId[rec.recordingId];
+        final status = updated?.status;
         if (status == voiceRecordingStatusPending ||
             status == voiceRecordingStatusProcessing) {
           stillPending.add(rec.copyWith(status: status));
@@ -974,10 +992,18 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
           if (rec.localPath != null) {
             await _stopPlaybackIfPlaying(rec.localPath!);
           }
+          if (status == voiceRecordingStatusCompleted && updated != null) {
+            newlyReady.add(updated);
+          }
         }
       }
       if (!mounted) return;
-      setState(() => _pending = stillPending);
+      setState(() {
+        _pending = stillPending;
+        if (newlyReady.isNotEmpty) {
+          _readyForReview = [...newlyReady, ..._readyForReview];
+        }
+      });
       _VoicePendingCache.setForApiary(widget.apiaryId, _pending);
       if (_pending.isEmpty) {
         _pollTimer?.cancel();
@@ -1031,6 +1057,24 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
       if (mounted) {
         showBigSnackBar(
             context, AppLocalizations.of(context)!.voiceRecordingCancelFailed);
+      }
+    }
+  }
+
+  Future<void> _rejectRecording(VoiceRecording recording) async {
+    try {
+      final repo = VoiceRepository(api: context.read<ApiClient>());
+      await repo.rejectRecording(widget.apiaryId, recording.recordingId);
+      if (!mounted) return;
+      setState(() {
+        _readyForReview = _readyForReview
+            .where((r) => r.recordingId != recording.recordingId)
+            .toList();
+      });
+    } catch (_) {
+      if (mounted) {
+        showBigSnackBar(
+            context, AppLocalizations.of(context)!.voiceReviewRejectFailed);
       }
     }
   }
@@ -1144,21 +1188,56 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
                 const Divider(height: 1),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 160),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      for (final recording in _pending)
-                        _PendingRecordingTile(
-                          recording: recording,
-                          isPlaying: _playingPath == recording.localPath,
-                          colorScheme: colorScheme,
-                          l10n: l10n,
-                          onPlay: recording.localPath != null
-                              ? () => _playRecording(recording.localPath!)
-                              : null,
-                          onCancel: () => _cancelRecording(recording),
-                        ),
-                    ],
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final recording in _pending)
+                          _PendingRecordingTile(
+                            recording: recording,
+                            isPlaying: _playingPath == recording.localPath,
+                            colorScheme: colorScheme,
+                            l10n: l10n,
+                            onPlay: recording.localPath != null
+                                ? () => _playRecording(recording.localPath!)
+                                : null,
+                            onCancel: () => _cancelRecording(recording),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              if (_readyForReview.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      l10n.voiceReviewSectionTitle,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 160),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final recording in _readyForReview)
+                          _ReadyForReviewTile(
+                            recording: recording,
+                            colorScheme: colorScheme,
+                            l10n: l10n,
+                            onDismiss: () => _rejectRecording(recording),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1220,6 +1299,87 @@ class _PendingRecordingTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+const _transcriptPreviewMaxLength = 60;
+
+class _ReadyForReviewTile extends StatelessWidget {
+  final VoiceRecording recording;
+  final ColorScheme colorScheme;
+  final AppLocalizations l10n;
+
+  final VoidCallback onDismiss;
+
+  const _ReadyForReviewTile({
+    required this.recording,
+    required this.colorScheme,
+    required this.l10n,
+    required this.onDismiss,
+  });
+
+  VoiceAction? get _errorAction {
+    for (final action in recording.voiceActions) {
+      if (action.status == 'error') return action;
+    }
+    return null;
+  }
+
+  String _errorLabel(String? code) {
+    switch (code) {
+      case 'HIVE_NOT_IDENTIFIED':
+        return l10n.voiceReviewErrorHiveNotIdentified;
+      case 'MULTIPLE_HIVES_MENTIONED':
+        return l10n.voiceReviewErrorMultipleHives;
+      default:
+        return l10n.voiceReviewErrorGeneric;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final errorAction = _errorAction;
+    final noActionRecognized = errorAction == null && recording.voiceActions.isEmpty;
+    final isError = errorAction != null || noActionRecognized;
+
+    final transcript = recording.transcript?.trim();
+    final title = (transcript != null && transcript.isNotEmpty)
+        ? (transcript.length > _transcriptPreviewMaxLength
+            ? '${transcript.substring(0, _transcriptPreviewMaxLength)}…'
+            : transcript)
+        : l10n.voiceRecordingStatusCompleted;
+
+    final subtitle = errorAction != null
+        ? _errorLabel(errorAction.errorMessage)
+        : noActionRecognized
+            ? l10n.voiceReviewNoActionRecognized
+            : recording.createdAt != null
+                ? DateFormat('d.MM HH:mm').format(recording.createdAt!)
+                : null;
+
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        isError ? Icons.error_outline : Icons.fact_check_outlined,
+        color: isError ? colorScheme.error : colorScheme.primary,
+      ),
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: isError ? TextStyle(color: colorScheme.error) : null,
+            )
+          : null,
+      trailing: isError
+          ? IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.voiceReviewDismissTooltip,
+              onPressed: onDismiss,
+            )
+          : null,
     );
   }
 }
