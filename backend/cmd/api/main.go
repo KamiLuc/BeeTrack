@@ -241,6 +241,7 @@ func main() {
 	mux.Handle("GET /api/v1/apiaries/{id}/hives/{hiveId}/inspections/{inspectionId}/images/{imageId}/file", auth(http.HandlerFunc(inspectionImageHandler.ServeFile)))
 
 	mux.Handle("POST /api/v1/apiaries/{id}/voice", auth(http.HandlerFunc(voiceHandler.Upload)))
+	mux.Handle("POST /api/v1/apiaries/{id}/hives/{hiveId}/voice", auth(http.HandlerFunc(voiceHandler.UploadForHive)))
 	mux.Handle("GET /api/v1/apiaries/{id}/voice-recordings", auth(http.HandlerFunc(voiceHandler.List)))
 	mux.Handle("DELETE /api/v1/apiaries/{id}/voice-recordings/{recordingId}", auth(http.HandlerFunc(voiceHandler.Cancel)))
 	mux.Handle("POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept", auth(http.HandlerFunc(voiceHandler.Accept)))

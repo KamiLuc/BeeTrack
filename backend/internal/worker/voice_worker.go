@@ -173,18 +173,22 @@ func (w *VoiceWorker) ProcessNext(ctx context.Context) (processed bool, err erro
 	}
 	w.deleteAudio(*rec.AudioPath)
 
-	resolved, err := w.resolveHive(ctx, rec, result.Text)
-	if err != nil {
-		return true, w.recordings.MarkFailed(ctx, rec.ID, err.Error())
-	}
-	if resolved.Outcome != resolveHiveOutcomeMatched {
-		if err := w.recordings.CreateAction(ctx, hiveResolutionErrorAction(rec.ID, resolved)); err != nil {
-			return true, fmt.Errorf("create hive resolution error action: %w", err)
+	hiveID := rec.HiveID
+	if hiveID == nil {
+		resolved, err := w.resolveHive(ctx, rec, result.Text)
+		if err != nil {
+			return true, w.recordings.MarkFailed(ctx, rec.ID, err.Error())
 		}
-		return true, w.recordings.MarkCompleted(ctx, rec.ID, result.Text, result.Language)
+		if resolved.Outcome != resolveHiveOutcomeMatched {
+			if err := w.recordings.CreateAction(ctx, hiveResolutionErrorAction(rec.ID, resolved)); err != nil {
+				return true, fmt.Errorf("create hive resolution error action: %w", err)
+			}
+			return true, w.recordings.MarkCompleted(ctx, rec.ID, result.Text, result.Language)
+		}
+		hiveID = resolved.HiveID
 	}
 
-	if err := w.proposeActions(ctx, rec, *resolved.HiveID, result.Text); err != nil {
+	if err := w.proposeActions(ctx, rec, *hiveID, result.Text); err != nil {
 		return true, w.recordings.MarkFailed(ctx, rec.ID, err.Error())
 	}
 

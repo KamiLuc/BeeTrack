@@ -376,6 +376,63 @@ func TestVoiceUpload_CreateFailsRollsBackFile(t *testing.T) {
 	}
 }
 
+func TestVoiceUploadForHive_Success(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.hives.hive = &model.Hive{ID: 9}
+
+	data := []byte{0x1A, 0x45, 0xDF, 0xA3}
+	rec, err := svc.UploadForHive(context.Background(), 1, 1, 9, "audio/webm", data)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rec.Status != model.VoiceRecordingStatusPending {
+		t.Errorf("unexpected status: %s", rec.Status)
+	}
+	if deps.voice.created == nil {
+		t.Fatal("expected CreateRecording to be called")
+	}
+	if deps.voice.created.HiveID == nil || *deps.voice.created.HiveID != 9 {
+		t.Errorf("expected created recording HiveID=9, got %v", deps.voice.created.HiveID)
+	}
+	if rec.HiveID == nil || *rec.HiveID != 9 {
+		t.Errorf("expected returned recording HiveID=9, got %v", rec.HiveID)
+	}
+}
+
+func TestVoiceUploadForHive_HiveNotFound(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.hives.hiveErr = ErrHiveNotFound
+
+	_, err := svc.UploadForHive(context.Background(), 1, 1, 9, "audio/webm", []byte{1})
+	if !errors.Is(err, ErrHiveNotFound) {
+		t.Errorf("expected ErrHiveNotFound, got %v", err)
+	}
+	if !errors.Is(err, ErrHiveNotFound) || errors.Unwrap(err) != nil {
+		t.Errorf("expected ErrHiveNotFound to be propagated unwrapped, got %v (unwrap=%v)", err, errors.Unwrap(err))
+	}
+}
+
+func TestVoiceUploadForHive_ApiaryNotFound(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.hives.hiveErr = ErrApiaryNotFound
+
+	_, err := svc.UploadForHive(context.Background(), 1, 1, 9, "audio/webm", []byte{1})
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceUploadForHive_MaxRecordingsReached(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.hives.hive = &model.Hive{ID: 9}
+	deps.voice.count = maxRecordingsPerUser
+
+	_, err := svc.UploadForHive(context.Background(), 1, 1, 9, "audio/webm", []byte{1})
+	if !errors.Is(err, ErrMaxRecordingsReached) {
+		t.Errorf("expected ErrMaxRecordingsReached, got %v", err)
+	}
+}
+
 func TestVoiceCancel_Success(t *testing.T) {
 	svc, apiaryMock, voiceMock, dir := newTestVoiceService(t)
 	apiaryMock.apiary = &model.Apiary{ID: 1}

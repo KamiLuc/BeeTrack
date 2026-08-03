@@ -58,6 +58,8 @@ func voiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrApiaryNotFound):
 		respond.Error(w, http.StatusNotFound, "APIARY_NOT_FOUND", "apiary not found")
+	case errors.Is(err, service.ErrHiveNotFound):
+		respond.Error(w, http.StatusNotFound, "HIVE_NOT_FOUND", "hive not found")
 	case errors.Is(err, service.ErrInvalidAudioType):
 		respond.Error(w, http.StatusBadRequest, "INVALID_AUDIO_TYPE", err.Error())
 	case errors.Is(err, service.ErrRecordingTooLong):
@@ -92,6 +94,35 @@ func (h *VoiceHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec, err := h.voice.Upload(r.Context(), userID, apiaryID, mimeType, data)
+	if err != nil {
+		voiceError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusAccepted, recordingJSON(rec))
+}
+
+func (h *VoiceHandler) UploadForHive(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
+		return
+	}
+	hiveID, ok := parsePathID(w, r, "hiveId", "invalid hive id")
+	if !ok {
+		return
+	}
+
+	data, mimeType, ok := parseAudioFile(w, r)
+	if !ok {
+		return
+	}
+
+	rec, err := h.voice.UploadForHive(r.Context(), userID, apiaryID, hiveID, mimeType, data)
 	if err != nil {
 		voiceError(w, err)
 		return

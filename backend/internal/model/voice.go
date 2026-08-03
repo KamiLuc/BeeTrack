@@ -45,6 +45,7 @@ type VoiceRecording struct {
 	ID               int64
 	UserID           int64
 	ApiaryID         int64
+	HiveID           *int64
 	Status           string
 	AudioPath        *string
 	Transcript       *string

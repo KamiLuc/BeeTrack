@@ -3198,6 +3198,31 @@ The uploaded file is saved to disk under `AUDIO_STORAGE_PATH` and a `voice_recor
 
 ---
 
+### POST /apiaries/{id}/hives/{hiveId}/voice 🔒
+
+Hive-scoped sibling of `POST /apiaries/{id}/voice` above — same multipart upload (`audio` field, same MIME/size/count validations), same `202 Accepted` response shape. The only difference: the inserted `voice_recordings` row has `hive_id` set from the URL, and authorization requires the hive to belong to that apiary (not just apiary membership). Because `hive_id` is already known, the background worker skips Phase 1 (hive-name resolution) for this recording and goes straight to proposing actions against that fixed hive — there's no cross-check against what the transcript actually says.
+
+**Response** `202 Accepted`
+```json
+{
+  "recording_id": 7,
+  "status": "pending"
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path `{id}` or `{hiveId}` is not a valid integer |
+| `INVALID_AUDIO_TYPE` | 400 | MIME type not allowed |
+| `RECORDING_TOO_LONG` | 413 | File exceeds 15 MB |
+| `HIVE_NOT_FOUND` | 404 | Hive does not exist, isn't in apiary `{id}`, or user is not a member of that apiary |
+| `MAX_RECORDINGS_REACHED` | 422 | Caller already has 10 recordings awaiting review |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### GET /apiaries/{id}/voice-recordings 🔒
 
 Returns a paginated list of voice recordings for the apiary ordered by `created_at` descending. Each item includes its nested `voice_actions` (empty array if none).

@@ -38,7 +38,7 @@ func TestVoiceRepository_CreateRecording(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "voice_recordings"`)).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
 			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-			sqlmock.AnyArg()).
+			sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
@@ -48,6 +48,33 @@ func TestVoiceRepository_CreateRecording(t *testing.T) {
 	}
 	if rec.ID != 1 {
 		t.Fatalf("expected id 1, got %d", rec.ID)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestVoiceRepository_CreateRecording_WithHiveID(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "voice_recordings"`)).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+			sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+			sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectCommit()
+
+	hiveID := int64(9)
+	rec := &model.VoiceRecording{UserID: 7, ApiaryID: 3, HiveID: &hiveID, Status: model.VoiceRecordingStatusPending}
+	if err := repo.CreateRecording(context.Background(), rec); err != nil {
+		t.Fatalf("CreateRecording returned error: %v", err)
+	}
+	if rec.ID != 1 {
+		t.Fatalf("expected id 1, got %d", rec.ID)
+	}
+	if rec.HiveID == nil || *rec.HiveID != 9 {
+		t.Fatalf("expected HiveID to remain 9, got %v", rec.HiveID)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)

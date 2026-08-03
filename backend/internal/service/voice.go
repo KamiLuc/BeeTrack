@@ -110,6 +110,14 @@ func NewVoiceService(
 }
 
 func (s *VoiceService) Upload(ctx context.Context, userID, apiaryID int64, mimeType string, data []byte) (*model.VoiceRecording, error) {
+	return s.upload(ctx, userID, apiaryID, nil, mimeType, data)
+}
+
+func (s *VoiceService) UploadForHive(ctx context.Context, userID, apiaryID, hiveID int64, mimeType string, data []byte) (*model.VoiceRecording, error) {
+	return s.upload(ctx, userID, apiaryID, &hiveID, mimeType, data)
+}
+
+func (s *VoiceService) upload(ctx context.Context, userID, apiaryID int64, hiveID *int64, mimeType string, data []byte) (*model.VoiceRecording, error) {
 	if len(data) > MaxAudioBytes {
 		return nil, ErrRecordingTooLong
 	}
@@ -117,7 +125,11 @@ func (s *VoiceService) Upload(ctx context.Context, userID, apiaryID int64, mimeT
 	if !ok {
 		return nil, ErrInvalidAudioType
 	}
-	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
+	if hiveID != nil {
+		if _, err := s.hives.Get(ctx, userID, apiaryID, *hiveID); err != nil {
+			return nil, err
+		}
+	} else if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrApiaryNotFound
 		}
@@ -140,6 +152,7 @@ func (s *VoiceService) Upload(ctx context.Context, userID, apiaryID int64, mimeT
 	rec := &model.VoiceRecording{
 		UserID:    userID,
 		ApiaryID:  apiaryID,
+		HiveID:    hiveID,
 		Status:    model.VoiceRecordingStatusPending,
 		AudioPath: &filename,
 	}

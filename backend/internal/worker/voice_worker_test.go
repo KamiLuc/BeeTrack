@@ -785,6 +785,48 @@ func TestVoiceWorker_ProcessNext_ProposesSingleAction(t *testing.T) {
 	}
 }
 
+func TestVoiceWorker_ProcessNext_SkipsHiveResolutionWhenHiveIDAlreadySet(t *testing.T) {
+	hiveID := int64(42)
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3, HiveID: &hiveID}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good, brood pattern was excellent",
+		Language: "en",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good, brood pattern was excellent", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hives := &mockHiveLister{
+		hives:   []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}},
+		summary: &mcp.HiveHistory{Hive: mcp.HiveSummary{ID: 42, Type: "langstroth"}},
+	}
+	resolver := &mockHiveResolver{
+		proposeMessage: toolUseMessage(t, [2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"excellent"}`}),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if hives.callCount != 0 {
+		t.Errorf("expected ListHives (hive resolution) never called, got %d calls", hives.callCount)
+	}
+	if resolver.callCount != 1 {
+		t.Fatalf("expected exactly 1 LLM call (propose_actions only), got %d", resolver.callCount)
+	}
+	if len(repo.createdActions) != 1 {
+		t.Fatalf("expected 1 proposed action, got %d: %+v", len(repo.createdActions), repo.createdActions)
+	}
+	action := repo.createdActions[0]
+	if action.HiveID == nil || *action.HiveID != hiveID {
+		t.Errorf("expected hive_id %d, got %+v", hiveID, action.HiveID)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to be marked completed")
+	}
+	if len(repo.createdLLMCalls) != 1 || repo.createdLLMCalls[0].Phase != model.VoiceLLMCallPhaseProposeActions {
+		t.Errorf("expected only a propose_actions llm call row, got %+v", repo.createdLLMCalls)
+	}
+}
+
 func TestVoiceWorker_ProcessNext_ProposesMultipleActionsInOrder(t *testing.T) {
 	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
 	repo := &mockVoiceRepo{next: rec}

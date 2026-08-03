@@ -5110,6 +5110,112 @@ paths:
                     message: Unexpected server error
       security:
       - bearerAuth: []
+  /api/v1/apiaries/{id}/hives/{hiveId}/voice:
+    post:
+      tags:
+      - Voice Logging
+      summary: Hive-scoped sibling of `POST /apiaries/{id}/voice` above — same multipart upload (`audio`
+        field, same...
+      description: 'Hive-scoped sibling of `POST /apiaries/{id}/voice` above — same multipart upload (`audio`
+        field, same MIME/size/count validations), same `202 Accepted` response shape. The only difference:
+        the inserted `voice_recordings` row has `hive_id` set from the URL, and authorization requires
+        the hive to belong to that apiary (not just apiary membership). Because `hive_id` is already known,
+        the background worker skips Phase 1 (hive-name resolution) for this recording and goes straight
+        to proposing actions against that fixed hive — there''s no cross-check against what the transcript
+        actually says.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: hiveId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recording_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                recording_id: 7
+                status: pending
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path `{id}` or `{hiveId}` is not a valid integer; MIME type not allowed
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}` or `{hiveId}` is not a valid integer
+                INVALID_AUDIO_TYPE:
+                  value:
+                    code: INVALID_AUDIO_TYPE
+                    message: MIME type not allowed
+        '413':
+          description: File exceeds 15 MB
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_TOO_LONG:
+                  value:
+                    code: RECORDING_TOO_LONG
+                    message: File exceeds 15 MB
+        '404':
+          description: Hive does not exist, isn't in apiary `{id}`, or user is not a member of that apiary
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                HIVE_NOT_FOUND:
+                  value:
+                    code: HIVE_NOT_FOUND
+                    message: Hive does not exist, isn't in apiary `{id}`, or user is not a member of that
+                      apiary
+        '422':
+          description: Caller already has 10 recordings awaiting review
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MAX_RECORDINGS_REACHED:
+                  value:
+                    code: MAX_RECORDINGS_REACHED
+                    message: Caller already has 10 recordings awaiting review
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
   /api/v1/apiaries/{id}/invitations:
     post:
       tags:
