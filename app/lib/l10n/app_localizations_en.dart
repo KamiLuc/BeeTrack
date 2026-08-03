@@ -704,6 +704,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hiveListTooltip => 'Hive list';
 
   @override
+  String get voiceRecordingTooltip => 'Record voice note';
+
+  @override
+  String get voiceRecordingHintIdle => 'Tap to start recording';
+
+  @override
+  String get voiceRecordingHintActive => 'Recording...';
+
+  @override
   String get apiaryCenterView => 'Center view';
 
   @override

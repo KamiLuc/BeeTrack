@@ -713,6 +713,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get hiveListTooltip => 'Lista uli';
 
   @override
+  String get voiceRecordingTooltip => 'Nagraj notatkę głosową';
+
+  @override
+  String get voiceRecordingHintIdle => 'Stuknij, aby rozpocząć nagrywanie';
+
+  @override
+  String get voiceRecordingHintActive => 'Nagrywanie...';
+
+  @override
   String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override

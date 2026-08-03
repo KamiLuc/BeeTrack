@@ -1400,6 +1400,24 @@ abstract class AppLocalizations {
   /// **'Lista uli'**
   String get hiveListTooltip;
 
+  /// No description provided for @voiceRecordingTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nagraj notatkę głosową'**
+  String get voiceRecordingTooltip;
+
+  /// No description provided for @voiceRecordingHintIdle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Stuknij, aby rozpocząć nagrywanie'**
+  String get voiceRecordingHintIdle;
+
+  /// No description provided for @voiceRecordingHintActive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nagrywanie...'**
+  String get voiceRecordingHintActive;
+
   /// No description provided for @apiaryCenterView.
   ///
   /// In pl, this message translates to:

@@ -446,6 +446,13 @@ class _FilterBar extends StatelessWidget {
     );
   }
 
+  void _showVoiceRecordingSheet(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => const _VoiceRecordingDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bannerWidth = AppLayout.bannerWidth(context);
@@ -492,6 +499,13 @@ class _FilterBar extends StatelessWidget {
                       iconSize: 28,
                       tooltip: l10n.hiveListTooltip,
                       onPressed: () => _showHiveSheet(context),
+                    ),
+                  if (hives.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.mic_none),
+                      iconSize: 28,
+                      tooltip: l10n.voiceRecordingTooltip,
+                      onPressed: () => _showVoiceRecordingSheet(context),
                     ),
                   IconButton(
                     icon: const Icon(Icons.center_focus_strong_outlined),
@@ -697,6 +711,83 @@ class _HiveListDialogState extends State<_HiveListDialog> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceRecordingDialog extends StatefulWidget {
+  const _VoiceRecordingDialog();
+
+  @override
+  State<_VoiceRecordingDialog> createState() => _VoiceRecordingDialogState();
+}
+
+class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
+  bool _isRecording = false;
+
+  void _toggleRecording() {
+    setState(() => _isRecording = !_isRecording);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isWide ? 480 : 380),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.mic_none,
+                      size: 20, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(l10n.voiceRecordingTooltip,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(height: 1),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: _toggleRecording,
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor:
+                      _isRecording ? Colors.red : colorScheme.primary,
+                  child: Icon(
+                    _isRecording ? Icons.stop : Icons.mic,
+                    size: 36,
+                    color: colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _isRecording
+                    ? l10n.voiceRecordingHintActive
+                    : l10n.voiceRecordingHintIdle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
