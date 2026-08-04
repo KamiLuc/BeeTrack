@@ -166,4 +166,55 @@ void main() {
       );
     });
   });
+
+  group('updateActionArguments', () {
+    test('sends PATCH with tool_arguments and parses the returned action', () async {
+      adapter.responseData = {
+        'id': 5,
+        'sequence': 0,
+        'hive_id': 7,
+        'tool_name': 'log_feeding',
+        'status': 'proposed',
+        'result_type': null,
+        'result_record_id': null,
+        'error_message': null,
+      };
+
+      final action = await repository.updateActionArguments(
+        3,
+        42,
+        5,
+        {'feed_type': 'Sugar syrup', 'amount': '1L'},
+      );
+
+      expect(adapter.lastOptions!.method, 'PATCH');
+      expect(
+        adapter.lastOptions!.path,
+        '/api/v1/apiaries/3/voice-recordings/42/actions/5',
+      );
+      expect(adapter.lastOptions!.data, {
+        'tool_arguments': {'feed_type': 'Sugar syrup', 'amount': '1L'},
+      });
+      expect(action.id, 5);
+      expect(action.toolName, 'log_feeding');
+      expect(action.status, 'proposed');
+    });
+
+    test('translates DioException into ApiException', () async {
+      adapter.statusCode = 409;
+      adapter.responseData = {
+        'code': 'ACTION_NOT_EDITABLE',
+        'message': 'action is no longer proposed',
+      };
+
+      await expectLater(
+        () => repository.updateActionArguments(3, 42, 5, {'amount': '1L'}),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'ACTION_NOT_EDITABLE')
+              .having((e) => e.message, 'message', 'action is no longer proposed'),
+        ),
+      );
+    });
+  });
 }

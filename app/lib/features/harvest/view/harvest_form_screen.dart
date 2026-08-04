@@ -15,11 +15,19 @@ class HarvestFormScreen extends StatefulWidget {
   final Hive hive;
   final Harvest? harvest;
 
+  /// When set, saving edits a proposed (not-yet-accepted) voice action's
+  /// arguments instead of creating/updating a real harvest: [_submit]
+  /// hands back the edited fields as a map matching the backend's
+  /// `tool_arguments` schema rather than calling `HarvestRepository`.
+  final Future<void> Function(Map<String, dynamic> toolArguments)?
+  onSaveProposed;
+
   const HarvestFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
     this.harvest,
+    this.onSaveProposed,
   });
 
   bool get isEditing => harvest != null;
@@ -91,13 +99,34 @@ class _HarvestFormScreenState extends State<HarvestFormScreen> {
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
-    final repo = HarvestRepository(api: ctx.read<ApiClient>());
     final frames = int.tryParse(_framesController.text.trim()) ?? 0;
     final halfFrames = int.tryParse(_halfFramesController.text.trim()) ?? 0;
     final kilograms =
         double.tryParse(_kilogramsController.text.trim().replaceAll(',', '.')) ??
             0.0;
     final notes = _notesController.text.trim();
+
+    if (widget.onSaveProposed != null) {
+      try {
+        await widget.onSaveProposed!({
+          'frames': frames,
+          'half_frames': halfFrames,
+          'kilograms': kilograms,
+          'notes': notes,
+        });
+        if (ctx.mounted) Navigator.of(ctx).pop(true);
+      } catch (_) {
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(ctx)!.generalError)),
+          );
+        }
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
+    final repo = HarvestRepository(api: ctx.read<ApiClient>());
     try {
       if (widget.isEditing) {
         await repo.updateHarvest(

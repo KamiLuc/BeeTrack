@@ -86,4 +86,21 @@ class VoiceRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<VoiceAction> updateActionArguments(
+    int apiaryId,
+    int recordingId,
+    int actionId,
+    Map<String, dynamic> toolArguments,
+  ) async {
+    try {
+      final response = await _api.dio.patch(
+        '/api/v1/apiaries/$apiaryId/voice-recordings/$recordingId/actions/$actionId',
+        data: {'tool_arguments': toolArguments},
+      );
+      return VoiceAction.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }

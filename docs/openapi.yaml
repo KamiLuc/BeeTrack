@@ -5846,8 +5846,10 @@ paths:
         context and may propose zero or more actions — each recognized action (create inspection, treatment,
         harvest, or feeding) is stored as its own `voice_actions` row with `status = ''proposed''`, unvalidated
         arguments, tied to that hive; naming no actionable activity leaves the recording with zero `voice_actions`
-        rows. Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues
-        the recording; reviewing/accepting/rejecting proposed actions is not yet implemented.'
+        rows. If that call''s response is cut off by the token limit before finishing, a single `voice_actions`
+        error row is attached instead (`PROPOSAL_INCOMPLETE`), same shape as `HIVE_NOT_IDENTIFIED`/`MULTIPLE_HIVES_MENTIONED`.
+        Either way the recording then moves to `completed` or `failed` — this endpoint only enqueues the
+        recording; reviewing/accepting/rejecting proposed actions is not yet implemented.'
       parameters:
       - name: id
         in: path
@@ -5999,6 +6001,13 @@ paths:
                                 type: integer
                               tool_name:
                                 type: string
+                              tool_arguments:
+                                type: object
+                                properties:
+                                  colony_strength:
+                                    type: string
+                                  box_added:
+                                    type: boolean
                               status:
                                 type: string
                               result_type:
@@ -6025,6 +6034,9 @@ paths:
                     sequence: 1
                     hive_id: 3
                     tool_name: create_inspection
+                    tool_arguments:
+                      colony_strength: strong
+                      box_added: true
                     status: proposed
                     result_type: null
                     result_record_id: null
@@ -6203,6 +6215,13 @@ paths:
                           type: integer
                         tool_name:
                           type: string
+                        tool_arguments:
+                          type: object
+                          properties:
+                            colony_strength:
+                              type: string
+                            box_added:
+                              type: boolean
                         status:
                           type: string
                         result_type:
@@ -6220,6 +6239,9 @@ paths:
                   sequence: 1
                   hive_id: 3
                   tool_name: create_inspection
+                  tool_arguments:
+                    colony_strength: strong
+                    box_added: true
                   status: applied
                   result_type: inspection
                   result_record_id: 45
@@ -6282,6 +6304,177 @@ paths:
                     message: Unexpected server error
       security:
       - bearerAuth: []
+  /api/v1/apiaries/{id}/voice-recordings/{recordingId}/actions/{actionId}:
+    patch:
+      tags:
+      - Voice Logging
+      summary: Updates a still-`proposed` action's `tool_arguments` before Accept — lets the beekeeper
+        edit a proposed action's...
+      description: Updates a still-`proposed` action's `tool_arguments` before Accept — lets the beekeeper
+        edit a proposed action's values (e.g. after reviewing them in the app) without waiting for Accept
+        to apply them. Only valid while the recording is `completed` and the target action's own status
+        is still `proposed`; already-`applied`/`error` actions can't be edited this way. The replacement
+        `tool_arguments` shape depends on the action's `tool_name`, matching the same field names Phase
+        2 proposes (see `POST /apiaries/{id}/voice-recordings/{recordingId}/accept` above) — no shape
+        validation happens here beyond well-formed JSON, the same as at proposal time; a malformed shape
+        only surfaces as an `error` status when Accept later applies it.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: recordingId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  sequence:
+                    type: integer
+                  hive_id:
+                    type: integer
+                  tool_name:
+                    type: string
+                  tool_arguments:
+                    type: object
+                    properties:
+                      medicine_name:
+                        type: string
+                      dose:
+                        type: string
+                      notes:
+                        type: string
+                  status:
+                    type: string
+                  result_type:
+                    type: string
+                    nullable: true
+                  result_record_id:
+                    type: string
+                    nullable: true
+                  error_message:
+                    type: string
+                    nullable: true
+              example:
+                id: 12
+                sequence: 1
+                hive_id: 3
+                tool_name: create_treatment
+                tool_arguments:
+                  medicine_name: formic acid
+                  dose: '2'
+                  notes: ''
+                status: proposed
+                result_type: null
+                result_record_id: null
+                error_message: null
+        '401':
+          description: No Bearer token
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                MISSING_TOKEN:
+                  value:
+                    code: MISSING_TOKEN
+                    message: No Bearer token
+        '400':
+          description: Path `{id}`, `{recordingId}`, or `{actionId}` is not a valid integer; Body isn't
+            valid JSON, or `tool_arguments` is missing/empty
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INVALID_ID:
+                  value:
+                    code: INVALID_ID
+                    message: Path `{id}`, `{recordingId}`, or `{actionId}` is not a valid integer
+                INVALID_BODY:
+                  value:
+                    code: INVALID_BODY
+                    message: Body isn't valid JSON, or `tool_arguments` is missing/empty
+        '404':
+          description: Apiary does not exist or user is not a member; `recordingId` doesn't exist, or
+            belongs to a different apiary than `{id}`; `actionId` doesn't exist, or belongs to a different
+            recording than `{recordingId}`
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                APIARY_NOT_FOUND:
+                  value:
+                    code: APIARY_NOT_FOUND
+                    message: Apiary does not exist or user is not a member
+                RECORDING_NOT_FOUND:
+                  value:
+                    code: RECORDING_NOT_FOUND
+                    message: '`recordingId` doesn''t exist, or belongs to a different apiary than `{id}`'
+                ACTION_NOT_FOUND:
+                  value:
+                    code: ACTION_NOT_FOUND
+                    message: '`actionId` doesn''t exist, or belongs to a different recording than `{recordingId}`'
+        '409':
+          description: Recording's status isn't `completed`; Action's status isn't `proposed` (already
+            `applied` or `error`)
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                RECORDING_NOT_COMPLETED:
+                  value:
+                    code: RECORDING_NOT_COMPLETED
+                    message: Recording's status isn't `completed`
+                ACTION_NOT_PROPOSED:
+                  value:
+                    code: ACTION_NOT_PROPOSED
+                    message: Action's status isn't `proposed` (already `applied` or `error`)
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema: *id001
+              examples:
+                INTERNAL_ERROR:
+                  value:
+                    code: INTERNAL_ERROR
+                    message: Unexpected server error
+      security:
+      - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tool_arguments:
+                  type: object
+                  properties:
+                    medicine_name:
+                      type: string
+                    dose:
+                      type: string
+                    notes:
+                      type: string
+            example:
+              tool_arguments:
+                medicine_name: formic acid
+                dose: '2'
+                notes: ''
   /api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject:
     post:
       tags:

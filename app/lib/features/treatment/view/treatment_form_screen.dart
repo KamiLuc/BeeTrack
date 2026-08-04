@@ -15,11 +15,19 @@ class TreatmentFormScreen extends StatefulWidget {
   final Hive hive;
   final Treatment? treatment;
 
+  /// When set, saving edits a proposed (not-yet-accepted) voice action's
+  /// arguments instead of creating/updating a real treatment: [_submit]
+  /// hands back the edited fields as a map matching the backend's
+  /// `tool_arguments` schema rather than calling `TreatmentRepository`.
+  final Future<void> Function(Map<String, dynamic> toolArguments)?
+  onSaveProposed;
+
   const TreatmentFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
     this.treatment,
+    this.onSaveProposed,
   });
 
   bool get isEditing => treatment != null;
@@ -98,6 +106,26 @@ class _TreatmentFormScreenState extends State<TreatmentFormScreen> {
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
+
+    if (widget.onSaveProposed != null) {
+      try {
+        await widget.onSaveProposed!({
+          'medicine_name': _medicineController.text.trim(),
+          'dose': _doseController.text.trim(),
+          'notes': _notesController.text.trim(),
+        });
+        if (ctx.mounted) Navigator.of(ctx).pop(true);
+      } catch (_) {
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(ctx)!.generalError)),
+          );
+        }
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
     final repo = TreatmentRepository(api: ctx.read<ApiClient>());
     try {
       if (widget.isEditing) {

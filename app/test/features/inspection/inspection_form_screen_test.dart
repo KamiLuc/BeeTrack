@@ -407,6 +407,76 @@ void main() {
     );
   });
 
+  group('InspectionFormScreen onSaveProposed', () {
+    testWidgets(
+        'calls onSaveProposed with form state and pops true, without hitting the repository',
+        (tester) async {
+      final (apiClient, adapter) = await _fakeApiClient();
+      Map<String, dynamic>? received;
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (_) => InspectionFormScreen(
+              apiaryId: 1,
+              hive: _hive,
+              onSaveProposed: (args) async {
+                received = args;
+              },
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Notes'),
+        'queen looks great',
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(received, isNotNull);
+      expect(received!['notes'], 'queen looks great');
+      expect(received!['queen_status'], 'not_seen');
+      expect(
+        adapter.requests.any(
+          (r) => r.path.contains('/inspections') && r.method == 'POST',
+        ),
+        isFalse,
+      );
+      expect(find.byType(InspectionFormScreen), findsNothing);
+    });
+
+    testWidgets(
+        'shows an error and resets loading state when onSaveProposed throws',
+        (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        InspectionFormScreen(
+          apiaryId: 1,
+          hive: _hive,
+          onSaveProposed: (args) async {
+            throw Exception('boom');
+          },
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InspectionFormScreen), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byIcon(Icons.check), findsOneWidget);
+    });
+  });
+
   group('InspectionFormScreen queen status toggles', () {
     testWidgets(
         'marking queen added clears an already-selected queen needs '

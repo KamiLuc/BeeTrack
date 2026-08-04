@@ -440,3 +440,36 @@ func TestVoiceRepository_UpdateAction(t *testing.T) {
 		t.Fatalf("unmet expectations: %v", err)
 	}
 }
+
+func TestVoiceRepository_GetActionByID_Found(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_actions"`)).
+		WithArgs(int64(1), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "voice_recording_id", "sequence", "status"}).
+			AddRow(1, 5, 2, model.VoiceActionStatusProposed))
+
+	action, err := repo.GetActionByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetActionByID returned error: %v", err)
+	}
+	if action == nil || action.ID != 1 || action.VoiceRecordingID != 5 || action.Status != model.VoiceActionStatusProposed {
+		t.Fatalf("unexpected action: %+v", action)
+	}
+}
+
+func TestVoiceRepository_GetActionByID_NotFound(t *testing.T) {
+	repo, mock := newVoiceTestRepo(t)
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "voice_actions"`)).
+		WithArgs(int64(99), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "voice_recording_id", "sequence", "status"}))
+
+	action, err := repo.GetActionByID(context.Background(), 99)
+	if err != nil {
+		t.Fatalf("GetActionByID returned error: %v", err)
+	}
+	if action != nil {
+		t.Fatalf("expected nil action, got %+v", action)
+	}
+}

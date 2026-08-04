@@ -22,6 +22,8 @@ var (
 	ErrRecordingNotFound      = errors.New("voice recording not found")
 	ErrRecordingNotCompleted  = errors.New("voice recording is not awaiting review")
 	ErrRecordingNotCancelable = errors.New("voice recording can only be cancelled while pending")
+	ErrActionNotFound         = errors.New("voice action not found")
+	ErrActionNotProposed      = errors.New("voice action is not proposed")
 )
 
 // MaxAudioBytes bounds an uploaded recording's size as a proxy for the client's 3-minute duration
@@ -53,6 +55,7 @@ type VoiceRepository interface {
 	CountRecordingsByApiaryID(ctx context.Context, apiaryID int64) (int64, error)
 	ListActionsByRecordingID(ctx context.Context, recordingID int64) ([]*model.VoiceAction, error)
 	ListActionsByRecordingIDs(ctx context.Context, recordingIDs []int64) ([]*model.VoiceAction, error)
+	GetActionByID(ctx context.Context, id int64) (*model.VoiceAction, error)
 	UpdateAction(ctx context.Context, action *model.VoiceAction) error
 	DeleteActionsByRecordingID(ctx context.Context, recordingID int64) error
 }
@@ -296,6 +299,28 @@ func (s *VoiceService) Reject(ctx context.Context, userID, apiaryID, recordingID
 		return nil, fmt.Errorf("update recording: %w", err)
 	}
 	return rec, nil
+}
+
+func (s *VoiceService) UpdateActionArguments(ctx context.Context, userID, apiaryID, recordingID, actionID int64, toolArguments json.RawMessage) (*model.VoiceAction, error) {
+	rec, err := s.getOwnedCompletedRecording(ctx, userID, apiaryID, recordingID)
+	if err != nil {
+		return nil, err
+	}
+	action, err := s.recordings.GetActionByID(ctx, actionID)
+	if err != nil {
+		return nil, fmt.Errorf("get action: %w", err)
+	}
+	if action == nil || action.VoiceRecordingID != rec.ID {
+		return nil, ErrActionNotFound
+	}
+	if action.Status != model.VoiceActionStatusProposed {
+		return nil, ErrActionNotProposed
+	}
+	action.ToolArguments = datatypes.JSON(toolArguments)
+	if err := s.recordings.UpdateAction(ctx, action); err != nil {
+		return nil, fmt.Errorf("update action: %w", err)
+	}
+	return action, nil
 }
 
 func (s *VoiceService) applyAction(ctx context.Context, userID, apiaryID int64, action *model.VoiceAction) {

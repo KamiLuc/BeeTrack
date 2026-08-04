@@ -15,11 +15,19 @@ class FeedingFormScreen extends StatefulWidget {
   final Hive hive;
   final Feeding? feeding;
 
+  /// When set, saving edits a proposed (not-yet-accepted) voice action's
+  /// arguments instead of creating/updating a real feeding: [_submit]
+  /// hands back the edited fields as a map matching the backend's
+  /// `tool_arguments` schema rather than calling `FeedingRepository`.
+  final Future<void> Function(Map<String, dynamic> toolArguments)?
+  onSaveProposed;
+
   const FeedingFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
     this.feeding,
+    this.onSaveProposed,
   });
 
   bool get isEditing => feeding != null;
@@ -98,6 +106,26 @@ class _FeedingFormScreenState extends State<FeedingFormScreen> {
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
+
+    if (widget.onSaveProposed != null) {
+      try {
+        await widget.onSaveProposed!({
+          'feed_type': _feedTypeController.text.trim(),
+          'amount': _amountController.text.trim(),
+          'notes': _notesController.text.trim(),
+        });
+        if (ctx.mounted) Navigator.of(ctx).pop(true);
+      } catch (_) {
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(ctx)!.generalError)),
+          );
+        }
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
     final repo = FeedingRepository(api: ctx.read<ApiClient>());
     try {
       if (widget.isEditing) {

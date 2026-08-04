@@ -3332,6 +3332,47 @@ Accepts a recording's proposed actions. Only valid while the recording's status 
 
 ---
 
+### PATCH /apiaries/{id}/voice-recordings/{recordingId}/actions/{actionId} 🔒
+
+Updates a still-`proposed` action's `tool_arguments` before Accept — lets the beekeeper edit a proposed action's values (e.g. after reviewing them in the app) without waiting for Accept to apply them. Only valid while the recording is `completed` and the target action's own status is still `proposed`; already-`applied`/`error` actions can't be edited this way. The replacement `tool_arguments` shape depends on the action's `tool_name`, matching the same field names Phase 2 proposes (see `POST /apiaries/{id}/voice-recordings/{recordingId}/accept` above) — no shape validation happens here beyond well-formed JSON, the same as at proposal time; a malformed shape only surfaces as an `error` status when Accept later applies it.
+
+**Request**
+```json
+{
+  "tool_arguments": {"medicine_name": "formic acid", "dose": "2", "notes": ""}
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "id": 12,
+  "sequence": 1,
+  "hive_id": 3,
+  "tool_name": "create_treatment",
+  "tool_arguments": {"medicine_name": "formic acid", "dose": "2", "notes": ""},
+  "status": "proposed",
+  "result_type": null,
+  "result_record_id": null,
+  "error_message": null
+}
+```
+
+**Errors**
+| Code | Status | Description |
+|------|--------|-------------|
+| `MISSING_TOKEN` | 401 | No Bearer token |
+| `INVALID_ID` | 400 | Path `{id}`, `{recordingId}`, or `{actionId}` is not a valid integer |
+| `INVALID_BODY` | 400 | Body isn't valid JSON, or `tool_arguments` is missing/empty |
+| `APIARY_NOT_FOUND` | 404 | Apiary does not exist or user is not a member |
+| `RECORDING_NOT_FOUND` | 404 | `recordingId` doesn't exist, or belongs to a different apiary than `{id}` |
+| `ACTION_NOT_FOUND` | 404 | `actionId` doesn't exist, or belongs to a different recording than `{recordingId}` |
+| `RECORDING_NOT_COMPLETED` | 409 | Recording's status isn't `completed` |
+| `ACTION_NOT_PROPOSED` | 409 | Action's status isn't `proposed` (already `applied` or `error`) |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ### POST /apiaries/{id}/voice-recordings/{recordingId}/reject 🔒
 
 Rejects a recording's proposed actions. Only valid while the recording's status is `completed`. Hard-deletes the recording's `voice_actions` rows (nothing was ever written to inspections/treatments/harvests/feedings before Accept, so there is nothing to undo) and moves the recording to `rejected`. The recording row itself is kept.

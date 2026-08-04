@@ -25,12 +25,20 @@ class InspectionFormScreen extends StatefulWidget {
   final Inspection? inspection;
   final Inspection? previousInspection;
 
+  /// When set, saving edits a proposed (not-yet-accepted) voice action's
+  /// arguments instead of creating/updating a real inspection: [_submit]
+  /// hands back the edited fields as a map matching the backend's
+  /// `tool_arguments` schema rather than calling `InspectionRepository`.
+  final Future<void> Function(Map<String, dynamic> toolArguments)?
+  onSaveProposed;
+
   const InspectionFormScreen({
     super.key,
     required this.apiaryId,
     required this.hive,
     this.inspection,
     this.previousInspection,
+    this.onSaveProposed,
   });
 
   bool get isEditing => inspection != null;
@@ -199,9 +207,46 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     );
   }
 
+  Map<String, dynamic> _proposedArgs() {
+    return {
+      'queen_status': _queenSeen ? 'seen' : 'not_seen',
+      'brood_pattern': _broodPattern,
+      'aggressiveness': _aggressiveness,
+      'colony_strength': _colonyStrength,
+      'frames_brood': _parseOptionalInt(_framesBroodController.text),
+      'frames_feed': _parseOptionalInt(_framesFeedController.text),
+      'frames_pollen': _parseOptionalInt(_framesPollenController.text),
+      'queen_cells_count': _parseOptionalInt(_queenCellsCountController.text),
+      'frames_added_foundation': _framesAddedFoundation,
+      'frames_added_drawn': _framesAddedDrawn,
+      'frames_added_brood': _framesAddedBrood,
+      'frames_added_feed': _framesAddedFeed,
+      'queen_added': _queenAdded,
+      'box_added': _boxAdded,
+      'diseases': _hiveDiseases.toList(),
+      'notes': _notesController.text.trim(),
+    };
+  }
+
   Future<void> _submit(BuildContext ctx) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
+
+    if (widget.onSaveProposed != null) {
+      try {
+        await widget.onSaveProposed!(_proposedArgs());
+        if (ctx.mounted) Navigator.of(ctx).pop(true);
+      } catch (_) {
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(ctx)!.generalError)),
+          );
+        }
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
     final api = ctx.read<ApiClient>();
     final inspRepo = InspectionRepository(api: api);
     final imageRepo = InspectionImageRepository(api: api);

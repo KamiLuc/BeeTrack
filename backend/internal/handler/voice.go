@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -73,6 +74,10 @@ func voiceError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusConflict, "RECORDING_NOT_COMPLETED", err.Error())
 	case errors.Is(err, service.ErrRecordingNotCancelable):
 		respond.Error(w, http.StatusConflict, "RECORDING_NOT_CANCELABLE", err.Error())
+	case errors.Is(err, service.ErrActionNotFound):
+		respond.Error(w, http.StatusNotFound, "ACTION_NOT_FOUND", err.Error())
+	case errors.Is(err, service.ErrActionNotProposed):
+		respond.Error(w, http.StatusConflict, "ACTION_NOT_PROPOSED", err.Error())
 	default:
 		respond.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
@@ -244,4 +249,45 @@ func (h *VoiceHandler) Reject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, recordingJSON(rec))
+}
+
+type updateActionRequest struct {
+	ToolArguments json.RawMessage `json:"tool_arguments"`
+}
+
+func (h *VoiceHandler) UpdateAction(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	apiaryID, ok := parsePathID(w, r, "id", "invalid apiary id")
+	if !ok {
+		return
+	}
+	recordingID, ok := parsePathID(w, r, "recordingId", "invalid recording id")
+	if !ok {
+		return
+	}
+	actionID, ok := parsePathID(w, r, "actionId", "invalid action id")
+	if !ok {
+		return
+	}
+
+	var req updateActionRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if len(req.ToolArguments) == 0 {
+		respond.Error(w, http.StatusBadRequest, "INVALID_BODY", "tool_arguments is required")
+		return
+	}
+
+	action, err := h.voice.UpdateActionArguments(r.Context(), userID, apiaryID, recordingID, actionID, req.ToolArguments)
+	if err != nil {
+		voiceError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, actionJSON(action))
 }

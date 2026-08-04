@@ -135,5 +135,25 @@ void main() {
       expect(copy.status, original.status);
       expect(copy.localPath, original.localPath);
     });
+
+    test('overrides voiceActions when provided', () {
+      final original = VoiceRecording.fromJson(_recordingJson());
+      final newActions = [
+        VoiceAction.fromJson(_actionJson(id: 2, toolName: 'log_treatment')),
+      ];
+
+      final copy = original.copyWith(voiceActions: newActions);
+
+      expect(copy.voiceActions, same(newActions));
+      expect(copy.voiceActions.single.id, 2);
+    });
+
+    test('leaves voiceActions unchanged when not provided', () {
+      final original = VoiceRecording.fromJson(_recordingJson());
+
+      final copy = original.copyWith(status: 'processing');
+
+      expect(copy.voiceActions, same(original.voiceActions));
+    });
   });
 }

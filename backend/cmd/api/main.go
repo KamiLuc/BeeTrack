@@ -246,6 +246,7 @@ func main() {
 	mux.Handle("DELETE /api/v1/apiaries/{id}/voice-recordings/{recordingId}", auth(http.HandlerFunc(voiceHandler.Cancel)))
 	mux.Handle("POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/accept", auth(http.HandlerFunc(voiceHandler.Accept)))
 	mux.Handle("POST /api/v1/apiaries/{id}/voice-recordings/{recordingId}/reject", auth(http.HandlerFunc(voiceHandler.Reject)))
+	mux.Handle("PATCH /api/v1/apiaries/{id}/voice-recordings/{recordingId}/actions/{actionId}", auth(http.HandlerFunc(voiceHandler.UpdateAction)))
 
 	mux.Handle("POST /api/v1/listings", auth(http.HandlerFunc(listingHandler.Create)))
 	mux.Handle("GET /api/v1/listings", optionalAuth(http.HandlerFunc(listingHandler.Search)))

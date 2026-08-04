@@ -29,6 +29,8 @@ type fakeVoiceRepo struct {
 	actionsByIDs    []*model.VoiceAction
 	lastListLimit   int
 	lastListOffset  int
+	action          *model.VoiceAction
+	updatedAction   *model.VoiceAction
 }
 
 func (f *fakeVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRecording) error {
@@ -69,7 +71,12 @@ func (f *fakeVoiceRepo) ListActionsByRecordingID(ctx context.Context, recordingI
 	return f.actions, nil
 }
 
+func (f *fakeVoiceRepo) GetActionByID(ctx context.Context, id int64) (*model.VoiceAction, error) {
+	return f.action, nil
+}
+
 func (f *fakeVoiceRepo) UpdateAction(ctx context.Context, action *model.VoiceAction) error {
+	f.updatedAction = action
 	return nil
 }
 
@@ -621,6 +628,131 @@ func TestVoiceAcceptReject_ErrorMapping(t *testing.T) {
 				t.Errorf("expected code %q, got %q", tt.wantCode, code)
 			}
 		})
+	}
+}
+
+func newUpdateActionRequest(apiaryID, recordingID, actionID string, body []byte) *http.Request {
+	req := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/apiaries/"+apiaryID+"/voice-recordings/"+recordingID+"/actions/"+actionID,
+		bytes.NewReader(body),
+	)
+	req.SetPathValue("id", apiaryID)
+	req.SetPathValue("recordingId", recordingID)
+	req.SetPathValue("actionId", actionID)
+	return req
+}
+
+func TestVoiceUpdateAction_Handler_Success(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+		action: &model.VoiceAction{
+			ID:               30,
+			VoiceRecordingID: 1,
+			Status:           model.VoiceActionStatusProposed,
+			ToolArguments:    []byte(`{"medicine_name":"oxalic acid"}`),
+		},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.UpdateAction))
+
+	body := []byte(`{"tool_arguments":{"medicine_name":"formic acid","dose":"2"}}`)
+	req := authedRequest(t, newUpdateActionRequest("1", "1", "30", body), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if repo.updatedAction == nil || repo.updatedAction.ID != 30 {
+		t.Fatal("expected UpdateAction to be called with action id 30")
+	}
+	var got map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	args, ok := got["tool_arguments"].(map[string]any)
+	if !ok || args["medicine_name"] != "formic acid" {
+		t.Errorf("expected updated tool_arguments in response, got %v", got["tool_arguments"])
+	}
+}
+
+func TestVoiceUpdateAction_Handler_InvalidBody(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.UpdateAction))
+
+	req := authedRequest(t, newUpdateActionRequest("1", "1", "30", []byte(`{}`)), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVoiceUpdateAction_Handler_NotProposed(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+		action: &model.VoiceAction{
+			ID:               30,
+			VoiceRecordingID: 1,
+			Status:           model.VoiceActionStatusApplied,
+		},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.UpdateAction))
+
+	body := []byte(`{"tool_arguments":{"medicine_name":"formic acid"}}`)
+	req := authedRequest(t, newUpdateActionRequest("1", "1", "30", body), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := decodeErrorCode(t, rec); code != "ACTION_NOT_PROPOSED" {
+		t.Errorf("expected code ACTION_NOT_PROPOSED, got %q", code)
+	}
+}
+
+func TestVoiceUpdateAction_Handler_NotFound(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+		action:    nil,
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.UpdateAction))
+
+	body := []byte(`{"tool_arguments":{"medicine_name":"formic acid"}}`)
+	req := authedRequest(t, newUpdateActionRequest("1", "1", "30", body), 1)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := decodeErrorCode(t, rec); code != "ACTION_NOT_FOUND" {
+		t.Errorf("expected code ACTION_NOT_FOUND, got %q", code)
+	}
+}
+
+func TestVoiceUpdateAction_Handler_Unauthorized(t *testing.T) {
+	repo := &fakeVoiceRepo{
+		recording: &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusCompleted},
+	}
+	h := newAcceptRejectHandler(t, &model.Apiary{ID: 1}, repo)
+	handler := middleware.Auth(testUploadAuthSecret)(http.HandlerFunc(h.UpdateAction))
+
+	body := []byte(`{"tool_arguments":{"medicine_name":"formic acid"}}`)
+	req := newUpdateActionRequest("1", "1", "30", body)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

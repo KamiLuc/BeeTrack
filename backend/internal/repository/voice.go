@@ -172,6 +172,18 @@ func (r *VoiceRepository) ListActionsByRecordingIDs(ctx context.Context, recordi
 	return actions, err
 }
 
+func (r *VoiceRepository) GetActionByID(ctx context.Context, id int64) (*model.VoiceAction, error) {
+	var action model.VoiceAction
+	err := r.db.WithContext(ctx).First(&action, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &action, nil
+}
+
 func (r *VoiceRepository) UpdateAction(ctx context.Context, action *model.VoiceAction) error {
 	return r.db.WithContext(ctx).Save(action).Error
 }

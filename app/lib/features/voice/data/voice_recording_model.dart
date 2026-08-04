@@ -84,7 +84,11 @@ class VoiceRecording {
     );
   }
 
-  VoiceRecording copyWith({String? status, String? localPath}) {
+  VoiceRecording copyWith({
+    String? status,
+    String? localPath,
+    List<VoiceAction>? voiceActions,
+  }) {
     return VoiceRecording(
       recordingId: recordingId,
       status: status ?? this.status,
@@ -92,7 +96,7 @@ class VoiceRecording {
       errorMessage: errorMessage,
       createdAt: createdAt,
       processedAt: processedAt,
-      voiceActions: voiceActions,
+      voiceActions: voiceActions ?? this.voiceActions,
       localPath: localPath ?? this.localPath,
     );
   }

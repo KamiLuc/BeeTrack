@@ -38,6 +38,9 @@ type mockVoiceRepo struct {
 	listActionsByIDsErr error
 	lastListLimit       int
 	lastListOffset      int
+
+	action       *model.VoiceAction
+	getActionErr error
 }
 
 func (m *mockVoiceRepo) CreateRecording(ctx context.Context, rec *model.VoiceRecording) error {
@@ -96,6 +99,13 @@ func (m *mockVoiceRepo) ListActionsByRecordingID(ctx context.Context, recordingI
 		return nil, m.listActionsErr
 	}
 	return m.actions, nil
+}
+
+func (m *mockVoiceRepo) GetActionByID(ctx context.Context, id int64) (*model.VoiceAction, error) {
+	if m.getActionErr != nil {
+		return nil, m.getActionErr
+	}
+	return m.action, nil
 }
 
 func (m *mockVoiceRepo) UpdateAction(ctx context.Context, action *model.VoiceAction) error {
@@ -1095,6 +1105,99 @@ func TestVoiceReject_ApiaryNotFound(t *testing.T) {
 	_, err := svc.Reject(context.Background(), 1, 1, 1)
 	if !errors.Is(err, ErrApiaryNotFound) {
 		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_Success(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.action = &model.VoiceAction{
+		ID:               30,
+		VoiceRecordingID: 1,
+		Status:           model.VoiceActionStatusProposed,
+		ToolArguments:    mustMarshalJSON(t, map[string]any{"medicine_name": "oxalic acid"}),
+	}
+
+	newArgs := mustMarshalJSON(t, map[string]any{"medicine_name": "formic acid", "dose": "2"})
+	action, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(newArgs))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if string(action.ToolArguments) != string(newArgs) {
+		t.Errorf("expected ToolArguments to be updated, got %s", action.ToolArguments)
+	}
+	if len(deps.voice.updatedActions) != 1 || deps.voice.updatedActions[0].ID != 30 {
+		t.Error("expected UpdateAction to be called with action id 30")
+	}
+}
+
+func TestVoiceUpdateActionArguments_RecordingNotCompleted(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending}
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrRecordingNotCompleted) {
+		t.Errorf("expected ErrRecordingNotCompleted, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_RecordingNotOwned(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.voice.recording = completedRecording()
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrApiaryNotFound) {
+		t.Errorf("expected ErrApiaryNotFound, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_ActionNotFound(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.action = nil
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrActionNotFound) {
+		t.Errorf("expected ErrActionNotFound, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_ActionBelongsToDifferentRecording(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.action = &model.VoiceAction{ID: 30, VoiceRecordingID: 2, Status: model.VoiceActionStatusProposed}
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrActionNotFound) {
+		t.Errorf("expected ErrActionNotFound, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_ActionAlreadyApplied(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.action = &model.VoiceAction{ID: 30, VoiceRecordingID: 1, Status: model.VoiceActionStatusApplied}
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrActionNotProposed) {
+		t.Errorf("expected ErrActionNotProposed, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_ActionAlreadyError(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = completedRecording()
+	deps.voice.action = &model.VoiceAction{ID: 30, VoiceRecordingID: 1, Status: model.VoiceActionStatusError}
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrActionNotProposed) {
+		t.Errorf("expected ErrActionNotProposed, got %v", err)
 	}
 }
 
