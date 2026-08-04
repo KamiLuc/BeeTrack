@@ -37,13 +37,19 @@ const (
 
 	errHiveNotIdentified      = "HIVE_NOT_IDENTIFIED"
 	errMultipleHivesMentioned = "MULTIPLE_HIVES_MENTIONED"
+	errProposalIncomplete     = "PROPOSAL_INCOMPLETE"
 
 	hiveResolutionSystemPrompt = "You resolve which hive a beekeeper's voice note is about. You are given a transcript and the list of hives (id, name) in the apiary the beekeeper is currently recording in. Call resolve_hive exactly once: outcome=matched with that hive's id if the transcript clearly names exactly one hive from the list (allow for minor mishearing/transcription noise); outcome=multiple if it names more than one distinct hive from the list; outcome=not_identified if no hive from the list is clearly named or the match is ambiguous (include spoken_hive_name if you can tell what name was said)."
 
-	actionProposalMaxTokens = 1024
+	// 1024 was too tight for real transcripts describing several observations at once (e.g. a
+	// multi-field inspection with a notes summary) -- the model would hit the ceiling mid-generation
+	// with finish_reason=length and produce no usable tool call at all. See proposeActions. Sized
+	// generously since a truncated response is wasted output tokens either way (see the
+	// finish_reason=="length" check below), so the cost of erring high is just a few cents at worst.
+	actionProposalMaxTokens = 8192
 	hiveContextDays         = 90
 
-	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. If the transcript doesn't describe any loggable action at all, don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean."
+	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. Call update_hive_status whenever the beekeeper states a status flag (ready for harvest, queen needs replacing, needs food, box needs adding) or a disease, even if it already matches the hive's current context and so wouldn't change anything — the beekeeper is confirming it, and that confirmation is itself worth a record; don't treat 'the value already matches' as a reason to skip the call. If the transcript doesn't describe any loggable action at all — no observation, no status flag, nothing worth confirming — don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean."
 
 	notesFieldDescription = "Freeform notes covering anything the beekeeper said that isn't already captured by this tool's other fields — don't restate what a structured field already holds. Write it as clean, grammatically correct prose in the beekeeper's own language, fixing the disfluencies and run-ons typical of dictated speech, not a verbatim transcript fragment. Omit entirely if there's nothing left to add."
 )
@@ -387,6 +393,19 @@ func hiveResolutionErrorAction(recordingID int64, resolved *resolveHiveInput) *m
 	}
 }
 
+func proposalIncompleteErrorAction(recordingID, hiveID int64) *model.VoiceAction {
+	resultType := model.VoiceActionResultTypeError
+	errCode := errProposalIncomplete
+	return &model.VoiceAction{
+		VoiceRecordingID: recordingID,
+		Sequence:         1,
+		HiveID:           &hiveID,
+		Status:           model.VoiceActionStatusError,
+		ResultType:       &resultType,
+		ErrorMessage:     &errCode,
+	}
+}
+
 var proposableTools = map[string]bool{
 	model.VoiceActionToolCreateInspection: true,
 	model.VoiceActionToolCreateTreatment:  true,
@@ -574,6 +593,13 @@ func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecord
 	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext, KnownValues: known}, resp, err)
 	if err != nil {
 		return fmt.Errorf("propose actions: %w", err)
+	}
+
+	// A response cut off by the token ceiling mid-generation carries no reliable tool call --
+	// surface it as a distinct, visible error instead of silently recording zero actions, which
+	// would be indistinguishable from "the beekeeper genuinely didn't describe anything loggable".
+	if len(resp.Choices) > 0 && resp.Choices[0].FinishReason == "length" {
+		return w.recordings.CreateAction(ctx, proposalIncompleteErrorAction(rec.ID, hiveID))
 	}
 
 	sequence := 0

@@ -944,6 +944,47 @@ func TestVoiceWorker_ProcessNext_ProposeActionsEmptyChoicesProposesNothing(t *te
 	}
 }
 
+func TestVoiceWorker_ProcessNext_ProposeActionsTruncatedByLengthRecordsIncompleteError(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good and I gave them a litre of syrup",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good and I gave them a litre of syrup", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	truncated := toolUseMessage(t, [2]string{model.VoiceActionToolCreateInspection, `{"brood_pattern":"good"}`})
+	truncated.Choices[0].FinishReason = "length"
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: truncated,
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(repo.createdActions) != 1 {
+		t.Fatalf("expected 1 recorded action, got %d: %+v", len(repo.createdActions), repo.createdActions)
+	}
+	action := repo.createdActions[0]
+	if action.Status != model.VoiceActionStatusError {
+		t.Errorf("expected status error, got %q", action.Status)
+	}
+	if action.HiveID == nil || *action.HiveID != hiveID {
+		t.Errorf("expected hive_id %d, got %+v", hiveID, action.HiveID)
+	}
+	if action.ErrorMessage == nil || *action.ErrorMessage != errProposalIncomplete {
+		t.Errorf("expected error_message %q, got %+v", errProposalIncomplete, action.ErrorMessage)
+	}
+	if action.ToolName != nil {
+		t.Errorf("expected no tool_name on a truncated proposal, got %+v", action.ToolName)
+	}
+	if !repo.completedCalled {
+		t.Error("expected recording to still be marked completed")
+	}
+}
+
 func TestVoiceWorker_ProcessNext_ProposeActionsClaudeErrorFailsRecording(t *testing.T) {
 	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
 	repo := &mockVoiceRepo{next: rec}

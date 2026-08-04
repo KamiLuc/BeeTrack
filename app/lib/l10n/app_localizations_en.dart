@@ -770,6 +770,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'More than one hive was mentioned';
 
   @override
+  String get voiceReviewErrorProposalIncomplete =>
+      'The recording was too long to process fully — please try recording again';
+
+  @override
   String get voiceReviewErrorGeneric => 'Something went wrong';
 
   @override

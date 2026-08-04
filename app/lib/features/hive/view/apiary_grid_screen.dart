@@ -19,8 +19,22 @@ import '../../../core/widgets/profile_icon_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../apiary/data/apiary_model.dart';
 import '../../dashboard/view/dashboard_screen.dart';
+import '../../feeding/data/feeding_model.dart';
+import '../../feeding/data/feeding_repository.dart';
+import '../../feeding/view/feeding_form_screen.dart';
+import '../../feeding/view/feeding_summary.dart';
+import '../../harvest/data/harvest_model.dart';
+import '../../harvest/data/harvest_repository.dart';
+import '../../harvest/view/harvest_form_screen.dart';
+import '../../harvest/view/harvest_summary.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../inspection/data/inspection_repository.dart';
+import '../../inspection/view/inspection_form_screen.dart';
+import '../../inspection/view/inspection_summary.dart';
+import '../../treatment/data/treatment_model.dart';
+import '../../treatment/data/treatment_repository.dart';
+import '../../treatment/view/treatment_form_screen.dart';
+import '../../treatment/view/treatment_summary.dart';
 import '../../voice/data/voice_recording_model.dart';
 import '../../voice/data/voice_repository.dart';
 import '../cubit/hives_cubit.dart';
@@ -30,7 +44,9 @@ import '../../treatment/view/bulk_treatment_form_screen.dart';
 import '../../feeding/view/bulk_feeding_form_screen.dart';
 import 'add_hive_screen.dart';
 import 'bulk_hive_selection_dialog.dart';
+import 'edit_hive_screen.dart';
 import 'hive_detail_screen.dart';
+import 'hive_form_widgets.dart';
 
 enum _HiveFilter {
   readyForHarvest,
@@ -1103,6 +1119,7 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
     showDialog<void>(
       context: context,
       builder: (_) => _VoiceRecordingDetailDialog(
+        apiaryId: widget.apiaryId,
         recording: recording,
         onAccept: () => _acceptRecording(recording),
         onReject: () => _rejectRecording(recording),
@@ -1430,6 +1447,8 @@ class _ReadyForReviewTile extends StatelessWidget {
         return l10n.voiceReviewErrorHiveNotIdentified;
       case 'MULTIPLE_HIVES_MENTIONED':
         return l10n.voiceReviewErrorMultipleHives;
+      case 'PROPOSAL_INCOMPLETE':
+        return l10n.voiceReviewErrorProposalIncomplete;
       default:
         return l10n.voiceReviewErrorGeneric;
     }
@@ -1484,11 +1503,13 @@ class _ReadyForReviewTile extends StatelessWidget {
 }
 
 class _VoiceRecordingDetailDialog extends StatefulWidget {
+  final int apiaryId;
   final VoiceRecording recording;
   final Future<bool> Function() onAccept;
   final Future<bool> Function() onReject;
 
   const _VoiceRecordingDetailDialog({
+    required this.apiaryId,
     required this.recording,
     required this.onAccept,
     required this.onReject,
@@ -1502,6 +1523,7 @@ class _VoiceRecordingDetailDialog extends StatefulWidget {
 class _VoiceRecordingDetailDialogState
     extends State<_VoiceRecordingDetailDialog> {
   bool _submitting = false;
+  bool _openingResult = false;
 
   VoiceRecording get recording => widget.recording;
 
@@ -1513,6 +1535,89 @@ class _VoiceRecordingDetailDialogState
       Navigator.of(context).pop();
     } else {
       setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _openResult(VoiceAction action) async {
+    final resultType = action.resultType;
+    final resultId = action.resultRecordId;
+    final hiveId = action.hiveId;
+    if (resultType == null || resultId == null || hiveId == null) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    final api = context.read<ApiClient>();
+    final apiaryId = widget.apiaryId;
+
+    setState(() => _openingResult = true);
+    try {
+      final hive = await HiveRepository(api: api).getHive(apiaryId, hiveId);
+      Widget screen;
+      switch (resultType) {
+        case 'inspection':
+          final inspection = await InspectionRepository(api: api)
+              .getInspection(
+                apiaryId: apiaryId,
+                hiveId: hiveId,
+                inspectionId: resultId,
+              );
+          screen = InspectionFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            inspection: inspection,
+          );
+          break;
+        case 'treatment':
+          final treatment = await TreatmentRepository(api: api).getTreatment(
+            apiaryId: apiaryId,
+            hiveId: hiveId,
+            treatmentId: resultId,
+          );
+          screen = TreatmentFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            treatment: treatment,
+          );
+          break;
+        case 'harvest':
+          final harvest = await HarvestRepository(api: api).getHarvest(
+            apiaryId: apiaryId,
+            hiveId: hiveId,
+            harvestId: resultId,
+          );
+          screen = HarvestFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            harvest: harvest,
+          );
+          break;
+        case 'feeding':
+          final feeding = await FeedingRepository(api: api).getFeeding(
+            apiaryId: apiaryId,
+            hiveId: hiveId,
+            feedingId: resultId,
+          );
+          screen = FeedingFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            feeding: feeding,
+          );
+          break;
+        case 'hive_status':
+          screen = EditHiveScreen(apiaryId: apiaryId, hive: hive);
+          break;
+        default:
+          setState(() => _openingResult = false);
+          return;
+      }
+      if (!mounted) return;
+      final navigator = Navigator.of(context);
+      setState(() => _openingResult = false);
+      navigator.pop();
+      navigator.push(MaterialPageRoute(builder: (_) => screen));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _openingResult = false);
+      showBigSnackBar(context, l10n.generalError);
     }
   }
 
@@ -1548,14 +1653,209 @@ class _VoiceRecordingDetailDialogState
     return value.toString();
   }
 
+  Inspection _inspectionFromArgs(Map<String, dynamic> args, int hiveId) {
+    return Inspection(
+      id: 0,
+      hiveId: hiveId,
+      inspectedAt: DateTime.now(),
+      queenSeen: args['queen_status'] as String? ?? '',
+      broodPattern: args['brood_pattern'] as String? ?? '',
+      aggressiveness: args['aggressiveness'] as String? ?? '',
+      colonyStrength: args['colony_strength'] as String? ?? '',
+      framesBrood: (args['frames_brood'] as num?)?.toInt(),
+      framesFeed: (args['frames_feed'] as num?)?.toInt(),
+      framesPollen: (args['frames_pollen'] as num?)?.toInt(),
+      framesAddedDrawn: (args['frames_added_drawn'] as num?)?.toInt(),
+      framesAddedFoundation: (args['frames_added_foundation'] as num?)?.toInt(),
+      framesAddedBrood: (args['frames_added_brood'] as num?)?.toInt(),
+      framesAddedFeed: (args['frames_added_feed'] as num?)?.toInt(),
+      queenCellsCount: (args['queen_cells_count'] as num?)?.toInt(),
+      queenAdded: args['queen_added'] as bool? ?? false,
+      boxAdded: args['box_added'] as bool? ?? false,
+      notes: args['notes'] as String? ?? '',
+    );
+  }
+
   String _errorLabel(AppLocalizations l10n, String? code) {
     switch (code) {
       case 'HIVE_NOT_IDENTIFIED':
         return l10n.voiceReviewErrorHiveNotIdentified;
       case 'MULTIPLE_HIVES_MENTIONED':
         return l10n.voiceReviewErrorMultipleHives;
+      case 'PROPOSAL_INCOMPLETE':
+        return l10n.voiceReviewErrorProposalIncomplete;
       default:
         return l10n.voiceReviewErrorGeneric;
+    }
+  }
+
+  Widget _diseasesField(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<String> diseases,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.inspectionDiseases,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            diseases.map((d) => hiveDiseaseLabel(l10n, d)).join(' · '),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _fieldRows(List<(String, String?)> fields) {
+    return [
+      for (final (label, value) in fields)
+        if (value != null && value.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text('$label: $value'),
+          ),
+    ];
+  }
+
+  IconData _actionIcon(String? toolName) {
+    switch (toolName) {
+      case 'create_inspection':
+        return Icons.search;
+      case 'create_treatment':
+        return Icons.medical_services_outlined;
+      case 'create_harvest':
+        return Icons.water_drop_outlined;
+      case 'create_feeding':
+        return Icons.grain;
+      case 'update_hive_status':
+        return Icons.flag_outlined;
+      default:
+        return Icons.check_circle_outline;
+    }
+  }
+
+  Widget _buildActionBody(
+    BuildContext context,
+    AppLocalizations l10n,
+    VoiceAction action,
+  ) {
+    final args = action.toolArguments ?? {};
+    final diseases = (args['diseases'] as List?)?.cast<String>() ?? const [];
+
+    switch (action.toolName) {
+      case 'create_inspection':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InspectionSummary(
+              inspection: _inspectionFromArgs(args, action.hiveId ?? 0),
+            ),
+            if (diseases.isNotEmpty) _diseasesField(context, l10n, diseases),
+          ],
+        );
+      case 'create_treatment':
+        return TreatmentSummary(
+          treatment: Treatment(
+            id: 0,
+            hiveId: action.hiveId ?? 0,
+            treatedAt: DateTime.now(),
+            medicineName: args['medicine_name'] as String? ?? '',
+            dose: args['dose'] as String? ?? '1',
+            notes: args['notes'] as String? ?? '',
+          ),
+          l10n: l10n,
+          showDate: false,
+        );
+      case 'create_harvest':
+        return HarvestSummary(
+          harvest: Harvest(
+            id: 0,
+            hiveId: action.hiveId ?? 0,
+            harvestedAt: DateTime.now(),
+            frames: (args['frames'] as num?)?.toInt() ?? 0,
+            halfFrames: (args['half_frames'] as num?)?.toInt() ?? 0,
+            kilograms: (args['kilograms'] as num?)?.toDouble() ?? 0,
+            notes: args['notes'] as String? ?? '',
+          ),
+          l10n: l10n,
+          showDate: false,
+        );
+      case 'create_feeding':
+        return FeedingSummary(
+          feeding: Feeding(
+            id: 0,
+            hiveId: action.hiveId ?? 0,
+            fedAt: DateTime.now(),
+            feedType: args['feed_type'] as String? ?? '',
+            amount: args['amount'] as String? ?? '',
+            notes: args['notes'] as String? ?? '',
+          ),
+          l10n: l10n,
+          showDate: false,
+        );
+      case 'update_hive_status':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ..._fieldRows([
+              if (args['ready_for_harvest'] != null)
+                (
+                  l10n.hiveReadyForHarvest,
+                  args['ready_for_harvest'] as bool
+                      ? l10n.generalYes
+                      : l10n.generalNo,
+                ),
+              if (args['queen_needs_replacement'] != null)
+                (
+                  l10n.hiveQueenNeedsReplacement,
+                  args['queen_needs_replacement'] as bool
+                      ? l10n.generalYes
+                      : l10n.generalNo,
+                ),
+              if (args['needs_food'] != null)
+                (
+                  l10n.hiveNeedsFood,
+                  args['needs_food'] as bool
+                      ? l10n.generalYes
+                      : l10n.generalNo,
+                ),
+              if (args['box_needs_adding'] != null)
+                (
+                  l10n.hiveBoxNeedsAdding,
+                  args['box_needs_adding'] as bool
+                      ? l10n.generalYes
+                      : l10n.generalNo,
+                ),
+            ]),
+            if (diseases.isNotEmpty) _diseasesField(context, l10n, diseases),
+          ],
+        );
+      default:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final entry in args.entries)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${_prettyKey(entry.key)}: ${_prettyValue(l10n, entry.value)}',
+                ),
+              ),
+          ],
+        );
     }
   }
 
@@ -1571,7 +1871,41 @@ class _VoiceRecordingDetailDialogState
       title: Text(l10n.voiceReviewDetailTitle),
       content: SizedBox(
         width: AppLayout.dialogWidth(context),
-        child: SingleChildScrollView(
+        child: _openingResult
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _buildDialogContent(context, l10n, colorScheme, transcript),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: Text(l10n.generalClose),
+        ),
+        TextButton(
+          onPressed: _submitting ? null : () => _handle(widget.onReject),
+          style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+          child: Text(l10n.voiceReviewRejectAction),
+        ),
+        if (hasProposedAction)
+          FilledButton(
+            onPressed: _submitting ? null : () => _handle(widget.onAccept),
+            child: Text(l10n.voiceReviewAcceptAction),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDialogContent(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme colorScheme,
+    String? transcript,
+  ) {
+    return SizedBox(
+      width: AppLayout.dialogWidth(context),
+      child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -1598,47 +1932,54 @@ class _VoiceRecordingDetailDialogState
                           _errorLabel(l10n, action.errorMessage),
                           style: TextStyle(color: colorScheme.error),
                         )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _toolLabel(l10n, action.toolName),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            for (final entry
-                                in (action.toolArguments ?? {}).entries)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  '${_prettyKey(entry.key)}: ${_prettyValue(l10n, entry.value)}',
-                                ),
+                      : Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: action.status == 'applied' &&
+                                    action.resultRecordId != null &&
+                                    !_openingResult
+                                ? () => _openResult(action)
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        _actionIcon(action.toolName),
+                                        size: 20,
+                                        color: colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _toolLabel(l10n, action.toolName),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                      ),
+                                      if (action.status == 'applied' &&
+                                          action.resultRecordId != null)
+                                        Icon(
+                                          Icons.chevron_right,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildActionBody(context, l10n, action),
+                                ],
                               ),
-                          ],
+                            ),
+                          ),
                         ),
                 ),
           ],
         ),
-        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.generalClose),
-        ),
-        TextButton(
-          onPressed: _submitting ? null : () => _handle(widget.onReject),
-          style: TextButton.styleFrom(foregroundColor: colorScheme.error),
-          child: Text(l10n.voiceReviewRejectAction),
-        ),
-        if (hasProposedAction)
-          FilledButton(
-            onPressed: _submitting ? null : () => _handle(widget.onAccept),
-            child: Text(l10n.voiceReviewAcceptAction),
-          ),
-      ],
     );
   }
 }

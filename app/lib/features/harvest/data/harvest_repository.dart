@@ -31,6 +31,21 @@ class HarvestRepository {
     }
   }
 
+  Future<Harvest> getHarvest({
+    required int apiaryId,
+    required int hiveId,
+    required int harvestId,
+  }) async {
+    try {
+      final response = await _api.dio.get(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/harvests/$harvestId',
+      );
+      return Harvest.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<Harvest> createHarvest({
     required int apiaryId,
     required int hiveId,

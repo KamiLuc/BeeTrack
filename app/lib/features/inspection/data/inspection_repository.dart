@@ -31,6 +31,21 @@ class InspectionRepository {
     }
   }
 
+  Future<Inspection> getInspection({
+    required int apiaryId,
+    required int hiveId,
+    required int inspectionId,
+  }) async {
+    try {
+      final response = await _api.dio.get(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/inspections/$inspectionId',
+      );
+      return Inspection.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<Inspection> createInspection({
     required int apiaryId,
     required int hiveId,

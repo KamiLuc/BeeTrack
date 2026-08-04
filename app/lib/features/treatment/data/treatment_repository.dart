@@ -49,6 +49,21 @@ class TreatmentRepository {
     }
   }
 
+  Future<Treatment> getTreatment({
+    required int apiaryId,
+    required int hiveId,
+    required int treatmentId,
+  }) async {
+    try {
+      final response = await _api.dio.get(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/treatments/$treatmentId',
+      );
+      return Treatment.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<Treatment> createTreatment({
     required int apiaryId,
     required int hiveId,

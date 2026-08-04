@@ -15,11 +15,15 @@ import 'package:app/features/hive/view/apiary_grid_screen.dart';
 import 'package:app/l10n/app_localizations.dart';
 
 class _RoutingAdapter implements HttpClientAdapter {
-  _RoutingAdapter({required this.hivesJson, required List<Map<String, dynamic>> recordingsJson})
-      : recordingsJson = List.of(recordingsJson);
+  _RoutingAdapter({
+    required this.hivesJson,
+    required List<Map<String, dynamic>> recordingsJson,
+    this.inspectionJson,
+  }) : recordingsJson = List.of(recordingsJson);
 
   final List<Map<String, dynamic>> hivesJson;
   final List<Map<String, dynamic>> recordingsJson;
+  final Map<String, dynamic>? inspectionJson;
   final List<String> rejectedPaths = [];
   final List<String> acceptedPaths = [];
   bool failAccept = false;
@@ -58,6 +62,10 @@ class _RoutingAdapter implements HttpClientAdapter {
     final Object body;
     if (options.path.endsWith('/voice-recordings')) {
       body = {'items': recordingsJson, 'total': recordingsJson.length};
+    } else if (RegExp(r'/inspections/\d+$').hasMatch(options.path)) {
+      body = inspectionJson!;
+    } else if (RegExp(r'/hives/\d+$').hasMatch(options.path)) {
+      body = hivesJson.first;
     } else {
       body = hivesJson;
     }
@@ -83,12 +91,16 @@ class _RoutingAdapter implements HttpClientAdapter {
 Future<(ApiClient, _RoutingAdapter)> _fakeApiClient({
   required List<Map<String, dynamic>> hivesJson,
   required List<Map<String, dynamic>> recordingsJson,
+  Map<String, dynamic>? inspectionJson,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final apiClient = ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
-  final adapter =
-      _RoutingAdapter(hivesJson: hivesJson, recordingsJson: recordingsJson);
+  final adapter = _RoutingAdapter(
+    hivesJson: hivesJson,
+    recordingsJson: recordingsJson,
+    inspectionJson: inspectionJson,
+  );
   apiClient.dio.httpClientAdapter = adapter;
   return (apiClient, adapter);
 }
@@ -200,6 +212,54 @@ Map<String, dynamic> _hiveNotIdentifiedRecordingJson() => {
           'error_message': 'HIVE_NOT_IDENTIFIED',
         },
       ],
+    };
+
+Map<String, dynamic> _proposalIncompleteRecordingJson() => {
+      'recording_id': 11,
+      'status': 'completed',
+      'transcript': 'a very long rambling inspection note',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 4,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': null,
+          'status': 'error',
+          'error_message': 'PROPOSAL_INCOMPLETE',
+        },
+      ],
+    };
+
+Map<String, dynamic> _appliedInspectionRecordingJson() => {
+      'recording_id': 12,
+      'status': 'completed',
+      'transcript': 'inspected hive alpha, already applied',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 5,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': 'create_inspection',
+          'tool_arguments': {'colony_strength': 'strong'},
+          'status': 'applied',
+          'result_type': 'inspection',
+          'result_record_id': 5,
+        },
+      ],
+    };
+
+Map<String, dynamic> _inspectionJson() => {
+      'id': 5,
+      'hive_id': 1,
+      'inspected_at': '2026-08-01T12:00:00Z',
+      'colony_strength': 'strong',
+      'notes': '',
     };
 
 void main() {
@@ -318,8 +378,8 @@ void main() {
 
     expect(find.text('Recording details'), findsOneWidget);
     expect(find.text('Create inspection'), findsOneWidget);
-    expect(find.text('Colony Strength: strong'), findsOneWidget);
-    expect(find.text('Box Added: Yes'), findsOneWidget);
+    expect(find.text('Colony strength: Strong'), findsOneWidget);
+    expect(find.text('Box added'), findsOneWidget);
   });
 
   testWidgets(
@@ -607,5 +667,57 @@ void main() {
 
     expect(find.text('Recording details'), findsOneWidget);
     expect(find.text('Failed to dismiss recording'), findsOneWidget);
+  });
+
+  testWidgets(
+      'shows a friendly error message for a PROPOSAL_INCOMPLETE action',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_proposalIncompleteRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('a very long rambling inspection note'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(
+      find.textContaining('too long to process fully'),
+      findsWidgets,
+    );
+  });
+
+  testWidgets(
+      'tapping an applied action with a result opens the underlying record for editing',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_appliedInspectionRecordingJson()],
+      inspectionJson: _inspectionJson(),
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha, already applied'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create inspection'), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+
+    await tester.tap(find.text('Create inspection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsNothing);
+    expect(find.text('Edit inspection'), findsOneWidget);
   });
 }

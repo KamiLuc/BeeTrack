@@ -4,7 +4,7 @@ import "time"
 
 var (
 	ValidQueenStatuses   = []string{"not_seen", "seen"}
-	ValidBroodPatterns   = []string{"excellent", "good", "none", "poor", "few", "medium", "many"}
+	ValidBroodPatterns   = []string{"excellent", "good", "none", "poor"}
 	ValidAggressiveness  = []string{"calm", "mild", "aggressive", "very_aggressive"}
 	ValidColonyStrengths = []string{"very_weak", "weak", "medium", "strong", "very_strong"}
 )

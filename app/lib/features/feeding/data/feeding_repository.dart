@@ -49,6 +49,21 @@ class FeedingRepository {
     }
   }
 
+  Future<Feeding> getFeeding({
+    required int apiaryId,
+    required int hiveId,
+    required int feedingId,
+  }) async {
+    try {
+      final response = await _api.dio.get(
+        '/api/v1/apiaries/$apiaryId/hives/$hiveId/feedings/$feedingId',
+      );
+      return Feeding.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<Feeding> createFeeding({
     required int apiaryId,
     required int hiveId,

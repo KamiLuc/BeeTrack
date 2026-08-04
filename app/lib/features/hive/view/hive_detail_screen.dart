@@ -21,12 +21,15 @@ import '../../feeding/data/feeding_model.dart';
 import '../../feeding/data/feeding_repository.dart';
 import '../../feeding/view/feeding_form_screen.dart';
 import '../../feeding/view/feeding_history_screen.dart';
+import '../../feeding/view/feeding_summary.dart';
 import '../../harvest/data/harvest_model.dart';
 import '../../harvest/data/harvest_repository.dart';
 import '../../harvest/view/harvest_form_screen.dart';
 import '../../harvest/view/harvest_history_screen.dart';
+import '../../harvest/view/harvest_summary.dart';
 import '../../treatment/view/treatment_form_screen.dart';
 import '../../treatment/view/treatment_history_screen.dart';
+import '../../treatment/view/treatment_summary.dart';
 import '../../apiary/data/apiary_model.dart';
 import '../../apiary/data/apiary_repository.dart';
 import '../data/hive_model.dart';
@@ -314,8 +317,6 @@ class _HiveDetailScreenState extends State<HiveDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_hive.name),
@@ -684,77 +685,6 @@ class _InspectionSectionCard extends StatelessWidget {
   }
 }
 
-class _TreatmentSummary extends StatelessWidget {
-  final Treatment treatment;
-  final AppLocalizations l10n;
-  final String? currentUserName;
-
-  const _TreatmentSummary({
-    required this.treatment,
-    required this.l10n,
-    this.currentUserName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final bodyStyle = textTheme.bodyMedium?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
-    final labelStyle = textTheme.labelSmall?.copyWith(
-      color: colorScheme.primary,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.4,
-    );
-
-    final dateStr = DateFormat.yMMMd(
-      Localizations.localeOf(context).toString(),
-    ).add_Hm().format(treatment.treatedAt);
-
-    final doseCount = int.tryParse(treatment.dose);
-    final doseDisplay = doseCount != null
-        ? l10n.treatmentDoseCount(doseCount)
-        : treatment.dose;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          dateStr,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        if (treatment.treatedByName != null &&
-            treatment.treatedByName != currentUserName) ...[
-          const SizedBox(height: 2),
-          Text(
-            l10n.treatmentTreatedBy(treatment.treatedByName!),
-            style: bodyStyle,
-          ),
-        ],
-        const SizedBox(height: 8),
-        Text(l10n.treatmentMedicine, style: labelStyle),
-        const SizedBox(height: 2),
-        Text(
-          '${treatment.medicineName} · $doseDisplay',
-          style: bodyStyle,
-        ),
-        if (treatment.notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(l10n.treatmentNote, style: labelStyle),
-          const SizedBox(height: 2),
-          Text(
-            treatment.notes,
-            style: bodyStyle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 class _TreatmentSectionCard extends StatelessWidget {
   final Treatment? lastTreatment;
   final bool treatmentLoaded;
@@ -815,9 +745,10 @@ class _TreatmentSectionCard extends StatelessWidget {
                       ),
                     )
                   else
-                    _TreatmentSummary(
+                    TreatmentSummary(
                       treatment: lastTreatment!,
                       l10n: l10n,
+                      showDate: true,
                       currentUserName: context.read<TokenStorage>().name,
                     ),
                 ],
@@ -843,72 +774,6 @@ class _TreatmentSectionCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _FeedingSummary extends StatelessWidget {
-  final Feeding feeding;
-  final AppLocalizations l10n;
-  final String? currentUserName;
-
-  const _FeedingSummary({
-    required this.feeding,
-    required this.l10n,
-    this.currentUserName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final bodyStyle = textTheme.bodyMedium?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
-    final labelStyle = textTheme.labelSmall?.copyWith(
-      color: colorScheme.primary,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.4,
-    );
-
-    final dateStr = DateFormat.yMMMd(
-      Localizations.localeOf(context).toString(),
-    ).add_Hm().format(feeding.fedAt);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          dateStr,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        if (feeding.fedByName != null &&
-            feeding.fedByName != currentUserName) ...[
-          const SizedBox(height: 2),
-          Text(
-            l10n.feedingFedBy(feeding.fedByName!),
-            style: bodyStyle,
-          ),
-        ],
-        const SizedBox(height: 8),
-        Text(l10n.feedingType, style: labelStyle),
-        const SizedBox(height: 2),
-        Text(
-          '${feeding.feedType} · ${feeding.amount}',
-          style: bodyStyle,
-        ),
-        if (feeding.notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(l10n.feedingNote, style: labelStyle),
-          const SizedBox(height: 2),
-          Text(
-            feeding.notes,
-            style: bodyStyle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ],
     );
   }
 }
@@ -973,9 +838,10 @@ class _FeedingSectionCard extends StatelessWidget {
                       ),
                     )
                   else
-                    _FeedingSummary(
+                    FeedingSummary(
                       feeding: lastFeeding!,
                       l10n: l10n,
+                      showDate: true,
                       currentUserName: context.read<TokenStorage>().name,
                     ),
                 ],
@@ -1001,86 +867,6 @@ class _FeedingSectionCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _HarvestSummary extends StatelessWidget {
-  final Harvest harvest;
-  final AppLocalizations l10n;
-  final String? currentUserName;
-
-  const _HarvestSummary({
-    required this.harvest,
-    required this.l10n,
-    this.currentUserName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final bodyStyle = textTheme.bodyMedium?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
-    final labelStyle = textTheme.labelSmall?.copyWith(
-      color: colorScheme.primary,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.4,
-    );
-    final dateStr = DateFormat.yMMMd(
-      Localizations.localeOf(context).toString(),
-    ).add_Hm().format(harvest.harvestedAt);
-
-    final otherHarvester =
-        harvest.harvestedByName != null &&
-                harvest.harvestedByName!.isNotEmpty &&
-                harvest.harvestedByName != currentUserName
-            ? harvest.harvestedByName
-            : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          dateStr,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        if (otherHarvester != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            l10n.harvestHarvestedBy(otherHarvester),
-            style: bodyStyle,
-          ),
-        ],
-        const SizedBox(height: 8),
-        Text(l10n.harvestFrames, style: labelStyle),
-        const SizedBox(height: 2),
-        Text(
-          harvest.halfFrames > 0
-              ? '${l10n.harvestFramesCount(harvest.frames)} + ${l10n.harvestHalfFramesCount(harvest.halfFrames)}'
-              : l10n.harvestFramesCount(harvest.frames),
-          style: bodyStyle,
-        ),
-        const SizedBox(height: 8),
-        Text(l10n.harvestKilograms, style: labelStyle),
-        const SizedBox(height: 2),
-        Text(
-          '${harvest.kilograms.toStringAsFixed(2)} kg',
-          style: bodyStyle,
-        ),
-        if (harvest.notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(l10n.harvestNote, style: labelStyle),
-          const SizedBox(height: 2),
-          Text(
-            harvest.notes,
-            style: bodyStyle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ],
     );
   }
 }
@@ -1145,9 +931,10 @@ class _HarvestSectionCard extends StatelessWidget {
                       ),
                     )
                   else
-                    _HarvestSummary(
+                    HarvestSummary(
                       harvest: lastHarvest!,
                       l10n: l10n,
+                      showDate: true,
                       currentUserName: context.read<TokenStorage>().name,
                     ),
                 ],
@@ -1172,62 +959,6 @@ class _HarvestSectionCard extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final String emptyText;
-  final String actionLabel;
-  final VoidCallback? onAction;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.emptyText,
-    required this.actionLabel,
-    this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 20, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(title, style: textTheme.titleMedium),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              emptyText,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: OutlinedButton(
-                onPressed: onAction,
-                child: Text(actionLabel),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

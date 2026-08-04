@@ -301,6 +301,7 @@
   "voiceReviewNoActionRecognized": "No action recognized",
   "voiceReviewErrorHiveNotIdentified": "Couldn't identify the hive",
   "voiceReviewErrorMultipleHives": "More than one hive was mentioned",
+  "voiceReviewErrorProposalIncomplete": "The recording was too long to process fully — please try recording again",
   "voiceReviewErrorGeneric": "Something went wrong",
   "voiceReviewDismissTooltip": "Dismiss",
   "voiceReviewRejectFailed": "Failed to dismiss recording",

@@ -1520,6 +1520,12 @@ abstract class AppLocalizations {
   /// **'Wspomniano więcej niż jeden ul'**
   String get voiceReviewErrorMultipleHives;
 
+  /// No description provided for @voiceReviewErrorProposalIncomplete.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie'**
+  String get voiceReviewErrorProposalIncomplete;
+
   /// No description provided for @voiceReviewErrorGeneric.
   ///
   /// In pl, this message translates to:

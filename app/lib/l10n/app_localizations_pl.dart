@@ -778,6 +778,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceReviewErrorMultipleHives => 'Wspomniano więcej niż jeden ul';
 
   @override
+  String get voiceReviewErrorProposalIncomplete =>
+      'Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie';
+
+  @override
   String get voiceReviewErrorGeneric => 'Coś poszło nie tak';
 
   @override

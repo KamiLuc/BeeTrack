@@ -301,6 +301,7 @@
   "voiceReviewNoActionRecognized": "Nie rozpoznano żadnej czynności",
   "voiceReviewErrorHiveNotIdentified": "Nie udało się rozpoznać ula",
   "voiceReviewErrorMultipleHives": "Wspomniano więcej niż jeden ul",
+  "voiceReviewErrorProposalIncomplete": "Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie",
   "voiceReviewErrorGeneric": "Coś poszło nie tak",
   "voiceReviewDismissTooltip": "Odrzuć",
   "voiceReviewRejectFailed": "Nie udało się odrzucić nagrania",
