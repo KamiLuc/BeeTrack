@@ -23,7 +23,6 @@ var (
 	ErrHarvestFramesRequired    = errors.New("frames or half_frames must be greater than zero")
 	ErrHarvestFramesInvalid     = fmt.Errorf("frames must be between 0 and %d", maxHarvestFrameCount)
 	ErrHarvestHalfFramesInvalid = fmt.Errorf("half_frames must be between 0 and %d", maxHarvestFrameCount)
-	ErrHarvestKilogramsRequired = errors.New("kilograms must be greater than zero")
 	ErrHarvestKilogramsTooLarge = fmt.Errorf("kilograms must be at most %v", maxHarvestKilograms)
 	ErrHarvestNotesTooLong      = fmt.Errorf("notes must be at most %d characters", validation.ExtraLarge.MaxLength())
 )
@@ -72,9 +71,6 @@ func validateHarvestParams(p HarvestParams) error {
 	if p.Frames == 0 && p.HalfFrames == 0 {
 		return ErrHarvestFramesRequired
 	}
-	if p.Kilograms <= 0 {
-		return ErrHarvestKilogramsRequired
-	}
 	if p.Kilograms > maxHarvestKilograms {
 		return ErrHarvestKilogramsTooLarge
 	}
@@ -82,6 +78,14 @@ func validateHarvestParams(p HarvestParams) error {
 		return ErrHarvestNotesTooLong
 	}
 	return nil
+}
+
+// defaultHarvestKilograms estimates a harvest's weight from its frame counts
+// when the beekeeper didn't state one (e.g. a voice proposal that only
+// mentioned frames) — roughly 2kg per full frame, 1kg per half frame. Only
+// called once frames/half_frames are already known to not both be zero.
+func defaultHarvestKilograms(frames, halfFrames int) float64 {
+	return float64(frames)*2 + float64(halfFrames)
 }
 
 func (s *HarvestService) checkAccess(ctx context.Context, apiaryID, userID, hiveID int64) error {
@@ -108,13 +112,17 @@ func (s *HarvestService) Create(ctx context.Context, userID, apiaryID, hiveID in
 	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
 		return nil, err
 	}
+	kilograms := params.Kilograms
+	if kilograms <= 0 {
+		kilograms = defaultHarvestKilograms(params.Frames, params.HalfFrames)
+	}
 	h := &model.Harvest{
 		HiveID:      hiveID,
 		HarvestedBy: userID,
 		HarvestedAt: params.HarvestedAt,
 		Frames:      params.Frames,
 		HalfFrames:  params.HalfFrames,
-		Kilograms:   params.Kilograms,
+		Kilograms:   kilograms,
 		Notes:       params.Notes,
 	}
 	if err := s.harvests.Create(ctx, h); err != nil {
@@ -169,10 +177,14 @@ func (s *HarvestService) Update(ctx context.Context, userID, apiaryID, hiveID, h
 		}
 		return nil, fmt.Errorf("get harvest: %w", err)
 	}
+	kilograms := params.Kilograms
+	if kilograms <= 0 {
+		kilograms = defaultHarvestKilograms(params.Frames, params.HalfFrames)
+	}
 	h.HarvestedAt = params.HarvestedAt
 	h.Frames = params.Frames
 	h.HalfFrames = params.HalfFrames
-	h.Kilograms = params.Kilograms
+	h.Kilograms = kilograms
 	h.Notes = params.Notes
 	if err := s.harvests.Update(ctx, h); err != nil {
 		return nil, fmt.Errorf("update harvest: %w", err)

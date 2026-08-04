@@ -1351,7 +1351,7 @@ func TestActionProposalTools_RequiredFields(t *testing.T) {
 	}{
 		{"inspection", createInspectionTool(), model.VoiceActionToolCreateInspection, nil},
 		{"treatment", createTreatmentTool(), model.VoiceActionToolCreateTreatment, []string{"medicine_name"}},
-		{"harvest", createHarvestTool(), model.VoiceActionToolCreateHarvest, []string{"kilograms"}},
+		{"harvest", createHarvestTool(), model.VoiceActionToolCreateHarvest, nil},
 		{"feeding", createFeedingTool(), model.VoiceActionToolCreateFeeding, []string{"feed_type"}},
 	}
 

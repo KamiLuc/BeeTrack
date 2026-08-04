@@ -169,18 +169,39 @@ func TestHarvestCreate_ZeroFrames(t *testing.T) {
 	}
 }
 
-func TestHarvestCreate_ZeroKilograms(t *testing.T) {
+func TestHarvestCreate_ZeroKilogramsDefaultsFromFrames(t *testing.T) {
 	repo := &mockHarvestRepo{}
 	svc := newHarvestSvc(repo)
 
-	_, err := svc.Create(context.Background(), 1, 1, 10, HarvestParams{
+	h, err := svc.Create(context.Background(), 1, 1, 10, HarvestParams{
 		HarvestedAt: time.Now(),
 		Frames:      5,
+		HalfFrames:  1,
+		Kilograms:   0,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if h.Kilograms != 11 {
+		t.Errorf("expected default kilograms 5*2+1=11, got %v", h.Kilograms)
+	}
+}
+
+func TestHarvestUpdate_ZeroKilogramsDefaultsFromFrames(t *testing.T) {
+	repo := &mockHarvestRepo{harvest: &model.Harvest{ID: 1, HiveID: 10}}
+	svc := newHarvestSvc(repo)
+
+	h, err := svc.Update(context.Background(), 1, 1, 10, 1, HarvestParams{
+		HarvestedAt: time.Now(),
+		Frames:      3,
 		HalfFrames:  0,
 		Kilograms:   0,
 	})
-	if err != ErrHarvestKilogramsRequired {
-		t.Errorf("expected ErrHarvestKilogramsRequired, got %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if h.Kilograms != 6 {
+		t.Errorf("expected default kilograms 3*2=6, got %v", h.Kilograms)
 	}
 }
 

@@ -97,12 +97,16 @@ func (s *FeedingService) Create(ctx context.Context, userID, apiaryID, hiveID in
 	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
 		return nil, err
 	}
+	amount := params.Amount
+	if amount == "" {
+		amount = "1L"
+	}
 	f := &model.Feeding{
 		HiveID:   hiveID,
 		FedBy:    userID,
 		FedAt:    params.FedAt,
 		FeedType: params.FeedType,
-		Amount:   params.Amount,
+		Amount:   amount,
 		Notes:    params.Notes,
 	}
 	if err := s.feedings.Create(ctx, f); err != nil {
@@ -157,9 +161,13 @@ func (s *FeedingService) Update(ctx context.Context, userID, apiaryID, hiveID, f
 		}
 		return nil, fmt.Errorf("get feeding: %w", err)
 	}
+	amount := params.Amount
+	if amount == "" {
+		amount = "1L"
+	}
 	f.FedAt = params.FedAt
 	f.FeedType = params.FeedType
-	f.Amount = params.Amount
+	f.Amount = amount
 	f.Notes = params.Notes
 	if err := s.feedings.Update(ctx, f); err != nil {
 		return nil, fmt.Errorf("update feeding: %w", err)
@@ -197,6 +205,10 @@ func (s *FeedingService) BulkFeed(ctx context.Context, userID, apiaryID int64, h
 			}
 		}
 	}
+	amount := params.Amount
+	if amount == "" {
+		amount = "1L"
+	}
 	feedings := make([]*model.Feeding, len(hives))
 	for i, h := range hives {
 		feedings[i] = &model.Feeding{
@@ -204,7 +216,7 @@ func (s *FeedingService) BulkFeed(ctx context.Context, userID, apiaryID int64, h
 			FedBy:    userID,
 			FedAt:    params.FedAt,
 			FeedType: params.FeedType,
-			Amount:   params.Amount,
+			Amount:   amount,
 			Notes:    params.Notes,
 		}
 	}

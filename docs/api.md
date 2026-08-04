@@ -1886,7 +1886,6 @@ Creates a new harvest record. Caller must be a member of the apiary. `harvested_
 |------|--------|-------------|
 | `HARVESTED_AT_REQUIRED` | 400 | `harvested_at` is missing or zero |
 | `HARVEST_FRAMES_REQUIRED` | 400 | Both `frames` and `half_frames` are zero |
-| `HARVEST_KILOGRAMS_REQUIRED` | 400 | `kilograms` is zero or negative |
 | `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |

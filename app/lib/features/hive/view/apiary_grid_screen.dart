@@ -1523,9 +1523,10 @@ class _VoiceRecordingDetailDialog extends StatefulWidget {
 class _VoiceRecordingDetailDialogState
     extends State<_VoiceRecordingDetailDialog> {
   bool _submitting = false;
-  bool _openingResult = false;
+  int? _loadingActionId;
+  late VoiceRecording _recording = widget.recording;
 
-  VoiceRecording get recording => widget.recording;
+  VoiceRecording get recording => _recording;
 
   Future<void> _handle(Future<bool> Function() action) async {
     setState(() => _submitting = true);
@@ -1548,7 +1549,7 @@ class _VoiceRecordingDetailDialogState
     final api = context.read<ApiClient>();
     final apiaryId = widget.apiaryId;
 
-    setState(() => _openingResult = true);
+    setState(() => _loadingActionId = action.id);
     try {
       final hive = await HiveRepository(api: api).getHive(apiaryId, hiveId);
       Widget screen;
@@ -1606,19 +1607,115 @@ class _VoiceRecordingDetailDialogState
           screen = EditHiveScreen(apiaryId: apiaryId, hive: hive);
           break;
         default:
-          setState(() => _openingResult = false);
+          setState(() => _loadingActionId = null);
           return;
       }
       if (!mounted) return;
       final navigator = Navigator.of(context);
-      setState(() => _openingResult = false);
+      setState(() => _loadingActionId = null);
       navigator.pop();
       navigator.push(MaterialPageRoute(builder: (_) => screen));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _openingResult = false);
+      setState(() => _loadingActionId = null);
       showBigSnackBar(context, l10n.generalError);
     }
+  }
+
+  static const _editableProposedTools = {
+    'create_inspection',
+    'create_treatment',
+    'create_harvest',
+    'create_feeding',
+  };
+
+  Future<void> _editProposedAction(VoiceAction action) async {
+    final args = action.toolArguments;
+    final hiveId = action.hiveId;
+    if (args == null || hiveId == null) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    final api = context.read<ApiClient>();
+    final apiaryId = widget.apiaryId;
+
+    setState(() => _loadingActionId = action.id);
+    try {
+      final hive = await HiveRepository(api: api).getHive(apiaryId, hiveId);
+      if (!mounted) return;
+      Widget screen;
+      switch (action.toolName) {
+        case 'create_inspection':
+          screen = InspectionFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            inspection: _inspectionFromArgs(args, hiveId),
+            onSaveProposed: (edited) =>
+                _persistProposedEdit(action, edited),
+          );
+          break;
+        case 'create_treatment':
+          screen = TreatmentFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            treatment: _treatmentFromArgs(args, hiveId),
+            onSaveProposed: (edited) =>
+                _persistProposedEdit(action, edited),
+          );
+          break;
+        case 'create_harvest':
+          screen = HarvestFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            harvest: _harvestFromArgs(args, hiveId),
+            onSaveProposed: (edited) =>
+                _persistProposedEdit(action, edited),
+          );
+          break;
+        case 'create_feeding':
+          screen = FeedingFormScreen(
+            apiaryId: apiaryId,
+            hive: hive,
+            feeding: _feedingFromArgs(args, hiveId),
+            onSaveProposed: (edited) =>
+                _persistProposedEdit(action, edited),
+          );
+          break;
+        default:
+          setState(() => _loadingActionId = null);
+          return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => screen),
+      );
+      if (!mounted) return;
+      setState(() => _loadingActionId = null);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingActionId = null);
+      showBigSnackBar(context, l10n.generalError);
+    }
+  }
+
+  Future<void> _persistProposedEdit(
+    VoiceAction action,
+    Map<String, dynamic> toolArguments,
+  ) async {
+    final updated = await VoiceRepository(api: context.read<ApiClient>())
+        .updateActionArguments(
+      widget.apiaryId,
+      recording.recordingId,
+      action.id,
+      toolArguments,
+    );
+    if (!mounted) return;
+    setState(() {
+      _recording = recording.copyWith(
+        voiceActions: [
+          for (final a in recording.voiceActions)
+            if (a.id == action.id) updated else a,
+        ],
+      );
+    });
   }
 
   String _toolLabel(AppLocalizations l10n, String? toolName) {
@@ -1672,6 +1769,40 @@ class _VoiceRecordingDetailDialogState
       queenCellsCount: (args['queen_cells_count'] as num?)?.toInt(),
       queenAdded: args['queen_added'] as bool? ?? false,
       boxAdded: args['box_added'] as bool? ?? false,
+      notes: args['notes'] as String? ?? '',
+    );
+  }
+
+  Treatment _treatmentFromArgs(Map<String, dynamic> args, int hiveId) {
+    return Treatment(
+      id: 0,
+      hiveId: hiveId,
+      treatedAt: DateTime.now(),
+      medicineName: args['medicine_name'] as String? ?? '',
+      dose: args['dose'] as String? ?? '1',
+      notes: args['notes'] as String? ?? '',
+    );
+  }
+
+  Harvest _harvestFromArgs(Map<String, dynamic> args, int hiveId) {
+    return Harvest(
+      id: 0,
+      hiveId: hiveId,
+      harvestedAt: DateTime.now(),
+      frames: (args['frames'] as num?)?.toInt() ?? 0,
+      halfFrames: (args['half_frames'] as num?)?.toInt() ?? 0,
+      kilograms: (args['kilograms'] as num?)?.toDouble() ?? 0,
+      notes: args['notes'] as String? ?? '',
+    );
+  }
+
+  Feeding _feedingFromArgs(Map<String, dynamic> args, int hiveId) {
+    return Feeding(
+      id: 0,
+      hiveId: hiveId,
+      fedAt: DateTime.now(),
+      feedType: args['feed_type'] as String? ?? '',
+      amount: args['amount'] as String? ?? '',
       notes: args['notes'] as String? ?? '',
     );
   }
@@ -1747,6 +1878,67 @@ class _VoiceRecordingDetailDialogState
     }
   }
 
+  Widget _buildActionCard(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme colorScheme,
+    VoiceAction action,
+  ) {
+    final isEditable = (action.status == 'applied' &&
+            action.resultRecordId != null) ||
+        (action.status == 'proposed' &&
+            _editableProposedTools.contains(action.toolName));
+    final isLoading = _loadingActionId == action.id;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: !isEditable || _loadingActionId != null
+            ? null
+            : action.status == 'applied'
+                ? () => _openResult(action)
+                : () => _editProposedAction(action),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    _actionIcon(action.toolName),
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _toolLabel(l10n, action.toolName),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (isLoading)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (isEditable)
+                    Icon(
+                      Icons.chevron_right,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildActionBody(context, l10n, action),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionBody(
     BuildContext context,
     AppLocalizations l10n,
@@ -1768,41 +1960,19 @@ class _VoiceRecordingDetailDialogState
         );
       case 'create_treatment':
         return TreatmentSummary(
-          treatment: Treatment(
-            id: 0,
-            hiveId: action.hiveId ?? 0,
-            treatedAt: DateTime.now(),
-            medicineName: args['medicine_name'] as String? ?? '',
-            dose: args['dose'] as String? ?? '1',
-            notes: args['notes'] as String? ?? '',
-          ),
+          treatment: _treatmentFromArgs(args, action.hiveId ?? 0),
           l10n: l10n,
           showDate: false,
         );
       case 'create_harvest':
         return HarvestSummary(
-          harvest: Harvest(
-            id: 0,
-            hiveId: action.hiveId ?? 0,
-            harvestedAt: DateTime.now(),
-            frames: (args['frames'] as num?)?.toInt() ?? 0,
-            halfFrames: (args['half_frames'] as num?)?.toInt() ?? 0,
-            kilograms: (args['kilograms'] as num?)?.toDouble() ?? 0,
-            notes: args['notes'] as String? ?? '',
-          ),
+          harvest: _harvestFromArgs(args, action.hiveId ?? 0),
           l10n: l10n,
           showDate: false,
         );
       case 'create_feeding':
         return FeedingSummary(
-          feeding: Feeding(
-            id: 0,
-            hiveId: action.hiveId ?? 0,
-            fedAt: DateTime.now(),
-            feedType: args['feed_type'] as String? ?? '',
-            amount: args['amount'] as String? ?? '',
-            notes: args['notes'] as String? ?? '',
-          ),
+          feeding: _feedingFromArgs(args, action.hiveId ?? 0),
           l10n: l10n,
           showDate: false,
         );
@@ -1871,12 +2041,7 @@ class _VoiceRecordingDetailDialogState
       title: Text(l10n.voiceReviewDetailTitle),
       content: SizedBox(
         width: AppLayout.dialogWidth(context),
-        child: _openingResult
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            : _buildDialogContent(context, l10n, colorScheme, transcript),
+        child: _buildDialogContent(context, l10n, colorScheme, transcript),
       ),
       actions: [
         TextButton(
@@ -1932,50 +2097,7 @@ class _VoiceRecordingDetailDialogState
                           _errorLabel(l10n, action.errorMessage),
                           style: TextStyle(color: colorScheme.error),
                         )
-                      : Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: action.status == 'applied' &&
-                                    action.resultRecordId != null &&
-                                    !_openingResult
-                                ? () => _openResult(action)
-                                : null,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        _actionIcon(action.toolName),
-                                        size: 20,
-                                        color: colorScheme.primary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _toolLabel(l10n, action.toolName),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium,
-                                        ),
-                                      ),
-                                      if (action.status == 'applied' &&
-                                          action.resultRecordId != null)
-                                        Icon(
-                                          Icons.chevron_right,
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildActionBody(context, l10n, action),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                      : _buildActionCard(context, l10n, colorScheme, action),
                 ),
           ],
         ),

@@ -26,8 +26,10 @@ class _RoutingAdapter implements HttpClientAdapter {
   final Map<String, dynamic>? inspectionJson;
   final List<String> rejectedPaths = [];
   final List<String> acceptedPaths = [];
+  final List<Map<String, dynamic>> updatedActionArguments = [];
   bool failAccept = false;
   bool failReject = false;
+  bool failUpdateAction = false;
 
   @override
   Future<ResponseBody> fetch(
@@ -35,6 +37,33 @@ class _RoutingAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    if (options.method == 'PATCH' && options.path.contains('/actions/')) {
+      if (failUpdateAction) {
+        return ResponseBody.fromString('{}', 500, headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        });
+      }
+      final segments = options.path.split('/');
+      final actionId = int.parse(segments.last);
+      final recordingId = int.parse(segments[segments.length - 3]);
+      final data = options.data as Map<String, dynamic>;
+      final toolArguments = data['tool_arguments'] as Map<String, dynamic>;
+      updatedActionArguments.add(toolArguments);
+      final recordingJson =
+          recordingsJson.firstWhere((r) => r['recording_id'] == recordingId);
+      final actionsJson =
+          (recordingJson['voice_actions'] as List).cast<Map<String, dynamic>>();
+      final actionJson =
+          actionsJson.firstWhere((a) => a['id'] == actionId);
+      final updatedActionJson = {...actionJson, 'tool_arguments': toolArguments};
+      return ResponseBody.fromString(
+        jsonEncode(updatedActionJson),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
     if (options.path.endsWith('/reject')) {
       if (failReject) {
         return ResponseBody.fromString('{}', 500, headers: {
@@ -250,6 +279,33 @@ Map<String, dynamic> _appliedInspectionRecordingJson() => {
           'status': 'applied',
           'result_type': 'inspection',
           'result_record_id': 5,
+        },
+      ],
+    };
+
+Map<String, dynamic> _twoProposedActionsRecordingJson() => {
+      'recording_id': 13,
+      'status': 'completed',
+      'transcript': 'inspected hive alpha and fed it sugar syrup',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 6,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': 'create_inspection',
+          'tool_arguments': {'colony_strength': 'strong', 'box_added': true},
+          'status': 'proposed',
+        },
+        {
+          'id': 7,
+          'sequence': 2,
+          'hive_id': 1,
+          'tool_name': 'create_feeding',
+          'tool_arguments': {'feed_type': 'Sugar syrup (1:1)', 'amount': '2L'},
+          'status': 'proposed',
         },
       ],
     };
@@ -719,5 +775,156 @@ void main() {
 
     expect(find.text('Recording details'), findsNothing);
     expect(find.text('Edit inspection'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a proposed create_inspection action opens the inspection form pre-filled, without closing the review dialog',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+
+    await tester.tap(find.text('Create inspection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit inspection'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Notes'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Create inspection'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping one proposed action card shows a spinner on that card only, leaving other cards visible',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_twoProposedActionsRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha and fed it sugar syrup'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create inspection'), findsOneWidget);
+    expect(find.text('Create feeding'), findsOneWidget);
+    expect(find.text('Sugar syrup (1:1) · 2L'), findsOneWidget);
+
+    await tester.tap(find.text('Create inspection'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Create feeding'), findsOneWidget);
+    expect(find.text('Sugar syrup (1:1) · 2L'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+      'saving an edited proposed inspection updates the action arguments and refreshes the card in place',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Create inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Notes'),
+      'queen looks great',
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(adapter.updatedActionArguments, hasLength(1));
+    expect(adapter.updatedActionArguments.single['notes'], 'queen looks great');
+    expect(find.text('queen looks great'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a proposed update_hive_status action does nothing',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_noArgumentsRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('marked hive as inactive'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.chevron_right), findsNothing);
+
+    await tester.tap(find.text('Update hive status'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a failed update while editing a proposed action shows the form error and leaves it open',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_completedRecordingJson()],
+    );
+    adapter.failUpdateAction = true;
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Create inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit inspection'), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

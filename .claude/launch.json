@@ -12,6 +12,12 @@
       "runtimeExecutable": "C:\\Users\\Kamil\\Prog\\node\\npx.cmd",
       "runtimeArgs": ["serve", "C:\\Users\\Kamil\\Prog\\BeeTrack\\docs", "-l", "8090"],
       "port": 8090
+    },
+    {
+      "name": "app-web",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\Kamil\\Prog\\BeeTrack\\app && C:\\Users\\Kamil\\Prog\\Flutter\\flutter\\bin\\flutter.bat run -d chrome --web-port 5000"],
+      "port": 5000
     }
   ]
 }

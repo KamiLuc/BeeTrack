@@ -498,15 +498,15 @@ func createHarvestTool() llm.Tool {
 	return functionTool(model.VoiceActionToolCreateHarvest, "Propose logging honey harvested from the hive.", map[string]any{
 		"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99."},
 		"half_frames": map[string]any{"type": "integer", "description": "Half frames harvested, 0-99."},
-		"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0."},
+		"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0. If the beekeeper only mentioned frame counts and no weight, omit this and it'll be estimated from frames instead (roughly 2kg/full frame, 1kg/half frame)."},
 		"notes":       map[string]any{"type": "string", "description": notesFieldDescription},
-	}, []string{"kilograms"})
+	}, nil)
 }
 
 func createFeedingTool() llm.Tool {
 	return functionTool(model.VoiceActionToolCreateFeeding, "Propose logging feed given to the hive.", map[string]any{
 		"feed_type": map[string]any{"type": "string", "description": "Type of feed given, e.g. sugar syrup, fondant."},
-		"amount":    map[string]any{"type": "string", "description": `Amount fed, e.g. "1L", "500g".`},
+		"amount":    map[string]any{"type": "string", "description": `Amount fed, e.g. "1L", "500g". Defaults to "1L" if not mentioned.`},
 		"notes":     map[string]any{"type": "string", "description": notesFieldDescription},
 	}, []string{"feed_type"})
 }

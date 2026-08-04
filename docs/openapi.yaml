@@ -3176,8 +3176,8 @@ paths:
         '201':
           description: harvest object (same shape as list item above)
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `kilograms`
-            is zero or negative; `notes` exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
+            exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3190,10 +3190,6 @@ paths:
                   value:
                     code: HARVEST_FRAMES_REQUIRED
                     message: Both `frames` and `half_frames` are zero
-                HARVEST_KILOGRAMS_REQUIRED:
-                  value:
-                    code: HARVEST_KILOGRAMS_REQUIRED
-                    message: '`kilograms` is zero or negative'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG
@@ -3272,8 +3268,8 @@ paths:
         '200':
           description: harvest object
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `kilograms`
-            is zero or negative; `notes` exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
+            exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3286,10 +3282,6 @@ paths:
                   value:
                     code: HARVEST_FRAMES_REQUIRED
                     message: Both `frames` and `half_frames` are zero
-                HARVEST_KILOGRAMS_REQUIRED:
-                  value:
-                    code: HARVEST_KILOGRAMS_REQUIRED
-                    message: '`kilograms` is zero or negative'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG
@@ -3349,8 +3341,8 @@ paths:
         '200':
           description: updated harvest object
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `kilograms`
-            is zero or negative; `notes` exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
+            exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3363,10 +3355,6 @@ paths:
                   value:
                     code: HARVEST_FRAMES_REQUIRED
                     message: Both `frames` and `half_frames` are zero
-                HARVEST_KILOGRAMS_REQUIRED:
-                  value:
-                    code: HARVEST_KILOGRAMS_REQUIRED
-                    message: '`kilograms` is zero or negative'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG

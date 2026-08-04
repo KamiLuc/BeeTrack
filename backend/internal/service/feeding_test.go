@@ -97,6 +97,21 @@ func TestFeedingCreate_FeedTypeTooLong(t *testing.T) {
 	}
 }
 
+func TestFeedingCreate_DefaultAmount(t *testing.T) {
+	repo := &mockFeedingRepo{}
+	svc := newFeedingSvc(repo)
+
+	params := validFeedingParams()
+	params.Amount = ""
+	f, err := svc.Create(context.Background(), 1, 1, 10, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.Amount != "1L" {
+		t.Errorf("expected default amount '1L', got %s", f.Amount)
+	}
+}
+
 func TestFeedingCreate_AmountTooLong(t *testing.T) {
 	svc := newFeedingSvc(&mockFeedingRepo{})
 
@@ -206,6 +221,32 @@ func TestBulkFeed(t *testing.T) {
 	}
 	if len(repo.bulkCreated) != 3 {
 		t.Errorf("expected 3 bulk created, got %d", len(repo.bulkCreated))
+	}
+}
+
+func TestBulkFeed_DefaultAmount(t *testing.T) {
+	hives := []*model.Hive{
+		{ID: 10, ApiaryID: 1},
+		{ID: 11, ApiaryID: 1},
+	}
+	repo := &mockFeedingRepo{}
+	svc := NewFeedingService(
+		&mockApiaryRepo{apiary: &model.Apiary{ID: 1}, role: "member"},
+		&mockInspectionHiveReader{hive: hives[0]},
+		&mockBulkHiveReader{hives: hives},
+		repo,
+	)
+
+	params := validFeedingParams()
+	params.Amount = ""
+	_, err := svc.BulkFeed(context.Background(), 1, 1, nil, params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, f := range repo.bulkCreated {
+		if f.Amount != "1L" {
+			t.Errorf("expected default amount '1L', got %s", f.Amount)
+		}
 	}
 }
 
