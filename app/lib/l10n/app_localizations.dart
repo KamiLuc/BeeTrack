@@ -1616,6 +1616,12 @@ abstract class AppLocalizations {
   /// **'Aktualizacja statusu ula'**
   String get voiceToolUpdateHiveStatus;
 
+  /// No description provided for @voiceUpdateHiveStatusCurrentStateHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pola niewspomniane w nagraniu pokazują aktualny status ula, a nie propozycję zmiany.'**
+  String get voiceUpdateHiveStatusCurrentStateHint;
+
   /// No description provided for @apiaryCenterView.
   ///
   /// In pl, this message translates to:

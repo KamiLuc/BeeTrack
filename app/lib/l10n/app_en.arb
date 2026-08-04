@@ -317,6 +317,7 @@
   "voiceToolCreateHarvest": "Create harvest",
   "voiceToolCreateFeeding": "Create feeding",
   "voiceToolUpdateHiveStatus": "Update hive status",
+  "voiceUpdateHiveStatusCurrentStateHint": "Anything not mentioned in the recording is shown as the hive's current status, not a proposal.",
   "apiaryCenterView": "Center view",
   "hiveDiseases": "Diseases",
   "hiveStatus": "Status",

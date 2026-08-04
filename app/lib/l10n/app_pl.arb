@@ -317,6 +317,7 @@
   "voiceToolCreateHarvest": "Dodaj zbiór miodu",
   "voiceToolCreateFeeding": "Dodaj podkarmianie",
   "voiceToolUpdateHiveStatus": "Aktualizacja statusu ula",
+  "voiceUpdateHiveStatusCurrentStateHint": "Pola niewspomniane w nagraniu pokazują aktualny status ula, a nie propozycję zmiany.",
   "apiaryCenterView": "Wyśrodkuj widok",
   "hiveDiseases": "Choroby",
   "hiveStatus": "Status",

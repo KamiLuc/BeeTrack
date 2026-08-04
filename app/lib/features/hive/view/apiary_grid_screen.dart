@@ -47,6 +47,7 @@ import 'bulk_hive_selection_dialog.dart';
 import 'edit_hive_screen.dart';
 import 'hive_detail_screen.dart';
 import 'hive_form_widgets.dart';
+import 'update_hive_status_form_screen.dart';
 
 enum _HiveFilter {
   readyForHarvest,
@@ -1627,6 +1628,7 @@ class _VoiceRecordingDetailDialogState
     'create_treatment',
     'create_harvest',
     'create_feeding',
+    'update_hive_status',
   };
 
   Future<void> _editProposedAction(VoiceAction action) async {
@@ -1678,6 +1680,13 @@ class _VoiceRecordingDetailDialogState
             feeding: _feedingFromArgs(args, hiveId),
             onSaveProposed: (edited) =>
                 _persistProposedEdit(action, edited),
+          );
+          break;
+        case 'update_hive_status':
+          screen = UpdateHiveStatusFormScreen(
+            hive: hive,
+            toolArguments: args,
+            onSaveProposed: (edited) => _persistProposedEdit(action, edited),
           );
           break;
         default:

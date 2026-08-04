@@ -820,6 +820,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceToolUpdateHiveStatus => 'Update hive status';
 
   @override
+  String get voiceUpdateHiveStatusCurrentStateHint =>
+      'Anything not mentioned in the recording is shown as the hive\'s current status, not a proposal.';
+
+  @override
   String get apiaryCenterView => 'Center view';
 
   @override

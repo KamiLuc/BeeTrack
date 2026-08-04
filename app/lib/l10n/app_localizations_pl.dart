@@ -828,6 +828,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceToolUpdateHiveStatus => 'Aktualizacja statusu ula';
 
   @override
+  String get voiceUpdateHiveStatusCurrentStateHint =>
+      'Pola niewspomniane w nagraniu pokazują aktualny status ula, a nie propozycję zmiany.';
+
+  @override
   String get apiaryCenterView => 'Wyśrodkuj widok';
 
   @override

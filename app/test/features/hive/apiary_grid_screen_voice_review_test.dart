@@ -224,6 +224,25 @@ Map<String, dynamic> _noArgumentsRecordingJson() => {
       ],
     };
 
+Map<String, dynamic> _updateHiveStatusRecordingJson() => {
+      'recording_id': 14,
+      'status': 'completed',
+      'transcript': 'hive is ready for harvest',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 8,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': 'update_hive_status',
+          'tool_arguments': {'ready_for_harvest': true},
+          'status': 'proposed',
+        },
+      ],
+    };
+
 Map<String, dynamic> _hiveNotIdentifiedRecordingJson() => {
       'recording_id': 9,
       'status': 'completed',
@@ -876,11 +895,11 @@ void main() {
   });
 
   testWidgets(
-      'tapping a proposed update_hive_status action does nothing',
+      'tapping a proposed update_hive_status action opens the hive status form pre-filled, without closing the review dialog',
       (tester) async {
     final (apiClient, _) = await _fakeApiClient(
       hivesJson: [_hiveJson()],
-      recordingsJson: [_noArgumentsRecordingJson()],
+      recordingsJson: [_updateHiveStatusRecordingJson()],
     );
 
     await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
@@ -889,15 +908,61 @@ void main() {
     await tester.tap(find.byIcon(Icons.mic_none));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('marked hive as inactive'));
+    await tester.tap(find.text('hive is ready for harvest'));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.chevron_right), findsNothing);
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
 
     await tester.tap(find.text('Update hive status'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Recording details'), findsNothing);
+    expect(find.text('Ready for harvest'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Update hive status'), findsOneWidget);
+  });
+
+  testWidgets(
+      'saving an edited proposed update_hive_status action updates the card in place',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_updateHiveStatusRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('hive is ready for harvest'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Update hive status'));
+    await tester.pumpAndSettle();
+
+    final needsFoodSwitch = find.descendant(
+      of: find.ancestor(
+        of: find.text('Needs food'),
+        matching: find.byType(Row),
+      ).first,
+      matching: find.byType(Switch),
+    );
+    await tester.tap(needsFoodSwitch);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(adapter.updatedActionArguments, hasLength(1));
+    expect(adapter.updatedActionArguments.single['ready_for_harvest'], true);
+    expect(adapter.updatedActionArguments.single['needs_food'], true);
   });
 
   testWidgets(
