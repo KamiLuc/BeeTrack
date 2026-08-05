@@ -16,8 +16,12 @@ import 'package:app/l10n/app_localizations.dart';
 class _RecordingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   final Map<int, DateTime> treatedAtByHive;
+  final Map<int, DateTime> inspectedAtByHive;
 
-  _RecordingAdapter({this.treatedAtByHive = const {}});
+  _RecordingAdapter({
+    this.treatedAtByHive = const {},
+    this.inspectedAtByHive = const {},
+  });
 
   @override
   Future<ResponseBody> fetch(
@@ -30,6 +34,49 @@ class _RecordingAdapter implements HttpClientAdapter {
     if (options.path.contains('/invitations/count')) {
       return ResponseBody.fromString(
         jsonEncode({'count': 0}),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (options.path.contains('/inspections')) {
+      final hiveId = int.parse(
+        RegExp(r'/hives/(\d+)/inspections').firstMatch(options.path)!.group(1)!,
+      );
+      final inspectedAt = inspectedAtByHive[hiveId];
+      final items = inspectedAt == null
+          ? []
+          : [
+              {
+                'id': hiveId,
+                'hive_id': hiveId,
+                'inspected_at': inspectedAt.toUtc().toIso8601String(),
+                'queen_status': 'seen',
+                'brood_pattern': 'excellent',
+                'aggressiveness': 'very_aggressive',
+                'colony_strength': 'very_strong',
+                'frames_brood': 8,
+                'frames_feed': 4,
+                'frames_pollen': 3,
+                'frames_added_drawn': 2,
+                'frames_added_foundation': 1,
+                'frames_added_brood': 1,
+                'frames_added_feed': 1,
+                'queen_cells_count': 5,
+                'queen_added': true,
+                'box_added': true,
+                'notes':
+                    'Lots of capped brood on frames 3-7, saw several queen '
+                        'cells near the bottom bar so may need to split soon. '
+                        'Colony is calm and defending well, added a super and '
+                        'two drawn frames to give them more room to expand.',
+                'photo_count': 2,
+              }
+            ];
+      return ResponseBody.fromString(
+        jsonEncode({'items': items, 'total': items.length}),
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -76,24 +123,32 @@ class _RecordingAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-Future<(ApiClient, _RecordingAdapter)> _fakeApiClient({
+Future<(ApiClient, TokenStorage, _RecordingAdapter)> _fakeApiClient({
   Map<int, DateTime> treatedAtByHive = const {},
+  Map<int, DateTime> inspectedAtByHive = const {},
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final apiClient =
-      ApiClient(storage: TokenStorage(prefs), baseUrl: 'http://test');
-  final adapter = _RecordingAdapter(treatedAtByHive: treatedAtByHive);
+  final storage = TokenStorage(prefs);
+  final apiClient = ApiClient(storage: storage, baseUrl: 'http://test');
+  final adapter = _RecordingAdapter(
+    treatedAtByHive: treatedAtByHive,
+    inspectedAtByHive: inspectedAtByHive,
+  );
   apiClient.dio.httpClientAdapter = adapter;
-  return (apiClient, adapter);
+  return (apiClient, storage, adapter);
 }
 
-Widget _wrap(ApiClient apiClient, Widget child) => MaterialApp(
+Widget _wrap(ApiClient apiClient, TokenStorage storage, Widget child) =>
+    MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('en'),
-      home: RepositoryProvider<ApiClient>.value(
-        value: apiClient,
+      home: MultiRepositoryProvider(
+        providers: [
+          RepositoryProvider<ApiClient>.value(value: apiClient),
+          RepositoryProvider<TokenStorage>.value(value: storage),
+        ],
         child: child,
       ),
     );
@@ -144,9 +199,10 @@ void main() {
   group('DashboardScreen category selection', () {
     testWidgets('keeps the last selected category chip selected',
         (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
+      final (apiClient, storage, _) = await _fakeApiClient();
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
         const DashboardScreen(apiaryId: 1, hives: [_hiveA]),
       ));
       await tester.pumpAndSettle();
@@ -169,9 +225,10 @@ void main() {
     });
 
     testWidgets('other categories can be deselected freely', (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
+      final (apiClient, storage, _) = await _fakeApiClient();
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
         const DashboardScreen(apiaryId: 1, hives: [_hiveA]),
       ));
       await tester.pumpAndSettle();
@@ -188,9 +245,10 @@ void main() {
 
   group('DashboardScreen hive selection', () {
     testWidgets('excludes inactive hives from the hive list', (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
+      final (apiClient, storage, _) = await _fakeApiClient();
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
         const DashboardScreen(
           apiaryId: 1,
           hives: [_hiveA, _inactiveHive],
@@ -204,9 +262,10 @@ void main() {
 
     testWidgets('disables Generate report when no hives are selected',
         (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
+      final (apiClient, storage, _) = await _fakeApiClient();
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
         const DashboardScreen(apiaryId: 1, hives: [_hiveA]),
       ));
       await tester.pumpAndSettle();
@@ -226,12 +285,13 @@ void main() {
         (tester) async {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final (apiClient, _) = await _fakeApiClient(treatedAtByHive: {
+      final (apiClient, storage, _) = await _fakeApiClient(treatedAtByHive: {
         _hiveA.id: today.subtract(const Duration(days: 5)),
         _hiveB.id: today.subtract(const Duration(days: 20)),
       });
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
         const DashboardScreen(apiaryId: 1, hives: [_hiveA, _hiveB]),
       ));
       await tester.pumpAndSettle();
@@ -250,11 +310,40 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
     });
 
-    testWidgets('shows the no-results message when nothing matches',
+    testWidgets(
+        'renders an oversized report card without a layout overflow',
         (tester) async {
-      final (apiClient, _) = await _fakeApiClient();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final (apiClient, storage, _) = await _fakeApiClient(inspectedAtByHive: {
+        _hiveA.id: today.subtract(const Duration(days: 1)),
+      });
       await tester.pumpWidget(_wrap(
         apiClient,
+        storage,
+        const DashboardScreen(apiaryId: 1, hives: [_hiveA]),
+      ));
+      await tester.pumpAndSettle();
+
+      for (final label in ['Feedings', 'Treatments', 'Harvests']) {
+        await tester.tap(find.widgetWithText(FilterChip, label));
+        await tester.pumpAndSettle();
+      }
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Generate report'));
+      await tester.pumpAndSettle();
+
+      // The inspection has every optional field populated plus a long note,
+      // which previously overflowed the fixed 280px-tall report card slot.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shows the no-results message when nothing matches',
+        (tester) async {
+      final (apiClient, storage, _) = await _fakeApiClient();
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        storage,
         const DashboardScreen(apiaryId: 1, hives: [_hiveA]),
       ));
       await tester.pumpAndSettle();

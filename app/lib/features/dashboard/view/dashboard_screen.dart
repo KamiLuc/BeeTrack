@@ -640,7 +640,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       itemBuilder: (_, i) => SizedBox(
                                         width: 300,
                                         height: 280,
-                                        child: ClipRect(
+                                        child: SingleChildScrollView(
                                           child: _buildEntry(
                                             _hiveById(hiveId),
                                             entry.value[i],
