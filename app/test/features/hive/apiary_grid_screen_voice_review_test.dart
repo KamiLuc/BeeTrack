@@ -351,6 +351,16 @@ Map<String, dynamic> _staleDiseasesInspectionRecordingJson() => {
       ],
     };
 
+Map<String, dynamic> _failedRecordingJson() => {
+      'recording_id': 15,
+      'status': 'failed',
+      'transcript': null,
+      'error_message': 'POOR_AUDIO_QUALITY',
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [],
+    };
+
 Map<String, dynamic> _inspectionJson() => {
       'id': 5,
       'hive_id': 1,
@@ -454,6 +464,75 @@ void main() {
     expect(adapter.rejectedPaths,
         contains('/api/v1/apiaries/1/voice-recordings/9/reject'));
     expect(find.text('the bees looked fine'), findsNothing);
+  });
+
+  testWidgets(
+      'shows a failed recording under "Ready for review" with a friendly error message and a dismiss control',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_failedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ready for review'), findsWidgets);
+    expect(find.text('Processing failed'), findsOneWidget);
+    expect(find.text('The recording was too quiet or unclear to transcribe'),
+        findsOneWidget);
+    expect(find.byTooltip('Dismiss'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a failed recording opens the detail dialog and shows the friendly error message instead of the placeholder',
+      (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_failedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Processing failed'), findsOneWidget);
+    await tester.tap(find.text('Processing failed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('The recording was too quiet or unclear to transcribe'),
+        findsNWidgets(2));
+    expect(find.text('Proposed actions'), findsNothing);
+  });
+
+  testWidgets(
+      'dismissing a failed recording calls reject and removes it from the list',
+      (tester) async {
+    final (apiClient, adapter) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_failedRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Processing failed'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Dismiss'));
+    await tester.pumpAndSettle();
+
+    expect(adapter.rejectedPaths,
+        contains('/api/v1/apiaries/1/voice-recordings/15/reject'));
+    expect(find.text('Processing failed'), findsNothing);
   });
 
   testWidgets(

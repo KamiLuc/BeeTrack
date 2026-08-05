@@ -297,11 +297,13 @@
     }
   },
   "voiceRecordingStatusCompleted": "Ready for review",
+  "voiceRecordingStatusFailed": "Processing failed",
   "voiceReviewSectionTitle": "Ready for review",
   "voiceReviewNoActionRecognized": "No action recognized",
   "voiceReviewErrorHiveNotIdentified": "Couldn't identify the hive",
   "voiceReviewErrorMultipleHives": "More than one hive was mentioned",
   "voiceReviewErrorProposalIncomplete": "The recording was too long to process fully — please try recording again",
+  "voiceReviewErrorPoorAudioQuality": "The recording was too quiet or unclear to transcribe",
   "voiceReviewErrorGeneric": "Something went wrong",
   "voiceReviewDismissTooltip": "Dismiss",
   "voiceReviewRejectFailed": "Failed to dismiss recording",

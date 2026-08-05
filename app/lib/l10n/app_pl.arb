@@ -297,11 +297,13 @@
     }
   },
   "voiceRecordingStatusCompleted": "Gotowe do sprawdzenia",
+  "voiceRecordingStatusFailed": "Przetwarzanie nie powiodło się",
   "voiceReviewSectionTitle": "Gotowe do sprawdzenia",
   "voiceReviewNoActionRecognized": "Nie rozpoznano żadnej czynności",
   "voiceReviewErrorHiveNotIdentified": "Nie udało się rozpoznać ula",
   "voiceReviewErrorMultipleHives": "Wspomniano więcej niż jeden ul",
   "voiceReviewErrorProposalIncomplete": "Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie",
+  "voiceReviewErrorPoorAudioQuality": "Nagranie było zbyt ciche lub niewyraźne, by je przetworzyć",
   "voiceReviewErrorGeneric": "Coś poszło nie tak",
   "voiceReviewDismissTooltip": "Odrzuć",
   "voiceReviewRejectFailed": "Nie udało się odrzucić nagrania",

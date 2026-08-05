@@ -872,7 +872,9 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
         }
       }
       final ready = result.items
-          .where((r) => r.status == voiceRecordingStatusCompleted)
+          .where((r) =>
+              r.status == voiceRecordingStatusCompleted ||
+              r.status == voiceRecordingStatusFailed)
           .toList();
       if (!mounted) return;
       setState(() {
@@ -1042,7 +1044,9 @@ class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
           if (rec.localPath != null) {
             await _stopPlaybackIfPlaying(rec.localPath!);
           }
-          if (status == voiceRecordingStatusCompleted && updated != null) {
+          if ((status == voiceRecordingStatusCompleted ||
+                  status == voiceRecordingStatusFailed) &&
+              updated != null) {
             newlyReady.add(updated);
           }
         }
@@ -1435,6 +1439,8 @@ class _ReadyForReviewTile extends StatelessWidget {
     required this.onTap,
   });
 
+  bool get _recordingFailed => recording.status == voiceRecordingStatusFailed;
+
   VoiceAction? get _errorAction {
     for (final action in recording.voiceActions) {
       if (action.status == 'error') return action;
@@ -1450,6 +1456,8 @@ class _ReadyForReviewTile extends StatelessWidget {
         return l10n.voiceReviewErrorMultipleHives;
       case 'PROPOSAL_INCOMPLETE':
         return l10n.voiceReviewErrorProposalIncomplete;
+      case 'POOR_AUDIO_QUALITY':
+        return l10n.voiceReviewErrorPoorAudioQuality;
       default:
         return l10n.voiceReviewErrorGeneric;
     }
@@ -1458,23 +1466,29 @@ class _ReadyForReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final errorAction = _errorAction;
-    final noActionRecognized = errorAction == null && recording.voiceActions.isEmpty;
-    final isError = errorAction != null || noActionRecognized;
+    final noActionRecognized = !_recordingFailed &&
+        errorAction == null &&
+        recording.voiceActions.isEmpty;
+    final isError = _recordingFailed || errorAction != null || noActionRecognized;
 
     final transcript = recording.transcript?.trim();
     final title = (transcript != null && transcript.isNotEmpty)
         ? (transcript.length > _transcriptPreviewMaxLength
             ? '${transcript.substring(0, _transcriptPreviewMaxLength)}…'
             : transcript)
-        : l10n.voiceRecordingStatusCompleted;
+        : _recordingFailed
+            ? l10n.voiceRecordingStatusFailed
+            : l10n.voiceRecordingStatusCompleted;
 
-    final subtitle = errorAction != null
-        ? _errorLabel(errorAction.errorMessage)
-        : noActionRecognized
-            ? l10n.voiceReviewNoActionRecognized
-            : recording.createdAt != null
-                ? DateFormat('d.MM HH:mm').format(recording.createdAt!)
-                : null;
+    final subtitle = _recordingFailed
+        ? _errorLabel(recording.errorMessage)
+        : errorAction != null
+            ? _errorLabel(errorAction.errorMessage)
+            : noActionRecognized
+                ? l10n.voiceReviewNoActionRecognized
+                : recording.createdAt != null
+                    ? DateFormat('d.MM HH:mm').format(recording.createdAt!)
+                    : null;
 
     return ListTile(
       dense: true,
@@ -1824,6 +1838,8 @@ class _VoiceRecordingDetailDialogState
         return l10n.voiceReviewErrorMultipleHives;
       case 'PROPOSAL_INCOMPLETE':
         return l10n.voiceReviewErrorProposalIncomplete;
+      case 'POOR_AUDIO_QUALITY':
+        return l10n.voiceReviewErrorPoorAudioQuality;
       default:
         return l10n.voiceReviewErrorGeneric;
     }
@@ -2080,28 +2096,36 @@ class _VoiceRecordingDetailDialogState
           children: [
             if (transcript != null && transcript.isNotEmpty)
               SelectableText(transcript)
-            else
-              Text(l10n.voiceRecordingStatusCompleted),
-            const SizedBox(height: 16),
-            Text(l10n.voiceReviewDetailActionsLabel,
-                style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            if (recording.voiceActions.isEmpty)
+            else if (recording.status == voiceRecordingStatusFailed)
               Text(
-                l10n.voiceReviewNoActionRecognized,
+                _errorLabel(l10n, recording.errorMessage),
                 style: TextStyle(color: colorScheme.error),
               )
             else
-              for (final action in recording.voiceActions)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: action.status == 'error'
-                      ? Text(
-                          _errorLabel(l10n, action.errorMessage),
-                          style: TextStyle(color: colorScheme.error),
-                        )
-                      : _buildActionCard(context, l10n, colorScheme, action),
-                ),
+              Text(l10n.voiceRecordingStatusCompleted),
+            if (recording.status != voiceRecordingStatusFailed ||
+                recording.voiceActions.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(l10n.voiceReviewDetailActionsLabel,
+                  style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 8),
+              if (recording.voiceActions.isEmpty)
+                Text(
+                  l10n.voiceReviewNoActionRecognized,
+                  style: TextStyle(color: colorScheme.error),
+                )
+              else
+                for (final action in recording.voiceActions)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: action.status == 'error'
+                        ? Text(
+                            _errorLabel(l10n, action.errorMessage),
+                            style: TextStyle(color: colorScheme.error),
+                          )
+                        : _buildActionCard(context, l10n, colorScheme, action),
+                  ),
+            ],
           ],
         ),
       ),

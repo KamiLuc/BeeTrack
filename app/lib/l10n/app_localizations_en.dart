@@ -757,6 +757,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceRecordingStatusCompleted => 'Ready for review';
 
   @override
+  String get voiceRecordingStatusFailed => 'Processing failed';
+
+  @override
   String get voiceReviewSectionTitle => 'Ready for review';
 
   @override
@@ -772,6 +775,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get voiceReviewErrorProposalIncomplete =>
       'The recording was too long to process fully — please try recording again';
+
+  @override
+  String get voiceReviewErrorPoorAudioQuality =>
+      'The recording was too quiet or unclear to transcribe';
 
   @override
   String get voiceReviewErrorGeneric => 'Something went wrong';

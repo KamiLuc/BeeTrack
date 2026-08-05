@@ -748,6 +748,17 @@ func TestVoiceAccept_RecordingNotCompleted(t *testing.T) {
 	}
 }
 
+func TestVoiceAccept_FailedRecordingNotCompleted(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusFailed}
+
+	_, _, err := svc.Accept(context.Background(), 1, 1, 1)
+	if !errors.Is(err, ErrRecordingNotCompleted) {
+		t.Errorf("expected ErrRecordingNotCompleted, got %v", err)
+	}
+}
+
 func TestVoiceAccept_RecordingWrongApiary(t *testing.T) {
 	svc, deps := newTestVoiceAcceptService(t)
 	deps.apiary.apiary = &model.Apiary{ID: 1}
@@ -1067,6 +1078,26 @@ func TestVoiceReject_Success(t *testing.T) {
 	}
 }
 
+func TestVoiceReject_FailedRecordingSuccess(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusFailed}
+
+	rec, err := svc.Reject(context.Background(), 1, 1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rec.Status != model.VoiceRecordingStatusRejected {
+		t.Errorf("expected rejected, got %s", rec.Status)
+	}
+	if !deps.voice.deleteCalled || deps.voice.deletedRecID != 1 {
+		t.Error("expected DeleteActionsByRecordingID to be called with recording id 1")
+	}
+	if deps.voice.updatedRecording == nil || deps.voice.updatedRecording.Status != model.VoiceRecordingStatusRejected {
+		t.Error("expected UpdateRecording to persist rejected status")
+	}
+}
+
 func TestVoiceReject_RecordingNotCompleted(t *testing.T) {
 	svc, deps := newTestVoiceAcceptService(t)
 	deps.apiary.apiary = &model.Apiary{ID: 1}
@@ -1127,6 +1158,17 @@ func TestVoiceUpdateActionArguments_RecordingNotCompleted(t *testing.T) {
 	svc, deps := newTestVoiceAcceptService(t)
 	deps.apiary.apiary = &model.Apiary{ID: 1}
 	deps.voice.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusPending}
+
+	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
+	if !errors.Is(err, ErrRecordingNotCompleted) {
+		t.Errorf("expected ErrRecordingNotCompleted, got %v", err)
+	}
+}
+
+func TestVoiceUpdateActionArguments_FailedRecordingNotCompleted(t *testing.T) {
+	svc, deps := newTestVoiceAcceptService(t)
+	deps.apiary.apiary = &model.Apiary{ID: 1}
+	deps.voice.recording = &model.VoiceRecording{ID: 1, ApiaryID: 1, Status: model.VoiceRecordingStatusFailed}
 
 	_, err := svc.UpdateActionArguments(context.Background(), 1, 1, 1, 30, json.RawMessage(`{}`))
 	if !errors.Is(err, ErrRecordingNotCompleted) {

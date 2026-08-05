@@ -766,6 +766,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get voiceRecordingStatusCompleted => 'Gotowe do sprawdzenia';
 
   @override
+  String get voiceRecordingStatusFailed => 'Przetwarzanie nie powiodło się';
+
+  @override
   String get voiceReviewSectionTitle => 'Gotowe do sprawdzenia';
 
   @override
@@ -780,6 +783,10 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get voiceReviewErrorProposalIncomplete =>
       'Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie';
+
+  @override
+  String get voiceReviewErrorPoorAudioQuality =>
+      'Nagranie było zbyt ciche lub niewyraźne, by je przetworzyć';
 
   @override
   String get voiceReviewErrorGeneric => 'Coś poszło nie tak';

@@ -238,6 +238,13 @@ func (s *VoiceService) Cancel(ctx context.Context, userID, apiaryID, recordingID
 }
 
 func (s *VoiceService) getOwnedCompletedRecording(ctx context.Context, userID, apiaryID, recordingID int64) (*model.VoiceRecording, error) {
+	return s.getOwnedRecordingWithStatus(ctx, userID, apiaryID, recordingID, model.VoiceRecordingStatusCompleted)
+}
+
+// getOwnedRecordingWithStatus is like getOwnedCompletedRecording but accepts any of allowedStatuses --
+// used by Reject, which must also let the beekeeper dismiss a recording that failed processing, not
+// just one that completed and is awaiting review.
+func (s *VoiceService) getOwnedRecordingWithStatus(ctx context.Context, userID, apiaryID, recordingID int64, allowedStatuses ...string) (*model.VoiceRecording, error) {
 	if _, _, err := s.apiaries.GetMembership(ctx, apiaryID, userID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrApiaryNotFound
@@ -251,7 +258,14 @@ func (s *VoiceService) getOwnedCompletedRecording(ctx context.Context, userID, a
 	if rec == nil || rec.ApiaryID != apiaryID {
 		return nil, ErrRecordingNotFound
 	}
-	if rec.Status != model.VoiceRecordingStatusCompleted {
+	statusAllowed := false
+	for _, status := range allowedStatuses {
+		if rec.Status == status {
+			statusAllowed = true
+			break
+		}
+	}
+	if !statusAllowed {
 		return nil, ErrRecordingNotCompleted
 	}
 	return rec, nil
@@ -286,7 +300,8 @@ func (s *VoiceService) Accept(ctx context.Context, userID, apiaryID, recordingID
 }
 
 func (s *VoiceService) Reject(ctx context.Context, userID, apiaryID, recordingID int64) (*model.VoiceRecording, error) {
-	rec, err := s.getOwnedCompletedRecording(ctx, userID, apiaryID, recordingID)
+	rec, err := s.getOwnedRecordingWithStatus(ctx, userID, apiaryID, recordingID,
+		model.VoiceRecordingStatusCompleted, model.VoiceRecordingStatusFailed)
 	if err != nil {
 		return nil, err
 	}

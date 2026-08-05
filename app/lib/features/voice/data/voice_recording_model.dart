@@ -1,6 +1,7 @@
 const voiceRecordingStatusPending = 'pending';
 const voiceRecordingStatusProcessing = 'processing';
 const voiceRecordingStatusCompleted = 'completed';
+const voiceRecordingStatusFailed = 'failed';
 
 class VoiceAction {
   final int id;

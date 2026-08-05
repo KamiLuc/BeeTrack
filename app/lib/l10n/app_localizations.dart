@@ -1496,6 +1496,12 @@ abstract class AppLocalizations {
   /// **'Gotowe do sprawdzenia'**
   String get voiceRecordingStatusCompleted;
 
+  /// No description provided for @voiceRecordingStatusFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przetwarzanie nie powiodło się'**
+  String get voiceRecordingStatusFailed;
+
   /// No description provided for @voiceReviewSectionTitle.
   ///
   /// In pl, this message translates to:
@@ -1525,6 +1531,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Nagranie było zbyt długie, by w pełni je przetworzyć — spróbuj nagrać ponownie'**
   String get voiceReviewErrorProposalIncomplete;
+
+  /// No description provided for @voiceReviewErrorPoorAudioQuality.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nagranie było zbyt ciche lub niewyraźne, by je przetworzyć'**
+  String get voiceReviewErrorPoorAudioQuality;
 
   /// No description provided for @voiceReviewErrorGeneric.
   ///
