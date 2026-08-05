@@ -95,10 +95,6 @@ func (f *fakeInspectionCreator) Create(ctx context.Context, userID, apiaryID, hi
 	return &model.Inspection{ID: 1}, nil
 }
 
-func (f *fakeInspectionCreator) AddDisease(ctx context.Context, userID, apiaryID, hiveID, inspectionID int64, disease, notes string) (*model.InspectionDisease, error) {
-	return &model.InspectionDisease{ID: 1}, nil
-}
-
 // fakeTreatmentCreator is a minimal service.TreatmentCreator for handler tests.
 type fakeTreatmentCreator struct{}
 

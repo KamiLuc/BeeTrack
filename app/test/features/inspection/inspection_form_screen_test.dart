@@ -475,6 +475,57 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.byIcon(Icons.check), findsOneWidget);
     });
+
+    testWidgets(
+        'hides the To do/Hive state sections, diseases, and the add-photo '
+        'button — none of them feed into a create_inspection proposal '
+        '(diseases now live only under update_hive_status)', (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+      Map<String, dynamic>? received;
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        InspectionFormScreen(
+          apiaryId: 1,
+          hive: _hive,
+          onSaveProposed: (args) async {
+            received = args;
+          },
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('To do'), findsNothing);
+      expect(find.text('Hive state'), findsNothing);
+      expect(find.text('Active'), findsNothing);
+      expect(find.text('Diseases'), findsNothing);
+      expect(find.byIcon(Icons.add_photo_alternate_outlined), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(received, isNotNull);
+      expect(received!.containsKey('diseases'), isFalse);
+    });
+
+    testWidgets(
+        'still shows the To do/Hive state sections, diseases, and the '
+        'add-photo button for a real (non-proposed) inspection edit',
+        (tester) async {
+      final (apiClient, _) = await _fakeApiClient();
+
+      await tester.pumpWidget(_wrap(
+        apiClient,
+        InspectionFormScreen(apiaryId: 1, hive: _hive),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('To do'), findsOneWidget);
+      expect(find.text('Hive state'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
+      expect(find.text('Diseases'), findsOneWidget);
+      expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
+    });
   });
 
   group('InspectionFormScreen queen status toggles', () {

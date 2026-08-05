@@ -20,7 +20,6 @@ const maxHarvestKilograms = 1000.0
 var (
 	ErrHarvestNotFound          = errors.New("harvest not found")
 	ErrHarvestedAtRequired      = errors.New("harvested_at is required")
-	ErrHarvestFramesRequired    = errors.New("frames or half_frames must be greater than zero")
 	ErrHarvestFramesInvalid     = fmt.Errorf("frames must be between 0 and %d", maxHarvestFrameCount)
 	ErrHarvestHalfFramesInvalid = fmt.Errorf("half_frames must be between 0 and %d", maxHarvestFrameCount)
 	ErrHarvestKilogramsTooLarge = fmt.Errorf("kilograms must be at most %v", maxHarvestKilograms)
@@ -68,9 +67,6 @@ func validateHarvestParams(p HarvestParams) error {
 	if p.HalfFrames < 0 || p.HalfFrames > maxHarvestFrameCount {
 		return ErrHarvestHalfFramesInvalid
 	}
-	if p.Frames == 0 && p.HalfFrames == 0 {
-		return ErrHarvestFramesRequired
-	}
 	if p.Kilograms > maxHarvestKilograms {
 		return ErrHarvestKilogramsTooLarge
 	}
@@ -112,16 +108,20 @@ func (s *HarvestService) Create(ctx context.Context, userID, apiaryID, hiveID in
 	if err := s.checkAccess(ctx, apiaryID, userID, hiveID); err != nil {
 		return nil, err
 	}
+	frames, halfFrames := params.Frames, params.HalfFrames
+	if frames == 0 && halfFrames == 0 {
+		frames = 1
+	}
 	kilograms := params.Kilograms
 	if kilograms <= 0 {
-		kilograms = defaultHarvestKilograms(params.Frames, params.HalfFrames)
+		kilograms = defaultHarvestKilograms(frames, halfFrames)
 	}
 	h := &model.Harvest{
 		HiveID:      hiveID,
 		HarvestedBy: userID,
 		HarvestedAt: params.HarvestedAt,
-		Frames:      params.Frames,
-		HalfFrames:  params.HalfFrames,
+		Frames:      frames,
+		HalfFrames:  halfFrames,
 		Kilograms:   kilograms,
 		Notes:       params.Notes,
 	}
@@ -177,13 +177,17 @@ func (s *HarvestService) Update(ctx context.Context, userID, apiaryID, hiveID, h
 		}
 		return nil, fmt.Errorf("get harvest: %w", err)
 	}
+	frames, halfFrames := params.Frames, params.HalfFrames
+	if frames == 0 && halfFrames == 0 {
+		frames = 1
+	}
 	kilograms := params.Kilograms
 	if kilograms <= 0 {
-		kilograms = defaultHarvestKilograms(params.Frames, params.HalfFrames)
+		kilograms = defaultHarvestKilograms(frames, halfFrames)
 	}
 	h.HarvestedAt = params.HarvestedAt
-	h.Frames = params.Frames
-	h.HalfFrames = params.HalfFrames
+	h.Frames = frames
+	h.HalfFrames = halfFrames
 	h.Kilograms = kilograms
 	h.Notes = params.Notes
 	if err := s.harvests.Update(ctx, h); err != nil {

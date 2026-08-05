@@ -119,7 +119,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     _notesController = TextEditingController(text: insp?.notes ?? '');
 
     _hiveActive = widget.hive.active;
-    if (widget.isEditing) {
+    if (widget.isEditing && widget.onSaveProposed == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadImages());
     }
     _hiveQueenNeedsReplacement = widget.hive.queenNeedsReplacement;
@@ -223,7 +223,6 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
       'frames_added_feed': _framesAddedFeed,
       'queen_added': _queenAdded,
       'box_added': _boxAdded,
-      'diseases': _hiveDiseases.toList(),
       'notes': _notesController.text.trim(),
     };
   }
@@ -545,64 +544,81 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                               l10n,
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          _SectionTitle(l10n.inspectionSectionTodo),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveReadyForHarvest,
-                            value: _hiveReadyForHarvest,
-                            onChanged: (v) =>
-                                setState(() => _hiveReadyForHarvest = v),
-                          ),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveNeedsFood,
-                            value: _hiveNeedsFood,
-                            onChanged: (v) =>
-                                setState(() => _hiveNeedsFood = v),
-                          ),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveQueenNeedsReplacement,
-                            value: _hiveQueenNeedsReplacement,
-                            onChanged: (v) =>
-                                setState(() => _hiveQueenNeedsReplacement = v),
-                            enabled: !_queenAdded,
-                          ),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveBoxNeedsAdding,
-                            value: _hiveBoxNeedsAdding,
-                            onChanged: (v) =>
-                                setState(() => _hiveBoxNeedsAdding = v),
-                            enabled: !_boxAdded,
-                          ),
-                          const SizedBox(height: 20),
-                          _SectionTitle(l10n.inspectionSectionHiveState),
-                          const SizedBox(height: 12),
-                          _BoolRow(
-                            label: l10n.hiveActive,
-                            value: _hiveActive,
-                            onChanged: (v) => setState(() => _hiveActive = v),
-                          ),
-                          const SizedBox(height: 20),
-                          HiveDiseasesSection(
-                            label: l10n.inspectionDiseases,
-                            selected: _hiveDiseases,
-                            onToggle: (disease, selected) {
-                              setState(() {
-                                if (selected) {
-                                  _hiveDiseases = {..._hiveDiseases, disease};
-                                } else {
-                                  _hiveDiseases = _hiveDiseases
-                                      .where((d) => d != disease)
-                                      .toSet();
-                                }
-                              });
-                            },
-                          ),
-                          // Photo gallery — only visible when photos exist
-                          if (hasPhotos) ...[
+                          // The 4 hive-status flags, the active toggle,
+                          // diseases, and photos are all hive/record-level
+                          // state that a proposed (not-yet-accepted)
+                          // inspection has no way to actually change —
+                          // create_inspection's tool_arguments don't carry
+                          // any of them (diseases now live exclusively under
+                          // the update_hive_status proposal), and there's no
+                          // real inspection row yet to attach photos to.
+                          // Editing them here would silently do nothing, so
+                          // they're all hidden entirely in that mode.
+                          if (widget.onSaveProposed == null) ...[
+                            const SizedBox(height: 20),
+                            _SectionTitle(l10n.inspectionSectionTodo),
+                            const SizedBox(height: 12),
+                            _BoolRow(
+                              label: l10n.hiveReadyForHarvest,
+                              value: _hiveReadyForHarvest,
+                              onChanged: (v) =>
+                                  setState(() => _hiveReadyForHarvest = v),
+                            ),
+                            const SizedBox(height: 12),
+                            _BoolRow(
+                              label: l10n.hiveNeedsFood,
+                              value: _hiveNeedsFood,
+                              onChanged: (v) =>
+                                  setState(() => _hiveNeedsFood = v),
+                            ),
+                            const SizedBox(height: 12),
+                            _BoolRow(
+                              label: l10n.hiveQueenNeedsReplacement,
+                              value: _hiveQueenNeedsReplacement,
+                              onChanged: (v) => setState(
+                                  () => _hiveQueenNeedsReplacement = v),
+                              enabled: !_queenAdded,
+                            ),
+                            const SizedBox(height: 12),
+                            _BoolRow(
+                              label: l10n.hiveBoxNeedsAdding,
+                              value: _hiveBoxNeedsAdding,
+                              onChanged: (v) =>
+                                  setState(() => _hiveBoxNeedsAdding = v),
+                              enabled: !_boxAdded,
+                            ),
+                            const SizedBox(height: 20),
+                            _SectionTitle(l10n.inspectionSectionHiveState),
+                            const SizedBox(height: 12),
+                            _BoolRow(
+                              label: l10n.hiveActive,
+                              value: _hiveActive,
+                              onChanged: (v) =>
+                                  setState(() => _hiveActive = v),
+                            ),
+                            const SizedBox(height: 20),
+                            HiveDiseasesSection(
+                              label: l10n.inspectionDiseases,
+                              selected: _hiveDiseases,
+                              onToggle: (disease, selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _hiveDiseases = {
+                                      ..._hiveDiseases,
+                                      disease,
+                                    };
+                                  } else {
+                                    _hiveDiseases = _hiveDiseases
+                                        .where((d) => d != disease)
+                                        .toSet();
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                          // Photo gallery — only visible when photos exist,
+                          // and never in proposed-edit mode (see above)
+                          if (hasPhotos && widget.onSaveProposed == null) ...[
                             const SizedBox(height: 16),
                             _FormPhotoGallery(
                               existingImages: _existingImages,
@@ -632,7 +648,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
             pendingCount: _pendingImages.length,
             atPhotoLimit: (_existingImages.length + _pendingImages.length) >= 6,
             onSave: () => _submit(context),
-            onAddPhoto: _pickImageForBanner,
+            onAddPhoto:
+                widget.onSaveProposed == null ? _pickImageForBanner : null,
           ),
         ],
       ),
@@ -693,14 +710,14 @@ class _InspectionFormBanner extends StatelessWidget {
   final int pendingCount;
   final bool atPhotoLimit;
   final VoidCallback onSave;
-  final VoidCallback onAddPhoto;
+  final VoidCallback? onAddPhoto;
 
   const _InspectionFormBanner({
     required this.loading,
     required this.pendingCount,
     required this.atPhotoLimit,
     required this.onSave,
-    required this.onAddPhoto,
+    this.onAddPhoto,
   });
 
   @override
@@ -734,16 +751,18 @@ class _InspectionFormBanner extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Add photo
-                  Badge(
-                    isLabelVisible: pendingCount > 0,
-                    label: Text('$pendingCount'),
-                    child: IconButton(
-                      icon: const Icon(Icons.add_photo_alternate_outlined),
-                      iconSize: 28,
-                      tooltip: l10n.inspectionAddPhoto,
-                      onPressed: (atPhotoLimit || loading) ? null : onAddPhoto,
+                  if (onAddPhoto != null)
+                    Badge(
+                      isLabelVisible: pendingCount > 0,
+                      label: Text('$pendingCount'),
+                      child: IconButton(
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        iconSize: 28,
+                        tooltip: l10n.inspectionAddPhoto,
+                        onPressed:
+                            (atPhotoLimit || loading) ? null : onAddPhoto,
+                      ),
                     ),
-                  ),
                   // Save
                   loading
                       ? const Padding(

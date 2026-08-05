@@ -1958,14 +1958,8 @@ class _VoiceRecordingDetailDialogState
 
     switch (action.toolName) {
       case 'create_inspection':
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InspectionSummary(
-              inspection: _inspectionFromArgs(args, action.hiveId ?? 0),
-            ),
-            if (diseases.isNotEmpty) _diseasesField(context, l10n, diseases),
-          ],
+        return InspectionSummary(
+          inspection: _inspectionFromArgs(args, action.hiveId ?? 0),
         );
       case 'create_treatment':
         return TreatmentSummary(

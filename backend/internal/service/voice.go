@@ -62,7 +62,6 @@ type VoiceRepository interface {
 
 type InspectionCreator interface {
 	Create(ctx context.Context, userID, apiaryID, hiveID int64, params InspectionParams) (*model.Inspection, error)
-	AddDisease(ctx context.Context, userID, apiaryID, hiveID, inspectionID int64, disease, notes string) (*model.InspectionDisease, error)
 }
 
 type TreatmentCreator interface {
@@ -410,22 +409,21 @@ func (s *VoiceService) hiveStateSnapshot(ctx context.Context, userID, apiaryID, 
 }
 
 type createInspectionArgs struct {
-	QueenStatus           string   `json:"queen_status"`
-	BroodPattern          string   `json:"brood_pattern"`
-	Aggressiveness        string   `json:"aggressiveness"`
-	ColonyStrength        string   `json:"colony_strength"`
-	FramesBrood           *int     `json:"frames_brood"`
-	FramesFeed            *int     `json:"frames_feed"`
-	FramesPollen          *int     `json:"frames_pollen"`
-	QueenCellsCount       *int     `json:"queen_cells_count"`
-	FramesAddedFoundation *int     `json:"frames_added_foundation"`
-	FramesAddedDrawn      *int     `json:"frames_added_drawn"`
-	FramesAddedBrood      *int     `json:"frames_added_brood"`
-	FramesAddedFeed       *int     `json:"frames_added_feed"`
-	QueenAdded            bool     `json:"queen_added"`
-	BoxAdded              bool     `json:"box_added"`
-	Diseases              []string `json:"diseases"`
-	Notes                 string   `json:"notes"`
+	QueenStatus           string `json:"queen_status"`
+	BroodPattern          string `json:"brood_pattern"`
+	Aggressiveness        string `json:"aggressiveness"`
+	ColonyStrength        string `json:"colony_strength"`
+	FramesBrood           *int   `json:"frames_brood"`
+	FramesFeed            *int   `json:"frames_feed"`
+	FramesPollen          *int   `json:"frames_pollen"`
+	QueenCellsCount       *int   `json:"queen_cells_count"`
+	FramesAddedFoundation *int   `json:"frames_added_foundation"`
+	FramesAddedDrawn      *int   `json:"frames_added_drawn"`
+	FramesAddedBrood      *int   `json:"frames_added_brood"`
+	FramesAddedFeed       *int   `json:"frames_added_feed"`
+	QueenAdded            bool   `json:"queen_added"`
+	BoxAdded              bool   `json:"box_added"`
+	Notes                 string `json:"notes"`
 }
 
 func (s *VoiceService) applyCreateInspection(ctx context.Context, userID, apiaryID, hiveID int64, raw datatypes.JSON) (string, int64, error) {
@@ -453,11 +451,6 @@ func (s *VoiceService) applyCreateInspection(ctx context.Context, userID, apiary
 	})
 	if err != nil {
 		return "", 0, err
-	}
-	for _, disease := range args.Diseases {
-		if _, err := s.inspections.AddDisease(ctx, userID, apiaryID, hiveID, insp.ID, disease, ""); err != nil {
-			return "", 0, fmt.Errorf("add disease %q: %w", disease, err)
-		}
 	}
 	return model.VoiceActionResultTypeInspection, insp.ID, nil
 }

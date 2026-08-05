@@ -1877,7 +1877,7 @@ Creates a new harvest record. Caller must be a member of the apiary. `harvested_
 }
 ```
 
-`frames` and `half_frames` default to `0` if omitted. `notes` defaults to `""`.
+`frames` and `half_frames` default to `0` if omitted, unless both would otherwise end up `0`, in which case `frames` defaults to `1` instead — a harvest always claims at least one frame. `kilograms` defaults to `0` if omitted, unless that would leave it at `0`, in which case it's estimated from the (possibly-defaulted) frame counts as `frames*2 + half_frames` (roughly 2kg/full frame, 1kg/half frame). `notes` defaults to `""`.
 
 **Response** `201 Created` — harvest object (same shape as list item above)
 
@@ -1885,7 +1885,9 @@ Creates a new harvest record. Caller must be a member of the apiary. `harvested_
 | Code | Status | Description |
 |------|--------|-------------|
 | `HARVESTED_AT_REQUIRED` | 400 | `harvested_at` is missing or zero |
-| `HARVEST_FRAMES_REQUIRED` | 400 | Both `frames` and `half_frames` are zero |
+| `HARVEST_FRAMES_INVALID` | 400 | `frames` outside 0-99 |
+| `HARVEST_HALF_FRAMES_INVALID` | 400 | `half_frames` outside 0-99 |
+| `HARVEST_KILOGRAMS_TOO_LARGE` | 400 | `kilograms` exceeds 1000 |
 | `NOTES_TOO_LONG` | 400 | `notes` exceeds 5000 characters |
 | `APIARY_NOT_FOUND` | 404 | Apiary not found / not a member |
 | `HIVE_NOT_FOUND` | 404 | Hive not found |

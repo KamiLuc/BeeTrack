@@ -329,6 +329,28 @@ Map<String, dynamic> _twoProposedActionsRecordingJson() => {
       ],
     };
 
+Map<String, dynamic> _staleDiseasesInspectionRecordingJson() => {
+      'recording_id': 14,
+      'status': 'completed',
+      'transcript': 'inspected hive alpha with stale diseases data',
+      'error_message': null,
+      'created_at': '2026-08-01T12:30:00Z',
+      'processed_at': '2026-08-01T12:31:00Z',
+      'voice_actions': [
+        {
+          'id': 8,
+          'sequence': 1,
+          'hive_id': 1,
+          'tool_name': 'create_inspection',
+          'tool_arguments': {
+            'colony_strength': 'strong',
+            'diseases': ['varroa'],
+          },
+          'status': 'proposed',
+        },
+      ],
+    };
+
 Map<String, dynamic> _inspectionJson() => {
       'id': 5,
       'hive_id': 1,
@@ -826,6 +848,28 @@ void main() {
 
     expect(find.text('Recording details'), findsOneWidget);
     expect(find.text('Create inspection'), findsOneWidget);
+  });
+
+  testWidgets(
+      'does not render a diseases line for a create_inspection card even '
+      'if tool_arguments has a stale "diseases" key from before it was '
+      'removed from the schema', (tester) async {
+    final (apiClient, _) = await _fakeApiClient(
+      hivesJson: [_hiveJson()],
+      recordingsJson: [_staleDiseasesInspectionRecordingJson()],
+    );
+
+    await tester.pumpWidget(_wrap(apiClient, const ApiaryGridScreen(apiary: _apiary)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.mic_none));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('inspected hive alpha with stale diseases data'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recording details'), findsOneWidget);
+    expect(find.text('Diseases'), findsNothing);
   });
 
   testWidgets(

@@ -128,9 +128,7 @@ func (m *mockVoiceRepo) DeleteActionsByRecordingID(ctx context.Context, recordin
 type mockInspectionCreator struct {
 	insp        *model.Inspection
 	createErr   error
-	diseaseErr  error
 	createCalls int
-	diseases    []string
 }
 
 func (m *mockInspectionCreator) Create(ctx context.Context, userID, apiaryID, hiveID int64, params InspectionParams) (*model.Inspection, error) {
@@ -142,14 +140,6 @@ func (m *mockInspectionCreator) Create(ctx context.Context, userID, apiaryID, hi
 		return m.insp, nil
 	}
 	return &model.Inspection{ID: 42}, nil
-}
-
-func (m *mockInspectionCreator) AddDisease(ctx context.Context, userID, apiaryID, hiveID, inspectionID int64, disease, notes string) (*model.InspectionDisease, error) {
-	m.diseases = append(m.diseases, disease)
-	if m.diseaseErr != nil {
-		return nil, m.diseaseErr
-	}
-	return &model.InspectionDisease{ID: 1, Disease: disease}, nil
 }
 
 type mockTreatmentCreator struct {
@@ -586,6 +576,10 @@ func TestVoiceAccept_CreateInspection(t *testing.T) {
 			HiveID:           int64Ptr(5),
 			ToolName:         strPtr(model.VoiceActionToolCreateInspection),
 			Status:           model.VoiceActionStatusProposed,
+			// A stray "diseases" key (e.g. from an old proposal stored before
+			// diseases were removed from create_inspection's schema) must be
+			// silently ignored rather than erroring — diseases only ever
+			// come from update_hive_status now.
 			ToolArguments: mustMarshalJSON(t, map[string]any{
 				"queen_status": "seen",
 				"diseases":     []string{"varroa"},
@@ -616,9 +610,6 @@ func TestVoiceAccept_CreateInspection(t *testing.T) {
 	}
 	if deps.inspections.createCalls != 1 {
 		t.Errorf("expected 1 Create call, got %d", deps.inspections.createCalls)
-	}
-	if len(deps.inspections.diseases) != 1 || deps.inspections.diseases[0] != "varroa" {
-		t.Errorf("expected AddDisease called with varroa, got %v", deps.inspections.diseases)
 	}
 	if deps.voice.updatedRecording == nil || deps.voice.updatedRecording.Status != model.VoiceRecordingStatusAccepted {
 		t.Error("expected UpdateRecording to persist accepted status")

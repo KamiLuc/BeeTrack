@@ -474,15 +474,7 @@ func createInspectionTool() llm.Tool {
 		"frames_added_feed":       map[string]any{"type": "integer", "description": "Signed delta of feed frames added."},
 		"queen_added":             map[string]any{"type": "boolean", "description": "True if a new queen was introduced during this inspection."},
 		"box_added":               map[string]any{"type": "boolean", "description": "True if a box/super was added to the hive during this inspection."},
-		"diseases": map[string]any{
-			"type":        "array",
-			"description": "Diseases observed during this inspection, if any.",
-			"items": map[string]any{
-				"type": "string",
-				"enum": model.ValidDiseases,
-			},
-		},
-		"notes": map[string]any{"type": "string", "description": notesFieldDescription},
+		"notes":                   map[string]any{"type": "string", "description": notesFieldDescription},
 	}, nil)
 }
 
@@ -496,7 +488,7 @@ func createTreatmentTool() llm.Tool {
 
 func createHarvestTool() llm.Tool {
 	return functionTool(model.VoiceActionToolCreateHarvest, "Propose logging honey harvested from the hive.", map[string]any{
-		"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99."},
+		"frames":      map[string]any{"type": "integer", "description": "Whole frames harvested, 0-99. If the beekeeper only mentioned a weight and no frame count, omit this — it defaults to 1 frame."},
 		"half_frames": map[string]any{"type": "integer", "description": "Half frames harvested, 0-99."},
 		"kilograms":   map[string]any{"type": "number", "description": "Kilograms of honey harvested, greater than 0. If the beekeeper only mentioned frame counts and no weight, omit this and it'll be estimated from frames instead (roughly 2kg/full frame, 1kg/half frame)."},
 		"notes":       map[string]any{"type": "string", "description": notesFieldDescription},

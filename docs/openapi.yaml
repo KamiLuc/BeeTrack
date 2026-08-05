@@ -3176,8 +3176,8 @@ paths:
         '201':
           description: harvest object (same shape as list item above)
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
-            exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; `frames` outside 0-99; `half_frames` outside
+            0-99; `kilograms` exceeds 1000; `notes` exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3186,10 +3186,18 @@ paths:
                   value:
                     code: HARVESTED_AT_REQUIRED
                     message: '`harvested_at` is missing or zero'
-                HARVEST_FRAMES_REQUIRED:
+                HARVEST_FRAMES_INVALID:
                   value:
-                    code: HARVEST_FRAMES_REQUIRED
-                    message: Both `frames` and `half_frames` are zero
+                    code: HARVEST_FRAMES_INVALID
+                    message: '`frames` outside 0-99'
+                HARVEST_HALF_FRAMES_INVALID:
+                  value:
+                    code: HARVEST_HALF_FRAMES_INVALID
+                    message: '`half_frames` outside 0-99'
+                HARVEST_KILOGRAMS_TOO_LARGE:
+                  value:
+                    code: HARVEST_KILOGRAMS_TOO_LARGE
+                    message: '`kilograms` exceeds 1000'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG
@@ -3268,8 +3276,8 @@ paths:
         '200':
           description: harvest object
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
-            exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; `frames` outside 0-99; `half_frames` outside
+            0-99; `kilograms` exceeds 1000; `notes` exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3278,10 +3286,18 @@ paths:
                   value:
                     code: HARVESTED_AT_REQUIRED
                     message: '`harvested_at` is missing or zero'
-                HARVEST_FRAMES_REQUIRED:
+                HARVEST_FRAMES_INVALID:
                   value:
-                    code: HARVEST_FRAMES_REQUIRED
-                    message: Both `frames` and `half_frames` are zero
+                    code: HARVEST_FRAMES_INVALID
+                    message: '`frames` outside 0-99'
+                HARVEST_HALF_FRAMES_INVALID:
+                  value:
+                    code: HARVEST_HALF_FRAMES_INVALID
+                    message: '`half_frames` outside 0-99'
+                HARVEST_KILOGRAMS_TOO_LARGE:
+                  value:
+                    code: HARVEST_KILOGRAMS_TOO_LARGE
+                    message: '`kilograms` exceeds 1000'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG
@@ -3341,8 +3357,8 @@ paths:
         '200':
           description: updated harvest object
         '400':
-          description: '`harvested_at` is missing or zero; Both `frames` and `half_frames` are zero; `notes`
-            exceeds 5000 characters'
+          description: '`harvested_at` is missing or zero; `frames` outside 0-99; `half_frames` outside
+            0-99; `kilograms` exceeds 1000; `notes` exceeds 5000 characters'
           content:
             application/json:
               schema: *id001
@@ -3351,10 +3367,18 @@ paths:
                   value:
                     code: HARVESTED_AT_REQUIRED
                     message: '`harvested_at` is missing or zero'
-                HARVEST_FRAMES_REQUIRED:
+                HARVEST_FRAMES_INVALID:
                   value:
-                    code: HARVEST_FRAMES_REQUIRED
-                    message: Both `frames` and `half_frames` are zero
+                    code: HARVEST_FRAMES_INVALID
+                    message: '`frames` outside 0-99'
+                HARVEST_HALF_FRAMES_INVALID:
+                  value:
+                    code: HARVEST_HALF_FRAMES_INVALID
+                    message: '`half_frames` outside 0-99'
+                HARVEST_KILOGRAMS_TOO_LARGE:
+                  value:
+                    code: HARVEST_KILOGRAMS_TOO_LARGE
+                    message: '`kilograms` exceeds 1000'
                 NOTES_TOO_LONG:
                   value:
                     code: NOTES_TOO_LONG

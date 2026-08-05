@@ -73,8 +73,6 @@ func harvestError(w http.ResponseWriter, err error) {
 		respond.Error(w, http.StatusNotFound, "HARVEST_NOT_FOUND", "harvest not found")
 	case errors.Is(err, service.ErrHarvestedAtRequired):
 		respond.Error(w, http.StatusBadRequest, "HARVESTED_AT_REQUIRED", err.Error())
-	case errors.Is(err, service.ErrHarvestFramesRequired):
-		respond.Error(w, http.StatusBadRequest, "HARVEST_FRAMES_REQUIRED", err.Error())
 	case errors.Is(err, service.ErrHarvestFramesInvalid):
 		respond.Error(w, http.StatusBadRequest, "HARVEST_FRAMES_INVALID", err.Error())
 	case errors.Is(err, service.ErrHarvestHalfFramesInvalid):

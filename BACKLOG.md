@@ -24,10 +24,14 @@
 5. [Queen Recognition (AI Feature)](#5-queen-recognition-ai-feature)
 6. [Infrastructure & DevOps](#6-infrastructure--devops)
 8. [Colony Strength & Queen Replacement](#8-colony-strength--queen-replacement)
+9. [Voice Logging & AI Assistant — deferred follow-ups](#9-voice-logging--ai-assistant--deferred-follow-ups)
 
-> Voice logging and the MCP-based AI assistant moved out of this backlog — see
-> [AI_ASSISTANT.md](AI_ASSISTANT.md) for the design and
-> [BACKLOG_AI_ASSISTANT.md](BACKLOG_AI_ASSISTANT.md) for its tickets.
+> Voice logging and the MCP-based AI assistant's main build-out (recording,
+> transcription, action proposals, tap-to-edit-before-accept, the read-only
+> chat assistant + MCP tools) shipped and its ticket log
+> (`BACKLOG_AI_ASSISTANT.md`) was retired — delivery history lives in git log.
+> [AI_ASSISTANT.md](AI_ASSISTANT.md) still has the design write-up. A short
+> list of what's left is tracked below under Epic 9.
 
 ---
 
@@ -88,3 +92,20 @@
 | CS-10-FE | `FE`  | `[x]`  | New hive flag: FE + interaction          | `HiveBoxNeedsAddingToggle` on add/edit hive screens, status chip (with since-date) on hive detail, filter chip + grid icon on apiary grid + dashboard hive-status icons, toggle in the inspection form's "Do zrobienia" section. Toggling "Dołożono korpus" (Akcje section) true resets `box_needs_adding` to false client-side, mirroring "Poddano matkę" resetting `queen_needs_replacement`; the toggle is `enabled: !_boxAdded` the same way the queen one is `enabled: !_queenAdded` |
 | CS-11-BE/FE | `BE`+`FE` | `[x]` | Remove `queenless`, fold into `queen_needs_replacement` | Both flags meant "hive needs a queen" (no queen vs. a failing one) — consolidated to one. Backend: `051_hives_drop_queenless.sql`, removed from model/service/repository/handler/MCP/voice-worker/seed/docs. Frontend: removed from `Hive` model, repository, `HiveQueenlessToggle` deleted, all screens/filters/icons/tests updated. Wording for the surviving flag changed PL "Matka do wymiany" → "Wymaga poddania matki" |
 | CS-12-BE/FE | `BE`+`FE` | `[x]` | Status/disease "since" timestamps | New nullable `*_since` columns (`ready_for_harvest_since`, `queen_needs_replacement_since`, `needs_food_since`, `box_needs_adding_since`) on `hives`, computed server-side in `HiveService` via a `statusSince` helper: newly-true gets `now()`, still-true keeps its existing timestamp, false clears it. Exposed in `hiveJSON`. Flutter: added to `Hive`/`HiveDisease` (disease already had `created_at`, just wasn't consumed), status/disease chips on the hive detail screen now show `d.MM` alongside the label. Two bugs found/fixed post-review: (1) `cmd/seed/main.go` inserted hives directly via the repository, bypassing `HiveService` entirely, so every seeded status flag had a `null` since-date — added a `statusSinceIfTrue` seed helper mirroring the service's logic; (2) `EditHiveScreen._submit` discarded `HiveRepository.updateHive`'s response and reconstructed the popped `Hive` from pre-edit local state, so a status just toggled via that screen (not through an inspection) kept showing no date until the next full reload — `updateHive` now returns the server's fresh `Hive` (parses the PATCH response body) and `EditHiveScreen` pops `updated.copyWith(diseases: ...)` instead of hand-building one. Also added a "Do zrobienia" section (new `HiveSectionTitle` widget, reused `inspectionSectionTodo` l10n key) to the add/edit hive screens, grouping ready-for-harvest/needs-food/queen-needs-replacement/box-needs-adding in the same order as the inspection form, separate from "Aktywny" |
+
+---
+
+## 9. Voice Logging & AI Assistant — deferred follow-ups
+
+> Main build-out shipped (recording, transcription, action proposals,
+> tap-to-edit-before-accept for all 5 proposal types, the read-only chat
+> assistant + MCP tools). `BACKLOG_AI_ASSISTANT.md` (the detailed ticket log)
+> was retired once that landed — delivery history lives in git log. Design
+> doc: [AI_ASSISTANT.md](AI_ASSISTANT.md). What's left:
+
+| ID     | Layer | Status | Title                                   | Notes |
+| ------ | ----- | ------ | ------------------------------------------ | ----- |
+| VLA-01 | `FE`  | `[ ]`  | Surface failed/poor-quality voice recordings | A recording that ends up `failed` (e.g. `POOR_AUDIO_QUALITY` from the worker's quality gate, or a `RECORDING_TOO_LONG` upload rejection) has no UI surface at all today — `_VoiceRecordingDialogState` only ever shows `pending`/`processing` (Pending section) and `completed` (Ready for review section); a `failed` recording just silently vanishes, `VoiceRecording.errorMessage` is never read anywhere |
+| VLA-02 | `FE`  | `[ ]`  | Per-hive voice recording dialog on `HiveDetailScreen` | Deferred — a full redesign is planned rather than adapting the existing apiary-scoped `_VoiceRecordingDialog` (~1,335 lines in `apiary_grid_screen.dart`, hardcoded to one `apiaryId` throughout, no injectable upload/list strategy). The hive-scoped upload endpoint (`POST /apiaries/{id}/hives/{hiveId}/voice`) already exists backend-side and is unused by the client |
+| VLA-03 | `BE`  | `[ ]`  | HTTP+SSE MCP transport at `/mcp`         | For future external MCP clients; the in-app chat assistant talks to tools directly, not over this transport, so this is optional/deferred until there's a concrete external-client use case |
+| VLA-04 | `BE`  | `[ ]`  | Personal access token auth for external MCP clients | Deferred — depends on VLA-03, no concrete use case yet |
