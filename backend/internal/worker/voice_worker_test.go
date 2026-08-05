@@ -94,9 +94,17 @@ func (m *mockVoiceRepo) CreateLLMCall(ctx context.Context, call *model.VoiceLLMC
 type mockTranscriber struct {
 	result *llm.TranscriptionResult
 	err    error
+
+	blockUntilCtxDone bool
+	capturedCtx       context.Context
 }
 
 func (m *mockTranscriber) Transcribe(ctx context.Context, audio io.Reader, filename string) (*llm.TranscriptionResult, error) {
+	m.capturedCtx = ctx
+	if m.blockUntilCtxDone {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	return m.result, m.err
 }
 
@@ -172,14 +180,19 @@ type mockHiveResolver struct {
 	proposeErr     error
 	callCount      int
 	requests       []llm.ChatCompletionRequest
+
+	resolveCtx context.Context
+	proposeCtx context.Context
 }
 
 func (m *mockHiveResolver) CreateChatCompletion(ctx context.Context, req llm.ChatCompletionRequest) (*llm.ChatCompletionResponse, error) {
 	m.callCount++
 	m.requests = append(m.requests, req)
 	if req.ToolChoice != nil {
+		m.resolveCtx = ctx
 		return m.resolveMessage, m.resolveErr
 	}
+	m.proposeCtx = ctx
 	return m.proposeMessage, m.proposeErr
 }
 
@@ -295,6 +308,112 @@ func TestVoiceWorker_ProcessNext_HappyPath(t *testing.T) {
 	}
 	if proposeReq.Transcript != "hive three looked good" || proposeReq.HiveContext.Type != "langstroth" || !proposeReq.HiveContext.QueenNeedsReplacement || len(proposeReq.HiveContext.Diseases) != 1 || proposeReq.HiveContext.Diseases[0] != "varroa" {
 		t.Errorf("expected propose_actions request to contain the transcript and hive context actually sent, got %+v", proposeReq)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_TranscribeCallGetsBoundedTimeout(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{Text: "  "}}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, &mockHiveLister{}, &mockHiveResolver{})
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+
+	deadline, ok := transcriber.capturedCtx.Deadline()
+	if !ok {
+		t.Fatal("expected the context passed to Transcribe to carry a deadline")
+	}
+	if remaining := time.Until(deadline); remaining <= 0 || remaining > transcribeCallTimeout {
+		t.Errorf("expected transcribe deadline within %s, got %s remaining", transcribeCallTimeout, remaining)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_TranscribeContextCancellationSurfacesAsFailureInsteadOfHanging(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, RetryCount: 0}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{blockUntilCtxDone: true}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, &mockHiveLister{}, &mockHiveResolver{})
+
+	parentCtx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := w.ProcessNext(parentCtx); err != nil {
+			t.Errorf("ProcessNext() error = %v", err)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ProcessNext did not return once the transcribe context was cancelled -- worker is hanging")
+	}
+
+	if !repo.retryCalled {
+		t.Fatalf("expected recording to be retried once the transcribe context was cancelled, failedCalled=%v", repo.failedCalled)
+	}
+	if repo.retryErr != context.DeadlineExceeded.Error() {
+		t.Errorf("expected the deadline-exceeded error to be recorded, got %q", repo.retryErr)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ResolveHiveCallGetsBoundedTimeout(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+
+	deadline, ok := resolver.resolveCtx.Deadline()
+	if !ok {
+		t.Fatal("expected the context passed to resolve_hive's CreateChatCompletion to carry a deadline")
+	}
+	if remaining := time.Until(deadline); remaining <= 0 || remaining > llmCallTimeout {
+		t.Errorf("expected resolve_hive deadline within %s, got %s remaining", llmCallTimeout, remaining)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsCallGetsBoundedTimeout(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+
+	deadline, ok := resolver.proposeCtx.Deadline()
+	if !ok {
+		t.Fatal("expected the context passed to propose_actions's CreateChatCompletion to carry a deadline")
+	}
+	if remaining := time.Until(deadline); remaining <= 0 || remaining > llmCallTimeout {
+		t.Errorf("expected propose_actions deadline within %s, got %s remaining", llmCallTimeout, remaining)
 	}
 }
 
@@ -1100,6 +1219,72 @@ func TestVoiceWorker_ProcessNext_ProposeActionsIncludesKnownValues(t *testing.T)
 	}
 	if !reflect.DeepEqual(proposeReqLogged.KnownValues, want) {
 		t.Errorf("expected logged known_values to be %+v, got %+v", want, proposeReqLogged.KnownValues)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsStatesTranscriptLanguageExplicitly(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "Zrobiłem dzisiaj przegląd ula",
+		Language: "polish",
+		Segments: []llm.TranscriptionSegment{{Text: "Zrobiłem dzisiaj przegląd ula", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+	if len(resolver.requests) != 2 {
+		t.Fatalf("expected 2 llm requests (resolve_hive + propose_actions), got %d", len(resolver.requests))
+	}
+
+	proposeReq := resolver.requests[1]
+	if len(proposeReq.Messages) != 2 {
+		t.Fatalf("expected 2 messages in propose_actions request, got %d", len(proposeReq.Messages))
+	}
+	userContent := proposeReq.Messages[1].Content
+	if !strings.HasPrefix(userContent, "Transcript language: polish\n") {
+		t.Errorf("expected the propose_actions user message to state the transcript language up front, got %q", userContent)
+	}
+
+	var proposeReqLogged proposeActionsRequest
+	if err := json.Unmarshal(repo.createdLLMCalls[1].Request, &proposeReqLogged); err != nil {
+		t.Fatalf("unmarshal propose_actions request: %v", err)
+	}
+	if proposeReqLogged.Language != "polish" {
+		t.Errorf("expected logged language to be %q, got %q", "polish", proposeReqLogged.Language)
+	}
+}
+
+func TestVoiceWorker_ProcessNext_ProposeActionsFallsBackToUnknownLanguageLabel(t *testing.T) {
+	rec := clearAudioPath(&model.VoiceRecording{ID: 1, UserID: 7, ApiaryID: 3}, "audio.wav")
+	repo := &mockVoiceRepo{next: rec}
+	transcriber := &mockTranscriber{result: &llm.TranscriptionResult{
+		Text:     "hive three looked good",
+		Segments: []llm.TranscriptionSegment{{Text: "hive three looked good", AvgLogprob: -0.2, NoSpeechProb: 0.05}},
+	}}
+	hiveID := int64(42)
+	hives := &mockHiveLister{hives: []mcp.HiveSummary{{ID: 42, Name: "Hive 3"}}}
+	resolver := &mockHiveResolver{
+		resolveMessage: resolveHiveMessage(t, resolveHiveInput{Outcome: resolveHiveOutcomeMatched, HiveID: &hiveID}),
+		proposeMessage: toolUseMessage(t),
+	}
+	w := newTranscribedWorker(repo, transcriber, &mockAudioStore{}, hives, resolver)
+
+	if _, err := w.ProcessNext(context.Background()); err != nil {
+		t.Fatalf("ProcessNext() error = %v", err)
+	}
+
+	userContent := resolver.requests[1].Messages[1].Content
+	if !strings.HasPrefix(userContent, "Transcript language: "+unknownTranscriptLanguage+"\n") {
+		t.Errorf("expected an unknown-language fallback label when Whisper detected none, got %q", userContent)
 	}
 }
 

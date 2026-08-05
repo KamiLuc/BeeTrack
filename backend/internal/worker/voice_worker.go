@@ -23,6 +23,13 @@ import (
 const (
 	stuckProcessingTimeout = 5 * time.Minute
 
+	// Both external calls use http.DefaultClient, which has no timeout of its own -- without these,
+	// a stalled connection to Whisper or OpenRouter blocks ProcessNext forever, and since it runs in
+	// the same goroutine as the poll ticker, that freezes the entire worker (no more claims, no more
+	// sweeps) rather than just failing the one recording.
+	transcribeCallTimeout = 3 * time.Minute
+	llmCallTimeout        = 2 * time.Minute
+
 	poorQualityAvgLogprob      = -1.0
 	poorQualityNoSpeechProb    = 0.6
 	poorQualitySegmentFraction = 0.5
@@ -49,9 +56,11 @@ const (
 	actionProposalMaxTokens = 8192
 	hiveContextDays         = 90
 
-	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. Call update_hive_status whenever the beekeeper states a status flag (ready for harvest, queen needs replacing, needs food, box needs adding) or a disease, even if it already matches the hive's current context and so wouldn't change anything — the beekeeper is confirming it, and that confirmation is itself worth a record; don't treat 'the value already matches' as a reason to skip the call. If the transcript doesn't describe any loggable action at all — no observation, no status flag, nothing worth confirming — don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean."
+	actionProposalSystemPrompt = "You propose logging actions from a beekeeper's voice note about one specific hive — the hive is already fixed, don't try to identify it. You are given the transcript's language, the transcript itself, and that hive's current context (type, status flags, diseases, and its most recent inspection's frame counts, if any). Call any of the available tools the transcript actually describes — zero, one, or several, one call per distinct topic (e.g. an inspection and a feeding are two separate calls). Only fill in a field if the beekeeper actually said something it maps to; leave every other field unset rather than guessing. Frame-count deltas (the frames_added_* fields) should be computed relative to the hive's last known frame counts given in its context, if there are any. Call update_hive_status whenever the beekeeper states a status flag (ready for harvest, queen needs replacing, needs food, box needs adding) or a disease, even if it already matches the hive's current context and so wouldn't change anything — the beekeeper is confirming it, and that confirmation is itself worth a record; don't treat 'the value already matches' as a reason to skip the call. If the transcript doesn't describe any loggable action at all — no observation, no status flag, nothing worth confirming — don't call any tool. You're also given this beekeeper's previously used medicine names, doses, feed types, and amounts — if what they said in the transcript clearly refers to one of those (allowing for minor transcription noise or rephrasing), use that exact existing value instead of a new spelling or synonym, so records stay consistent. Only fall back to a new value if nothing in the list matches what was actually said — never force a known value onto something the beekeeper didn't mean. Every freeform text field (see each tool's notes field) must be written in the transcript's stated language, not English, regardless of the language used elsewhere in this prompt or in the tool/field names themselves."
 
-	notesFieldDescription = "Freeform notes covering anything the beekeeper said that isn't already captured by this tool's other fields — don't restate what a structured field already holds. Write it as clean, grammatically correct prose in the beekeeper's own language, fixing the disfluencies and run-ons typical of dictated speech, not a verbatim transcript fragment. Omit entirely if there's nothing left to add."
+	notesFieldDescription = "Freeform notes covering anything the beekeeper said that isn't already captured by this tool's other fields — don't restate what a structured field already holds. Write it as clean, grammatically correct prose in the transcript's own language (see the language stated alongside the transcript — never translate to English), fixing the disfluencies and run-ons typical of dictated speech, not a verbatim transcript fragment. Omit entirely if there's nothing left to add."
+
+	unknownTranscriptLanguage = "unknown (infer from the transcript text itself)"
 )
 
 type VoiceRecordingRepository interface {
@@ -170,7 +179,9 @@ func (w *VoiceWorker) ProcessNext(ctx context.Context) (processed bool, err erro
 	}
 	defer file.Close()
 
-	result, err := w.transcriber.Transcribe(ctx, file, *rec.AudioPath)
+	transcribeCtx, cancel := context.WithTimeout(ctx, transcribeCallTimeout)
+	result, err := w.transcriber.Transcribe(transcribeCtx, file, *rec.AudioPath)
+	cancel()
 	if err != nil {
 		return true, w.handleTranscribeError(ctx, rec, err)
 	}
@@ -196,7 +207,7 @@ func (w *VoiceWorker) ProcessNext(ctx context.Context) (processed bool, err erro
 		hiveID = resolved.HiveID
 	}
 
-	if err := w.proposeActions(ctx, rec, *hiveID, result.Text); err != nil {
+	if err := w.proposeActions(ctx, rec, *hiveID, result.Text, result.Language); err != nil {
 		return true, w.recordings.MarkFailed(ctx, rec.ID, err.Error())
 	}
 
@@ -330,7 +341,9 @@ func (w *VoiceWorker) resolveHive(ctx context.Context, rec *model.VoiceRecording
 		return nil, fmt.Errorf("marshal hive options: %w", err)
 	}
 
-	resp, err := w.llmClient.CreateChatCompletion(ctx, llm.ChatCompletionRequest{
+	llmCtx, cancel := context.WithTimeout(ctx, llmCallTimeout)
+	defer cancel()
+	resp, err := w.llmClient.CreateChatCompletion(llmCtx, llm.ChatCompletionRequest{
 		Model:     w.model,
 		MaxTokens: hiveResolutionMaxTokens,
 		Messages: []llm.ChatMessage{
@@ -532,6 +545,7 @@ type knownValues struct {
 }
 
 type proposeActionsRequest struct {
+	Language    string            `json:"language"`
 	Transcript  string            `json:"transcript"`
 	HiveContext hiveActionContext `json:"hive_context"`
 	KnownValues knownValues       `json:"known_values,omitempty"`
@@ -558,7 +572,7 @@ func (w *VoiceWorker) fetchKnownValues(ctx context.Context, userID int64) knownV
 	return kv
 }
 
-func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecording, hiveID int64, transcript string) error {
+func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecording, hiveID int64, transcript, language string) error {
 	summary, err := w.hives.GetHiveSummary(ctx, rec.UserID, hiveID, hiveContextDaysPtr())
 	if err != nil {
 		return fmt.Errorf("get hive summary: %w", err)
@@ -573,16 +587,23 @@ func (w *VoiceWorker) proposeActions(ctx context.Context, rec *model.VoiceRecord
 		return fmt.Errorf("marshal hive context: %w", err)
 	}
 
-	resp, err := w.llmClient.CreateChatCompletion(ctx, llm.ChatCompletionRequest{
+	languageLabel := language
+	if languageLabel == "" {
+		languageLabel = unknownTranscriptLanguage
+	}
+
+	llmCtx, cancel := context.WithTimeout(ctx, llmCallTimeout)
+	defer cancel()
+	resp, err := w.llmClient.CreateChatCompletion(llmCtx, llm.ChatCompletionRequest{
 		Model:     w.model,
 		MaxTokens: actionProposalMaxTokens,
 		Messages: []llm.ChatMessage{
 			{Role: "system", Content: actionProposalSystemPrompt},
-			{Role: "user", Content: fmt.Sprintf("Transcript: %q\n\nContext:\n%s", transcript, promptContext)},
+			{Role: "user", Content: fmt.Sprintf("Transcript language: %s\nTranscript: %q\n\nContext:\n%s", languageLabel, transcript, promptContext)},
 		},
 		Tools: actionProposalTools(),
 	})
-	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Transcript: transcript, HiveContext: hiveContext, KnownValues: known}, resp, err)
+	w.logLLMCall(ctx, rec.ID, model.VoiceLLMCallPhaseProposeActions, proposeActionsRequest{Language: language, Transcript: transcript, HiveContext: hiveContext, KnownValues: known}, resp, err)
 	if err != nil {
 		return fmt.Errorf("propose actions: %w", err)
 	}
